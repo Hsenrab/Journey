@@ -5,6 +5,7 @@ import {
   Button,
   Card,
   CardContent,
+  Chip,
   FormControl,
   InputLabel,
   MenuItem,
@@ -15,6 +16,7 @@ import {
 } from '@mui/material'
 import { locations } from '../data/locations'
 import type { Status } from '../domain/location'
+import { statusOrder } from '../domain/location'
 import { useJourney } from '../features/journey/JourneyContext'
 
 const labels: Record<Status, string> = {
@@ -23,8 +25,6 @@ const labels: Record<Status, string> = {
   silver: 'Silver',
   gold: 'Gold',
 }
-const order: Status[] = ['not-started', 'bronze', 'silver', 'gold']
-
 export default function LocationDetails() {
   const { id = '' } = useParams()
   const location = locations.find((item) => item.locationId === id)
@@ -36,7 +36,16 @@ export default function LocationDetails() {
   const [photos, setPhotos] = useState(visit?.photos.join('\n') ?? '')
   const [saved, setSaved] = useState(false)
 
-  if (!location) return <Alert severity="error">Location not found.</Alert>
+  if (!location) {
+    return (
+      <Stack spacing={3}>
+        <Button component={Link} to="/locations">
+          ← All locations
+        </Button>
+        <Alert severity="error">Location not found.</Alert>
+      </Stack>
+    )
+  }
 
   return (
     <Stack spacing={3}>
@@ -48,6 +57,31 @@ export default function LocationDetails() {
       <Button component="a" href={location.url} target="_blank" rel="noreferrer">
         National Trust visitor information
       </Button>
+      <Card>
+        <CardContent>
+          <Stack spacing={1}>
+            <Typography variant="h6">Status and visit history</Typography>
+            <Chip
+              label={labels[visit?.status ?? 'not-started']}
+              color={visit?.status === 'gold' ? 'success' : 'default'}
+              sx={{ alignSelf: 'flex-start' }}
+            />
+            {visit ? (
+              <>
+                <Typography color="text.secondary">Last visited: {visit.date}</Typography>
+                {visit.notes && <Typography>Notes: {visit.notes}</Typography>}
+                {visit.photos.length > 0 ? (
+                  <Typography color="text.secondary">Photo references: {visit.photos.join(', ')}</Typography>
+                ) : (
+                  <Typography color="text.secondary">No photo references recorded.</Typography>
+                )}
+              </>
+            ) : (
+              <Typography color="text.secondary">No visit logged yet.</Typography>
+            )}
+          </Stack>
+        </CardContent>
+      </Card>
       <Card>
         <CardContent>
           <Stack
@@ -72,7 +106,7 @@ export default function LocationDetails() {
             <FormControl>
               <InputLabel>Completion level</InputLabel>
               <Select label="Completion level" value={status} onChange={(e) => setStatus(e.target.value as Status)}>
-                {order.slice(1).map((item) => (
+                {statusOrder.slice(1).map((item) => (
                   <MenuItem key={item} value={item}>
                     {labels[item]}
                   </MenuItem>

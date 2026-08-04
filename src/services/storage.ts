@@ -1,8 +1,7 @@
 import { z } from 'zod'
-import type { Status } from '../domain/location'
+import type { JourneyData, Visit } from '../domain/location'
 
-export type Visit = { status: Status; date: string; notes: string; photos: string[] }
-export type JourneyData = Record<string, Visit>
+export type { JourneyData, Visit }
 
 const StatusSchema = z.enum(['not-started', 'bronze', 'silver', 'gold'])
 const DataSchema = z.record(
