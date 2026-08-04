@@ -11,9 +11,9 @@ describe('location list', () => {
     render(<App />)
 
     await user.click(screen.getByRole('link', { name: 'Locations' }))
-    await user.type(screen.getByLabelText('Search locations'), 'Lyme')
+    await user.type(screen.getByLabelText('Search locations'), 'Chedworth')
 
-    expect(screen.getByText('Lyme')).toBeInTheDocument()
-    expect(screen.queryByText('Dunham Massey')).not.toBeInTheDocument()
+    expect(screen.getByText('Chedworth Roman Villa')).toBeInTheDocument()
+    expect(screen.queryByText('Dyrham Park')).not.toBeInTheDocument()
   })
 })

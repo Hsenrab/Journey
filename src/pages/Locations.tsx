@@ -31,22 +31,25 @@ export default function Locations() {
   const [query, setQuery] = useState('')
   const [status, setStatus] = useState('all')
   const [sort, setSort] = useState('name')
+  const [maxDistance, setMaxDistance] = useState('all')
   const list = useMemo(
     () =>
       locations
         .filter((location) => {
-          const visitStatus = data[location.id]?.status ?? 'not-started'
+          const visitStatus = data[location.locationId]?.status ?? 'not-started'
           return (
             (status === 'all' || visitStatus === status) &&
-            `${location.name} ${location.county} ${location.type}`.toLowerCase().includes(query.toLowerCase())
+            (maxDistance === 'all' || location.travel.distanceMiles <= Number(maxDistance)) &&
+            `${location.name} ${location.area} ${location.category}`.toLowerCase().includes(query.toLowerCase())
           )
         })
-        .sort((a, b) =>
-          sort === 'name'
+        .sort((a, b) => {
+          if (sort === 'distance') return a.travel.distanceMiles - b.travel.distanceMiles
+          return sort === 'name'
             ? a.name.localeCompare(b.name)
-            : (data[b.id]?.status ?? 'not-started').localeCompare(data[a.id]?.status ?? 'not-started'),
-        ),
-    [data, query, sort, status],
+            : (data[b.locationId]?.status ?? 'not-started').localeCompare(data[a.locationId]?.status ?? 'not-started')
+        }),
+    [data, maxDistance, query, sort, status],
   )
 
   return (
@@ -70,6 +73,17 @@ export default function Locations() {
           <Select label="Sort" value={sort} onChange={(e) => setSort(e.target.value)}>
             <MenuItem value="name">Name</MenuItem>
             <MenuItem value="status">Progress</MenuItem>
+            <MenuItem value="distance">Distance from Brockworth</MenuItem>
+          </Select>
+        </FormControl>
+        <FormControl>
+          <InputLabel>Max distance</InputLabel>
+          <Select label="Max distance" value={maxDistance} onChange={(e) => setMaxDistance(e.target.value)}>
+            <MenuItem value="all">Any distance</MenuItem>
+            <MenuItem value="25">Within 25 miles</MenuItem>
+            <MenuItem value="50">Within 50 miles</MenuItem>
+            <MenuItem value="100">Within 100 miles</MenuItem>
+            <MenuItem value="200">Within 200 miles</MenuItem>
           </Select>
         </FormControl>
       </Stack>
@@ -81,18 +95,21 @@ export default function Locations() {
         }}
       >
         {list.map((location) => (
-          <Card key={location.id}>
+          <Card key={location.locationId}>
             <CardContent>
               <Stack spacing={1}>
                 <Typography variant="h6">{location.name}</Typography>
                 <Typography color="text.secondary">
-                  {location.county} · {location.type}
+                  {location.area} · {location.category}
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  {location.travel.distanceMiles} miles from Brockworth (~{location.travel.driveTimeMinutes} min drive)
                 </Typography>
                 <Chip
-                  label={labels[data[location.id]?.status ?? 'not-started']}
-                  color={data[location.id]?.status === 'gold' ? 'success' : 'default'}
+                  label={labels[data[location.locationId]?.status ?? 'not-started']}
+                  color={data[location.locationId]?.status === 'gold' ? 'success' : 'default'}
                 />
-                <Button component={Link} to={`/locations/${location.id}`}>
+                <Button component={Link} to={`/locations/${location.locationId}`}>
                   View details
                 </Button>
               </Stack>

@@ -1,10 +1,67 @@
+import { z } from 'zod'
+
 export type Status = 'not-started' | 'bronze' | 'silver' | 'gold'
 
-export type Location = {
-  id: string
-  name: string
-  county: string
-  type: string
-  description: string
-  url: string
+/**
+ * Categories of qualifying National Trust visitor destination.
+ * Cafés only, shops only, offices, holiday cottages, standalone car parks,
+ * non-public properties and non-qualifying tenant attractions are excluded.
+ */
+export const LocationCategorySchema = z.enum([
+  'House and garden',
+  'Garden',
+  'Countryside',
+  'Historic house',
+  'Mill',
+  'Roman villa',
+  'Estate and parkland',
+  'Castle',
+  'Nature reserve',
+  'Historic building',
+  'Coastline',
+])
+export type LocationCategory = z.infer<typeof LocationCategorySchema>
+
+/**
+ * Travel reference approach: distance and drive time are measured, in a
+ * straight line and by typical road route respectively, from Brockworth,
+ * Gloucester (GL3), the reference starting point for this app. The catalogue
+ * is not restricted to locations near Brockworth — it aims to include all
+ * qualifying National Trust properties nationally — but every record stores
+ * its distance/drive time from Brockworth so the location list can be
+ * filtered or sorted by proximity (see README.md "Travel reference point").
+ */
+export const LocationTravelSchema = z.object({
+  distanceMiles: z.number().nonnegative(),
+  driveTimeMinutes: z.number().nonnegative(),
+})
+export type LocationTravel = z.infer<typeof LocationTravelSchema>
+
+/**
+ * A qualifying National Trust visitor destination.
+ *
+ * `locationId` is a stable, immutable identifier and must never be derived
+ * from, or replaced by, the (mutable) display `name`.
+ */
+export const LocationSchema = z.object({
+  locationId: z.string().min(1),
+  name: z.string().min(1),
+  area: z.string().min(1),
+  category: LocationCategorySchema,
+  travel: LocationTravelSchema,
+  url: z.string().url(),
+  notes: z.string(),
+  createdAt: z.iso.date(),
+  updatedAt: z.iso.date(),
+})
+export type Location = z.infer<typeof LocationSchema>
+
+export const LocationListSchema = z.array(LocationSchema)
+
+/**
+ * Parses and validates a raw location list (e.g. imported JSON), throwing a
+ * descriptive ZodError if any record is invalid. Never mutates the input.
+ */
+export function parseLocations(value: unknown): Location[] {
+  return LocationListSchema.parse(value)
 }
