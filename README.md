@@ -37,7 +37,7 @@ Each location record has:
 
 ### Travel reference point
 
-The committed catalogue contains 126 places with an estimated one-way drive time of no more than
+The committed catalogue contains 138 places with an estimated one-way drive time of no more than
 150 minutes from **Brockworth, Gloucester** (GL3). `travel.distanceMiles` is an approximate road
 distance used for sorting and display, while `travel.driveTimeMinutes` determines inclusion in the
 challenge. These indicative figures support rough trip planning and are not turn-by-turn directions.

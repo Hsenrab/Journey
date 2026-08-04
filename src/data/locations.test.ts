@@ -3,7 +3,7 @@ import { locations, MAX_DRIVE_TIME_MINUTES } from './locations'
 
 describe('location catalogue', () => {
   it('contains a substantially expanded catalogue', () => {
-    expect(locations).toHaveLength(126)
+    expect(locations).toHaveLength(138)
   })
 
   it('keeps unique stable ids and National Trust URLs', () => {
