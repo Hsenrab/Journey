@@ -1,25 +1,40 @@
 name: Deploy Azure Static Web App
+
 on:
   push:
     branches: [main]
   pull_request:
     types: [opened, synchronize, reopened]
     branches: [main]
+
 permissions:
   contents: read
   pull-requests: write
   id-token: write
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   infra:
     runs-on: ubuntu-latest
+    outputs:
+      deployment_token: ${{ steps.deploy_bicep.outputs.deploymentToken }}
     steps:
-      - uses: actions/checkout@v6
-      - uses: azure/login@v2
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Azure login (OIDC)
+        uses: azure/login@v2
         with:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-      - uses: azure/arm-deploy@v2
+
+      - name: Deploy Bicep (provision Static Web App)
+        id: deploy_bicep
+        uses: azure/arm-deploy@v2
         with:
           scope: resourcegroup
           resourceGroupName: ${{ secrets.AZURE_RESOURCE_GROUP }}
@@ -28,15 +43,32 @@ jobs:
             staticWebAppName=${{ secrets.AZURE_STATIC_WEB_APP_NAME }}
             repositoryUrl=${{ github.server_url }}/${{ github.repository }}
             repositoryBranch=main
+
+      - name: Store deployment token as repo secret
+        if: github.event_name == 'push'
+        env:
+          GH_TOKEN: ${{ secrets.GH_ACTIONS_ADMIN_TOKEN }}
+          DEPLOYMENT_TOKEN: ${{ steps.deploy_bicep.outputs.deploymentToken }}
+        run: |
+          if [ -z "${GH_TOKEN}" ]; then
+            echo "::warning::GH_ACTIONS_ADMIN_TOKEN secret is not set; skipping automatic update of AZURE_STATIC_WEB_APPS_API_TOKEN. Set it manually or add a PAT with 'Secrets: write' permission as GH_ACTIONS_ADMIN_TOKEN."
+            exit 0
+          fi
+          echo "${DEPLOYMENT_TOKEN}" | gh secret set AZURE_STATIC_WEB_APPS_API_TOKEN --repo "${{ github.repository }}"
+
   deploy:
     needs: infra
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
-      - uses: Azure/static-web-apps-deploy@v1
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Deploy to Azure Static Web Apps
+        uses: Azure/static-web-apps-deploy@v1
         with:
-          azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN }}
+          azure_static_web_apps_api_token: ${{ needs.infra.outputs.deployment_token || secrets.AZURE_STATIC_WEB_APPS_API_TOKEN }}
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           action: upload
           app_location: /
           output_location: dist
+

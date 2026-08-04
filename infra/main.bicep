@@ -16,3 +16,6 @@ resource staticWebApp 'Microsoft.Web/staticSites@2023-12-01' = {
     }
   }
 }
+
+#disable-next-line outputs-should-not-contain-secrets
+output deploymentToken string = staticWebApp.listSecrets().properties.apiKey
