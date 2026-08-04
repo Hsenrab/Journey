@@ -58,8 +58,14 @@ export default function Locations() {
       <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
         <TextField label="Search locations" value={query} onChange={(e) => setQuery(e.target.value)} fullWidth />
         <FormControl>
-          <InputLabel>Status</InputLabel>
-          <Select label="Status" value={status} onChange={(e) => setStatus(e.target.value)}>
+          <InputLabel id="location-status-label">Status</InputLabel>
+          <Select
+            id="location-status"
+            labelId="location-status-label"
+            label="Status"
+            value={status}
+            onChange={(e) => setStatus(e.target.value)}
+          >
             <MenuItem value="all">All statuses</MenuItem>
             {order.map((s) => (
               <MenuItem key={s} value={s}>
@@ -69,21 +75,33 @@ export default function Locations() {
           </Select>
         </FormControl>
         <FormControl>
-          <InputLabel>Sort</InputLabel>
-          <Select label="Sort" value={sort} onChange={(e) => setSort(e.target.value)}>
+          <InputLabel id="location-sort-label">Sort</InputLabel>
+          <Select
+            id="location-sort"
+            labelId="location-sort-label"
+            label="Sort"
+            value={sort}
+            onChange={(e) => setSort(e.target.value)}
+          >
             <MenuItem value="name">Name</MenuItem>
             <MenuItem value="status">Progress</MenuItem>
-            <MenuItem value="distance">Distance from Brockworth</MenuItem>
+            <MenuItem value="distance">Distance (nearest first)</MenuItem>
           </Select>
         </FormControl>
         <FormControl>
-          <InputLabel>Max distance</InputLabel>
-          <Select label="Max distance" value={maxDistance} onChange={(e) => setMaxDistance(e.target.value)}>
+          <InputLabel id="maximum-driving-distance-label">Maximum driving distance</InputLabel>
+          <Select
+            id="maximum-driving-distance"
+            labelId="maximum-driving-distance-label"
+            label="Maximum driving distance"
+            value={maxDistance}
+            onChange={(e) => setMaxDistance(e.target.value)}
+          >
             <MenuItem value="all">Any distance</MenuItem>
-            <MenuItem value="25">Within 25 miles</MenuItem>
-            <MenuItem value="50">Within 50 miles</MenuItem>
-            <MenuItem value="100">Within 100 miles</MenuItem>
-            <MenuItem value="200">Within 200 miles</MenuItem>
+            <MenuItem value="25">Up to 25 miles</MenuItem>
+            <MenuItem value="50">Up to 50 miles</MenuItem>
+            <MenuItem value="100">Up to 100 miles</MenuItem>
+            <MenuItem value="200">Up to 200 miles</MenuItem>
           </Select>
         </FormControl>
       </Stack>
@@ -103,7 +121,8 @@ export default function Locations() {
                   {location.area} · {location.category}
                 </Typography>
                 <Typography variant="body2" color="text.secondary">
-                  {location.travel.distanceMiles} miles from Brockworth (~{location.travel.driveTimeMinutes} min drive)
+                  Driving distance: {location.travel.distanceMiles} miles from Brockworth (~
+                  {location.travel.driveTimeMinutes} min drive)
                 </Typography>
                 <Chip
                   label={labels[data[location.locationId]?.status ?? 'not-started']}
