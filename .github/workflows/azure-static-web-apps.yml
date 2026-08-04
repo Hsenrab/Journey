@@ -63,6 +63,7 @@ jobs:
           resourceGroupName: ${{ secrets.AZURE_RESOURCE_GROUP }}
           template: ./infra/main.bicep
           parameters: >
+            location=westeurope
             staticWebAppName=${{ secrets.AZURE_STATIC_WEB_APP_NAME }}
             repositoryUrl=${{ github.server_url }}/${{ github.repository }}
             repositoryBranch=main
