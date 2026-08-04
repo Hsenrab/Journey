@@ -2,10 +2,8 @@ name: Deploy Azure Static Web App
 
 on:
   push:
-    branches: [main]
-  pull_request:
-    types: [opened, synchronize, reopened]
-    branches: [main]
+    branches: ['**']
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -19,7 +17,7 @@ concurrency:
 jobs:
   infra:
     runs-on: ubuntu-latest
-    environment: azure-test
+    environment: ${{ github.ref == 'refs/heads/main' && 'azure-prod' || 'azure-test' }}
     outputs:
       deployment_token: ${{ steps.deploy_bicep.outputs.deploymentToken }}
     steps:
@@ -66,10 +64,9 @@ jobs:
             location=westeurope
             staticWebAppName=${{ secrets.AZURE_STATIC_WEB_APP_NAME }}
             repositoryUrl=${{ github.server_url }}/${{ github.repository }}
-            repositoryBranch=main
+            repositoryBranch=${{ github.ref_name }}
 
       - name: Store deployment token as repo secret
-        if: github.event_name == 'push'
         env:
           GH_TOKEN: ${{ secrets.GH_ACTIONS_ADMIN_TOKEN }}
           DEPLOYMENT_TOKEN: ${{ steps.deploy_bicep.outputs.deploymentToken }}
@@ -83,7 +80,7 @@ jobs:
   deploy:
     needs: infra
     runs-on: ubuntu-latest
-    environment: azure-test
+    environment: ${{ github.ref == 'refs/heads/main' && 'azure-prod' || 'azure-test' }}
     steps:
       - name: Checkout
         uses: actions/checkout@v6
