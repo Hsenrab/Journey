@@ -26,6 +26,28 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
 
+      - name: Diagnose Azure IDs
+        shell: bash
+        env:
+          TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+          SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+        run: |
+          show_id() {
+            local name="$1"
+            local value="$2"
+
+            if [ -z "$value" ]; then
+              echo "$name is empty"
+            else
+              echo "$name length: ${#value}"
+              echo "$name prefix: ${value:0:8}"
+              echo "$name suffix: ${value: -4}"
+            fi
+          }
+
+          show_id "Tenant ID" "$TENANT_ID"
+          show_id "Subscription ID" "$SUBSCRIPTION_ID"
+
       - name: Azure login (OIDC)
         uses: azure/login@v2
         with:
