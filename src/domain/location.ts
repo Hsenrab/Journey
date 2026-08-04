@@ -15,15 +15,21 @@ export const LocationCategorySchema = z.enum([
   'Mill',
   'Roman villa',
   'Estate and parkland',
+  'Castle',
+  'Nature reserve',
+  'Historic building',
+  'Coastline',
 ])
 export type LocationCategory = z.infer<typeof LocationCategorySchema>
 
 /**
- * Travel boundary approach: distance and drive time are measured, in a straight
- * line and by typical road route respectively, from Brockworth, Gloucester
- * (GL3), the reference starting point for this challenge. A location only
- * qualifies for the catalogue if its `driveTimeMinutes` falls within the
- * documented boundary (see README.md "Travel boundary").
+ * Travel reference approach: distance and drive time are measured, in a
+ * straight line and by typical road route respectively, from Brockworth,
+ * Gloucester (GL3), the reference starting point for this app. The catalogue
+ * is not restricted to locations near Brockworth — it aims to include all
+ * qualifying National Trust properties nationally — but every record stores
+ * its distance/drive time from Brockworth so the location list can be
+ * filtered or sorted by proximity (see README.md "Travel reference point").
  */
 export const LocationTravelSchema = z.object({
   distanceMiles: z.number().nonnegative(),

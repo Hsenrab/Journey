@@ -75,9 +75,10 @@ export default function Settings() {
       <Stack spacing={2}>
         <Typography variant="h5">Challenge rules</Typography>
         <Typography>
-          Locations are publicly accessible National Trust visitor destinations with their own visitor information page
-          within a documented travel boundary of Brockworth, Gloucester. Cafés, shops, offices, holiday cottages,
-          standalone car parks and non-qualifying tenant attractions are excluded.
+          Locations are publicly accessible National Trust visitor destinations with their own visitor information page,
+          anywhere in the country. Distance and drive time from Brockworth, Gloucester are shown on each location so you
+          can filter or sort by proximity. Cafés, shops, offices, holiday cottages, standalone car parks and
+          non-qualifying tenant attractions are excluded.
         </Typography>
         {order.map((status) => (
           <Card key={status}>

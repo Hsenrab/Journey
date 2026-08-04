@@ -2,7 +2,7 @@
 
 # National Trust Tracker
 
-A private, browser-only tracker for the qualifying National Trust visitor destinations within a documented travel boundary of Brockworth, Gloucester.
+A private, browser-only tracker for qualifying National Trust visitor destinations, with distance and drive time from Brockworth, Gloucester so you can filter or sort the catalogue by proximity.
 
 ## Run locally
 
@@ -30,21 +30,22 @@ Each location record has:
 | `name`       | Display name of the property.                                               |
 | `area`       | County or area, e.g. "Gloucestershire".                                     |
 | `category`   | One of a fixed set of qualifying categories (see "Qualifying rules" below). |
-| `travel`     | `{ distanceMiles, driveTimeMinutes }` — see "Travel boundary" below.        |
+| `travel`     | `{ distanceMiles, driveTimeMinutes }` — see "Travel reference point" below. |
 | `url`        | Official National Trust visitor information page for the property.          |
 | `notes`      | Free-text description of the property.                                      |
 | `createdAt`  | ISO date the record was added to the catalogue.                             |
 | `updatedAt`  | ISO date the record was last updated.                                       |
 
-### Travel boundary
+### Travel reference point
 
-The reference starting point for this challenge is **Brockworth, Gloucester** (GL3).
-`travel.distanceMiles` is the straight-line distance from Brockworth to the location, and
-`travel.driveTimeMinutes` is the typical road drive time. A location only qualifies for
-the catalogue if it is within a reasonable day-trip drive time of Brockworth (in
-practice, under an hour). These figures are indicative, sourced from public mapping
-services, and are only used to decide qualification and offer rough trip planning — they
-are not turn-by-turn directions.
+The catalogue aims to include all qualifying National Trust properties nationally — it is
+not restricted to a travel boundary. Each record stores its distance and drive time from
+**Brockworth, Gloucester** (GL3), the reference starting point for this app, so the
+**Locations** page can filter and sort by proximity. `travel.distanceMiles` is the
+straight-line distance from Brockworth to the location, and `travel.driveTimeMinutes` is
+the typical road drive time. These figures are indicative, sourced from public mapping
+services, and are only used for filtering/sorting and rough trip planning — they are not
+turn-by-turn directions.
 
 ### Qualifying rules
 
