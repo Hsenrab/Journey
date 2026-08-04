@@ -19,6 +19,7 @@ concurrency:
 jobs:
   infra:
     runs-on: ubuntu-latest
+    environment: azure-test
     outputs:
       deployment_token: ${{ steps.deploy_bicep.outputs.deploymentToken }}
     steps:
@@ -59,6 +60,7 @@ jobs:
   deploy:
     needs: infra
     runs-on: ubuntu-latest
+    environment: azure-test
     steps:
       - name: Checkout
         uses: actions/checkout@v6
