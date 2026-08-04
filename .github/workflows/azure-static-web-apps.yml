@@ -20,4 +20,3 @@ jobs:
           action: upload
           app_location: /
           output_location: dist
-          skip_deploy_on_missing_secrets: true
