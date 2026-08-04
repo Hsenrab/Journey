@@ -14,17 +14,17 @@ productively in this repository.
 
 ## Commands
 
-| Command                | Purpose                                   |
-| ----------------------- | ------------------------------------------ |
-| `npm install`           | Install dependencies                       |
-| `npm run dev`           | Start the Vite dev server                  |
-| `npm run build`         | Type-check (`tsc -b`) and build for production |
-| `npm run typecheck`     | Type-check only, no emit                   |
-| `npm run lint`          | Run Oxlint                                 |
-| `npm run format`        | Format the repo with Prettier              |
-| `npm run format:check`  | Check formatting without writing changes   |
-| `npm test`              | Run the Vitest test suite                  |
-| `npm run preview`       | Preview the production build locally       |
+| Command                | Purpose                                        |
+| ---------------------- | ---------------------------------------------- |
+| `npm install`          | Install dependencies                           |
+| `npm run dev`          | Start the Vite dev server                      |
+| `npm run build`        | Type-check (`tsc -b`) and build for production |
+| `npm run typecheck`    | Type-check only, no emit                       |
+| `npm run lint`         | Run Oxlint                                     |
+| `npm run format`       | Format the repo with Prettier                  |
+| `npm run format:check` | Check formatting without writing changes       |
+| `npm test`             | Run the Vitest test suite                      |
+| `npm run preview`      | Preview the production build locally           |
 
 ## Folder structure
 
