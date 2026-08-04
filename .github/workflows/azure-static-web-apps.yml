@@ -2,49 +2,32 @@ name: Deploy Azure Static Web App
 
 on:
   push:
-    branches: ['**']
+    branches: [main]
   workflow_dispatch:
 
 permissions:
   contents: read
-  pull-requests: write
   id-token: write
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
+  validate:
+    name: Validate
+    uses: ./.github/workflows/ci.yml
+
   infra:
+    name: Provision infrastructure
+    needs: validate
     runs-on: ubuntu-latest
-    environment: ${{ github.ref == 'refs/heads/main' && 'azure-prod' || 'azure-test' }}
+    environment: azure-prod
     outputs:
-      deployment_token: ${{ steps.deploy_bicep.outputs.deploymentToken }}
+      application_url: ${{ steps.deploy_bicep.outputs.applicationUrl }}
     steps:
       - name: Checkout
         uses: actions/checkout@v6
-
-      - name: Diagnose Azure IDs
-        shell: bash
-        env:
-          TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
-          SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-        run: |
-          show_id() {
-            local name="$1"
-            local value="$2"
-
-            if [ -z "$value" ]; then
-              echo "$name is empty"
-            else
-              echo "$name length: ${#value}"
-              echo "$name prefix: ${value:0:8}"
-              echo "$name suffix: ${value: -4}"
-            fi
-          }
-
-          show_id "Tenant ID" "$TENANT_ID"
-          show_id "Subscription ID" "$SUBSCRIPTION_ID"
 
       - name: Azure login (OIDC)
         uses: azure/login@v2
@@ -61,35 +44,75 @@ jobs:
           resourceGroupName: ${{ secrets.AZURE_RESOURCE_GROUP }}
           template: ./infra/main.bicep
           parameters: >
-            location=westeurope
+            location=${{ vars.AZURE_LOCATION || 'westeurope' }}
             staticWebAppName=${{ secrets.AZURE_STATIC_WEB_APP_NAME }}
+            environmentName=prod
+            owner=${{ vars.AZURE_RESOURCE_OWNER || 'journey-maintainers' }}
             repositoryUrl=${{ github.server_url }}/${{ github.repository }}
             repositoryBranch=${{ github.ref_name }}
 
-      - name: Store deployment token as repo secret
+      - name: Publish application URL to the job summary
         env:
-          GH_TOKEN: ${{ secrets.GH_ACTIONS_ADMIN_TOKEN }}
-          DEPLOYMENT_TOKEN: ${{ steps.deploy_bicep.outputs.deploymentToken }}
+          APPLICATION_URL: ${{ steps.deploy_bicep.outputs.applicationUrl }}
         run: |
-          if [ -z "${GH_TOKEN}" ]; then
-            echo "::warning::GH_ACTIONS_ADMIN_TOKEN secret is not set; skipping automatic update of AZURE_STATIC_WEB_APPS_API_TOKEN. Set it manually or add a PAT with 'Secrets: write' permission as GH_ACTIONS_ADMIN_TOKEN."
-            exit 0
-          fi
-          echo "${DEPLOYMENT_TOKEN}" | gh secret set AZURE_STATIC_WEB_APPS_API_TOKEN --repo "${{ github.repository }}"
+          echo "### Azure Static Web App" >> "$GITHUB_STEP_SUMMARY"
+          echo "Application URL: ${APPLICATION_URL}" >> "$GITHUB_STEP_SUMMARY"
 
   deploy:
+    name: Deploy application
     needs: infra
     runs-on: ubuntu-latest
-    environment: ${{ github.ref == 'refs/heads/main' && 'azure-prod' || 'azure-test' }}
+    environment:
+      name: azure-prod
+      url: ${{ needs.infra.outputs.application_url }}
     steps:
       - name: Checkout
         uses: actions/checkout@v6
 
+      - name: Azure login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Read deployment token
+        id: swa_token
+        env:
+          RESOURCE_GROUP: ${{ secrets.AZURE_RESOURCE_GROUP }}
+          STATIC_WEB_APP_NAME: ${{ secrets.AZURE_STATIC_WEB_APP_NAME }}
+        run: |
+          set -euo pipefail
+          token="$(az staticwebapp secrets list \
+            --name "${STATIC_WEB_APP_NAME}" \
+            --resource-group "${RESOURCE_GROUP}" \
+            --query 'properties.apiKey' --output tsv)"
+          echo "::add-mask::${token}"
+          echo "token=${token}" >> "$GITHUB_OUTPUT"
+
       - name: Deploy to Azure Static Web Apps
         uses: Azure/static-web-apps-deploy@v1
         with:
-          azure_static_web_apps_api_token: ${{ needs.infra.outputs.deployment_token || secrets.AZURE_STATIC_WEB_APPS_API_TOKEN }}
+          azure_static_web_apps_api_token: ${{ steps.swa_token.outputs.token }}
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           action: upload
           app_location: /
           output_location: dist
+
+      - name: Verify deployment
+        env:
+          APPLICATION_URL: ${{ needs.infra.outputs.application_url }}
+        run: |
+          set -euo pipefail
+          for attempt in 1 2 3 4 5; do
+            status="$(curl --silent --show-error --location --max-time 30 \
+              --output /dev/null --write-out '%{http_code}' "${APPLICATION_URL}" || echo '000')"
+            echo "Attempt ${attempt}: HTTP ${status}"
+            if [ "${status}" = "200" ]; then
+              echo "Deployment verified at ${APPLICATION_URL}" >> "$GITHUB_STEP_SUMMARY"
+              exit 0
+            fi
+            sleep 15
+          done
+          echo "::error::Deployment verification failed for ${APPLICATION_URL}"
+          exit 1
