@@ -1,16 +1,19 @@
 import { z } from 'zod'
-import type { Status } from './data'
+import type { Status } from '../domain/location'
 
 export type Visit = { status: Status; date: string; notes: string; photos: string[] }
 export type JourneyData = Record<string, Visit>
 
 const StatusSchema = z.enum(['not-started', 'bronze', 'silver', 'gold'])
-const DataSchema = z.record(z.string(), z.object({
-  status: StatusSchema,
-  date: z.string(),
-  notes: z.string(),
-  photos: z.array(z.string()),
-}))
+const DataSchema = z.record(
+  z.string(),
+  z.object({
+    status: StatusSchema,
+    date: z.string(),
+    notes: z.string(),
+    photos: z.array(z.string()),
+  }),
+)
 const key = 'national-trust-tracker-v1'
 
 export function load(): JourneyData {

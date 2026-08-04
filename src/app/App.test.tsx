@@ -10,6 +10,7 @@ describe('location list', () => {
     const user = userEvent.setup()
     render(<App />)
 
+    await user.click(screen.getByRole('link', { name: 'Locations' }))
     await user.type(screen.getByLabelText('Search locations'), 'Lyme')
 
     expect(screen.getByText('Lyme')).toBeInTheDocument()
