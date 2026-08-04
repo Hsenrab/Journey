@@ -5,6 +5,20 @@ import { beforeEach, describe, expect, it } from 'vitest'
 import Locations from './Locations'
 import { JourneyProvider } from '../features/journey/JourneyContext'
 import { save } from '../services/storage'
+import type { AwardedStatus, Visit } from '../domain/visit'
+
+function visit(locationId: string, status: AwardedStatus): Visit {
+  return {
+    visitId: `${locationId}-${status}`,
+    locationId,
+    status,
+    date: '2026-08-01',
+    notes: '',
+    photos: [],
+    createdAt: '2026-08-01T10:00:00.000Z',
+    updatedAt: '2026-08-01T10:00:00.000Z',
+  }
+}
 
 function renderLocations() {
   return render(
@@ -37,7 +51,7 @@ describe('Locations', () => {
   })
 
   it('filters by status', async () => {
-    save({ lyme: { status: 'gold', date: '2026-08-01', notes: '', photos: [] } })
+    save({ visits: [visit('lyme', 'gold')] })
     const user = userEvent.setup()
     renderLocations()
 
@@ -56,10 +70,7 @@ describe('Locations', () => {
   })
 
   it('re-sorts the list when switching to progress order', async () => {
-    save({
-      'nether-alderley-mill': { status: 'gold', date: '2026-08-01', notes: '', photos: [] },
-      'dunham-massey': { status: 'silver', date: '2026-08-01', notes: '', photos: [] },
-    })
+    save({ visits: [visit('nether-alderley-mill', 'gold'), visit('dunham-massey', 'silver')] })
     const user = userEvent.setup()
     renderLocations()
 

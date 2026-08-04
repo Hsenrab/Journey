@@ -4,6 +4,20 @@ import Dashboard from './Dashboard'
 import { JourneyProvider } from '../features/journey/JourneyContext'
 import { locations } from '../data/locations'
 import { save } from '../services/storage'
+import type { AwardedStatus, Visit } from '../domain/visit'
+
+function visit(locationId: string, status: AwardedStatus): Visit {
+  return {
+    visitId: `${locationId}-${status}`,
+    locationId,
+    status,
+    date: '2026-08-01',
+    notes: '',
+    photos: [],
+    createdAt: '2026-08-01T10:00:00.000Z',
+    updatedAt: '2026-08-01T10:00:00.000Z',
+  }
+}
 
 function renderDashboard() {
   return render(
@@ -24,11 +38,7 @@ describe('Dashboard', () => {
   })
 
   it('counts silver and gold visits as complete, but not bronze', () => {
-    save({
-      lyme: { status: 'silver', date: '2026-08-01', notes: '', photos: [] },
-      'quarry-bank': { status: 'gold', date: '2026-08-01', notes: '', photos: [] },
-      'hare-hill': { status: 'bronze', date: '2026-08-01', notes: '', photos: [] },
-    })
+    save({ visits: [visit('lyme', 'silver'), visit('quarry-bank', 'gold'), visit('hare-hill', 'bronze')] })
 
     renderDashboard()
 
@@ -38,9 +48,7 @@ describe('Dashboard', () => {
   })
 
   it('derives status counts per location', () => {
-    save({
-      lyme: { status: 'silver', date: '2026-08-01', notes: '', photos: [] },
-    })
+    save({ visits: [visit('lyme', 'silver')] })
 
     const { getByText } = renderDashboard()
 

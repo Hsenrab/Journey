@@ -41,7 +41,9 @@ describe('LocationDetails', () => {
     await user.click(screen.getByRole('button', { name: 'Save visit' }))
 
     expect(screen.getByText('Visit saved.')).toBeInTheDocument()
-    expect(load().lyme).toMatchObject({ status: 'gold', notes: 'Wonderful visit' })
+    expect(load().visits).toContainEqual(
+      expect.objectContaining({ locationId: 'lyme', status: 'gold', notes: 'Wonderful visit' }),
+    )
   })
 
   it('parses photo references into an array, ignoring blank lines', async () => {
@@ -51,7 +53,7 @@ describe('LocationDetails', () => {
     await user.type(screen.getByLabelText('Photo references (one URL or filename per line)'), 'a.jpg\n\nb.jpg')
     await user.click(screen.getByRole('button', { name: 'Save visit' }))
 
-    expect(load().lyme.photos).toEqual(['a.jpg', 'b.jpg'])
+    expect(load().visits[0].photos).toEqual(['a.jpg', 'b.jpg'])
   })
 
   it('allows editing the visit date', async () => {
@@ -63,6 +65,6 @@ describe('LocationDetails', () => {
     await user.type(dateInput, '2026-07-04')
     await user.click(screen.getByRole('button', { name: 'Save visit' }))
 
-    expect(load().lyme).toMatchObject({ date: '2026-07-04' })
+    expect(load().visits[0]).toMatchObject({ locationId: 'lyme', date: '2026-07-04' })
   })
 })

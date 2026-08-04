@@ -4,6 +4,20 @@ import { beforeEach, describe, expect, it } from 'vitest'
 import Settings from './Settings'
 import { JourneyProvider } from '../features/journey/JourneyContext'
 import { load, save } from '../services/storage'
+import type { AwardedStatus, Visit } from '../domain/visit'
+
+function visit(status: AwardedStatus): Visit {
+  return {
+    visitId: `lyme-${status}`,
+    locationId: 'lyme',
+    status,
+    date: '2026-08-01',
+    notes: '',
+    photos: [],
+    createdAt: '2026-08-01T10:00:00.000Z',
+    updatedAt: '2026-08-01T10:00:00.000Z',
+  }
+}
 
 function renderSettings() {
   return render(
@@ -30,23 +44,23 @@ describe('Settings', () => {
     const user = userEvent.setup()
     renderSettings()
 
-    const file = jsonFile('{"lyme":{"status":"gold","date":"2026-08-01","notes":"","photos":[]}}')
+    const file = jsonFile(JSON.stringify({ visits: [visit('gold')] }))
     await user.upload(screen.getByLabelText('Restore JSON'), file)
 
     expect(await screen.findByText('Your data was restored.')).toBeInTheDocument()
-    expect(load().lyme).toMatchObject({ status: 'gold' })
+    expect(load().visits).toContainEqual(expect.objectContaining({ locationId: 'lyme', status: 'gold' }))
   })
 
   it('shows an error message for an invalid export file', async () => {
     const user = userEvent.setup()
-    save({ lyme: { status: 'silver', date: '2026-08-01', notes: '', photos: [] } })
+    save({ visits: [visit('silver')] })
     renderSettings()
 
-    const file = jsonFile('{"lyme":{"status":"not-a-status"}}')
+    const file = jsonFile(JSON.stringify({ visits: [{ ...visit('silver'), status: 'not-a-status' }] }))
     await user.upload(screen.getByLabelText('Restore JSON'), file)
 
     expect(await screen.findByText('That file is not a valid tracker export.')).toBeInTheDocument()
-    expect(load().lyme).toMatchObject({ status: 'silver' })
+    expect(load().visits).toContainEqual(expect.objectContaining({ locationId: 'lyme', status: 'silver' }))
   })
 
   it('shows an error message for a file that is not JSON', async () => {
@@ -61,7 +75,7 @@ describe('Settings', () => {
 
   it('exports the current data as a downloadable JSON file', async () => {
     const user = userEvent.setup()
-    save({ lyme: { status: 'gold', date: '2026-08-01', notes: '', photos: [] } })
+    save({ visits: [visit('gold')] })
     renderSettings()
 
     const createObjectURL = URL.createObjectURL

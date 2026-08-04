@@ -1,26 +1,20 @@
 import { z } from 'zod'
-import type { Status } from '../domain/location'
+import { locations } from '../data/locations'
+import { visitsSchema, type Visit } from '../domain/visit'
 
-export type Visit = { status: Status; date: string; notes: string; photos: string[] }
-export type JourneyData = Record<string, Visit>
+export type JourneyData = { visits: Visit[] }
 
-const StatusSchema = z.enum(['not-started', 'bronze', 'silver', 'gold'])
-const DataSchema = z.record(
-  z.string(),
-  z.object({
-    status: StatusSchema,
-    date: z.string(),
-    notes: z.string(),
-    photos: z.array(z.string()),
-  }),
-)
-const key = 'national-trust-tracker-v1'
+const knownLocationIds = locations.map((location) => location.locationId)
+
+const DataSchema = z.object({ visits: visitsSchema(knownLocationIds) })
+
+const key = 'national-trust-tracker-v2'
 
 export function load(): JourneyData {
   try {
-    return DataSchema.parse(JSON.parse(localStorage.getItem(key) ?? '{}'))
+    return DataSchema.parse(JSON.parse(localStorage.getItem(key) ?? '{"visits":[]}'))
   } catch {
-    return {}
+    return { visits: [] }
   }
 }
 

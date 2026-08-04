@@ -15,19 +15,11 @@ import {
   Typography,
 } from '@mui/material'
 import { locations } from '../data/locations'
-import type { Status } from '../domain/location'
+import { statusLabels, statusOrder } from '../domain/visit'
 import { useJourney } from '../features/journey/JourneyContext'
 
-const labels: Record<Status, string> = {
-  'not-started': 'Not Started',
-  bronze: 'Bronze',
-  silver: 'Silver',
-  gold: 'Gold',
-}
-const order: Status[] = ['not-started', 'bronze', 'silver', 'gold']
-
 export default function Locations() {
-  const { data } = useJourney()
+  const { statusFor } = useJourney()
   const [query, setQuery] = useState('')
   const [status, setStatus] = useState('all')
   const [sort, setSort] = useState('name')
@@ -36,7 +28,7 @@ export default function Locations() {
     () =>
       locations
         .filter((location) => {
-          const visitStatus = data[location.locationId]?.status ?? 'not-started'
+          const visitStatus = statusFor(location.locationId)
           return (
             (status === 'all' || visitStatus === status) &&
             (maxDistance === 'all' || location.travel.distanceMiles <= Number(maxDistance)) &&
@@ -47,9 +39,9 @@ export default function Locations() {
           if (sort === 'distance') return a.travel.distanceMiles - b.travel.distanceMiles
           return sort === 'name'
             ? a.name.localeCompare(b.name)
-            : (data[b.locationId]?.status ?? 'not-started').localeCompare(data[a.locationId]?.status ?? 'not-started')
-        }),
-    [data, maxDistance, query, sort, status],
+            : statusOrder.indexOf(statusFor(b.locationId)) - statusOrder.indexOf(statusFor(a.locationId))
+          }),
+        [maxDistance, query, sort, status, statusFor],
   )
 
   return (
@@ -67,9 +59,9 @@ export default function Locations() {
             onChange={(e) => setStatus(e.target.value)}
           >
             <MenuItem value="all">All statuses</MenuItem>
-            {order.map((s) => (
+            {statusOrder.map((s) => (
               <MenuItem key={s} value={s}>
-                {labels[s]}
+                {statusLabels[s]}
               </MenuItem>
             ))}
           </Select>
@@ -125,8 +117,8 @@ export default function Locations() {
                   {location.travel.driveTimeMinutes} min drive)
                 </Typography>
                 <Chip
-                  label={labels[data[location.locationId]?.status ?? 'not-started']}
-                  color={data[location.locationId]?.status === 'gold' ? 'success' : 'default'}
+                  label={statusLabels[statusFor(location.locationId)]}
+                  color={statusFor(location.locationId) === 'gold' ? 'success' : 'default'}
                 />
                 <Button component={Link} to={`/locations/${location.locationId}`}>
                   View details
