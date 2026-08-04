@@ -14,7 +14,12 @@ npm run dev
 
 ## Deploy
 
-Deploy `infra/main.bicep` to create an Azure Static Web App, then set the repository secret `AZURE_STATIC_WEB_APPS_API_TOKEN`. The included GitHub Actions workflow publishes the Vite build from `main`.
+The included GitHub Actions workflow (`.github/workflows/azure-static-web-apps.yml`) provisions the Azure Static Web App from `infra/main.bicep` and publishes the Vite build from `main`. It runs against the `azure-test` GitHub environment, which must define these secrets:
+
+- `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID` — federated (OIDC) credentials for the `infra` job's Azure login.
+- `AZURE_RESOURCE_GROUP`, `AZURE_STATIC_WEB_APP_NAME` — target resource group and Static Web App name for the Bicep deployment.
+
+The `infra` job reads the deployment token straight from the Bicep deployment output and passes it to the `deploy` job, so you do **not** need to set `AZURE_STATIC_WEB_APPS_API_TOKEN` manually. Optionally, set `GH_ACTIONS_ADMIN_TOKEN` to a fine-grained PAT with `Secrets: write` access on this repo if you want the workflow to also persist that token as the `AZURE_STATIC_WEB_APPS_API_TOKEN` repository secret for reference; without it, that step is skipped with a warning and deployment still succeeds using the Bicep output token directly.
 This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
 
 Currently, two official plugins are available:
