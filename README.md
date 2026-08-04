@@ -10,7 +10,7 @@ npm install
 npm run dev
 ```
 
-`npm test`, `npm run lint`, and `npm run build` validate the app. Visit records are stored only in browser local storage; use **My data** to export or restore a JSON backup.
+`npm test`, `npm run lint`, `npm run typecheck`, `npm run format:check`, and `npm run build` validate the app. Visit records are stored only in browser local storage; use **Settings** to export or restore a JSON backup. See [AGENTS.md](AGENTS.md) for the full folder structure and development conventions.
 
 ## Deploy
 
