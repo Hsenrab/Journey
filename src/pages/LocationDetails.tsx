@@ -45,6 +45,10 @@ export default function LocationDetails() {
       </Button>
       <Typography variant="h4">{location.name}</Typography>
       <Typography>{location.notes}</Typography>
+      <Typography color="text.secondary">
+        {location.area} · {location.category} · {location.travel.distanceMiles} miles ·{' '}
+        {location.travel.driveTimeMinutes} min drive from Brockworth GL3
+      </Typography>
       <Button component="a" href={location.url} target="_blank" rel="noreferrer">
         National Trust visitor information
       </Button>

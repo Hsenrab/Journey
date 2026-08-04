@@ -24,7 +24,7 @@ export default function Dashboard() {
       <Box>
         <Typography variant="h4">Dashboard</Typography>
         <Typography color="text.secondary">
-          Brockworth, Gloucester · {complete} of {locations.length} main experiences completed
+          Within 150 minutes of Brockworth GL3 · {complete} of {locations.length} main experiences completed
         </Typography>
       </Box>
       <Box
