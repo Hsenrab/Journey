@@ -76,8 +76,8 @@ export default function Settings() {
         <Typography variant="h5">Challenge rules</Typography>
         <Typography>
           Locations are publicly accessible National Trust visitor destinations with their own visitor information page
-          in the Cheshire and Greater Manchester boundary. Cafés, shops, offices, holiday cottages, standalone car parks
-          and non-qualifying tenant attractions are excluded.
+          within a documented travel boundary of Brockworth, Gloucester. Cafés, shops, offices, holiday cottages,
+          standalone car parks and non-qualifying tenant attractions are excluded.
         </Typography>
         {order.map((status) => (
           <Card key={status}>

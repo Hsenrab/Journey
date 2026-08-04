@@ -1,0 +1,101 @@
+[
+  {
+    "locationId": "chedworth-roman-villa",
+    "name": "Chedworth Roman Villa",
+    "area": "Gloucestershire",
+    "category": "Roman villa",
+    "travel": { "distanceMiles": 13, "driveTimeMinutes": 30 },
+    "url": "https://www.nationaltrust.org.uk/visit/gloucestershire-cotswolds/chedworth-roman-villa",
+    "notes": "Excavated remains of one of the largest Roman villas in Britain, with mosaics and a museum.",
+    "createdAt": "2026-08-04",
+    "updatedAt": "2026-08-04"
+  },
+  {
+    "locationId": "dyrham-park",
+    "name": "Dyrham Park",
+    "area": "South Gloucestershire",
+    "category": "House and garden",
+    "travel": { "distanceMiles": 16, "driveTimeMinutes": 35 },
+    "url": "https://www.nationaltrust.org.uk/visit/bath-bristol/dyrham-park",
+    "notes": "A 17th-century stately home with lavish interiors, parkland and deer.",
+    "createdAt": "2026-08-04",
+    "updatedAt": "2026-08-04"
+  },
+  {
+    "locationId": "newark-park",
+    "name": "Newark Park",
+    "area": "Gloucestershire",
+    "category": "House and garden",
+    "travel": { "distanceMiles": 20, "driveTimeMinutes": 40 },
+    "url": "https://www.nationaltrust.org.uk/visit/gloucestershire-cotswolds/newark-park",
+    "notes": "A former Tudor hunting lodge with gardens, woodland walks and expansive views.",
+    "createdAt": "2026-08-04",
+    "updatedAt": "2026-08-04"
+  },
+  {
+    "locationId": "hidcote",
+    "name": "Hidcote",
+    "area": "Gloucestershire",
+    "category": "Garden",
+    "travel": { "distanceMiles": 25, "driveTimeMinutes": 45 },
+    "url": "https://www.nationaltrust.org.uk/visit/gloucestershire-cotswolds/hidcote",
+    "notes": "One of England's best-known Arts and Crafts gardens, known for its vivid garden \"rooms\".",
+    "createdAt": "2026-08-04",
+    "updatedAt": "2026-08-04"
+  },
+  {
+    "locationId": "snowshill-manor-and-garden",
+    "name": "Snowshill Manor and Garden",
+    "area": "Gloucestershire",
+    "category": "House and garden",
+    "travel": { "distanceMiles": 26, "driveTimeMinutes": 48 },
+    "url": "https://www.nationaltrust.org.uk/visit/cotswolds/snowshill-manor-and-garden",
+    "notes": "An eccentric manor house packed with Charles Wade's collections, with a tranquil garden.",
+    "createdAt": "2026-08-04",
+    "updatedAt": "2026-08-04"
+  },
+  {
+    "locationId": "woodchester-park",
+    "name": "Woodchester Park",
+    "area": "Gloucestershire",
+    "category": "Countryside",
+    "travel": { "distanceMiles": 12, "driveTimeMinutes": 28 },
+    "url": "https://www.nationaltrust.org.uk/visit/gloucestershire-cotswolds/woodchester-park",
+    "notes": "A secluded wooded valley with lakes and waymarked walking trails.",
+    "createdAt": "2026-08-04",
+    "updatedAt": "2026-08-04"
+  },
+  {
+    "locationId": "westbury-court-garden",
+    "name": "Westbury Court Garden",
+    "area": "Gloucestershire",
+    "category": "Garden",
+    "travel": { "distanceMiles": 11, "driveTimeMinutes": 25 },
+    "url": "https://www.nationaltrust.org.uk/visit/gloucestershire-cotswolds/westbury-court-garden",
+    "notes": "A rare, restored Dutch-style water garden dating from the 1700s.",
+    "createdAt": "2026-08-04",
+    "updatedAt": "2026-08-04"
+  },
+  {
+    "locationId": "lodge-park-and-sherborne-estate",
+    "name": "Lodge Park and Sherborne Estate",
+    "area": "Gloucestershire",
+    "category": "Estate and parkland",
+    "travel": { "distanceMiles": 22, "driveTimeMinutes": 42 },
+    "url": "https://www.nationaltrust.org.uk/visit/gloucestershire-cotswolds/lodge-park-and-sherborne-estate",
+    "notes": "A 17th-century grandstand set within an extensive estate of walking trails.",
+    "createdAt": "2026-08-04",
+    "updatedAt": "2026-08-04"
+  },
+  {
+    "locationId": "may-hill",
+    "name": "May Hill",
+    "area": "Gloucestershire",
+    "category": "Countryside",
+    "travel": { "distanceMiles": 10, "driveTimeMinutes": 24 },
+    "url": "https://www.nationaltrust.org.uk/visit/gloucestershire-cotswolds/may-hill",
+    "notes": "Open hilltop common with panoramic views over the Severn Vale, famous for its clump of pines.",
+    "createdAt": "2026-08-04",
+    "updatedAt": "2026-08-04"
+  }
+]

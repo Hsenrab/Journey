@@ -35,16 +35,16 @@ export default function Locations() {
     () =>
       locations
         .filter((location) => {
-          const visitStatus = data[location.id]?.status ?? 'not-started'
+          const visitStatus = data[location.locationId]?.status ?? 'not-started'
           return (
             (status === 'all' || visitStatus === status) &&
-            `${location.name} ${location.county} ${location.type}`.toLowerCase().includes(query.toLowerCase())
+            `${location.name} ${location.area} ${location.category}`.toLowerCase().includes(query.toLowerCase())
           )
         })
         .sort((a, b) =>
           sort === 'name'
             ? a.name.localeCompare(b.name)
-            : (data[b.id]?.status ?? 'not-started').localeCompare(data[a.id]?.status ?? 'not-started'),
+            : (data[b.locationId]?.status ?? 'not-started').localeCompare(data[a.locationId]?.status ?? 'not-started'),
         ),
     [data, query, sort, status],
   )
@@ -81,18 +81,18 @@ export default function Locations() {
         }}
       >
         {list.map((location) => (
-          <Card key={location.id}>
+          <Card key={location.locationId}>
             <CardContent>
               <Stack spacing={1}>
                 <Typography variant="h6">{location.name}</Typography>
                 <Typography color="text.secondary">
-                  {location.county} · {location.type}
+                  {location.area} · {location.category}
                 </Typography>
                 <Chip
-                  label={labels[data[location.id]?.status ?? 'not-started']}
-                  color={data[location.id]?.status === 'gold' ? 'success' : 'default'}
+                  label={labels[data[location.locationId]?.status ?? 'not-started']}
+                  color={data[location.locationId]?.status === 'gold' ? 'success' : 'default'}
                 />
-                <Button component={Link} to={`/locations/${location.id}`}>
+                <Button component={Link} to={`/locations/${location.locationId}`}>
                   View details
                 </Button>
               </Stack>

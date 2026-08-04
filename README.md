@@ -1,7 +1,8 @@
 # React + TypeScript + Vite
+
 # National Trust Tracker
 
-A private, browser-only tracker for the qualifying National Trust visitor destinations in the Cheshire and Greater Manchester challenge boundary.
+A private, browser-only tracker for the qualifying National Trust visitor destinations within a documented travel boundary of Brockworth, Gloucester.
 
 ## Run locally
 
@@ -11,6 +12,48 @@ npm run dev
 ```
 
 `npm test`, `npm run lint`, `npm run typecheck`, `npm run format:check`, and `npm run build` validate the app. Visit records are stored only in browser local storage; use **Settings** to export or restore a JSON backup. See [AGENTS.md](AGENTS.md) for the full folder structure and development conventions.
+
+## Location catalogue
+
+The qualifying National Trust location catalogue is committed reference data at
+[`src/data/locations.json`](src/data/locations.json). It is loaded and validated at
+startup by [`src/data/locations.ts`](src/data/locations.ts), which parses the raw JSON
+against the Zod schema defined in [`src/domain/location.ts`](src/domain/location.ts) and
+returns a new, validated array without mutating the source JSON module. Invalid or
+malformed records throw a descriptive Zod error rather than being silently accepted.
+
+Each location record has:
+
+| Field        | Description                                                                 |
+| ------------ | --------------------------------------------------------------------------- |
+| `locationId` | Stable, immutable identifier. Never derived from, or replaced by, `name`.   |
+| `name`       | Display name of the property.                                               |
+| `area`       | County or area, e.g. "Gloucestershire".                                     |
+| `category`   | One of a fixed set of qualifying categories (see "Qualifying rules" below). |
+| `travel`     | `{ distanceMiles, driveTimeMinutes }` — see "Travel boundary" below.        |
+| `url`        | Official National Trust visitor information page for the property.          |
+| `notes`      | Free-text description of the property.                                      |
+| `createdAt`  | ISO date the record was added to the catalogue.                             |
+| `updatedAt`  | ISO date the record was last updated.                                       |
+
+### Travel boundary
+
+The reference starting point for this challenge is **Brockworth, Gloucester** (GL3).
+`travel.distanceMiles` is the straight-line distance from Brockworth to the location, and
+`travel.driveTimeMinutes` is the typical road drive time. A location only qualifies for
+the catalogue if it is within a reasonable day-trip drive time of Brockworth (in
+practice, under an hour). These figures are indicative, sourced from public mapping
+services, and are only used to decide qualification and offer rough trip planning — they
+are not turn-by-turn directions.
+
+### Qualifying rules
+
+Locations must be publicly accessible National Trust visitor destinations with their own
+visitor information page. The catalogue **excludes**: cafés only, shops only, offices,
+holiday cottages, standalone car parks, non-public properties, and non-qualifying tenant
+attractions.
+
+No precise home address or other personal details are committed to this repository.
 
 ## Deploy
 
