@@ -27,7 +27,7 @@ const order: Status[] = ['not-started', 'bronze', 'silver', 'gold']
 
 export default function LocationDetails() {
   const { id = '' } = useParams()
-  const location = locations.find((item) => item.id === id)
+  const location = locations.find((item) => item.locationId === id)
   const { data, saveVisit } = useJourney()
   const visit = data[id]
   const [status, setStatus] = useState<Status>(visit?.status ?? 'bronze')
@@ -44,7 +44,7 @@ export default function LocationDetails() {
         ← All locations
       </Button>
       <Typography variant="h4">{location.name}</Typography>
-      <Typography>{location.description}</Typography>
+      <Typography>{location.notes}</Typography>
       <Button component="a" href={location.url} target="_blank" rel="noreferrer">
         National Trust visitor information
       </Button>

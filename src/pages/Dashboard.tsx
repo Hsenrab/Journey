@@ -13,10 +13,10 @@ const order: Status[] = ['not-started', 'bronze', 'silver', 'gold']
 
 export default function Dashboard() {
   const { data } = useJourney()
-  const complete = locations.filter((l) => order.indexOf(data[l.id]?.status ?? 'not-started') >= 2).length
+  const complete = locations.filter((l) => order.indexOf(data[l.locationId]?.status ?? 'not-started') >= 2).length
   const counts = order.map((status) => ({
     status,
-    count: locations.filter((l) => (data[l.id]?.status ?? 'not-started') === status).length,
+    count: locations.filter((l) => (data[l.locationId]?.status ?? 'not-started') === status).length,
   }))
 
   return (
@@ -24,7 +24,7 @@ export default function Dashboard() {
       <Box>
         <Typography variant="h4">Dashboard</Typography>
         <Typography color="text.secondary">
-          Cheshire and Greater Manchester · {complete} of {locations.length} main experiences completed
+          Brockworth, Gloucester · {complete} of {locations.length} main experiences completed
         </Typography>
       </Box>
       <Box
