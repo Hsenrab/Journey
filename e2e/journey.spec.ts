@@ -13,12 +13,12 @@ test.describe('main journey', () => {
     await page.getByRole('link', { name: 'Locations' }).click()
     await expect(page.getByRole('heading', { name: 'Locations' })).toBeVisible()
 
-    await page.getByLabel('Search locations').fill('Stourhead')
-    await expect(page.getByText('Stourhead', { exact: true })).toBeVisible()
-    await expect(page.getByText('Dyrham Park')).not.toBeVisible()
+    await page.getByLabel('Search locations').fill('Dyrham Park')
+    await expect(page.getByText('Dyrham Park', { exact: true })).toBeVisible()
+    await expect(page.getByText('Chedworth Roman Villa')).not.toBeVisible()
 
     await page.getByRole('link', { name: 'View details' }).click()
-    await expect(page.getByRole('heading', { name: 'Stourhead' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Dyrham Park' })).toBeVisible()
 
     await page.getByText('Bronze', { exact: true }).click()
     await page.getByRole('option', { name: 'Gold' }).click()
