@@ -29,23 +29,22 @@ describe('Locations', () => {
     const user = userEvent.setup()
     renderLocations()
 
-    await user.type(screen.getByLabelText('Search locations'), 'garden')
+    await user.type(screen.getByLabelText('Search locations'), 'roman')
 
-    expect(screen.getByText('Hidcote')).toBeInTheDocument()
-    expect(screen.getByText('Dyrham Park')).toBeInTheDocument()
-    expect(screen.queryByText('Chedworth Roman Villa')).not.toBeInTheDocument()
+    expect(screen.getByText('Chedworth Roman Villa')).toBeInTheDocument()
+    expect(screen.queryByText('Dyrham Park')).not.toBeInTheDocument()
   })
 
   it('filters by status', async () => {
-    save({ 'dyrham-park': { status: 'gold', date: '2026-08-01', notes: '', photos: [] } })
+    save({ 'chedworth-roman-villa': { status: 'gold', date: '2026-08-01', notes: '', photos: [] } })
     const user = userEvent.setup()
     renderLocations()
 
     await user.click(screen.getAllByRole('combobox')[0])
     await user.click(screen.getByRole('option', { name: 'Gold' }))
 
-    expect(screen.getByText('Dyrham Park')).toBeInTheDocument()
-    expect(screen.queryByText('Chedworth Roman Villa')).not.toBeInTheDocument()
+    expect(screen.getByText('Chedworth Roman Villa')).toBeInTheDocument()
+    expect(screen.queryByText('Dyrham Park')).not.toBeInTheDocument()
   })
 
   it('sorts by name ascending by default', () => {
@@ -57,8 +56,8 @@ describe('Locations', () => {
 
   it('re-sorts the list when switching to progress order', async () => {
     save({
-      hidcote: { status: 'gold', date: '2026-08-01', notes: '', photos: [] },
-      'dyrham-park': { status: 'silver', date: '2026-08-01', notes: '', photos: [] },
+      'wicken-fen': { status: 'gold', date: '2026-08-01', notes: '', photos: [] },
+      'chedworth-roman-villa': { status: 'silver', date: '2026-08-01', notes: '', photos: [] },
     })
     const user = userEvent.setup()
     renderLocations()

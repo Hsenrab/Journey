@@ -1,9 +1,8 @@
 import { z } from 'zod'
 import { locations } from '../data/locations'
-import type { Status } from '../domain/location'
+import type { JourneyData, Visit } from '../domain/location'
 
-export type Visit = { status: Status; date: string; notes: string; photos: string[] }
-export type JourneyData = Record<string, Visit>
+export type { JourneyData, Visit }
 export type Backup = { version: number; exportedAt: string; visits: JourneyData }
 
 export const backupVersion = 1

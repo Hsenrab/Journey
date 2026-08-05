@@ -38,30 +38,35 @@ describe('Settings', () => {
     const user = userEvent.setup()
     renderSettings()
 
-    await user.upload(
-      screen.getByLabelText('Restore JSON'),
-      backupFile(
-        JSON.stringify({
-          version: backupVersion,
-          exportedAt: '2026-08-01T00:00:00.000Z',
-          visits: { 'dyrham-park': visit },
-        }),
-      ),
+    const file = backupFile(
+      JSON.stringify({
+        version: backupVersion,
+        exportedAt: '2026-08-01T00:00:00.000Z',
+        visits: { 'chedworth-roman-villa': { status: 'gold', date: '2026-08-01', notes: '', photos: [] } },
+      }),
     )
+    await user.upload(screen.getByLabelText('Restore JSON'), file)
 
     expect(await screen.findByText('Your data was restored.')).toBeInTheDocument()
-    expect(load()).toMatchObject({ 'dyrham-park': { status: 'gold' } })
+    expect(load()['chedworth-roman-villa']).toMatchObject({ status: 'gold' })
   })
 
   it('keeps existing data when the backup is invalid', async () => {
     const user = userEvent.setup()
-    save({ 'dyrham-park': visit })
+    save({ 'chedworth-roman-villa': { status: 'silver', date: '2026-08-01', notes: '', photos: [] } })
     renderSettings()
 
-    await user.upload(screen.getByLabelText('Restore JSON'), backupFile('{"version":99,"visits":{}}'))
+    const file = backupFile(
+      JSON.stringify({
+        version: backupVersion,
+        exportedAt: '2026-08-01T00:00:00.000Z',
+        visits: { 'chedworth-roman-villa': { status: 'not-a-status' } },
+      }),
+    )
+    await user.upload(screen.getByLabelText('Restore JSON'), file)
 
     expect(await screen.findByText(/not a valid tracker backup/)).toBeInTheDocument()
-    expect(load()).toMatchObject({ 'dyrham-park': { status: 'gold' } })
+    expect(load()['chedworth-roman-villa']).toMatchObject({ status: 'silver' })
   })
 
   it('shows an error message for a file that is not JSON', async () => {
@@ -75,7 +80,7 @@ describe('Settings', () => {
 
   it('exports the current data as a downloadable JSON file', async () => {
     const user = userEvent.setup()
-    save({ 'dyrham-park': visit })
+    save({ 'chedworth-roman-villa': { status: 'gold', date: '2026-08-01', notes: '', photos: [] } })
     renderSettings()
 
     const createObjectURL = URL.createObjectURL
