@@ -1,38 +1,69 @@
-# React + TypeScript + Vite
-
 # National Trust Tracker
 
-A private, browser-only tracker for qualifying National Trust visitor destinations, with distance and drive time from Brockworth, Gloucester so you can filter or sort the catalogue by proximity.
+A private, browser-only tracker for qualifying National Trust visitor destinations across the UK.
+It records which places have been visited, how completely they were explored, and keeps notes and
+photo references alongside each visit. Distance and drive time from Brockworth, Gloucester support
+proximity filtering and sorting.
+
+## Challenge rules
+
+Locations qualify when they are publicly accessible National Trust visitor destinations with their
+own visitor information page. Cafés, shops, offices, holiday cottages, standalone car parks,
+non-public properties and non-qualifying tenant attractions are excluded.
+
+## Status definitions
+
+| Status        | Meaning                                                                  |
+| ------------- | ------------------------------------------------------------------------ |
+| `not-started` | No visit recorded.                                                       |
+| `bronze`      | Physically visited.                                                      |
+| `silver`      | Main visitor experience completed — the main challenge completion level. |
+| `gold`        | Everything reasonably available to a normal visitor completed.           |
+
+Dashboard progress counts a location as complete at `silver` or `gold`.
+
+## Features
+
+- Dashboard summary of progress across all qualifying locations
+- Searchable, filterable and sortable location list
+- Per-location visit logging (status, date, notes, photo references)
+- JSON export and restore of all visit data from **Settings**
+- Responsive MUI layout that works on phone and desktop
+
+## Technical stack and version 1 non-goals
+
+The agreed stack is React 19 + TypeScript (strict) + Vite, Material UI, React Router, Zod for
+runtime validation, Vitest + Testing Library for tests, and Oxlint + Prettier for code quality.
+Version 1 deliberately does **not** include Next.js, Redux, a server-side database,
+authentication, maps, or photo upload storage. See [AGENTS.md](AGENTS.md) for the full
+AI-friendly development conventions that keep the codebase predictable for agents and humans.
+
+## Project structure
+
+```
+src/
+  app/        Application shell: root App component, routing, theme
+  components/ Shared presentation components (Layout)
+  pages/      Route-level components (Dashboard, Locations, LocationDetails, Settings)
+  features/   Feature state (journey/ tracking context)
+  services/   Infrastructure (storage persistence and validation)
+  domain/     Core types and business rules
+  data/       Reference data (the list of locations)
+  styles/     Global stylesheets
+docs/         Documentation for pages, data, and deployment
+infra/        Bicep template for the Azure Static Web App
+```
 
 ## Run locally
+
+Requires Node.js 20 or later.
 
 ```sh
 npm install
 npm run dev
 ```
 
-`npm test`, `npm run lint`, `npm run typecheck`, `npm run format:check`, and `npm run build` validate the app. See [AGENTS.md](AGENTS.md) for the full folder structure and development conventions.
-
-## Backup and restore
-
-Visit records (status, date, notes and photo references) are stored only in this browser's local storage, separately from the committed location catalogue. Use **Settings** to manage them:
-
-- **Export JSON** downloads `national-trust-tracker.json`, a versioned backup:
-
-  ```json
-  {
-    "version": 1,
-    "exportedAt": "2026-08-01T00:00:00.000Z",
-    "visits": {
-      "dyrham-park": { "status": "silver", "date": "2026-08-01", "notes": "Great day", "photos": [] }
-    }
-  }
-  ```
-
-- **Restore JSON** picks a backup file and replaces your visits with its contents. The file is parsed as data only — nothing in it is ever executed. Its type, structure, `version`, location IDs, dates, and status values are validated before anything is saved, so a malformed or unsupported file is rejected with an error and your existing data is left untouched.
-- **Clear data** removes every visit from this browser after a confirmation prompt.
-
-The `version` field allows future formats to be migrated; backups with any other version are rejected.
+The dev server prints a local URL (by default <http://localhost:5173>).
 
 ## Location catalogue
 
@@ -77,7 +108,18 @@ attractions.
 
 No precise home address or other personal details are committed to this repository.
 
-## Deploy
+## Checks and tests
+
+| Command                 | Purpose                             |
+| ----------------------- | ----------------------------------- |
+| `npm test`              | Run the Vitest suite                |
+| `npm run test:coverage` | Run the Vitest suite with coverage  |
+| `npm run test:e2e`      | Run the Playwright smoke tests      |
+| `npm run lint`          | Run Oxlint                          |
+| `npm run typecheck`     | Type-check without emitting         |
+| `npm run format:check`  | Verify Prettier formatting          |
+| `npm run build`         | Type-check and build for production |
+| `npm run preview`       | Preview the production build        |
 
 Two GitHub Actions workflows drive delivery:
 
@@ -86,47 +128,67 @@ Two GitHub Actions workflows drive delivery:
   tests). The deploy workflow reuses it via `workflow_call`.
 - `.github/workflows/azure-static-web-apps.yml` runs on pushes to `main`, calls
   the CI workflow, then provisions the Static Web App from `infra/main.bicep`
-  and publishes the Vite build. The application URL is written to the workflow
-  summary and the GitHub deployment record, and a verification step checks the
-  site responds.
+  and publishes the Vite build.
 
-The `azure-prod` GitHub environment must define `AZURE_CLIENT_ID`,
-`AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID` (federated OIDC credentials),
-`AZURE_RESOURCE_GROUP`, and `AZURE_STATIC_WEB_APP_NAME`. Optional variables
-`AZURE_LOCATION` and `AZURE_RESOURCE_OWNER` override the region and the owner
-tag. The Static Web Apps deployment token is read from Azure at run time and
-masked, so it is never stored as a repository secret.
+## Data format
 
-See [docs/operations.md](docs/operations.md) for preview environments, rollback,
-backup and restore, troubleshooting, and routine operational checks.
-
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
-
-Currently, two official plugins are available:
-
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
-
-## React Compiler
-
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the Oxlint configuration
-
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
+Visit records are stored in this browser's local storage as an object keyed by `locationId`:
 
 ```json
 {
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
+  "may-hill": {
+    "status": "silver",
+    "date": "2026-04-12",
+    "notes": "Walked to the summit and the topograph.",
+    "photos": ["https://example.com/photo.jpg"]
   }
 }
 ```
 
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+Full details, including validation rules and backup/restore steps, are in
+[docs/data.md](docs/data.md).
+
+## Documentation
+
+- [Dashboard](docs/pages/dashboard.md)
+- [Locations](docs/pages/locations.md)
+- [Visits (location details)](docs/pages/visits.md)
+- [Settings](docs/pages/settings.md)
+- [Data import, export, backup and restore](docs/data.md)
+- [Deployment and operations](docs/operations.md)
+
+## Deploy
+
+`.github/workflows/azure-static-web-apps.yml` runs on pushes to `main`. It calls the CI workflow,
+provisions the Azure Static Web App from `infra/main.bicep`, publishes the Vite build, and verifies
+the site responds. The `azure-prod` GitHub environment must define `AZURE_CLIENT_ID`,
+`AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID` (federated OIDC credentials), `AZURE_RESOURCE_GROUP`, and
+`AZURE_STATIC_WEB_APP_NAME`. Optional variables `AZURE_LOCATION` and `AZURE_RESOURCE_OWNER` override
+the region and the owner tag. The Static Web Apps deployment token is read from Azure at run time and
+masked, so it is never stored as a repository secret.
+
+See [docs/operations.md](docs/operations.md) for environments, preview environments, rollback,
+backup and restore, troubleshooting, and routine operational checks.
+
+## Known limitations
+
+- **Browser-local storage only.** All visit data lives in the local storage of the browser and
+  profile used. It is not synchronised between devices, and clearing site data or using private
+  browsing loses it. Export a JSON backup regularly.
+- **Photo references, not photos.** Photos are stored as URLs or filenames only; no image is
+  uploaded or hosted by the app.
+- **No accounts or sharing.** There is no authentication, no server-side storage and no multi-user
+  support; anyone with access to the browser profile can see and edit the data.
+- **Static location list.** Locations are committed reference data in `src/data/locations.json`, so
+  adding or amending a location requires a code change and redeploy.
+- **No offline install.** There is no service worker or installable app support yet.
+- Do not record secrets, precise home location information, or other personal data in notes.
+
+## Roadmap
+
+- Per-location checklists for the activities that make up silver and gold
+- Photo thumbnails from linked references
+- Optional cross-device sync or file-system backed storage
+- Offline support and installable (PWA) experience
+- Location data sourced from a maintained dataset rather than hard-coded values
+- Richer progress statistics and visit history over time
