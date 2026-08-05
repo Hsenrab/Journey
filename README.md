@@ -81,8 +81,9 @@ No precise home address or other personal details are committed to this reposito
 
 Two GitHub Actions workflows drive delivery:
 
-- `.github/workflows/ci.yml` validates every pull request and push to `main`
-  (install, format check, lint, type check, tests with coverage, and build).
+- `.github/workflows/ci.yml` validates every pull request (install, format
+  check, lint, type check, tests with coverage, build, and end-to-end smoke
+  tests). The deploy workflow reuses it via `workflow_call`.
 - `.github/workflows/azure-static-web-apps.yml` runs on pushes to `main`, calls
   the CI workflow, then provisions the Static Web App from `infra/main.bicep`
   and publishes the Vite build. The application URL is written to the workflow

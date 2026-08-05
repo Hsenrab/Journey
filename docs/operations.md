@@ -29,9 +29,10 @@ deploy job reads it from Azure at run time and masks it in the logs.
 
 ## Pipelines
 
-- `.github/workflows/ci.yml` runs on every pull request and on pushes to `main`:
-  dependency install (`npm ci`), formatting, lint, type check, tests with
-  coverage, and a production build. Pull requests never deploy production.
+- `.github/workflows/ci.yml` runs on every pull request, and is reused by the
+  deploy workflow via `workflow_call`: dependency install (`npm ci`), lint, type
+  check, formatting, tests with coverage, a production build, and end-to-end
+  smoke tests. Pull requests never deploy production.
 - `.github/workflows/azure-static-web-apps.yml` runs on pushes to `main`. It
   calls the CI workflow first and only provisions infrastructure and deploys if
   every check passes. It publishes the application URL to the job summary and to
