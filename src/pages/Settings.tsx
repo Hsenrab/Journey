@@ -1,8 +1,20 @@
 import { useRef, useState } from 'react'
-import { Alert, Button, Card, CardContent, Stack, Typography } from '@mui/material'
+import {
+  Alert,
+  Button,
+  Card,
+  CardContent,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogContentText,
+  DialogTitle,
+  Stack,
+  Typography,
+} from '@mui/material'
 import type { Status } from '../domain/location'
 import { useJourney } from '../features/journey/JourneyContext'
-import { parseImport } from '../services/storage'
+import { createBackup, parseImport } from '../services/storage'
 
 const labels: Record<Status, string> = {
   'not-started': 'Not Started',
@@ -22,16 +34,34 @@ const ruleDescriptions: Record<Status, string> = {
 export default function Settings() {
   const { data, restore } = useJourney()
   const input = useRef<HTMLInputElement>(null)
-  const [message, setMessage] = useState('')
+  const [message, setMessage] = useState<{ text: string; error: boolean } | null>(null)
+  const [confirmingClear, setConfirmingClear] = useState(false)
 
   const exportData = () => {
-    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
+    const blob = new Blob([JSON.stringify(createBackup(data), null, 2)], { type: 'application/json' })
     const url = URL.createObjectURL(blob)
     const link = document.createElement('a')
     link.href = url
     link.download = 'national-trust-tracker.json'
     link.click()
     URL.revokeObjectURL(url)
+  }
+
+  const importFile = async (file: File) => {
+    if (file.type && file.type !== 'application/json') {
+      setMessage({ text: 'Choose a JSON backup file exported from this app.', error: true })
+      return
+    }
+    try {
+      const visits = parseImport(await file.text())
+      restore(visits)
+      setMessage({ text: 'Your data was restored.', error: false })
+    } catch {
+      setMessage({
+        text: 'That file is not a valid tracker backup, so your existing data was left unchanged.',
+        error: true,
+      })
+    }
   }
 
   return (
@@ -56,21 +86,40 @@ export default function Settings() {
               accept="application/json"
               onChange={(e) => {
                 const file = e.target.files?.[0]
-                if (!file) return
-                file.text().then((text) => {
-                  try {
-                    restore(parseImport(text))
-                    setMessage('Your data was restored.')
-                  } catch {
-                    setMessage('That file is not a valid tracker export.')
-                  }
-                })
+                e.target.value = ''
+                if (file) void importFile(file)
               }}
             />
           </Button>
+          <Button color="error" variant="outlined" onClick={() => setConfirmingClear(true)}>
+            Clear data
+          </Button>
         </Stack>
-        {message && <Alert severity={message.startsWith('Your') ? 'success' : 'error'}>{message}</Alert>}
+        {message && <Alert severity={message.error ? 'error' : 'success'}>{message.text}</Alert>}
       </Stack>
+
+      <Dialog open={confirmingClear} onClose={() => setConfirmingClear(false)}>
+        <DialogTitle>Clear all visit data?</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            This permanently removes every visit, note and photo reference from this browser. Export a backup first if
+            you want to keep it.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setConfirmingClear(false)}>Cancel</Button>
+          <Button
+            color="error"
+            onClick={() => {
+              restore({})
+              setConfirmingClear(false)
+              setMessage({ text: 'Your data was cleared.', error: false })
+            }}
+          >
+            Clear everything
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       <Stack spacing={2}>
         <Typography variant="h5">Challenge rules</Typography>
