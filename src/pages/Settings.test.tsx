@@ -38,7 +38,13 @@ describe('Settings', () => {
     const user = userEvent.setup()
     renderSettings()
 
-    const file = jsonFile('{"chedworth-roman-villa":{"status":"gold","date":"2026-08-01","notes":"","photos":[]}}')
+    const file = backupFile(
+      JSON.stringify({
+        version: backupVersion,
+        exportedAt: '2026-08-01T00:00:00.000Z',
+        visits: { 'chedworth-roman-villa': { status: 'gold', date: '2026-08-01', notes: '', photos: [] } },
+      }),
+    )
     await user.upload(screen.getByLabelText('Restore JSON'), file)
 
     expect(await screen.findByText('Your data was restored.')).toBeInTheDocument()
@@ -50,10 +56,16 @@ describe('Settings', () => {
     save({ 'chedworth-roman-villa': { status: 'silver', date: '2026-08-01', notes: '', photos: [] } })
     renderSettings()
 
-    const file = jsonFile('{"chedworth-roman-villa":{"status":"not-a-status"}}')
+    const file = backupFile(
+      JSON.stringify({
+        version: backupVersion,
+        exportedAt: '2026-08-01T00:00:00.000Z',
+        visits: { 'chedworth-roman-villa': { status: 'not-a-status' } },
+      }),
+    )
     await user.upload(screen.getByLabelText('Restore JSON'), file)
 
-    expect(await screen.findByText('That file is not a valid tracker export.')).toBeInTheDocument()
+    expect(await screen.findByText(/not a valid tracker backup/)).toBeInTheDocument()
     expect(load()['chedworth-roman-villa']).toMatchObject({ status: 'silver' })
   })
 
