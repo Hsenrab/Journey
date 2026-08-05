@@ -27,13 +27,13 @@ describe('LocationDetails', () => {
   })
 
   it('shows the location details', () => {
-    renderDetails('lyme')
-    expect(screen.getByRole('heading', { name: 'Lyme' })).toBeInTheDocument()
+    renderDetails('chedworth-roman-villa')
+    expect(screen.getByRole('heading', { name: 'Chedworth Roman Villa' })).toBeInTheDocument()
   })
 
   it('adds a visit and persists the derived status', async () => {
     const user = userEvent.setup()
-    renderDetails('lyme')
+    renderDetails('chedworth-roman-villa')
 
     await user.type(screen.getByLabelText('Notes'), 'Wonderful visit')
     await user.click(screen.getByRole('combobox'))
@@ -41,28 +41,28 @@ describe('LocationDetails', () => {
     await user.click(screen.getByRole('button', { name: 'Save visit' }))
 
     expect(screen.getByText('Visit saved.')).toBeInTheDocument()
-    expect(load().lyme).toMatchObject({ status: 'gold', notes: 'Wonderful visit' })
+    expect(load()['chedworth-roman-villa']).toMatchObject({ status: 'gold', notes: 'Wonderful visit' })
   })
 
   it('parses photo references into an array, ignoring blank lines', async () => {
     const user = userEvent.setup()
-    renderDetails('lyme')
+    renderDetails('chedworth-roman-villa')
 
     await user.type(screen.getByLabelText('Photo references (one URL or filename per line)'), 'a.jpg\n\nb.jpg')
     await user.click(screen.getByRole('button', { name: 'Save visit' }))
 
-    expect(load().lyme.photos).toEqual(['a.jpg', 'b.jpg'])
+    expect(load()['chedworth-roman-villa'].photos).toEqual(['a.jpg', 'b.jpg'])
   })
 
   it('allows editing the visit date', async () => {
     const user = userEvent.setup()
-    renderDetails('lyme')
+    renderDetails('chedworth-roman-villa')
 
     const dateInput = screen.getByLabelText('Visit date')
     await user.clear(dateInput)
     await user.type(dateInput, '2026-07-04')
     await user.click(screen.getByRole('button', { name: 'Save visit' }))
 
-    expect(load().lyme).toMatchObject({ date: '2026-07-04' })
+    expect(load()['chedworth-roman-villa']).toMatchObject({ date: '2026-07-04' })
   })
 })

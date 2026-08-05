@@ -1,9 +1,9 @@
 name: CI
 
 on:
-  push:
-    branches: ['**']
   pull_request:
+  workflow_dispatch:
+  workflow_call:
 
 permissions:
   contents: read
@@ -13,7 +13,8 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  test:
+  validate:
+    name: Validate
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -63,4 +64,11 @@ jobs:
         with:
           name: playwright-report
           path: playwright-report
+          retention-days: 7
+
+      - name: Upload build output
+        uses: actions/upload-artifact@v5
+        with:
+          name: dist
+          path: dist
           retention-days: 7
