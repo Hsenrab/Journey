@@ -1,33 +1,14 @@
 import { beforeEach, describe, expect, it } from 'vitest'
-import { load, parseImport, save } from './storage'
+import { backupVersion, createBackup, load, parseImport, save } from './storage'
 
-describe('parseImport', () => {
-  it('accepts a portable visit export', () => {
-    expect(
-      parseImport('{"lyme":{"status":"silver","date":"2026-08-01","notes":"Great day","photos":["lyme.jpg"]}}'),
-    ).toMatchObject({ lyme: { status: 'silver' } })
+const visit = { status: 'silver' as const, date: '2026-08-01', notes: 'Great day', photos: ['dyrham-park.jpg'] }
+const backup = (overrides: Record<string, unknown> = {}) =>
+  JSON.stringify({
+    version: backupVersion,
+    exportedAt: '2026-08-01T00:00:00.000Z',
+    visits: { 'dyrham-park': visit },
+    ...overrides,
   })
-
-  it('accepts an empty export', () => {
-    expect(parseImport('{}')).toEqual({})
-  })
-
-  it('rejects malformed imports with an invalid status', () => {
-    expect(() => parseImport('{"lyme":{"status":"done","date":"2026-08-01","notes":"","photos":[]}}')).toThrow()
-  })
-
-  it('rejects imports missing required fields', () => {
-    expect(() => parseImport('{"lyme":{"status":"gold"}}')).toThrow()
-  })
-
-  it('rejects imports that are not valid JSON', () => {
-    expect(() => parseImport('not json')).toThrow()
-  })
-
-  it('rejects imports where photos is not an array', () => {
-    expect(() => parseImport('{"lyme":{"status":"gold","date":"2026-08-01","notes":"","photos":"lyme.jpg"}}')).toThrow()
-  })
-})
 
 describe('load', () => {
   beforeEach(() => localStorage.clear())
@@ -37,8 +18,8 @@ describe('load', () => {
   })
 
   it('returns previously saved data', () => {
-    save({ lyme: { status: 'gold', date: '2026-08-01', notes: 'Lovely', photos: [] } })
-    expect(load()).toMatchObject({ lyme: { status: 'gold' } })
+    save({ 'dyrham-park': { ...visit, status: 'gold' } })
+    expect(load()).toMatchObject({ 'dyrham-park': { status: 'gold' } })
   })
 
   it('falls back to an empty object when stored data is corrupted', () => {
@@ -47,7 +28,7 @@ describe('load', () => {
   })
 
   it('falls back to an empty object when stored data fails validation', () => {
-    localStorage.setItem('national-trust-tracker-v1', '{"lyme":{"status":"unknown"}}')
+    localStorage.setItem('national-trust-tracker-v1', '{"dyrham-park":{"status":"unknown"}}')
     expect(load()).toEqual({})
   })
 })
@@ -56,8 +37,42 @@ describe('save', () => {
   beforeEach(() => localStorage.clear())
 
   it('persists data to localStorage as JSON', () => {
-    const data = { lyme: { status: 'bronze' as const, date: '2026-08-01', notes: '', photos: [] } }
+    const data = { 'dyrham-park': { ...visit, status: 'bronze' as const } }
     save(data)
     expect(JSON.parse(localStorage.getItem('national-trust-tracker-v1')!)).toEqual(data)
+  })
+})
+
+describe('createBackup', () => {
+  it('wraps visits in a versioned envelope that can be imported back', () => {
+    const exported = createBackup({ 'dyrham-park': visit })
+    expect(exported.version).toBe(backupVersion)
+    expect(parseImport(JSON.stringify(exported))).toMatchObject({ 'dyrham-park': { status: 'silver' } })
+  })
+})
+
+describe('parseImport', () => {
+  it('accepts a portable visit backup', () => {
+    expect(parseImport(backup())).toMatchObject({ 'dyrham-park': { status: 'silver' } })
+  })
+
+  it('rejects files that are not JSON', () => {
+    expect(() => parseImport('not json')).toThrow()
+  })
+
+  it('rejects unsupported versions', () => {
+    expect(() => parseImport(backup({ version: backupVersion + 1 }))).toThrow()
+  })
+
+  it('rejects unknown statuses', () => {
+    expect(() => parseImport(backup({ visits: { 'dyrham-park': { ...visit, status: 'done' } } }))).toThrow()
+  })
+
+  it('rejects invalid dates', () => {
+    expect(() => parseImport(backup({ visits: { 'dyrham-park': { ...visit, date: '01/08/2026' } } }))).toThrow()
+  })
+
+  it('rejects unknown location references', () => {
+    expect(() => parseImport(backup({ visits: { atlantis: visit } }))).toThrow()
   })
 })

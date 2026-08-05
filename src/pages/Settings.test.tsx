@@ -1,24 +1,32 @@
-import { render, screen } from '@testing-library/react'
+import { MemoryRouter } from 'react-router-dom'
+import { cleanup, render, screen, waitForElementToBeRemoved } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it } from 'vitest'
 import Settings from './Settings'
 import { JourneyProvider } from '../features/journey/JourneyContext'
-import { load, save } from '../services/storage'
+import { backupVersion, load, save } from '../services/storage'
+
+const visit = { status: 'gold' as const, date: '2026-08-01', notes: 'Great day', photos: [] }
 
 function renderSettings() {
-  return render(
-    <JourneyProvider>
-      <Settings />
-    </JourneyProvider>,
+  render(
+    <MemoryRouter>
+      <JourneyProvider>
+        <Settings />
+      </JourneyProvider>
+    </MemoryRouter>,
   )
 }
 
-function jsonFile(contents: string) {
-  return new File([contents], 'export.json', { type: 'application/json' })
+function backupFile(contents: string) {
+  return new File([contents], 'backup.json', { type: 'application/json' })
 }
 
 describe('Settings', () => {
-  beforeEach(() => localStorage.clear())
+  beforeEach(() => {
+    cleanup()
+    localStorage.clear()
+  })
 
   it('shows the challenge rules', () => {
     renderSettings()
@@ -26,7 +34,7 @@ describe('Settings', () => {
     expect(screen.getByText('Physically visited.')).toBeInTheDocument()
   })
 
-  it('restores a valid export and shows a success message', async () => {
+  it('restores a valid backup', async () => {
     const user = userEvent.setup()
     renderSettings()
 
@@ -37,7 +45,7 @@ describe('Settings', () => {
     expect(load()['chedworth-roman-villa']).toMatchObject({ status: 'gold' })
   })
 
-  it('shows an error message for an invalid export file', async () => {
+  it('keeps existing data when the backup is invalid', async () => {
     const user = userEvent.setup()
     save({ 'chedworth-roman-villa': { status: 'silver', date: '2026-08-01', notes: '', photos: [] } })
     renderSettings()
@@ -53,10 +61,9 @@ describe('Settings', () => {
     const user = userEvent.setup()
     renderSettings()
 
-    const file = jsonFile('not json at all')
-    await user.upload(screen.getByLabelText('Restore JSON'), file)
+    await user.upload(screen.getByLabelText('Restore JSON'), backupFile('not json at all'))
 
-    expect(await screen.findByText('That file is not a valid tracker export.')).toBeInTheDocument()
+    expect(await screen.findByText(/not a valid tracker backup/)).toBeInTheDocument()
   })
 
   it('exports the current data as a downloadable JSON file', async () => {
@@ -66,15 +73,32 @@ describe('Settings', () => {
 
     const createObjectURL = URL.createObjectURL
     const revokeObjectURL = URL.revokeObjectURL
-    const clickSpy: Array<string> = []
+    const revokedUrls: string[] = []
     URL.createObjectURL = () => 'blob:mock-url'
-    URL.revokeObjectURL = (url: string) => clickSpy.push(url)
+    URL.revokeObjectURL = (url: string) => revokedUrls.push(url)
 
     await user.click(screen.getByRole('button', { name: 'Export JSON' }))
 
-    expect(clickSpy).toEqual(['blob:mock-url'])
+    expect(revokedUrls).toEqual(['blob:mock-url'])
 
     URL.createObjectURL = createObjectURL
     URL.revokeObjectURL = revokeObjectURL
+  })
+
+  it('clears data only after confirmation', async () => {
+    const user = userEvent.setup()
+    save({ 'dyrham-park': visit })
+    renderSettings()
+
+    await user.click(screen.getByRole('button', { name: 'Clear data' }))
+    await user.click(screen.getByRole('button', { name: 'Cancel' }))
+    await waitForElementToBeRemoved(() => screen.queryByRole('dialog'))
+    expect(load()).toMatchObject({ 'dyrham-park': { status: 'gold' } })
+
+    await user.click(screen.getByRole('button', { name: 'Clear data' }))
+    await user.click(screen.getByRole('button', { name: 'Clear everything' }))
+
+    expect(await screen.findByText('Your data was cleared.')).toBeInTheDocument()
+    expect(load()).toEqual({})
   })
 })

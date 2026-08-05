@@ -25,7 +25,7 @@ describe('Locations', () => {
     expect(screen.getByText('Dyrham Park')).toBeInTheDocument()
   })
 
-  it('filters by search term across name, county and type', async () => {
+  it('filters by search term across name, area and category', async () => {
     const user = userEvent.setup()
     renderLocations()
 
