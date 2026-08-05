@@ -1,4 +1,5 @@
 # React + TypeScript + Vite
+
 # National Trust Tracker
 
 A private, browser-only tracker for the qualifying National Trust visitor destinations in the Cheshire and Greater Manchester challenge boundary.
