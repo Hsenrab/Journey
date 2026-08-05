@@ -11,7 +11,7 @@ Reference data about the locations themselves is compiled into the app from
 
 ## Format
 
-The stored value (and the exported file) is a JSON object keyed by location id:
+The stored value is a JSON object keyed by location id:
 
 ```json
 {
