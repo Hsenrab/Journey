@@ -7,7 +7,7 @@ All visit data is stored in the browser's local storage under the key
 browser profile on the device where it was entered.
 
 Reference data about the locations themselves is compiled into the app from
-`src/data/locations.ts` and is never stored in the browser.
+`src/data/locations.json` (validated by `src/data/locations.ts`) and is never stored in the browser.
 
 ## Format
 
@@ -15,10 +15,10 @@ The stored value (and the exported file) is a JSON object keyed by location id:
 
 ```json
 {
-  "dunham-massey": {
+  "may-hill": {
     "status": "silver",
     "date": "2026-04-12",
-    "notes": "House and garden done, deer park next time.",
+    "notes": "Walked to the summit and the topograph.",
     "photos": ["https://example.com/photo.jpg", "IMG_1234.jpg"]
   }
 }
@@ -26,7 +26,7 @@ The stored value (and the exported file) is a JSON object keyed by location id:
 
 | Field    | Type                                            | Notes                                        |
 | -------- | ----------------------------------------------- | -------------------------------------------- |
-| key      | string                                          | Location id from `src/data/locations.ts`     |
+| key      | string                                          | `locationId` from `src/data/locations.json`  |
 | `status` | `not-started` \| `bronze` \| `silver` \| `gold` | Stored records are normally bronze or better |
 | `date`   | string                                          | Visit date in `YYYY-MM-DD` form              |
 | `notes`  | string                                          | Free text; may be empty                      |

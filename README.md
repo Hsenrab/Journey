@@ -125,10 +125,10 @@ Visit data is a JSON object keyed by location id:
 
 ```json
 {
-  "dunham-massey": {
+  "may-hill": {
     "status": "silver",
     "date": "2026-04-12",
-    "notes": "House and garden done, deer park next time.",
+    "notes": "Walked to the summit and the topograph.",
     "photos": ["https://example.com/photo.jpg"]
   }
 }
@@ -172,7 +172,7 @@ for environments, rollback, backup and troubleshooting.
   uploaded or hosted by the app.
 - **No accounts or sharing.** There is no authentication, no server-side storage and no multi-user
   support; anyone with access to the browser profile can see and edit the data.
-- **Static location list.** Locations are compiled into the app from `src/data/locations.ts`, so
+- **Static location list.** Locations are committed reference data in `src/data/locations.json`, so
   adding or amending a location requires a code change and redeploy.
 - **No offline install.** There is no service worker or installable app support yet.
 - Do not record secrets, precise home location information, or other personal data in notes.

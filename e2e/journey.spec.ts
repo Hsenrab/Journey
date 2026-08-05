@@ -8,17 +8,17 @@ test.describe('main journey', () => {
   test('records a visit and sees it reflected across the app', async ({ page }) => {
     await page.goto('/')
     await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible()
-    await expect(page.getByText('0 of 7 main experiences completed')).toBeVisible()
+    await expect(page.getByText('0 of 24 main experiences completed')).toBeVisible()
 
     await page.getByRole('link', { name: 'Locations' }).click()
     await expect(page.getByRole('heading', { name: 'Locations' })).toBeVisible()
 
-    await page.getByLabel('Search locations').fill('Lyme')
-    await expect(page.getByText('Lyme', { exact: true })).toBeVisible()
-    await expect(page.getByText('Dunham Massey')).not.toBeVisible()
+    await page.getByLabel('Search locations').fill('May Hill')
+    await expect(page.getByText('May Hill', { exact: true })).toBeVisible()
+    await expect(page.getByText('Dyrham Park')).not.toBeVisible()
 
     await page.getByRole('link', { name: 'View details' }).click()
-    await expect(page.getByRole('heading', { name: 'Lyme' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'May Hill' })).toBeVisible()
 
     await page.getByText('Bronze', { exact: true }).click()
     await page.getByRole('option', { name: 'Gold' }).click()
@@ -30,7 +30,7 @@ test.describe('main journey', () => {
     await expect(page.getByText('Gold', { exact: true })).toBeVisible()
 
     await page.getByRole('link', { name: 'Dashboard' }).click()
-    await expect(page.getByText('1 of 7 main experiences completed')).toBeVisible()
+    await expect(page.getByText('1 of 24 main experiences completed')).toBeVisible()
   })
 
   test('shows a not found message for an unknown location', async ({ page }) => {

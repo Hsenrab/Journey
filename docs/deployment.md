@@ -4,7 +4,7 @@
 
 The app is a static Vite build (HTML, CSS, JS only) hosted on **Azure Static Web Apps**. There is
 no backend or API. `staticwebapp.config.json` rewrites unknown paths to `/index.html` so that
-client-side routes such as `/locations/dunham-massey` load correctly on refresh.
+client-side routes such as `/locations/may-hill` load correctly on refresh.
 
 The Azure resources are defined as code in `infra/main.bicep` and deployed by the workflow, so the
 hosting environment can be recreated from the repository.
@@ -73,7 +73,7 @@ After every deployment:
 
 - The workflow run completed successfully for the expected commit.
 - The Dashboard loads and shows the location counts.
-- A deep link such as `/locations/dunham-massey` loads directly without a 404.
+- A deep link such as `/locations/may-hill` loads directly without a 404.
 - Saving a visit persists after a page reload.
 - Export from **Settings** downloads a valid JSON file, and restoring it succeeds.
 

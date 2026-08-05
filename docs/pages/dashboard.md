@@ -34,5 +34,5 @@ None.
 ## Future improvements
 
 - Progress over time (visits per month, most recent visit)
-- Breakdown by county or location type
+- Breakdown by area or location category
 - Highlight nearby or not-yet-started locations as suggestions
