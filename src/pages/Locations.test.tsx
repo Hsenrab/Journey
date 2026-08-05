@@ -4,7 +4,14 @@ import { MemoryRouter } from 'react-router-dom'
 import { beforeEach, describe, expect, it } from 'vitest'
 import Locations from './Locations'
 import { JourneyProvider } from '../features/journey/JourneyContext'
+import { locations } from '../data/locations'
 import { save } from '../services/storage'
+
+const [first, second] = locations
+const gardens = locations.filter((location) =>
+  `${location.name} ${location.area} ${location.category}`.toLowerCase().includes('garden'),
+)
+const nonGarden = locations.find((location) => !gardens.includes(location))!
 
 function renderLocations() {
   return render(
@@ -21,8 +28,9 @@ describe('Locations', () => {
 
   it('lists every location by default', () => {
     renderLocations()
-    expect(screen.getByText('Lyme')).toBeInTheDocument()
-    expect(screen.getByText('Dunham Massey')).toBeInTheDocument()
+    expect(screen.getAllByRole('heading', { level: 6 })).toHaveLength(locations.length)
+    expect(screen.getByText(first.name)).toBeInTheDocument()
+    expect(screen.getByText(second.name)).toBeInTheDocument()
   })
 
   it('filters by search term across name, county and type', async () => {
@@ -31,21 +39,22 @@ describe('Locations', () => {
 
     await user.type(screen.getByLabelText('Search locations'), 'garden')
 
-    expect(screen.getByText('Lyme')).toBeInTheDocument()
-    expect(screen.getByText('Hare Hill')).toBeInTheDocument()
-    expect(screen.queryByText('Nether Alderley Mill')).not.toBeInTheDocument()
+    for (const location of gardens) {
+      expect(screen.getByText(location.name)).toBeInTheDocument()
+    }
+    expect(screen.queryByText(nonGarden.name)).not.toBeInTheDocument()
   })
 
   it('filters by status', async () => {
-    save({ lyme: { status: 'gold', date: '2026-08-01', notes: '', photos: [] } })
+    save({ [first.locationId]: { status: 'gold', date: '2026-08-01', notes: '', photos: [] } })
     const user = userEvent.setup()
     renderLocations()
 
     await user.click(screen.getAllByRole('combobox')[0])
     await user.click(screen.getByRole('option', { name: 'Gold' }))
 
-    expect(screen.getByText('Lyme')).toBeInTheDocument()
-    expect(screen.queryByText('Dunham Massey')).not.toBeInTheDocument()
+    expect(screen.getByText(first.name)).toBeInTheDocument()
+    expect(screen.queryByText(second.name)).not.toBeInTheDocument()
   })
 
   it('sorts by name ascending by default', () => {
@@ -57,8 +66,8 @@ describe('Locations', () => {
 
   it('re-sorts the list when switching to progress order', async () => {
     save({
-      'nether-alderley-mill': { status: 'gold', date: '2026-08-01', notes: '', photos: [] },
-      'dunham-massey': { status: 'silver', date: '2026-08-01', notes: '', photos: [] },
+      [locations[locations.length - 1].locationId]: { status: 'gold', date: '2026-08-01', notes: '', photos: [] },
+      [second.locationId]: { status: 'silver', date: '2026-08-01', notes: '', photos: [] },
     })
     const user = userEvent.setup()
     renderLocations()
