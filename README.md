@@ -11,7 +11,28 @@ npm install
 npm run dev
 ```
 
-`npm test`, `npm run lint`, `npm run typecheck`, `npm run format:check`, and `npm run build` validate the app. Visit records are stored only in browser local storage; use **Settings** to export or restore a JSON backup. See [AGENTS.md](AGENTS.md) for the full folder structure and development conventions.
+`npm test`, `npm run lint`, `npm run typecheck`, `npm run format:check`, and `npm run build` validate the app. See [AGENTS.md](AGENTS.md) for the full folder structure and development conventions.
+
+## Backup and restore
+
+Visit records (status, date, notes and photo references) are stored only in this browser's local storage, separately from the committed location catalogue. Use **Settings** to manage them:
+
+- **Export JSON** downloads `national-trust-tracker.json`, a versioned backup:
+
+  ```json
+  {
+    "version": 1,
+    "exportedAt": "2026-08-01T00:00:00.000Z",
+    "visits": {
+      "dyrham-park": { "status": "silver", "date": "2026-08-01", "notes": "Great day", "photos": [] }
+    }
+  }
+  ```
+
+- **Restore JSON** picks a backup file and replaces your visits with its contents. The file is parsed as data only — nothing in it is ever executed. Its type, structure, `version`, location IDs, dates, and status values are validated before anything is saved, so a malformed or unsupported file is rejected with an error and your existing data is left untouched.
+- **Clear data** removes every visit from this browser after a confirmation prompt.
+
+The `version` field allows future formats to be migrated; backups with any other version are rejected.
 
 ## Location catalogue
 
