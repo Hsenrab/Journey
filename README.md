@@ -88,12 +88,27 @@ No precise home address or other personal details are committed to this reposito
 
 ## Deploy
 
-The included GitHub Actions workflow (`.github/workflows/azure-static-web-apps.yml`) provisions the Azure Static Web App from `infra/main.bicep` and publishes the Vite build from `main`. It runs against the `azure-test` GitHub environment, which must define these secrets:
+Two GitHub Actions workflows drive delivery:
 
-- `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID` — federated (OIDC) credentials for the `infra` job's Azure login.
-- `AZURE_RESOURCE_GROUP`, `AZURE_STATIC_WEB_APP_NAME` — target resource group and Static Web App name for the Bicep deployment.
+- `.github/workflows/ci.yml` validates every pull request (install, format
+  check, lint, type check, tests with coverage, build, and end-to-end smoke
+  tests). The deploy workflow reuses it via `workflow_call`.
+- `.github/workflows/azure-static-web-apps.yml` runs on pushes to `main`, calls
+  the CI workflow, then provisions the Static Web App from `infra/main.bicep`
+  and publishes the Vite build. The application URL is written to the workflow
+  summary and the GitHub deployment record, and a verification step checks the
+  site responds.
 
-The `infra` job reads the deployment token straight from the Bicep deployment output and passes it to the `deploy` job, so you do **not** need to set `AZURE_STATIC_WEB_APPS_API_TOKEN` manually. Optionally, set `GH_ACTIONS_ADMIN_TOKEN` to a fine-grained PAT with `Secrets: write` access on this repo if you want the workflow to also persist that token as the `AZURE_STATIC_WEB_APPS_API_TOKEN` repository secret for reference; without it, that step is skipped with a warning and deployment still succeeds using the Bicep output token directly.
+The `azure-prod` GitHub environment must define `AZURE_CLIENT_ID`,
+`AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID` (federated OIDC credentials),
+`AZURE_RESOURCE_GROUP`, and `AZURE_STATIC_WEB_APP_NAME`. Optional variables
+`AZURE_LOCATION` and `AZURE_RESOURCE_OWNER` override the region and the owner
+tag. The Static Web Apps deployment token is read from Azure at run time and
+masked, so it is never stored as a repository secret.
+
+See [docs/operations.md](docs/operations.md) for preview environments, rollback,
+backup and restore, troubleshooting, and routine operational checks.
+
 This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
 
 Currently, two official plugins are available:
