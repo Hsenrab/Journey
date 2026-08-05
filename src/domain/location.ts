@@ -94,9 +94,7 @@ export function progressTowards(locations: Location[], data: JourneyData, status
 export function recentlyVisited(locations: Location[], data: JourneyData, limit = 3): Location[] {
   return locations
     .filter((location) => data[location.locationId])
-    .sort((a, b) =>
-      (data[b.locationId]?.date ?? '').localeCompare(data[a.locationId]?.date ?? ''),
-    )
+    .sort((a, b) => (data[b.locationId]?.date ?? '').localeCompare(data[a.locationId]?.date ?? ''))
     .slice(0, limit)
 }
 

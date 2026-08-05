@@ -11,7 +11,7 @@ import {
   suggestedNext,
 } from './location'
 
-const valid = {
+const valid: Location = {
   locationId: 'chedworth-roman-villa',
   name: 'Chedworth Roman Villa',
   area: 'Gloucestershire',

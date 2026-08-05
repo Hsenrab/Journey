@@ -30,23 +30,23 @@ describe('Settings', () => {
     const user = userEvent.setup()
     renderSettings()
 
-    const file = jsonFile('{"lyme":{"status":"gold","date":"2026-08-01","notes":"","photos":[]}}')
+    const file = jsonFile('{"chedworth-roman-villa":{"status":"gold","date":"2026-08-01","notes":"","photos":[]}}')
     await user.upload(screen.getByLabelText('Restore JSON'), file)
 
     expect(await screen.findByText('Your data was restored.')).toBeInTheDocument()
-    expect(load().lyme).toMatchObject({ status: 'gold' })
+    expect(load()['chedworth-roman-villa']).toMatchObject({ status: 'gold' })
   })
 
   it('shows an error message for an invalid export file', async () => {
     const user = userEvent.setup()
-    save({ lyme: { status: 'silver', date: '2026-08-01', notes: '', photos: [] } })
+    save({ 'chedworth-roman-villa': { status: 'silver', date: '2026-08-01', notes: '', photos: [] } })
     renderSettings()
 
-    const file = jsonFile('{"lyme":{"status":"not-a-status"}}')
+    const file = jsonFile('{"chedworth-roman-villa":{"status":"not-a-status"}}')
     await user.upload(screen.getByLabelText('Restore JSON'), file)
 
     expect(await screen.findByText('That file is not a valid tracker export.')).toBeInTheDocument()
-    expect(load().lyme).toMatchObject({ status: 'silver' })
+    expect(load()['chedworth-roman-villa']).toMatchObject({ status: 'silver' })
   })
 
   it('shows an error message for a file that is not JSON', async () => {
@@ -61,7 +61,7 @@ describe('Settings', () => {
 
   it('exports the current data as a downloadable JSON file', async () => {
     const user = userEvent.setup()
-    save({ lyme: { status: 'gold', date: '2026-08-01', notes: '', photos: [] } })
+    save({ 'chedworth-roman-villa': { status: 'gold', date: '2026-08-01', notes: '', photos: [] } })
     renderSettings()
 
     const createObjectURL = URL.createObjectURL

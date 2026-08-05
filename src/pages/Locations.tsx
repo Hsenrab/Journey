@@ -75,7 +75,7 @@ export default function Locations() {
       <Typography variant="h4">Locations</Typography>
       <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} sx={{ flexWrap: 'wrap' }}>
         <TextField label="Search locations" value={query} onChange={(e) => setQuery(e.target.value)} fullWidth />
-  <FormControl sx={{ minWidth: 160 }}>
+        <FormControl sx={{ minWidth: 160 }}>
           <InputLabel id="location-status-label">Status</InputLabel>
           <Select
             id="location-status"

@@ -93,8 +93,7 @@ export default function Dashboard() {
                   <Box>
                     <Typography variant="h6">{location.name}</Typography>
                     <Typography color="text.secondary">
-                      {labels[data[location.locationId]?.status ?? 'not-started']} ·{' '}
-                      {data[location.locationId]?.date}
+                      {labels[data[location.locationId]?.status ?? 'not-started']} · {data[location.locationId]?.date}
                     </Typography>
                   </Box>
                   <Button component={Link} to={`/locations/${location.locationId}`}>
