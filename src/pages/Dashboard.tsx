@@ -5,9 +5,7 @@ import { useJourney } from '../features/journey/JourneyContext'
 
 export default function Dashboard() {
   const { statusFor } = useJourney()
-  const complete = locations.filter(
-    (location) => statusOrder.indexOf(statusFor(location.locationId)) >= 2,
-  ).length
+  const complete = locations.filter((location) => statusOrder.indexOf(statusFor(location.locationId)) >= 2).length
   const counts = statusOrder.map((status) => ({
     status,
     count: locations.filter((location) => statusFor(location.locationId) === status).length,

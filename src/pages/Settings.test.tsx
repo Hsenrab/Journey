@@ -8,8 +8,8 @@ import type { AwardedStatus, Visit } from '../domain/visit'
 
 function visit(status: AwardedStatus): Visit {
   return {
-    visitId: `lyme-${status}`,
-    locationId: 'lyme',
+    visitId: `lacock-abbey-${status}`,
+    locationId: 'lacock-abbey',
     status,
     date: '2026-08-01',
     notes: '',
@@ -48,7 +48,7 @@ describe('Settings', () => {
     await user.upload(screen.getByLabelText('Restore JSON'), file)
 
     expect(await screen.findByText('Your data was restored.')).toBeInTheDocument()
-    expect(load().visits).toContainEqual(expect.objectContaining({ locationId: 'lyme', status: 'gold' }))
+    expect(load().visits).toContainEqual(expect.objectContaining({ locationId: 'lacock-abbey', status: 'gold' }))
   })
 
   it('shows an error message for an invalid export file', async () => {
@@ -60,7 +60,7 @@ describe('Settings', () => {
     await user.upload(screen.getByLabelText('Restore JSON'), file)
 
     expect(await screen.findByText('That file is not a valid tracker export.')).toBeInTheDocument()
-    expect(load().visits).toContainEqual(expect.objectContaining({ locationId: 'lyme', status: 'silver' }))
+    expect(load().visits).toContainEqual(expect.objectContaining({ locationId: 'lacock-abbey', status: 'silver' }))
   })
 
   it('shows an error message for a file that is not JSON', async () => {

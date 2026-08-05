@@ -40,8 +40,8 @@ export default function Locations() {
           return sort === 'name'
             ? a.name.localeCompare(b.name)
             : statusOrder.indexOf(statusFor(b.locationId)) - statusOrder.indexOf(statusFor(a.locationId))
-          }),
-        [maxDistance, query, sort, status, statusFor],
+        }),
+    [maxDistance, query, sort, status, statusFor],
   )
 
   return (

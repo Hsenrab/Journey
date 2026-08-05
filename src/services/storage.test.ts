@@ -3,11 +3,11 @@ import { load, parseImport, save } from './storage'
 
 const visit = {
   visitId: 'v1',
-  locationId: 'lyme',
+  locationId: 'lacock-abbey',
   date: '2026-08-01',
   status: 'silver' as const,
   notes: 'Great day',
-  photos: ['lyme.jpg'],
+  photos: ['lacock.jpg'],
   createdAt: '2026-08-01T10:00:00.000Z',
   updatedAt: '2026-08-01T10:00:00.000Z',
 }
@@ -16,7 +16,7 @@ const importOf = (override: Record<string, unknown> = {}) => JSON.stringify({ vi
 
 describe('parseImport', () => {
   it('accepts a portable visit export', () => {
-    expect(parseImport(importOf())).toMatchObject({ visits: [{ locationId: 'lyme', status: 'silver' }] })
+    expect(parseImport(importOf())).toMatchObject({ visits: [{ locationId: 'lacock-abbey', status: 'silver' }] })
   })
 
   it('accepts an empty export', () => {
@@ -57,7 +57,7 @@ describe('load', () => {
 
   it('returns previously saved visit history', () => {
     save({ visits: [visit] })
-    expect(load()).toMatchObject({ visits: [{ locationId: 'lyme', status: 'silver' }] })
+    expect(load()).toMatchObject({ visits: [{ locationId: 'lacock-abbey', status: 'silver' }] })
   })
 
   it('falls back to empty visit history when stored data is corrupted', () => {

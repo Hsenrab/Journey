@@ -27,13 +27,13 @@ describe('LocationDetails', () => {
   })
 
   it('shows the location details', () => {
-    renderDetails('lyme')
-    expect(screen.getByRole('heading', { name: 'Lyme' })).toBeInTheDocument()
+    renderDetails('lacock-abbey')
+    expect(screen.getByRole('heading', { name: 'Lacock Abbey, Fox Talbot Museum and Village' })).toBeInTheDocument()
   })
 
   it('adds a visit and persists the derived status', async () => {
     const user = userEvent.setup()
-    renderDetails('lyme')
+    renderDetails('lacock-abbey')
 
     await user.type(screen.getByLabelText('Notes'), 'Wonderful visit')
     await user.click(screen.getByRole('combobox'))
@@ -42,13 +42,13 @@ describe('LocationDetails', () => {
 
     expect(screen.getByText('Visit saved.')).toBeInTheDocument()
     expect(load().visits).toContainEqual(
-      expect.objectContaining({ locationId: 'lyme', status: 'gold', notes: 'Wonderful visit' }),
+      expect.objectContaining({ locationId: 'lacock-abbey', status: 'gold', notes: 'Wonderful visit' }),
     )
   })
 
   it('parses photo references into an array, ignoring blank lines', async () => {
     const user = userEvent.setup()
-    renderDetails('lyme')
+    renderDetails('lacock-abbey')
 
     await user.type(screen.getByLabelText('Photo references (one URL or filename per line)'), 'a.jpg\n\nb.jpg')
     await user.click(screen.getByRole('button', { name: 'Save visit' }))
@@ -58,13 +58,13 @@ describe('LocationDetails', () => {
 
   it('allows editing the visit date', async () => {
     const user = userEvent.setup()
-    renderDetails('lyme')
+    renderDetails('lacock-abbey')
 
     const dateInput = screen.getByLabelText('Visit date')
     await user.clear(dateInput)
     await user.type(dateInput, '2026-07-04')
     await user.click(screen.getByRole('button', { name: 'Save visit' }))
 
-    expect(load().visits[0]).toMatchObject({ locationId: 'lyme', date: '2026-07-04' })
+    expect(load().visits[0]).toMatchObject({ locationId: 'lacock-abbey', date: '2026-07-04' })
   })
 })

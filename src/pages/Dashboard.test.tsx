@@ -38,7 +38,7 @@ describe('Dashboard', () => {
   })
 
   it('counts silver and gold visits as complete, but not bronze', () => {
-    save({ visits: [visit('lyme', 'silver'), visit('quarry-bank', 'gold'), visit('hare-hill', 'bronze')] })
+    save({ visits: [visit('lacock-abbey', 'silver'), visit('stourhead', 'gold'), visit('cliveden', 'bronze')] })
 
     renderDashboard()
 
@@ -48,7 +48,7 @@ describe('Dashboard', () => {
   })
 
   it('derives status counts per location', () => {
-    save({ visits: [visit('lyme', 'silver')] })
+    save({ visits: [visit('lacock-abbey', 'silver')] })
 
     const { getByText } = renderDashboard()
 

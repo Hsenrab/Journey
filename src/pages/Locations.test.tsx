@@ -35,31 +35,31 @@ describe('Locations', () => {
 
   it('lists every location by default', () => {
     renderLocations()
-    expect(screen.getByText('Lyme')).toBeInTheDocument()
-    expect(screen.getByText('Dunham Massey')).toBeInTheDocument()
+    expect(screen.getByText('Stourhead')).toBeInTheDocument()
+    expect(screen.getByText('Dyrham Park')).toBeInTheDocument()
   })
 
-  it('filters by search term across name, county and type', async () => {
+  it('filters by search term across name, area and category', async () => {
     const user = userEvent.setup()
     renderLocations()
 
     await user.type(screen.getByLabelText('Search locations'), 'garden')
 
-    expect(screen.getByText('Lyme')).toBeInTheDocument()
-    expect(screen.getByText('Hare Hill')).toBeInTheDocument()
-    expect(screen.queryByText('Nether Alderley Mill')).not.toBeInTheDocument()
+    expect(screen.getByText('Westbury Court Garden')).toBeInTheDocument()
+    expect(screen.getByText('Hidcote')).toBeInTheDocument()
+    expect(screen.queryByText('Corfe Castle')).not.toBeInTheDocument()
   })
 
   it('filters by status', async () => {
-    save({ visits: [visit('lyme', 'gold')] })
+    save({ visits: [visit('stourhead', 'gold')] })
     const user = userEvent.setup()
     renderLocations()
 
     await user.click(screen.getAllByRole('combobox')[0])
     await user.click(screen.getByRole('option', { name: 'Gold' }))
 
-    expect(screen.getByText('Lyme')).toBeInTheDocument()
-    expect(screen.queryByText('Dunham Massey')).not.toBeInTheDocument()
+    expect(screen.getByText('Stourhead')).toBeInTheDocument()
+    expect(screen.queryByText('Dyrham Park')).not.toBeInTheDocument()
   })
 
   it('sorts by name ascending by default', () => {
@@ -70,7 +70,7 @@ describe('Locations', () => {
   })
 
   it('re-sorts the list when switching to progress order', async () => {
-    save({ visits: [visit('nether-alderley-mill', 'gold'), visit('dunham-massey', 'silver')] })
+    save({ visits: [visit('may-hill', 'gold'), visit('dyrham-park', 'silver')] })
     const user = userEvent.setup()
     renderLocations()
 

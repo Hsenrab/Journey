@@ -21,37 +21,34 @@ describe('JourneyContext', () => {
   beforeEach(() => localStorage.clear())
 
   it('starts with any previously persisted data', () => {
-    localStorage.setItem(
-      'national-trust-tracker-v2',
-      JSON.stringify({ visits: [visit('lyme', 'gold')] }),
-    )
+    localStorage.setItem('national-trust-tracker-v2', JSON.stringify({ visits: [visit('lacock-abbey', 'gold')] }))
     const { result } = renderHook(() => useJourney(), { wrapper: JourneyProvider })
-    expect(result.current.statusFor('lyme')).toBe('gold')
+    expect(result.current.statusFor('lacock-abbey')).toBe('gold')
   })
 
   it('saves a visit and persists it to localStorage', () => {
     const { result } = renderHook(() => useJourney(), { wrapper: JourneyProvider })
 
     act(() => {
-      result.current.addVisit({ ...visit('lyme', 'silver'), notes: 'Great day' })
+      result.current.addVisit({ ...visit('lacock-abbey', 'silver'), notes: 'Great day' })
     })
 
-    expect(result.current.statusFor('lyme')).toBe('silver')
-    expect(load().visits).toContainEqual(expect.objectContaining({ locationId: 'lyme', status: 'silver' }))
+    expect(result.current.statusFor('lacock-abbey')).toBe('silver')
+    expect(load().visits).toContainEqual(expect.objectContaining({ locationId: 'lacock-abbey', status: 'silver' }))
   })
 
   it('restores a full data set, replacing existing entries', () => {
     const { result } = renderHook(() => useJourney(), { wrapper: JourneyProvider })
 
     act(() => {
-      result.current.addVisit(visit('lyme', 'silver'))
+      result.current.addVisit(visit('lacock-abbey', 'silver'))
     })
     act(() => {
-      result.current.restore({ visits: [visit('quarry-bank', 'gold', '2026-08-02')] })
+      result.current.restore({ visits: [visit('stourhead', 'gold', '2026-08-02')] })
     })
 
-    expect(result.current.statusFor('lyme')).toBe('not-started')
-    expect(result.current.statusFor('quarry-bank')).toBe('gold')
+    expect(result.current.statusFor('lacock-abbey')).toBe('not-started')
+    expect(result.current.statusFor('stourhead')).toBe('gold')
   })
 
   it('throws when used outside of a provider', () => {

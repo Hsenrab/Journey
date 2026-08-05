@@ -11,8 +11,8 @@ export const statusLabels: Record<Status, string> = {
 }
 
 export const statusRules: Record<Status, string> = {
-  'not-started': 'No visit recorded yet.',
-  bronze: 'Physically visited the location.',
+  'not-started': 'No visit recorded.',
+  bronze: 'Physically visited.',
   silver: 'Main visitor experience completed — the main challenge completion level.',
   gold: 'Everything reasonably available to a normal visitor completed.',
 }
