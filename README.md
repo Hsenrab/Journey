@@ -24,7 +24,7 @@ Visit records (status, date, notes and photo references) are stored only in this
     "version": 1,
     "exportedAt": "2026-08-01T00:00:00.000Z",
     "visits": {
-      "lyme": { "status": "silver", "date": "2026-08-01", "notes": "Great day", "photos": [] }
+      "dyrham-park": { "status": "silver", "date": "2026-08-01", "notes": "Great day", "photos": [] }
     }
   }
   ```

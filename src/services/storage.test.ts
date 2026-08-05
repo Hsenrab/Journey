@@ -1,12 +1,12 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import { backupVersion, createBackup, load, parseImport, save } from './storage'
 
-const visit = { status: 'silver' as const, date: '2026-08-01', notes: 'Great day', photos: ['lyme.jpg'] }
+const visit = { status: 'silver' as const, date: '2026-08-01', notes: 'Great day', photos: ['dyrham-park.jpg'] }
 const backup = (overrides: Record<string, unknown> = {}) =>
   JSON.stringify({
     version: backupVersion,
     exportedAt: '2026-08-01T00:00:00.000Z',
-    visits: { lyme: visit },
+    visits: { 'dyrham-park': visit },
     ...overrides,
   })
 
@@ -18,8 +18,8 @@ describe('load', () => {
   })
 
   it('returns previously saved data', () => {
-    save({ lyme: { ...visit, status: 'gold' } })
-    expect(load()).toMatchObject({ lyme: { status: 'gold' } })
+    save({ 'dyrham-park': { ...visit, status: 'gold' } })
+    expect(load()).toMatchObject({ 'dyrham-park': { status: 'gold' } })
   })
 
   it('falls back to an empty object when stored data is corrupted', () => {
@@ -28,7 +28,7 @@ describe('load', () => {
   })
 
   it('falls back to an empty object when stored data fails validation', () => {
-    localStorage.setItem('national-trust-tracker-v1', '{"lyme":{"status":"unknown"}}')
+    localStorage.setItem('national-trust-tracker-v1', '{"dyrham-park":{"status":"unknown"}}')
     expect(load()).toEqual({})
   })
 })
@@ -37,7 +37,7 @@ describe('save', () => {
   beforeEach(() => localStorage.clear())
 
   it('persists data to localStorage as JSON', () => {
-    const data = { lyme: { ...visit, status: 'bronze' as const } }
+    const data = { 'dyrham-park': { ...visit, status: 'bronze' as const } }
     save(data)
     expect(JSON.parse(localStorage.getItem('national-trust-tracker-v1')!)).toEqual(data)
   })
@@ -45,15 +45,15 @@ describe('save', () => {
 
 describe('createBackup', () => {
   it('wraps visits in a versioned envelope that can be imported back', () => {
-    const exported = createBackup({ lyme: visit })
+    const exported = createBackup({ 'dyrham-park': visit })
     expect(exported.version).toBe(backupVersion)
-    expect(parseImport(JSON.stringify(exported))).toMatchObject({ lyme: { status: 'silver' } })
+    expect(parseImport(JSON.stringify(exported))).toMatchObject({ 'dyrham-park': { status: 'silver' } })
   })
 })
 
 describe('parseImport', () => {
   it('accepts a portable visit backup', () => {
-    expect(parseImport(backup())).toMatchObject({ lyme: { status: 'silver' } })
+    expect(parseImport(backup())).toMatchObject({ 'dyrham-park': { status: 'silver' } })
   })
 
   it('rejects files that are not JSON', () => {
@@ -65,11 +65,11 @@ describe('parseImport', () => {
   })
 
   it('rejects unknown statuses', () => {
-    expect(() => parseImport(backup({ visits: { lyme: { ...visit, status: 'done' } } }))).toThrow()
+    expect(() => parseImport(backup({ visits: { 'dyrham-park': { ...visit, status: 'done' } } }))).toThrow()
   })
 
   it('rejects invalid dates', () => {
-    expect(() => parseImport(backup({ visits: { lyme: { ...visit, date: '01/08/2026' } } }))).toThrow()
+    expect(() => parseImport(backup({ visits: { 'dyrham-park': { ...visit, date: '01/08/2026' } } }))).toThrow()
   })
 
   it('rejects unknown location references', () => {

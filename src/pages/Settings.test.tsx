@@ -41,23 +41,27 @@ describe('Settings', () => {
     await user.upload(
       screen.getByLabelText('Restore JSON'),
       backupFile(
-        JSON.stringify({ version: backupVersion, exportedAt: '2026-08-01T00:00:00.000Z', visits: { lyme: visit } }),
+        JSON.stringify({
+          version: backupVersion,
+          exportedAt: '2026-08-01T00:00:00.000Z',
+          visits: { 'dyrham-park': visit },
+        }),
       ),
     )
 
     expect(await screen.findByText('Your data was restored.')).toBeInTheDocument()
-    expect(load()).toMatchObject({ lyme: { status: 'gold' } })
+    expect(load()).toMatchObject({ 'dyrham-park': { status: 'gold' } })
   })
 
   it('keeps existing data when the backup is invalid', async () => {
     const user = userEvent.setup()
-    save({ lyme: visit })
+    save({ 'dyrham-park': visit })
     renderSettings()
 
     await user.upload(screen.getByLabelText('Restore JSON'), backupFile('{"version":99,"visits":{}}'))
 
     expect(await screen.findByText(/not a valid tracker backup/)).toBeInTheDocument()
-    expect(load()).toMatchObject({ lyme: { status: 'gold' } })
+    expect(load()).toMatchObject({ 'dyrham-park': { status: 'gold' } })
   })
 
   it('shows an error message for a file that is not JSON', async () => {
@@ -71,7 +75,7 @@ describe('Settings', () => {
 
   it('exports the current data as a downloadable JSON file', async () => {
     const user = userEvent.setup()
-    save({ lyme: visit })
+    save({ 'dyrham-park': visit })
     renderSettings()
 
     const createObjectURL = URL.createObjectURL
@@ -90,13 +94,13 @@ describe('Settings', () => {
 
   it('clears data only after confirmation', async () => {
     const user = userEvent.setup()
-    save({ lyme: visit })
+    save({ 'dyrham-park': visit })
     renderSettings()
 
     await user.click(screen.getByRole('button', { name: 'Clear data' }))
     await user.click(screen.getByRole('button', { name: 'Cancel' }))
     await waitForElementToBeRemoved(() => screen.queryByRole('dialog'))
-    expect(load()).toMatchObject({ lyme: { status: 'gold' } })
+    expect(load()).toMatchObject({ 'dyrham-park': { status: 'gold' } })
 
     await user.click(screen.getByRole('button', { name: 'Clear data' }))
     await user.click(screen.getByRole('button', { name: 'Clear everything' }))

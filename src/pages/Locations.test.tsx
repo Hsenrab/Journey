@@ -21,31 +21,31 @@ describe('Locations', () => {
 
   it('lists every location by default', () => {
     renderLocations()
-    expect(screen.getByText('Lyme')).toBeInTheDocument()
-    expect(screen.getByText('Dunham Massey')).toBeInTheDocument()
+    expect(screen.getByText('Chedworth Roman Villa')).toBeInTheDocument()
+    expect(screen.getByText('Dyrham Park')).toBeInTheDocument()
   })
 
-  it('filters by search term across name, county and type', async () => {
+  it('filters by search term across name, area and category', async () => {
     const user = userEvent.setup()
     renderLocations()
 
     await user.type(screen.getByLabelText('Search locations'), 'garden')
 
-    expect(screen.getByText('Lyme')).toBeInTheDocument()
-    expect(screen.getByText('Hare Hill')).toBeInTheDocument()
-    expect(screen.queryByText('Nether Alderley Mill')).not.toBeInTheDocument()
+    expect(screen.getByText('Hidcote')).toBeInTheDocument()
+    expect(screen.getByText('Dyrham Park')).toBeInTheDocument()
+    expect(screen.queryByText('Chedworth Roman Villa')).not.toBeInTheDocument()
   })
 
   it('filters by status', async () => {
-    save({ lyme: { status: 'gold', date: '2026-08-01', notes: '', photos: [] } })
+    save({ 'dyrham-park': { status: 'gold', date: '2026-08-01', notes: '', photos: [] } })
     const user = userEvent.setup()
     renderLocations()
 
     await user.click(screen.getAllByRole('combobox')[0])
     await user.click(screen.getByRole('option', { name: 'Gold' }))
 
-    expect(screen.getByText('Lyme')).toBeInTheDocument()
-    expect(screen.queryByText('Dunham Massey')).not.toBeInTheDocument()
+    expect(screen.getByText('Dyrham Park')).toBeInTheDocument()
+    expect(screen.queryByText('Chedworth Roman Villa')).not.toBeInTheDocument()
   })
 
   it('sorts by name ascending by default', () => {
@@ -57,8 +57,8 @@ describe('Locations', () => {
 
   it('re-sorts the list when switching to progress order', async () => {
     save({
-      'nether-alderley-mill': { status: 'gold', date: '2026-08-01', notes: '', photos: [] },
-      'dunham-massey': { status: 'silver', date: '2026-08-01', notes: '', photos: [] },
+      hidcote: { status: 'gold', date: '2026-08-01', notes: '', photos: [] },
+      'dyrham-park': { status: 'silver', date: '2026-08-01', notes: '', photos: [] },
     })
     const user = userEvent.setup()
     renderLocations()

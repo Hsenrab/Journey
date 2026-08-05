@@ -23,7 +23,7 @@ const VisitSchema = z
   })
   .strict()
 const DataSchema = z.record(z.string(), VisitSchema)
-const knownIds = new Set(locations.map((location) => location.id))
+const knownIds = new Set(locations.map((location) => location.locationId))
 const ImportSchema = z
   .object({
     version: z.literal(backupVersion),
