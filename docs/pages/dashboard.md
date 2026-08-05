@@ -11,6 +11,10 @@ every qualifying location.
 
 - View the number of locations completed (silver or gold) out of the total
 - View a count card for each status: Not Started, Bronze, Silver, Gold
+- View progress bars towards Bronze, Silver and Gold completion
+- Review the most recently visited locations
+- See how many locations are still not started
+- Open suggested next locations, prioritised from nearby not-yet-started places
 
 The Dashboard is read-only; all editing happens on a location's details page.
 
@@ -30,9 +34,9 @@ None.
 3. A location counts as complete when its status is `silver` or `gold`, matching the challenge
    rule that silver is the main completion level.
 4. Status counts partition all locations, so the four counts always sum to the total.
+5. Suggested next locations come from not-yet-started places ordered by shortest drive time.
 
 ## Future improvements
 
-- Progress over time (visits per month, most recent visit)
+- Progress over time (visits per month)
 - Breakdown by area or location category
-- Highlight nearby or not-yet-started locations as suggestions
