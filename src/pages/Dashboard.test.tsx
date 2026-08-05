@@ -25,9 +25,9 @@ describe('Dashboard', () => {
 
   it('counts silver and gold visits as complete, but not bronze', () => {
     save({
-      'may-hill': { status: 'silver', date: '2026-08-01', notes: '', photos: [] },
-      'dyrham-park': { status: 'gold', date: '2026-08-01', notes: '', photos: [] },
-      hidcote: { status: 'bronze', date: '2026-08-01', notes: '', photos: [] },
+      'dyrham-park': { status: 'silver', date: '2026-08-01', notes: '', photos: [] },
+      hidcote: { status: 'gold', date: '2026-08-01', notes: '', photos: [] },
+      'newark-park': { status: 'bronze', date: '2026-08-01', notes: '', photos: [] },
     })
 
     renderDashboard()
@@ -39,7 +39,7 @@ describe('Dashboard', () => {
 
   it('derives status counts per location', () => {
     save({
-      'may-hill': { status: 'silver', date: '2026-08-01', notes: '', photos: [] },
+      'dyrham-park': { status: 'silver', date: '2026-08-01', notes: '', photos: [] },
     })
 
     const { getByText } = renderDashboard()

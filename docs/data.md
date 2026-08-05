@@ -37,9 +37,25 @@ The stored value (and the exported file) is a JSON object keyed by location id:
 `src/services/storage.ts` validates data with Zod on every load and on import:
 
 - Unreadable or invalid stored data falls back to an empty dataset rather than crashing the app.
-- An invalid import file is rejected and the existing data is left unchanged.
-- Ids that are not in the location list are kept but simply ignored by the pages, so data survives
-  a rename or a future addition to the location list.
+- An import file is parsed as data only — nothing in it is executed — and its type, structure,
+  `version`, location ids, dates and status values are all validated before anything is saved.
+- An invalid or unsupported-version file is rejected with an error and the existing data is left
+  unchanged.
+- Backups referencing location ids that are not in the catalogue are rejected.
+
+## Backup file format
+
+Exports wrap the visit records in a versioned envelope so future formats can be migrated:
+
+```json
+{
+  "version": 1,
+  "exportedAt": "2026-08-01T00:00:00.000Z",
+  "visits": {
+    "may-hill": { "status": "silver", "date": "2026-04-12", "notes": "", "photos": [] }
+  }
+}
+```
 
 ## Export (backup)
 
@@ -58,6 +74,11 @@ or restoring a file.
    tracker export.
 
 Restore **replaces** the whole dataset — it does not merge with what is already there.
+
+## Clearing data
+
+**Settings → Clear data** removes every visit from this browser after a confirmation prompt. Export
+a backup first if the data is still wanted.
 
 ## Moving to another device or browser
 

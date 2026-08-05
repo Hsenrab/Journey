@@ -110,18 +110,29 @@ No precise home address or other personal details are committed to this reposito
 
 ## Checks and tests
 
-| Command                | Purpose                             |
-| ---------------------- | ----------------------------------- |
-| `npm test`             | Run the Vitest suite                |
-| `npm run lint`         | Run Oxlint                          |
-| `npm run typecheck`    | Type-check without emitting         |
-| `npm run format:check` | Verify Prettier formatting          |
-| `npm run build`        | Type-check and build for production |
-| `npm run preview`      | Preview the production build        |
+| Command                 | Purpose                             |
+| ----------------------- | ----------------------------------- |
+| `npm test`              | Run the Vitest suite                |
+| `npm run test:coverage` | Run the Vitest suite with coverage  |
+| `npm run test:e2e`      | Run the Playwright smoke tests      |
+| `npm run lint`          | Run Oxlint                          |
+| `npm run typecheck`     | Type-check without emitting         |
+| `npm run format:check`  | Verify Prettier formatting          |
+| `npm run build`         | Type-check and build for production |
+| `npm run preview`       | Preview the production build        |
+
+Two GitHub Actions workflows drive delivery:
+
+- `.github/workflows/ci.yml` validates every pull request (install, format
+  check, lint, type check, tests with coverage, build, and end-to-end smoke
+  tests). The deploy workflow reuses it via `workflow_call`.
+- `.github/workflows/azure-static-web-apps.yml` runs on pushes to `main`, calls
+  the CI workflow, then provisions the Static Web App from `infra/main.bicep`
+  and publishes the Vite build.
 
 ## Data format
 
-Visit data is a JSON object keyed by location id:
+Visit records are stored in this browser's local storage as an object keyed by `locationId`:
 
 ```json
 {
@@ -144,24 +155,20 @@ Full details, including validation rules and backup/restore steps, are in
 - [Visits (location details)](docs/pages/visits.md)
 - [Settings](docs/pages/settings.md)
 - [Data import, export, backup and restore](docs/data.md)
-- [Deployment and operations](docs/deployment.md)
+- [Deployment and operations](docs/operations.md)
 
 ## Deploy
 
-The GitHub Actions workflow (`.github/workflows/azure-static-web-apps.yml`) provisions the Azure
-Static Web App from `infra/main.bicep` and publishes the Vite build. Pushes to `main` use the
-`azure-prod` GitHub environment; all other branches use `azure-test`. Each environment must define:
+`.github/workflows/azure-static-web-apps.yml` runs on pushes to `main`. It calls the CI workflow,
+provisions the Azure Static Web App from `infra/main.bicep`, publishes the Vite build, and verifies
+the site responds. The `azure-prod` GitHub environment must define `AZURE_CLIENT_ID`,
+`AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID` (federated OIDC credentials), `AZURE_RESOURCE_GROUP`, and
+`AZURE_STATIC_WEB_APP_NAME`. Optional variables `AZURE_LOCATION` and `AZURE_RESOURCE_OWNER` override
+the region and the owner tag. The Static Web Apps deployment token is read from Azure at run time and
+masked, so it is never stored as a repository secret.
 
-- `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID` — federated (OIDC) credentials for the `infra` job's Azure login.
-- `AZURE_RESOURCE_GROUP`, `AZURE_STATIC_WEB_APP_NAME` — target resource group and Static Web App name for the Bicep deployment.
-
-The `infra` job reads the deployment token straight from the Bicep deployment output and passes it
-to the `deploy` job, so you do **not** need to set `AZURE_STATIC_WEB_APPS_API_TOKEN` manually.
-Optionally, set `GH_ACTIONS_ADMIN_TOKEN` to a fine-grained PAT with `Secrets: write` access on this
-repo if you want the workflow to also persist that token as the `AZURE_STATIC_WEB_APPS_API_TOKEN`
-repository secret for reference; without it, that step is skipped with a warning and deployment
-still succeeds using the Bicep output token directly. See [docs/deployment.md](docs/deployment.md)
-for environments, rollback, backup and troubleshooting.
+See [docs/operations.md](docs/operations.md) for environments, preview environments, rollback,
+backup and restore, troubleshooting, and routine operational checks.
 
 ## Known limitations
 
