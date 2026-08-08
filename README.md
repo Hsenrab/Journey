@@ -168,8 +168,8 @@ publishes production only from `main`. Pull requests publish to Static Web Apps'
 temporary preview environments. Ordinary branch pushes do not deploy to Azure, so
 branches cannot overwrite the shared test deployment.
 
-The production job runs against the `azure-prod` GitHub environment, which must define
-these secrets:
+Production Azure login uses GitHub OIDC from the `main` branch. Define these
+repository-level secrets:
 
 - `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID` — federated (OIDC)
   credentials for Azure login.
@@ -186,12 +186,11 @@ Two GitHub Actions workflows drive delivery:
 - `.github/workflows/azure-static-web-apps.yml` deploys production only from `main` after
   validation, and publishes pull request previews without updating shared infrastructure.
 
-The preview job runs against the `azure-test` GitHub environment and requires:
-
-- `AZURE_STATIC_WEB_APPS_API_TOKEN` — deployment token for the existing shared Static Web App.
-
-The production deploy job reads its deployment token from Azure at run time and masks
-it in the logs. Pull request previews require the explicit test-environment token.
+The preview job still runs against the `azure-test` GitHub environment and, like the
+production deploy job, authenticates via OIDC and reads its deployment token from Azure
+at run time (masking it in the logs), using the same `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`,
+`AZURE_SUBSCRIPTION_ID`, `AZURE_RESOURCE_GROUP`, and `AZURE_STATIC_WEB_APP_NAME` secrets
+defined for that environment.
 
 ## Data format
 
@@ -231,7 +230,7 @@ Full details, including validation rules and backup/restore steps, are in
 
 `.github/workflows/azure-static-web-apps.yml` runs on pushes to `main`. It calls the CI workflow,
 provisions the Azure Static Web App from `infra/main.bicep`, publishes the Vite build, and verifies
-the site responds. The `azure-prod` GitHub environment must define `AZURE_CLIENT_ID`,
+the site responds. Repository secrets must define `AZURE_CLIENT_ID`,
 `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID` (federated OIDC credentials), `AZURE_RESOURCE_GROUP`, and
 `AZURE_STATIC_WEB_APP_NAME`. Optional variables `AZURE_LOCATION` and `AZURE_RESOURCE_OWNER` override
 the region and the owner tag. The Static Web Apps deployment token is read from Azure at run time and

@@ -15,7 +15,8 @@ All resources are tagged with `environment`, `owner`, `application`, and
 
 ## Required configuration
 
-The `azure-prod` GitHub environment must define these secrets:
+Production Azure login uses GitHub OIDC from the `main` branch. Define these
+repository-level secrets:
 
 - `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID` — federated
   (OIDC) credentials; no client secret is stored.
@@ -93,7 +94,7 @@ no server-side database to back up.
 
 | Symptom                              | Likely cause and action                                                                            |
 | ------------------------------------ | -------------------------------------------------------------------------------------------------- |
-| Azure login step fails               | Federated credential subject does not match the branch/environment. Re-check the app registration. |
+| Azure login step fails               | Federated credential subject does not match the `main` branch. Re-check the app registration.      |
 | Bicep deployment fails on SKU        | The Free SKU allows a limited number of apps per subscription. Delete unused apps or use Standard. |
 | Deploy step reports an invalid token | The Static Web App was recreated. Re-run the workflow so the token is read again.                  |
 | Verification step fails              | The CDN may still be propagating. Re-run the job; if it still fails, roll back.                    |
