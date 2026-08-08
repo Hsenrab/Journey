@@ -97,6 +97,12 @@ Visit records (status, date, notes and photo references) are stored only in this
 
 The `version` field allows future formats to be migrated; backups with any other version are rejected.
 
+## Codespaces
+
+The included dev container uses Node 22, installs the locked dependencies, and installs
+the Playwright Chromium browser when a codespace is created. Start the development
+server with `npm run dev`; Codespaces forwards port 5173 to an in-browser preview.
+
 ## Location catalogue
 
 The qualifying National Trust location catalogue is committed reference data at
@@ -153,14 +159,39 @@ No precise home address or other personal details are committed to this reposito
 | `npm run build`         | Type-check and build for production |
 | `npm run preview`       | Preview the production build        |
 
+GitHub Actions validates pull requests with linting, typechecking, format checks,
+unit/component coverage, a production build, and Playwright smoke tests. CI can also
+be started manually with the `workflow_dispatch` action.
+
+The Azure workflow (`.github/workflows/azure-static-web-apps.yml`) provisions and
+publishes production only from `main`. Pull requests publish to Static Web Apps'
+temporary preview environments. Ordinary branch pushes do not deploy to Azure, so
+branches cannot overwrite the shared test deployment.
+
+The production job runs against the `azure-prod` GitHub environment, which must define
+these secrets:
+
+- `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID` — federated (OIDC)
+  credentials for Azure login.
+- `AZURE_RESOURCE_GROUP`, `AZURE_STATIC_WEB_APP_NAME` — production deployment target.
+
+Optional variables `AZURE_LOCATION` and `AZURE_RESOURCE_OWNER` override the region and
+resource owner tag.
+
 Two GitHub Actions workflows drive delivery:
 
 - `.github/workflows/ci.yml` validates every pull request (install, format
   check, lint, type check, tests with coverage, build, and end-to-end smoke
-  tests). The deploy workflow reuses it via `workflow_call`.
-- `.github/workflows/azure-static-web-apps.yml` runs on pushes to `main`, calls
-  the CI workflow, then provisions the Static Web App from `infra/main.bicep`
-  and publishes the Vite build.
+  tests) and can be run manually. The deploy workflow reuses it via `workflow_call`.
+- `.github/workflows/azure-static-web-apps.yml` deploys production only from `main` after
+  validation, and publishes pull request previews without updating shared infrastructure.
+
+The preview job runs against the `azure-test` GitHub environment and requires:
+
+- `AZURE_STATIC_WEB_APPS_API_TOKEN` — deployment token for the existing shared Static Web App.
+
+The production deploy job reads its deployment token from Azure at run time and masks
+it in the logs. Pull request previews require the explicit test-environment token.
 
 ## Data format
 

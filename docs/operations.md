@@ -24,19 +24,22 @@ The `azure-prod` GitHub environment must define these secrets:
 Optional variables: `AZURE_LOCATION` (default `westeurope`) and
 `AZURE_RESOURCE_OWNER` (default `journey-maintainers`).
 
-The Static Web Apps deployment token is never stored as a GitHub secret. The
-deploy job reads it from Azure at run time and masks it in the logs.
+The production Static Web Apps deployment token is never stored as a GitHub secret.
+The deploy job reads it from Azure at run time and masks it in the logs.
+
+The `azure-test` GitHub environment must define `AZURE_STATIC_WEB_APPS_API_TOKEN` for
+pull request previews. This token targets the shared Static Web App preview environment.
 
 ## Pipelines
 
-- `.github/workflows/ci.yml` runs on every pull request, and is reused by the
-  deploy workflow via `workflow_call`: dependency install (`npm ci`), lint, type
-  check, formatting, tests with coverage, a production build, and end-to-end
-  smoke tests. Pull requests never deploy production.
-- `.github/workflows/azure-static-web-apps.yml` runs on pushes to `main`. It
-  calls the CI workflow first and only provisions infrastructure and deploys if
-  every check passes. It publishes the application URL to the job summary and to
-  the GitHub deployment record, then verifies the site returns HTTP 200.
+- `.github/workflows/ci.yml` runs on every pull request, can be started manually,
+  and is reused by the deploy workflow via `workflow_call`: dependency install
+  (`npm ci`), lint, type check, formatting, tests with coverage, a production build,
+  and end-to-end smoke tests.
+- `.github/workflows/azure-static-web-apps.yml` runs production deployment on pushes
+  to `main` and pull request preview deployment for open pull requests. Both paths
+  call the CI workflow first. Production publishes the application URL to the job
+  summary and deployment record, then verifies the site returns HTTP 200.
 
 Failures surface in the GitHub Actions run: the failing job is marked red and
 verification failures are reported with an `::error::` annotation.
@@ -56,12 +59,10 @@ safe to re-run. Use `--what-if` first to preview changes.
 
 ## Preview environments
 
-Pull requests targeting `main` can be published to Static Web Apps staging
-environments (`stagingEnvironmentPolicy` is enabled in the template). To enable
-them, add a workflow step that calls `Azure/static-web-apps-deploy@v1` with the
-pull request context; the action creates a short-lived preview URL and removes it
-when the pull request closes. Preview environments share the production resource
-but not the production URL, and they are automatically deleted on merge or close.
+Pull requests targeting `main` are published to Static Web Apps staging environments
+(`stagingEnvironmentPolicy` is enabled in the template). The workflow summary reports
+the preview URL. Preview environments share the production resource but not the
+production URL, and are automatically deleted on merge or close.
 
 ## Rollback
 
