@@ -186,12 +186,11 @@ Two GitHub Actions workflows drive delivery:
 - `.github/workflows/azure-static-web-apps.yml` deploys production only from `main` after
   validation, and publishes pull request previews without updating shared infrastructure.
 
-The preview job still runs against the `azure-test` GitHub environment and requires:
-
-- `AZURE_STATIC_WEB_APPS_API_TOKEN` — deployment token for the existing shared Static Web App.
-
-The production deploy job reads its deployment token from Azure at run time and masks
-it in the logs. Pull request previews require the explicit test-environment token.
+The preview job still runs against the `azure-test` GitHub environment and, like the
+production deploy job, authenticates via OIDC and reads its deployment token from Azure
+at run time (masking it in the logs), using the same `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`,
+`AZURE_SUBSCRIPTION_ID`, `AZURE_RESOURCE_GROUP`, and `AZURE_STATIC_WEB_APP_NAME` secrets
+defined for that environment.
 
 ## Data format
 
