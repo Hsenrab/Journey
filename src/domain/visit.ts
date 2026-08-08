@@ -18,7 +18,9 @@ export const statusRules: Record<Status, string> = {
 }
 
 /** Statuses that a visit can award. A visit always awards at least Bronze. */
-export const awardableStatuses: Status[] = ['bronze', 'silver', 'gold']
+export const awardableStatuses = ['bronze', 'silver', 'gold'] as const satisfies readonly Status[]
+
+export const AwardedStatusSchema = z.enum(awardableStatuses)
 
 const isoDate = z
   .string()
@@ -27,8 +29,6 @@ const isoDate = z
     const date = new Date(`${value}T00:00:00Z`)
     return !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === value
   }, 'Visit date must be a real calendar date')
-
-export const AwardedStatusSchema = z.enum(['bronze', 'silver', 'gold'])
 
 export const VisitSchema = z.object({
   visitId: z.string().min(1),
