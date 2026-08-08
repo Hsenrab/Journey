@@ -13,12 +13,12 @@ test.describe('main journey', () => {
     await page.getByRole('link', { name: 'Locations' }).click()
     await expect(page.getByRole('heading', { name: 'Locations' })).toBeVisible()
 
-    await page.getByLabel('Search locations').fill('Dyrham Park')
-    await expect(page.getByText('Dyrham Park', { exact: true })).toBeVisible()
-    await expect(page.getByText('Chedworth Roman Villa')).not.toBeVisible()
+    await page.getByLabel('Search locations').fill('Chedworth')
+    await expect(page.getByText('Chedworth Roman Villa', { exact: true })).toBeVisible()
+    await expect(page.getByText('Dyrham Park')).not.toBeVisible()
 
     await page.getByRole('link', { name: 'View details' }).click()
-    await expect(page.getByRole('heading', { name: 'Dyrham Park' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Chedworth Roman Villa' })).toBeVisible()
 
     await page.getByText('Bronze', { exact: true }).click()
     await page.getByRole('option', { name: 'Gold' }).click()
@@ -27,7 +27,11 @@ test.describe('main journey', () => {
     await expect(page.getByText('Visit saved.')).toBeVisible()
 
     await page.getByRole('link', { name: '← All locations' }).click()
-    await expect(page.getByText('Gold', { exact: true })).toBeVisible()
+    await expect(
+      page
+        .getByRole('heading', { name: 'Chedworth Roman Villa' })
+        .locator('xpath=ancestor::*[contains(@class, "MuiCard-root")]'),
+    ).toContainText('Gold')
 
     await page.getByRole('link', { name: 'Dashboard' }).click()
     await expect(page.getByText('1 of 24 main experiences completed')).toBeVisible()

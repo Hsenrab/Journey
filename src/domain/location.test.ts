@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest'
+import type { Location } from './location'
 import { LocationSchema, parseLocations } from './location'
 
-const valid = {
+const valid: Location = {
   locationId: 'chedworth-roman-villa',
   name: 'Chedworth Roman Villa',
   area: 'Gloucestershire',

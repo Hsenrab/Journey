@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import type { Status } from './location'
+import type { Location, Status } from './location'
 
 export const statusOrder: Status[] = ['not-started', 'bronze', 'silver', 'gold']
 
@@ -87,4 +87,43 @@ export function statusForLocation(visits: readonly Visit[], locationId: string):
       (highest, visit) => (statusOrder.indexOf(visit.status) > statusOrder.indexOf(highest) ? visit.status : highest),
       'not-started',
     )
+}
+
+export function statusCounts(locations: readonly Location[], visits: readonly Visit[]): Record<Status, number> {
+  const counts: Record<Status, number> = { 'not-started': 0, bronze: 0, silver: 0, gold: 0 }
+  for (const location of locations) counts[statusForLocation(visits, location.locationId)]++
+  return counts
+}
+
+/** Percentage (0-100) of locations that have reached at least the given status. */
+export function progressTowards(locations: readonly Location[], visits: readonly Visit[], status: Status): number {
+  if (locations.length === 0) return 0
+  const threshold = statusOrder.indexOf(status)
+  const reached = locations.filter(
+    (location) => statusOrder.indexOf(statusForLocation(visits, location.locationId)) >= threshold,
+  ).length
+  return Math.round((reached / locations.length) * 100)
+}
+
+/** The date of the most recent visit to a location, or undefined if never visited. */
+export function lastVisitDate(visits: readonly Visit[], locationId: string): string | undefined {
+  return visitsForLocation(visits, locationId)[0]?.date
+}
+
+export function recentlyVisited(locations: readonly Location[], visits: readonly Visit[], limit = 3): Location[] {
+  return locations
+    .filter((location) => lastVisitDate(visits, location.locationId) !== undefined)
+    .sort((a, b) =>
+      (lastVisitDate(visits, b.locationId) ?? '').localeCompare(lastVisitDate(visits, a.locationId) ?? ''),
+    )
+    .slice(0, limit)
+}
+
+export function stillToVisit(locations: readonly Location[], visits: readonly Visit[]): Location[] {
+  return locations.filter((location) => statusForLocation(visits, location.locationId) === 'not-started')
+}
+
+/** Suggests the next locations to visit, preferring those not yet started. */
+export function suggestedNext(locations: readonly Location[], visits: readonly Visit[], limit = 3): Location[] {
+  return stillToVisit(locations, visits).slice(0, limit)
 }

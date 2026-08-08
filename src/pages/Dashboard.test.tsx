@@ -1,4 +1,5 @@
 import { render, screen } from '@testing-library/react'
+import { MemoryRouter } from 'react-router-dom'
 import { beforeEach, describe, expect, it } from 'vitest'
 import Dashboard from './Dashboard'
 import { JourneyProvider } from '../features/journey/JourneyContext'
@@ -21,9 +22,11 @@ function visit(locationId: string, status: AwardedStatus): Visit {
 
 function renderDashboard() {
   return render(
-    <JourneyProvider>
-      <Dashboard />
-    </JourneyProvider>,
+    <MemoryRouter>
+      <JourneyProvider>
+        <Dashboard />
+      </JourneyProvider>
+    </MemoryRouter>,
   )
 }
 
@@ -50,12 +53,12 @@ describe('Dashboard', () => {
   it('derives status counts per location', () => {
     save({ visits: [visit('lacock-abbey', 'silver')] })
 
-    const { getByText } = renderDashboard()
+    const { getByRole } = renderDashboard()
 
-    const silverCard = getByText('Silver').closest('div')
+    const silverCard = getByRole('heading', { name: 'Silver' }).closest('div')
     expect(silverCard).toHaveTextContent('1')
 
-    const notStartedCard = getByText('Not Started').closest('div')
+    const notStartedCard = getByRole('heading', { name: 'Not Started' }).closest('div')
     expect(notStartedCard).toHaveTextContent(String(locations.length - 1))
   })
 })

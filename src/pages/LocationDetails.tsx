@@ -28,7 +28,16 @@ export default function LocationDetails() {
   const [photos, setPhotos] = useState('')
   const [message, setMessage] = useState<{ severity: 'success' | 'error'; text: string } | null>(null)
 
-  if (!location) return <Alert severity="error">Location not found.</Alert>
+  if (!location) {
+    return (
+      <Stack spacing={3}>
+        <Button component={Link} to="/locations">
+          ← All locations
+        </Button>
+        <Alert severity="error">Location not found.</Alert>
+      </Stack>
+    )
+  }
 
   const visits = visitsFor(id)
 
