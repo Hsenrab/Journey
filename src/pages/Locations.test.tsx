@@ -5,6 +5,20 @@ import { beforeEach, describe, expect, it } from 'vitest'
 import Locations from './Locations'
 import { JourneyProvider } from '../features/journey/JourneyContext'
 import { save } from '../services/storage'
+import type { AwardedStatus, Visit } from '../domain/visit'
+
+function visit(locationId: string, status: AwardedStatus): Visit {
+  return {
+    visitId: `${locationId}-${status}`,
+    locationId,
+    status,
+    date: '2026-08-01',
+    notes: '',
+    photos: [],
+    createdAt: '2026-08-01T10:00:00.000Z',
+    updatedAt: '2026-08-01T10:00:00.000Z',
+  }
+}
 
 function renderLocations() {
   return render(
@@ -21,7 +35,7 @@ describe('Locations', () => {
 
   it('lists every location by default', () => {
     renderLocations()
-    expect(screen.getByText('Chedworth Roman Villa')).toBeInTheDocument()
+    expect(screen.getByText('Stourhead')).toBeInTheDocument()
     expect(screen.getByText('Dyrham Park')).toBeInTheDocument()
   })
 
@@ -29,21 +43,22 @@ describe('Locations', () => {
     const user = userEvent.setup()
     renderLocations()
 
-    await user.type(screen.getByLabelText('Search locations'), 'roman')
+    await user.type(screen.getByLabelText('Search locations'), 'garden')
 
-    expect(screen.getByText('Chedworth Roman Villa')).toBeInTheDocument()
-    expect(screen.queryByText('Dyrham Park')).not.toBeInTheDocument()
+    expect(screen.getByText('Westbury Court Garden')).toBeInTheDocument()
+    expect(screen.getByText('Hidcote')).toBeInTheDocument()
+    expect(screen.queryByText('Corfe Castle')).not.toBeInTheDocument()
   })
 
   it('filters by status', async () => {
-    save({ 'chedworth-roman-villa': { status: 'gold', date: '2026-08-01', notes: '', photos: [] } })
+    save({ visits: [visit('stourhead', 'gold')] })
     const user = userEvent.setup()
     renderLocations()
 
     await user.click(screen.getAllByRole('combobox')[0])
     await user.click(screen.getByRole('option', { name: 'Gold' }))
 
-    expect(screen.getByText('Chedworth Roman Villa')).toBeInTheDocument()
+    expect(screen.getByText('Stourhead')).toBeInTheDocument()
     expect(screen.queryByText('Dyrham Park')).not.toBeInTheDocument()
   })
 
@@ -55,10 +70,7 @@ describe('Locations', () => {
   })
 
   it('re-sorts the list when switching to progress order', async () => {
-    save({
-      'wicken-fen': { status: 'gold', date: '2026-08-01', notes: '', photos: [] },
-      'chedworth-roman-villa': { status: 'silver', date: '2026-08-01', notes: '', photos: [] },
-    })
+    save({ visits: [visit('may-hill', 'gold'), visit('dyrham-park', 'silver')] })
     const user = userEvent.setup()
     renderLocations()
 

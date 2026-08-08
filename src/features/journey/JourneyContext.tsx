@@ -1,31 +1,38 @@
-import { createContext, useContext, useEffect, useReducer, type ReactNode } from 'react'
-import { load, save, type JourneyData, type Visit } from '../../services/storage'
+import { createContext, useContext, useEffect, useMemo, useReducer, type ReactNode } from 'react'
+import { load, save, type JourneyData } from '../../services/storage'
+import { statusForLocation, visitsForLocation, type Visit } from '../../domain/visit'
+import type { Status } from '../../domain/location'
 
-type Action = { type: 'save'; id: string; visit: Visit } | { type: 'restore'; data: JourneyData }
-const Context = createContext<{
+type Action = { type: 'add'; visit: Visit } | { type: 'restore'; data: JourneyData }
+
+type JourneyValue = {
   data: JourneyData
-  saveVisit: (id: string, visit: Visit) => void
+  addVisit: (visit: Visit) => void
   restore: (data: JourneyData) => void
-} | null>(null)
+  visitsFor: (locationId: string) => Visit[]
+  statusFor: (locationId: string) => Status
+}
+
+const Context = createContext<JourneyValue | null>(null)
 
 function reducer(data: JourneyData, action: Action): JourneyData {
-  return action.type === 'save' ? { ...data, [action.id]: action.visit } : action.data
+  return action.type === 'add' ? { visits: [...data.visits, action.visit] } : action.data
 }
 
 export function JourneyProvider({ children }: { children: ReactNode }) {
   const [data, dispatch] = useReducer(reducer, undefined, load)
   useEffect(() => save(data), [data])
-  return (
-    <Context.Provider
-      value={{
-        data,
-        saveVisit: (id, visit) => dispatch({ type: 'save', id, visit }),
-        restore: (newData) => dispatch({ type: 'restore', data: newData }),
-      }}
-    >
-      {children}
-    </Context.Provider>
+  const value = useMemo<JourneyValue>(
+    () => ({
+      data,
+      addVisit: (visit) => dispatch({ type: 'add', visit }),
+      restore: (newData) => dispatch({ type: 'restore', data: newData }),
+      visitsFor: (locationId) => visitsForLocation(data.visits, locationId),
+      statusFor: (locationId) => statusForLocation(data.visits, locationId),
+    }),
+    [data],
   )
+  return <Context.Provider value={value}>{children}</Context.Provider>
 }
 
 export function useJourney() {

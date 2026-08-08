@@ -1,26 +1,22 @@
 import { Link } from 'react-router-dom'
 import { Box, Button, Card, CardContent, LinearProgress, Stack, Typography } from '@mui/material'
 import { locations } from '../data/locations'
-import type { Status } from '../domain/location'
 import {
+  lastVisitDate,
   progressTowards,
   recentlyVisited,
   statusCounts,
+  statusForLocation,
+  statusLabels,
   statusOrder,
   stillToVisit,
   suggestedNext,
-} from '../domain/location'
+} from '../domain/visit'
 import { useJourney } from '../features/journey/JourneyContext'
-
-const labels: Record<Status, string> = {
-  'not-started': 'Not Started',
-  bronze: 'Bronze',
-  silver: 'Silver',
-  gold: 'Gold',
-}
 
 export default function Dashboard() {
   const { data } = useJourney()
+  const visits = data.visits
 
   if (locations.length === 0) {
     return (
@@ -31,12 +27,12 @@ export default function Dashboard() {
     )
   }
 
-  const counts = statusCounts(locations, data)
-  const recent = recentlyVisited(locations, data)
-  const toVisit = stillToVisit(locations, data)
-  const suggestions = suggestedNext(locations, data)
+  const counts = statusCounts(locations, visits)
+  const recent = recentlyVisited(locations, visits)
+  const toVisit = stillToVisit(locations, visits)
+  const suggestions = suggestedNext(locations, visits)
   const complete = locations.filter(
-    (location) => statusOrder.indexOf(data[location.locationId]?.status ?? 'not-started') >= 2,
+    (location) => statusOrder.indexOf(statusForLocation(visits, location.locationId)) >= 2,
   ).length
 
   return (
@@ -58,7 +54,7 @@ export default function Dashboard() {
         {statusOrder.map((status) => (
           <Card key={status}>
             <CardContent>
-              <Typography variant="h6">{labels[status]}</Typography>
+              <Typography variant="h6">{statusLabels[status]}</Typography>
               <Typography variant="h4">{counts[status]}</Typography>
             </CardContent>
           </Card>
@@ -68,14 +64,18 @@ export default function Dashboard() {
       <Stack spacing={2}>
         <Typography variant="h5">Progress</Typography>
         {(['bronze', 'silver', 'gold'] as const).map((status) => {
-          const percent = progressTowards(locations, data, status)
+          const percent = progressTowards(locations, visits, status)
           return (
             <Box key={status}>
               <Stack direction="row" sx={{ justifyContent: 'space-between' }}>
-                <Typography>{labels[status]}</Typography>
+                <Typography>{statusLabels[status]}</Typography>
                 <Typography color="text.secondary">{percent}%</Typography>
               </Stack>
-              <LinearProgress variant="determinate" value={percent} aria-label={`Progress towards ${labels[status]}`} />
+              <LinearProgress
+                variant="determinate"
+                value={percent}
+                aria-label={`Progress towards ${statusLabels[status]}`}
+              />
             </Box>
           )
         })}
@@ -93,7 +93,8 @@ export default function Dashboard() {
                   <Box>
                     <Typography variant="h6">{location.name}</Typography>
                     <Typography color="text.secondary">
-                      {labels[data[location.locationId]?.status ?? 'not-started']} · {data[location.locationId]?.date}
+                      {statusLabels[statusForLocation(visits, location.locationId)]} ·{' '}
+                      {lastVisitDate(visits, location.locationId)}
                     </Typography>
                   </Box>
                   <Button component={Link} to={`/locations/${location.locationId}`}>

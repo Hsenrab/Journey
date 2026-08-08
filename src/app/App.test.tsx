@@ -1,7 +1,9 @@
-import { cleanup, render, screen } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import App from './App'
+
+afterEach(cleanup)
 
 describe('location list', () => {
   beforeEach(() => localStorage.clear())
@@ -50,5 +52,39 @@ describe('location list', () => {
 
     expect(screen.getByText('Hidcote')).toBeInTheDocument()
     expect(screen.queryByText('Snowshill Manor and Garden')).not.toBeInTheDocument()
+  })
+})
+
+describe('visit logging', () => {
+  beforeEach(() => localStorage.clear())
+
+  const logVisit = async (user: ReturnType<typeof userEvent.setup>, level: string, date: string) => {
+    await user.click(screen.getByRole('combobox', { name: 'Completion level' }))
+    await user.click(screen.getByRole('option', { name: level }))
+    fireEvent.change(screen.getByLabelText('Visit date'), { target: { value: date } })
+    await user.click(screen.getByRole('button', { name: 'Save visit' }))
+  }
+
+  it('records visits, keeps history and derives the highest status', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+
+    await user.click(screen.getByRole('link', { name: 'Locations' }))
+    await user.click(screen.getAllByRole('link', { name: 'View details' })[0])
+
+    await logVisit(user, 'Gold', '2026-08-01')
+    expect(screen.getByText('Visit saved.')).toBeInTheDocument()
+    expect(screen.getByText('Status: Gold')).toBeInTheDocument()
+
+    await logVisit(user, 'Bronze', '2026-08-02')
+    expect(screen.getByText('2026-08-01 · Gold')).toBeInTheDocument()
+    expect(screen.getByText('2026-08-02 · Bronze')).toBeInTheDocument()
+    expect(screen.getByText('Status: Gold')).toBeInTheDocument()
+
+    cleanup()
+    render(<App />)
+    await user.click(screen.getByRole('link', { name: 'Locations' }))
+    await user.click(screen.getAllByRole('link', { name: 'View details' })[0])
+    expect(screen.getByText('Status: Gold')).toBeInTheDocument()
   })
 })

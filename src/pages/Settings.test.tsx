@@ -5,8 +5,20 @@ import { beforeEach, describe, expect, it } from 'vitest'
 import Settings from './Settings'
 import { JourneyProvider } from '../features/journey/JourneyContext'
 import { backupVersion, load, save } from '../services/storage'
+import type { AwardedStatus, Visit } from '../domain/visit'
 
-const visit = { status: 'gold' as const, date: '2026-08-01', notes: 'Great day', photos: [] }
+function visit(status: AwardedStatus = 'gold'): Visit {
+  return {
+    visitId: `dyrham-park-${status}`,
+    locationId: 'dyrham-park',
+    status,
+    date: '2026-08-01',
+    notes: 'Great day',
+    photos: [],
+    createdAt: '2026-08-01T10:00:00.000Z',
+    updatedAt: '2026-08-01T10:00:00.000Z',
+  }
+}
 
 function renderSettings() {
   render(
@@ -38,35 +50,30 @@ describe('Settings', () => {
     const user = userEvent.setup()
     renderSettings()
 
-    const file = backupFile(
-      JSON.stringify({
-        version: backupVersion,
-        exportedAt: '2026-08-01T00:00:00.000Z',
-        visits: { 'chedworth-roman-villa': { status: 'gold', date: '2026-08-01', notes: '', photos: [] } },
-      }),
+    await user.upload(
+      screen.getByLabelText('Restore JSON'),
+      backupFile(
+        JSON.stringify({
+          version: backupVersion,
+          exportedAt: '2026-08-01T00:00:00.000Z',
+          visits: [visit()],
+        }),
+      ),
     )
-    await user.upload(screen.getByLabelText('Restore JSON'), file)
 
     expect(await screen.findByText('Your data was restored.')).toBeInTheDocument()
-    expect(load()['chedworth-roman-villa']).toMatchObject({ status: 'gold' })
+    expect(load().visits).toContainEqual(expect.objectContaining({ locationId: 'dyrham-park', status: 'gold' }))
   })
 
   it('keeps existing data when the backup is invalid', async () => {
     const user = userEvent.setup()
-    save({ 'chedworth-roman-villa': { status: 'silver', date: '2026-08-01', notes: '', photos: [] } })
+    save({ visits: [visit()] })
     renderSettings()
 
-    const file = backupFile(
-      JSON.stringify({
-        version: backupVersion,
-        exportedAt: '2026-08-01T00:00:00.000Z',
-        visits: { 'chedworth-roman-villa': { status: 'not-a-status' } },
-      }),
-    )
-    await user.upload(screen.getByLabelText('Restore JSON'), file)
+    await user.upload(screen.getByLabelText('Restore JSON'), backupFile('{"version":99,"visits":[]}'))
 
     expect(await screen.findByText(/not a valid tracker backup/)).toBeInTheDocument()
-    expect(load()['chedworth-roman-villa']).toMatchObject({ status: 'silver' })
+    expect(load().visits).toContainEqual(expect.objectContaining({ locationId: 'dyrham-park', status: 'gold' }))
   })
 
   it('shows an error message for a file that is not JSON', async () => {
@@ -80,7 +87,7 @@ describe('Settings', () => {
 
   it('exports the current data as a downloadable JSON file', async () => {
     const user = userEvent.setup()
-    save({ 'chedworth-roman-villa': { status: 'gold', date: '2026-08-01', notes: '', photos: [] } })
+    save({ visits: [visit()] })
     renderSettings()
 
     const createObjectURL = URL.createObjectURL
@@ -99,18 +106,18 @@ describe('Settings', () => {
 
   it('clears data only after confirmation', async () => {
     const user = userEvent.setup()
-    save({ 'dyrham-park': visit })
+    save({ visits: [visit()] })
     renderSettings()
 
     await user.click(screen.getByRole('button', { name: 'Clear data' }))
     await user.click(screen.getByRole('button', { name: 'Cancel' }))
     await waitForElementToBeRemoved(() => screen.queryByRole('dialog'))
-    expect(load()).toMatchObject({ 'dyrham-park': { status: 'gold' } })
+    expect(load().visits).toContainEqual(expect.objectContaining({ locationId: 'dyrham-park', status: 'gold' }))
 
     await user.click(screen.getByRole('button', { name: 'Clear data' }))
     await user.click(screen.getByRole('button', { name: 'Clear everything' }))
 
     expect(await screen.findByText('Your data was cleared.')).toBeInTheDocument()
-    expect(load()).toEqual({})
+    expect(load()).toEqual({ visits: [] })
   })
 })

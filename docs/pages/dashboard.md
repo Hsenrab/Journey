@@ -11,13 +11,15 @@ every qualifying location.
 
 - View the number of locations completed (silver or gold) out of the total
 - View a count card for each status: Not Started, Bronze, Silver, Gold
+- View progress bars towards Bronze, Silver and Gold
+- See recently visited locations, how many are still to visit, and suggested next locations
 
 The Dashboard is read-only; all editing happens on a location's details page.
 
 ## Data read
 
 - `locations` from `src/data/locations.ts` (the full reference list)
-- Visit records from the journey context (`useJourney().data`), loaded from local storage
+- The visit history from the journey context (`useJourney().data.visits`), loaded from local storage
 
 ## Data written
 
@@ -26,7 +28,8 @@ None.
 ## Rules and data flow
 
 1. `JourneyProvider` loads and validates stored data on start-up.
-2. Any location without a visit record is treated as `not-started`.
+2. A location's status is the highest status awarded by its visits; a location with no visits is
+   `not-started`.
 3. A location counts as complete when its status is `silver` or `gold`, matching the challenge
    rule that silver is the main completion level.
 4. Status counts partition all locations, so the four counts always sum to the total.
@@ -35,4 +38,3 @@ None.
 
 - Progress over time (visits per month, most recent visit)
 - Breakdown by area or location category
-- Highlight nearby or not-yet-started locations as suggestions
