@@ -56,7 +56,7 @@ infra/        Bicep template for the Azure Static Web App
 
 ## Run locally
 
-Requires Node.js 20 or later.
+Requires Node.js 24 or later.
 
 ```sh
 npm install
@@ -99,7 +99,7 @@ The `version` field allows future formats to be migrated; backups with any other
 
 ## Codespaces
 
-The included dev container uses Node 22, installs the locked dependencies, and installs
+The included dev container uses Node 24, installs the locked dependencies, and installs
 the Playwright Chromium browser when a codespace is created. Start the development
 server with `npm run dev`; Codespaces forwards port 5173 to an in-browser preview.
 
