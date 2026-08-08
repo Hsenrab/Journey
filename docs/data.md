@@ -3,7 +3,7 @@
 ## Where data lives
 
 All visit data is stored in the browser's local storage under the key
-`national-trust-tracker-v1`. There is no server, database or account: the data belongs to the
+`national-trust-tracker-v2`. There is no server, database or account: the data belongs to the
 browser profile on the device where it was entered.
 
 Reference data about the locations themselves is compiled into the app from
@@ -11,26 +11,39 @@ Reference data about the locations themselves is compiled into the app from
 
 ## Format
 
-The stored value is a JSON object keyed by location id:
+The stored value is an append-only visit history: a JSON object with a `visits` array holding one
+record per logged visit. A location can therefore have several visits, and its current status is
+derived as the highest status awarded by any of them.
 
 ```json
 {
-  "may-hill": {
-    "status": "silver",
-    "date": "2026-04-12",
-    "notes": "Walked to the summit and the topograph.",
-    "photos": ["https://example.com/photo.jpg", "IMG_1234.jpg"]
-  }
+  "visits": [
+    {
+      "visitId": "8f0d0f6e-2b4a-4f43-9f0f-6a1f6a5a1c2b",
+      "locationId": "may-hill",
+      "date": "2026-04-12",
+      "status": "silver",
+      "notes": "Walked to the summit and the topograph.",
+      "photos": ["https://example.com/photo.jpg", "IMG_1234.jpg"],
+      "createdAt": "2026-04-12T18:00:00.000Z",
+      "updatedAt": "2026-04-12T18:00:00.000Z"
+    }
+  ]
 }
 ```
 
-| Field    | Type                                            | Notes                                        |
-| -------- | ----------------------------------------------- | -------------------------------------------- |
-| key      | string                                          | `locationId` from `src/data/locations.json`  |
-| `status` | `not-started` \| `bronze` \| `silver` \| `gold` | Stored records are normally bronze or better |
-| `date`   | string                                          | Visit date in `YYYY-MM-DD` form              |
-| `notes`  | string                                          | Free text; may be empty                      |
-| `photos` | string[]                                        | URLs or filenames; no images are stored      |
+| Field        | Type                           | Notes                                       |
+| ------------ | ------------------------------ | ------------------------------------------- |
+| `visitId`    | string                         | Unique identifier for the visit             |
+| `locationId` | string                         | `locationId` from `src/data/locations.json` |
+| `date`       | string                         | Visit date as a real `YYYY-MM-DD` date      |
+| `status`     | `bronze` \| `silver` \| `gold` | The status this visit awards                |
+| `notes`      | string                         | Free text; may be empty                     |
+| `photos`     | string[]                       | URLs or filenames; no images are stored     |
+| `createdAt`  | string                         | ISO timestamp the record was created        |
+| `updatedAt`  | string                         | ISO timestamp the record was last changed   |
+
+`not-started` is never stored: it is the derived status of a location with no visits.
 
 ## Validation
 
@@ -51,9 +64,18 @@ Exports wrap the visit records in a versioned envelope so future formats can be 
 {
   "version": 1,
   "exportedAt": "2026-08-01T00:00:00.000Z",
-  "visits": {
-    "may-hill": { "status": "silver", "date": "2026-04-12", "notes": "", "photos": [] }
-  }
+  "visits": [
+    {
+      "visitId": "8f0d0f6e-2b4a-4f43-9f0f-6a1f6a5a1c2b",
+      "locationId": "may-hill",
+      "date": "2026-04-12",
+      "status": "silver",
+      "notes": "",
+      "photos": [],
+      "createdAt": "2026-04-12T18:00:00.000Z",
+      "updatedAt": "2026-04-12T18:00:00.000Z"
+    }
+  ]
 }
 ```
 
@@ -73,7 +95,7 @@ or restoring a file.
 3. A confirmation message appears on success; an error message appears if the file is not a valid
    tracker export.
 
-Restore **replaces** the whole dataset — it does not merge with what is already there.
+Restore **replaces** the whole visit history — it does not merge with what is already there.
 
 ## Clearing data
 

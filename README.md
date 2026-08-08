@@ -65,6 +65,38 @@ npm run dev
 
 The dev server prints a local URL (by default <http://localhost:5173>).
 
+`npm test`, `npm run lint`, `npm run typecheck`, `npm run format:check`, and `npm run build` validate the app. See [AGENTS.md](AGENTS.md) for the full folder structure and development conventions.
+
+## Backup and restore
+
+Visit records (status, date, notes and photo references) are stored only in this browser's local storage, separately from the committed location catalogue. Use **Settings** to manage them:
+
+- **Export JSON** downloads `national-trust-tracker.json`, a versioned backup:
+
+  ```json
+  {
+    "version": 1,
+    "exportedAt": "2026-08-01T00:00:00.000Z",
+    "visits": [
+      {
+        "visitId": "8f0d0f6e-2b4a-4f43-9f0f-6a1f6a5a1c2b",
+        "locationId": "dyrham-park",
+        "date": "2026-08-01",
+        "status": "silver",
+        "notes": "Great day",
+        "photos": [],
+        "createdAt": "2026-08-01T10:00:00.000Z",
+        "updatedAt": "2026-08-01T10:00:00.000Z"
+      }
+    ]
+  }
+  ```
+
+- **Restore JSON** picks a backup file and replaces your visit history with its contents. The file is parsed as data only — nothing in it is ever executed. Its type, structure, `version`, location IDs, dates, and status values are validated before anything is saved, so a malformed or unsupported file is rejected with an error and your existing data is left untouched.
+- **Clear data** removes every visit from this browser after a confirmation prompt.
+
+The `version` field allows future formats to be migrated; backups with any other version are rejected.
+
 ## Location catalogue
 
 The qualifying National Trust location catalogue is committed reference data at
@@ -132,16 +164,23 @@ Two GitHub Actions workflows drive delivery:
 
 ## Data format
 
-Visit records are stored in this browser's local storage as an object keyed by `locationId`:
+Visits are stored in this browser's local storage as an append-only history; a location's status is
+the highest status awarded by any of its visits:
 
 ```json
 {
-  "may-hill": {
-    "status": "silver",
-    "date": "2026-04-12",
-    "notes": "Walked to the summit and the topograph.",
-    "photos": ["https://example.com/photo.jpg"]
-  }
+  "visits": [
+    {
+      "visitId": "8f0d0f6e-2b4a-4f43-9f0f-6a1f6a5a1c2b",
+      "locationId": "may-hill",
+      "date": "2026-04-12",
+      "status": "silver",
+      "notes": "Walked to the summit and the topograph.",
+      "photos": ["https://example.com/photo.jpg"],
+      "createdAt": "2026-04-12T18:00:00.000Z",
+      "updatedAt": "2026-04-12T18:00:00.000Z"
+    }
+  ]
 }
 ```
 

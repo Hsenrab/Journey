@@ -12,24 +12,9 @@ import {
   Stack,
   Typography,
 } from '@mui/material'
-import type { Status } from '../domain/location'
+import { statusLabels, statusOrder, statusRules } from '../domain/visit'
 import { useJourney } from '../features/journey/JourneyContext'
 import { createBackup, parseImport } from '../services/storage'
-
-const labels: Record<Status, string> = {
-  'not-started': 'Not Started',
-  bronze: 'Bronze',
-  silver: 'Silver',
-  gold: 'Gold',
-}
-const order: Status[] = ['not-started', 'bronze', 'silver', 'gold']
-
-const ruleDescriptions: Record<Status, string> = {
-  'not-started': 'No visit recorded.',
-  bronze: 'Physically visited.',
-  silver: 'Main visitor experience completed — the main challenge completion level.',
-  gold: 'Everything reasonably available to a normal visitor completed.',
-}
 
 export default function Settings() {
   const { data, restore } = useJourney()
@@ -53,8 +38,7 @@ export default function Settings() {
       return
     }
     try {
-      const visits = parseImport(await file.text())
-      restore(visits)
+      restore(parseImport(await file.text()))
       setMessage({ text: 'Your data was restored.', error: false })
     } catch {
       setMessage({
@@ -111,7 +95,7 @@ export default function Settings() {
           <Button
             color="error"
             onClick={() => {
-              restore({})
+              restore({ visits: [] })
               setConfirmingClear(false)
               setMessage({ text: 'Your data was cleared.', error: false })
             }}
@@ -128,11 +112,11 @@ export default function Settings() {
           and an estimated one-way drive time of 150 minutes or less from Brockworth GL3. Cafés, shops, offices, holiday
           cottages, standalone car parks and non-qualifying tenant attractions are excluded.
         </Typography>
-        {order.map((status) => (
+        {statusOrder.map((status) => (
           <Card key={status}>
             <CardContent>
-              <Typography variant="h6">{labels[status]}</Typography>
-              <Typography>{ruleDescriptions[status]}</Typography>
+              <Typography variant="h6">{statusLabels[status]}</Typography>
+              <Typography>{statusRules[status]}</Typography>
             </CardContent>
           </Card>
         ))}

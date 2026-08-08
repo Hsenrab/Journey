@@ -1,59 +1,76 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import { backupVersion, createBackup, load, parseImport, save } from './storage'
+import type { Visit } from '../domain/visit'
 
-const visit = { status: 'silver' as const, date: '2026-08-01', notes: 'Great day', photos: ['dyrham-park.jpg'] }
+const visit: Visit = {
+  visitId: 'v1',
+  locationId: 'dyrham-park',
+  date: '2026-08-01',
+  status: 'silver',
+  notes: 'Great day',
+  photos: ['dyrham-park.jpg'],
+  createdAt: '2026-08-01T10:00:00.000Z',
+  updatedAt: '2026-08-01T10:00:00.000Z',
+}
+
 const backup = (overrides: Record<string, unknown> = {}) =>
   JSON.stringify({
     version: backupVersion,
     exportedAt: '2026-08-01T00:00:00.000Z',
-    visits: { 'dyrham-park': visit },
+    visits: [visit],
     ...overrides,
   })
 
 describe('load', () => {
   beforeEach(() => localStorage.clear())
 
-  it('returns an empty object when nothing is stored', () => {
-    expect(load()).toEqual({})
+  it('returns empty visit history when nothing is stored', () => {
+    expect(load()).toEqual({ visits: [] })
   })
 
-  it('returns previously saved data', () => {
-    save({ 'dyrham-park': { ...visit, status: 'gold' } })
-    expect(load()).toMatchObject({ 'dyrham-park': { status: 'gold' } })
+  it('returns previously saved visit history', () => {
+    save({ visits: [{ ...visit, status: 'gold' }] })
+    expect(load()).toMatchObject({ visits: [{ locationId: 'dyrham-park', status: 'gold' }] })
   })
 
-  it('falls back to an empty object when stored data is corrupted', () => {
-    localStorage.setItem('national-trust-tracker-v1', '{not valid json')
-    expect(load()).toEqual({})
+  it('falls back to empty visit history when stored data is corrupted', () => {
+    localStorage.setItem('national-trust-tracker-v2', '{not valid json')
+    expect(load()).toEqual({ visits: [] })
   })
 
-  it('falls back to an empty object when stored data fails validation', () => {
-    localStorage.setItem('national-trust-tracker-v1', '{"dyrham-park":{"status":"unknown"}}')
-    expect(load()).toEqual({})
+  it('falls back to empty visit history when stored data fails validation', () => {
+    localStorage.setItem('national-trust-tracker-v2', '{"visits":[{"status":"unknown"}]}')
+    expect(load()).toEqual({ visits: [] })
   })
 })
 
 describe('save', () => {
   beforeEach(() => localStorage.clear())
 
-  it('persists data to localStorage as JSON', () => {
-    const data = { 'dyrham-park': { ...visit, status: 'bronze' as const } }
+  it('persists visit history to localStorage as JSON', () => {
+    const data = { visits: [{ ...visit, status: 'bronze' as const }] }
     save(data)
-    expect(JSON.parse(localStorage.getItem('national-trust-tracker-v1')!)).toEqual(data)
+    expect(JSON.parse(localStorage.getItem('national-trust-tracker-v2')!)).toEqual(data)
   })
 })
 
 describe('createBackup', () => {
   it('wraps visits in a versioned envelope that can be imported back', () => {
-    const exported = createBackup({ 'dyrham-park': visit })
+    const exported = createBackup({ visits: [visit] })
     expect(exported.version).toBe(backupVersion)
-    expect(parseImport(JSON.stringify(exported))).toMatchObject({ 'dyrham-park': { status: 'silver' } })
+    expect(parseImport(JSON.stringify(exported))).toMatchObject({
+      visits: [{ locationId: 'dyrham-park', status: 'silver' }],
+    })
   })
 })
 
 describe('parseImport', () => {
   it('accepts a portable visit backup', () => {
-    expect(parseImport(backup())).toMatchObject({ 'dyrham-park': { status: 'silver' } })
+    expect(parseImport(backup())).toMatchObject({ visits: [{ locationId: 'dyrham-park', status: 'silver' }] })
+  })
+
+  it('accepts an empty backup', () => {
+    expect(parseImport(backup({ visits: [] }))).toEqual({ visits: [] })
   })
 
   it('rejects files that are not JSON', () => {
@@ -64,15 +81,23 @@ describe('parseImport', () => {
     expect(() => parseImport(backup({ version: backupVersion + 1 }))).toThrow()
   })
 
-  it('rejects unknown statuses', () => {
-    expect(() => parseImport(backup({ visits: { 'dyrham-park': { ...visit, status: 'done' } } }))).toThrow()
+  it('rejects malformed visit records', () => {
+    expect(() => parseImport(backup({ visits: [{ status: 'silver' }] }))).toThrow()
   })
 
-  it('rejects invalid dates', () => {
-    expect(() => parseImport(backup({ visits: { 'dyrham-park': { ...visit, date: '01/08/2026' } } }))).toThrow()
+  it('rejects unknown statuses', () => {
+    expect(() => parseImport(backup({ visits: [{ ...visit, status: 'platinum' }] }))).toThrow()
+  })
+
+  it('rejects dates that are not YYYY-MM-DD', () => {
+    expect(() => parseImport(backup({ visits: [{ ...visit, date: '01/08/2026' }] }))).toThrow()
+  })
+
+  it('rejects impossible calendar dates', () => {
+    expect(() => parseImport(backup({ visits: [{ ...visit, date: '2026-02-30' }] }))).toThrow()
   })
 
   it('rejects unknown location references', () => {
-    expect(() => parseImport(backup({ visits: { atlantis: visit } }))).toThrow()
+    expect(() => parseImport(backup({ visits: [{ ...visit, locationId: 'atlantis' }] }))).toThrow()
   })
 })

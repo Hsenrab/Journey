@@ -16,13 +16,13 @@ definitions.
 
 ## Data read
 
-- All visit records from `useJourney().data`
+- The whole visit history from `useJourney().data`
 
 ## Data written
 
-- On restore, the entire visit dataset is replaced via `useJourney().restore` and saved to local
+- On restore, the entire visit history is replaced via `useJourney().restore` and saved to local
   storage.
-- On clear, the dataset is replaced with an empty one.
+- On clear, the history is replaced with an empty one.
 
 ## Rules and data flow
 

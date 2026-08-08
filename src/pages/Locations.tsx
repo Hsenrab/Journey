@@ -15,17 +15,8 @@ import {
   Typography,
 } from '@mui/material'
 import { locations } from '../data/locations'
-import type { Status } from '../domain/location'
-import { statusOf } from '../domain/location'
+import { lastVisitDates, statusLabels, statusOrder } from '../domain/visit'
 import { useJourney } from '../features/journey/JourneyContext'
-
-const labels: Record<Status, string> = {
-  'not-started': 'Not Started',
-  bronze: 'Bronze',
-  silver: 'Silver',
-  gold: 'Gold',
-}
-const order: Status[] = ['not-started', 'bronze', 'silver', 'gold']
 
 const areas = Array.from(new Set(locations.map((location) => location.area))).sort()
 const categories = Array.from(new Set(locations.map((location) => location.category))).sort()
@@ -33,42 +24,42 @@ const categories = Array.from(new Set(locations.map((location) => location.categ
 type SortKey = 'name' | 'travel' | 'distance' | 'status' | 'lastVisit'
 
 export default function Locations() {
-  const { data } = useJourney()
+  const { data, statusFor } = useJourney()
+  const visits = data.visits
   const [query, setQuery] = useState('')
   const [status, setStatus] = useState('all')
   const [sort, setSort] = useState<SortKey>('name')
   const [maxDistance, setMaxDistance] = useState('all')
   const [area, setArea] = useState('all')
   const [category, setCategory] = useState('all')
-  const list = useMemo(
-    () =>
-      locations
-        .filter((location) => {
-          const visitStatus = data[location.locationId]?.status ?? 'not-started'
-          return (
-            (status === 'all' || visitStatus === status) &&
-            (maxDistance === 'all' || location.travel.distanceMiles <= Number(maxDistance)) &&
-            (area === 'all' || location.area === area) &&
-            (category === 'all' || location.category === category) &&
-            `${location.name} ${location.area} ${location.category}`.toLowerCase().includes(query.toLowerCase())
-          )
-        })
-        .sort((a, b) => {
-          switch (sort) {
-            case 'travel':
-              return a.travel.driveTimeMinutes - b.travel.driveTimeMinutes
-            case 'distance':
-              return a.travel.distanceMiles - b.travel.distanceMiles
-            case 'status':
-              return order.indexOf(statusOf(data, b.locationId)) - order.indexOf(statusOf(data, a.locationId))
-            case 'lastVisit':
-              return (data[b.locationId]?.date ?? '').localeCompare(data[a.locationId]?.date ?? '')
-            default:
-              return a.name.localeCompare(b.name)
-          }
-        }),
-    [area, category, data, maxDistance, query, sort, status],
-  )
+  const list = useMemo(() => {
+    const dates = lastVisitDates(visits)
+    return locations
+      .filter((location) => {
+        const visitStatus = statusFor(location.locationId)
+        return (
+          (status === 'all' || visitStatus === status) &&
+          (maxDistance === 'all' || location.travel.distanceMiles <= Number(maxDistance)) &&
+          (area === 'all' || location.area === area) &&
+          (category === 'all' || location.category === category) &&
+          `${location.name} ${location.area} ${location.category}`.toLowerCase().includes(query.toLowerCase())
+        )
+      })
+      .sort((a, b) => {
+        switch (sort) {
+          case 'travel':
+            return a.travel.driveTimeMinutes - b.travel.driveTimeMinutes
+          case 'distance':
+            return a.travel.distanceMiles - b.travel.distanceMiles
+          case 'status':
+            return statusOrder.indexOf(statusFor(b.locationId)) - statusOrder.indexOf(statusFor(a.locationId))
+          case 'lastVisit':
+            return (dates.get(b.locationId) ?? '').localeCompare(dates.get(a.locationId) ?? '')
+          default:
+            return a.name.localeCompare(b.name)
+        }
+      })
+  }, [area, category, maxDistance, query, sort, status, statusFor, visits])
 
   return (
     <Stack spacing={3}>
@@ -85,9 +76,9 @@ export default function Locations() {
             onChange={(e) => setStatus(e.target.value)}
           >
             <MenuItem value="all">All statuses</MenuItem>
-            {order.map((s) => (
+            {statusOrder.map((s) => (
               <MenuItem key={s} value={s}>
-                {labels[s]}
+                {statusLabels[s]}
               </MenuItem>
             ))}
           </Select>
@@ -170,8 +161,8 @@ export default function Locations() {
                     {location.travel.driveTimeMinutes} min drive)
                   </Typography>
                   <Chip
-                    label={labels[statusOf(data, location.locationId)]}
-                    color={statusOf(data, location.locationId) === 'gold' ? 'success' : 'default'}
+                    label={statusLabels[statusFor(location.locationId)]}
+                    color={statusFor(location.locationId) === 'gold' ? 'success' : 'default'}
                   />
                   <Button component={Link} to={`/locations/${location.locationId}`}>
                     View details

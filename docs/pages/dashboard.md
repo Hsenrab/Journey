@@ -21,7 +21,7 @@ The Dashboard is read-only; all editing happens on a location's details page.
 ## Data read
 
 - `locations` from `src/data/locations.ts` (the full reference list)
-- Visit records from the journey context (`useJourney().data`), loaded from local storage
+- The visit history from the journey context (`useJourney().data.visits`), loaded from local storage
 
 ## Data written
 
@@ -30,7 +30,8 @@ None.
 ## Rules and data flow
 
 1. `JourneyProvider` loads and validates stored data on start-up.
-2. Any location without a visit record is treated as `not-started`.
+2. A location's status is the highest status awarded by its visits; a location with no visits is
+   `not-started`.
 3. A location counts as complete when its status is `silver` or `gold`, matching the challenge
    rule that silver is the main completion level.
 4. Status counts partition all locations, so the four counts always sum to the total.

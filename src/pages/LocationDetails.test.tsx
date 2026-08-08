@@ -6,6 +6,8 @@ import LocationDetails from './LocationDetails'
 import { JourneyProvider } from '../features/journey/JourneyContext'
 import { load } from '../services/storage'
 
+const lacockId = 'lacock-abbey-fox-talbot-museum-and-village'
+
 function renderDetails(id: string) {
   return render(
     <MemoryRouter initialEntries={[`/locations/${id}`]}>
@@ -27,13 +29,13 @@ describe('LocationDetails', () => {
   })
 
   it('shows the location details', () => {
-    renderDetails('chedworth-roman-villa')
-    expect(screen.getByRole('heading', { name: 'Chedworth Roman Villa' })).toBeInTheDocument()
+    renderDetails(lacockId)
+    expect(screen.getByRole('heading', { name: 'Lacock Abbey, Fox Talbot Museum and Village' })).toBeInTheDocument()
   })
 
   it('adds a visit and persists the derived status', async () => {
     const user = userEvent.setup()
-    renderDetails('chedworth-roman-villa')
+    renderDetails(lacockId)
 
     await user.type(screen.getByLabelText('Notes'), 'Wonderful visit')
     await user.click(screen.getByRole('combobox'))
@@ -41,28 +43,30 @@ describe('LocationDetails', () => {
     await user.click(screen.getByRole('button', { name: 'Save visit' }))
 
     expect(screen.getByText('Visit saved.')).toBeInTheDocument()
-    expect(load()['chedworth-roman-villa']).toMatchObject({ status: 'gold', notes: 'Wonderful visit' })
+    expect(load().visits).toContainEqual(
+      expect.objectContaining({ locationId: lacockId, status: 'gold', notes: 'Wonderful visit' }),
+    )
   })
 
   it('parses photo references into an array, ignoring blank lines', async () => {
     const user = userEvent.setup()
-    renderDetails('chedworth-roman-villa')
+    renderDetails(lacockId)
 
     await user.type(screen.getByLabelText('Photo references (one URL or filename per line)'), 'a.jpg\n\nb.jpg')
     await user.click(screen.getByRole('button', { name: 'Save visit' }))
 
-    expect(load()['chedworth-roman-villa'].photos).toEqual(['a.jpg', 'b.jpg'])
+    expect(load().visits[0].photos).toEqual(['a.jpg', 'b.jpg'])
   })
 
   it('allows editing the visit date', async () => {
     const user = userEvent.setup()
-    renderDetails('chedworth-roman-villa')
+    renderDetails(lacockId)
 
     const dateInput = screen.getByLabelText('Visit date')
     await user.clear(dateInput)
     await user.type(dateInput, '2026-07-04')
     await user.click(screen.getByRole('button', { name: 'Save visit' }))
 
-    expect(load()['chedworth-roman-villa']).toMatchObject({ date: '2026-07-04' })
+    expect(load().visits[0]).toMatchObject({ locationId: lacockId, date: '2026-07-04' })
   })
 })
