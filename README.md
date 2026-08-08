@@ -1,9 +1,9 @@
 # National Trust Tracker
 
-A private, browser-only tracker for qualifying National Trust visitor destinations across the UK.
-It records which places have been visited, how completely they were explored, and keeps notes and
-photo references alongside each visit. Distance and drive time from Brockworth, Gloucester support
-proximity filtering and sorting.
+A private, browser-only tracker for qualifying National Trust visitor destinations reachable within
+a maximum 2.5-hour one-way drive from Brockworth, Gloucester (GL3). It records which places have
+been visited, how completely they were explored, and keeps notes and photo references alongside each
+visit. Distance and drive time from Brockworth support proximity filtering and sorting.
 
 ## Challenge rules
 
@@ -122,21 +122,21 @@ Each location record has:
 
 ### Travel reference point
 
-The catalogue aims to include all qualifying National Trust properties nationally — it is
-not restricted to a travel boundary. Each record stores its distance and drive time from
-**Brockworth, Gloucester** (GL3), the reference starting point for this app, so the
-**Locations** page can filter and sort by proximity. `travel.distanceMiles` is the
-straight-line distance from Brockworth to the location, and `travel.driveTimeMinutes` is
-the typical road drive time. These figures are indicative, sourced from public mapping
-services, and are only used for filtering/sorting and rough trip planning — they are not
-turn-by-turn directions.
+The committed catalogue contains 138 places with an estimated one-way drive time of no more than
+150 minutes from **Brockworth, Gloucester** (GL3). `travel.distanceMiles` is an approximate road
+distance used for sorting and display, while `travel.driveTimeMinutes` determines inclusion in the
+challenge. These indicative figures support rough trip planning and are not turn-by-turn directions.
+
+The list was assembled from National Trust regional visitor-place listings and known official place
+pages, then filtered by approximate road travel time. Listings, openings and route times change, so
+boundary or limited-opening places should be checked before visiting.
 
 ### Qualifying rules
 
 Locations must be publicly accessible National Trust visitor destinations with their own
-visitor information page. The catalogue **excludes**: cafés only, shops only, offices,
-holiday cottages, standalone car parks, non-public properties, and non-qualifying tenant
-attractions.
+visitor information page and an estimated one-way drive time of 150 minutes or less from
+Brockworth GL3. The catalogue **excludes**: cafés only, shops only, offices, holiday cottages,
+standalone car parks, non-public properties, and non-qualifying tenant attractions.
 
 No precise home address or other personal details are committed to this repository.
 

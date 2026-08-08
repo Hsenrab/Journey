@@ -4,6 +4,8 @@ import { JourneyProvider, useJourney } from './JourneyContext'
 import { load } from '../../services/storage'
 import type { AwardedStatus, Visit } from '../../domain/visit'
 
+const lacockId = 'lacock-abbey-fox-talbot-museum-and-village'
+
 function visit(locationId: string, status: AwardedStatus, date = '2026-08-01'): Visit {
   return {
     visitId: `${locationId}-${status}`,
@@ -21,33 +23,33 @@ describe('JourneyContext', () => {
   beforeEach(() => localStorage.clear())
 
   it('starts with any previously persisted data', () => {
-    localStorage.setItem('national-trust-tracker-v2', JSON.stringify({ visits: [visit('lacock-abbey', 'gold')] }))
+    localStorage.setItem('national-trust-tracker-v2', JSON.stringify({ visits: [visit(lacockId, 'gold')] }))
     const { result } = renderHook(() => useJourney(), { wrapper: JourneyProvider })
-    expect(result.current.statusFor('lacock-abbey')).toBe('gold')
+    expect(result.current.statusFor(lacockId)).toBe('gold')
   })
 
   it('saves a visit and persists it to localStorage', () => {
     const { result } = renderHook(() => useJourney(), { wrapper: JourneyProvider })
 
     act(() => {
-      result.current.addVisit({ ...visit('lacock-abbey', 'silver'), notes: 'Great day' })
+      result.current.addVisit({ ...visit(lacockId, 'silver'), notes: 'Great day' })
     })
 
-    expect(result.current.statusFor('lacock-abbey')).toBe('silver')
-    expect(load().visits).toContainEqual(expect.objectContaining({ locationId: 'lacock-abbey', status: 'silver' }))
+    expect(result.current.statusFor(lacockId)).toBe('silver')
+    expect(load().visits).toContainEqual(expect.objectContaining({ locationId: lacockId, status: 'silver' }))
   })
 
   it('restores a full data set, replacing existing entries', () => {
     const { result } = renderHook(() => useJourney(), { wrapper: JourneyProvider })
 
     act(() => {
-      result.current.addVisit(visit('lacock-abbey', 'silver'))
+      result.current.addVisit(visit(lacockId, 'silver'))
     })
     act(() => {
       result.current.restore({ visits: [visit('stourhead', 'gold', '2026-08-02')] })
     })
 
-    expect(result.current.statusFor('lacock-abbey')).toBe('not-started')
+    expect(result.current.statusFor(lacockId)).toBe('not-started')
     expect(result.current.statusFor('stourhead')).toBe('gold')
   })
 

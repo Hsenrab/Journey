@@ -26,7 +26,7 @@ describe('location list', () => {
 
     await user.click(screen.getByRole('link', { name: 'Locations' }))
 
-    expect(screen.getByText('Driving distance: 13 miles from Brockworth (~30 min drive)')).toBeInTheDocument()
+    expect(screen.getByText('Driving distance: 49 miles from Brockworth (~75 min drive)')).toBeInTheDocument()
   })
 
   it('sorts locations by nearest driving distance first', async () => {
@@ -38,7 +38,7 @@ describe('location list', () => {
     await user.click(screen.getByRole('option', { name: 'Distance (nearest first)' }))
 
     const nearest = screen.getByText('May Hill')
-    const farther = screen.getByText('Cragside')
+    const farther = screen.getByText('Quarry Bank')
     expect(nearest.compareDocumentPosition(farther) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
   })
 
@@ -50,7 +50,7 @@ describe('location list', () => {
     await user.click(screen.getByRole('combobox', { name: 'Maximum driving distance' }))
     await user.click(screen.getByRole('option', { name: 'Up to 25 miles' }))
 
-    expect(screen.getByText('Hidcote')).toBeInTheDocument()
+    expect(screen.getByText('Croome')).toBeInTheDocument()
     expect(screen.queryByText('Snowshill Manor and Garden')).not.toBeInTheDocument()
   })
 })

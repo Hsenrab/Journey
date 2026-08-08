@@ -1,4 +1,9 @@
 import { expect, test } from '@playwright/test'
+import { readFileSync } from 'node:fs'
+
+const locationCount = (
+  JSON.parse(readFileSync(new URL('../src/data/locations.json', import.meta.url), 'utf8')) as unknown[]
+).length
 
 test.describe('main journey', () => {
   test.beforeEach(async ({ page }) => {
@@ -8,7 +13,7 @@ test.describe('main journey', () => {
   test('records a visit and sees it reflected across the app', async ({ page }) => {
     await page.goto('/')
     await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible()
-    await expect(page.getByText('0 of 24 main experiences completed')).toBeVisible()
+    await expect(page.getByText(`0 of ${locationCount} main experiences completed`)).toBeVisible()
 
     await page.getByRole('link', { name: 'Locations' }).click()
     await expect(page.getByRole('heading', { name: 'Locations' })).toBeVisible()
@@ -34,7 +39,7 @@ test.describe('main journey', () => {
     ).toContainText('Gold')
 
     await page.getByRole('link', { name: 'Dashboard' }).click()
-    await expect(page.getByText('1 of 24 main experiences completed')).toBeVisible()
+    await expect(page.getByText(`1 of ${locationCount} main experiences completed`)).toBeVisible()
   })
 
   test('shows a not found message for an unknown location', async ({ page }) => {

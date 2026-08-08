@@ -18,7 +18,9 @@ export const statusRules: Record<Status, string> = {
 }
 
 /** Statuses that a visit can award. A visit always awards at least Bronze. */
-export const awardableStatuses: Status[] = ['bronze', 'silver', 'gold']
+export const awardableStatuses = ['bronze', 'silver', 'gold'] as const satisfies readonly Status[]
+
+export const AwardedStatusSchema = z.enum(awardableStatuses)
 
 const isoDate = z
   .string()
@@ -27,8 +29,6 @@ const isoDate = z
     const date = new Date(`${value}T00:00:00Z`)
     return !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === value
   }, 'Visit date must be a real calendar date')
-
-export const AwardedStatusSchema = z.enum(['bronze', 'silver', 'gold'])
 
 export const VisitSchema = z.object({
   visitId: z.string().min(1),
@@ -96,7 +96,11 @@ export function statusCounts(locations: readonly Location[], visits: readonly Vi
 }
 
 /** Percentage (0-100) of locations that have reached at least the given status. */
-export function progressTowards(locations: readonly Location[], visits: readonly Visit[], status: Status): number {
+export function progressTowards(
+  locations: readonly Location[],
+  visits: readonly Visit[],
+  status: AwardedStatus,
+): number {
   if (locations.length === 0) return 0
   const threshold = statusOrder.indexOf(status)
   const reached = locations.filter(

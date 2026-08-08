@@ -1,266 +1,1934 @@
 [
   {
+    "locationId": "bath-assembly-rooms",
+    "name": "Bath Assembly Rooms",
+    "area": "Bath and North East Somerset",
+    "category": "Historic building",
+    "travel": {
+      "distanceMiles": 47,
+      "driveTimeMinutes": 70
+    },
+    "url": "https://www.nationaltrust.org.uk/visit/bath-bristol/bath-assembly-rooms",
+    "notes": "Georgian assembly rooms at the heart of Bath social history.",
+    "createdAt": "2026-08-04T00:00:00.000Z",
+    "updatedAt": "2026-08-04T00:00:00.000Z"
+  },
+  {
+    "locationId": "bath-skyline",
+    "name": "Bath Skyline",
+    "area": "Bath and North East Somerset",
+    "category": "Countryside",
+    "travel": {
+      "distanceMiles": 49,
+      "driveTimeMinutes": 75
+    },
+    "url": "https://www.nationaltrust.org.uk/visit/bath-bristol/bath-skyline",
+    "notes": "Countryside walking route around Bath with meadows, woodland and city views.",
+    "createdAt": "2026-08-04T00:00:00.000Z",
+    "updatedAt": "2026-08-04T00:00:00.000Z"
+  },
+  {
+    "locationId": "prior-park-landscape-garden",
+    "name": "Prior Park Landscape Garden",
+    "area": "Bath and North East Somerset",
+    "category": "Garden",
+    "travel": {
+      "distanceMiles": 48,
+      "driveTimeMinutes": 70
+    },
+    "url": "https://www.nationaltrust.org.uk/visit/bath-bristol/prior-park-landscape-garden",
+    "notes": "Eighteenth-century landscape garden with Palladian bridge and Bath views.",
+    "createdAt": "2026-08-04T00:00:00.000Z",
+    "updatedAt": "2026-08-04T00:00:00.000Z"
+  },
+  {
+    "locationId": "basildon-park",
+    "name": "Basildon Park",
+    "area": "Berkshire",
+    "category": "House and garden",
+    "travel": {
+      "distanceMiles": 63,
+      "driveTimeMinutes": 80
+    },
+    "url": "https://www.nationaltrust.org.uk/visit/oxfordshire-buckinghamshire-berkshire/basildon-park",
+    "notes": "Palladian mansion, parkland and gardens above the Thames Valley.",
+    "createdAt": "2026-08-04T00:00:00.000Z",
+    "updatedAt": "2026-08-04T00:00:00.000Z"
+  },
+  {
+    "locationId": "blaise-hamlet",
+    "name": "Blaise Hamlet",
+    "area": "Bristol",
+    "category": "Historic building",
+    "travel": {
+      "distanceMiles": 39,
+      "driveTimeMinutes": 55
+    },
+    "url": "https://www.nationaltrust.org.uk/visit/bath-bristol/blaise-hamlet",
+    "notes": "Picturesque group of early nineteenth-century cottages around a village green.",
+    "createdAt": "2026-08-04T00:00:00.000Z",
+    "updatedAt": "2026-08-04T00:00:00.000Z"
+  },
+  {
+    "locationId": "ascott",
+    "name": "Ascott",
+    "area": "Buckinghamshire",
+    "category": "House and garden",
+    "travel": {
+      "distanceMiles": 86,
+      "driveTimeMinutes": 125
+    },
+    "url": "https://www.nationaltrust.org.uk/visit/oxfordshire-buckinghamshire-berkshire/ascott",
+    "notes": "Tudor-style house, art collection and extensive gardens.",
+    "createdAt": "2026-08-04T00:00:00.000Z",
+    "updatedAt": "2026-08-04T00:00:00.000Z"
+  },
+  {
+    "locationId": "boarstall-tower-and-duck-decoy",
+    "name": "Boarstall Tower and Duck Decoy",
+    "area": "Buckinghamshire",
+    "category": "Historic building",
+    "travel": {
+      "distanceMiles": 55,
+      "driveTimeMinutes": 85
+    },
+    "url": "https://www.nationaltrust.org.uk/visit/oxfordshire-buckinghamshire-berkshire/boarstall-tower-and-duck-decoy",
+    "notes": "Medieval gatehouse and historic duck decoy with limited-opening visitor access.",
+    "createdAt": "2026-08-04T00:00:00.000Z",
+    "updatedAt": "2026-08-04T00:00:00.000Z"
+  },
+  {
+    "locationId": "bradenham-village",
+    "name": "Bradenham Village",
+    "area": "Buckinghamshire",
+    "category": "Village",
+    "travel": {
+      "distanceMiles": 80,
+      "driveTimeMinutes": 120
+    },
+    "url": "https://www.nationaltrust.org.uk/visit/oxfordshire-buckinghamshire-berkshire/bradenham-village",
+    "notes": "Chilterns village and surrounding beech woodland countryside.",
+    "createdAt": "2026-08-04T00:00:00.000Z",
+    "updatedAt": "2026-08-04T00:00:00.000Z"
+  },
+  {
+    "locationId": "claydon",
+    "name": "Claydon",
+    "area": "Buckinghamshire",
+    "category": "House and garden",
+    "travel": {
+      "distanceMiles": 62,
+      "driveTimeMinutes": 95
+    },
+    "url": "https://www.nationaltrust.org.uk/visit/oxfordshire-buckinghamshire-berkshire/claydon",
+    "notes": "Eighteenth-century interiors, gardens and wider Claydon estate setting.",
+    "createdAt": "2026-08-04T00:00:00.000Z",
+    "updatedAt": "2026-08-04T00:00:00.000Z"
+  },
+  {
+    "locationId": "cliveden",
+    "name": "Cliveden",
+    "area": "Buckinghamshire",
+    "category": "Garden",
+    "travel": {
+      "distanceMiles": 84,
+      "driveTimeMinutes": 120
+    },
+    "url": "https://www.nationaltrust.org.uk/visit/oxfordshire-buckinghamshire-berkshire/cliveden",
+    "notes": "Formal gardens, woodland, river views and historic estate overlooking the Thames.",
+    "createdAt": "2026-08-04T00:00:00.000Z",
+    "updatedAt": "2026-08-04T00:00:00.000Z"
+  },
+  {
+    "locationId": "hughenden",
+    "name": "Hughenden",
+    "area": "Buckinghamshire",
+    "category": "House and garden",
+    "travel": {
+      "distanceMiles": 79,
+      "driveTimeMinutes": 115
+    },
+    "url": "https://www.nationaltrust.org.uk/visit/oxfordshire-buckinghamshire-berkshire/hughenden",
+    "notes": "Victorian manor associated with Benjamin Disraeli, gardens and wooded estate.",
+    "createdAt": "2026-08-04T00:00:00.000Z",
+    "updatedAt": "2026-08-04T00:00:00.000Z"
+  },
+  {
+    "locationId": "stowe",
+    "name": "Stowe",
+    "area": "Buckinghamshire",
+    "category": "Garden",
+    "travel": {
+      "distanceMiles": 63,
+      "driveTimeMinutes": 95
+    },
+    "url": "https://www.nationaltrust.org.uk/visit/oxfordshire-buckinghamshire-berkshire/stowe",
+    "notes": "Large-scale landscape garden with temples, monuments and lakes.",
+    "createdAt": "2026-08-04T00:00:00.000Z",
+    "updatedAt": "2026-08-04T00:00:00.000Z"
+  },
+  {
+    "locationId": "waddesdon-manor",
+    "name": "Waddesdon Manor",
+    "area": "Buckinghamshire",
+    "category": "House and garden",
+    "travel": {
+      "distanceMiles": 68,
+      "driveTimeMinutes": 105
+    },
+    "url": "https://www.nationaltrust.org.uk/visit/oxfordshire-buckinghamshire-berkshire/waddesdon-manor",
+    "notes": "Rothschild manor house, collections, formal gardens and parkland.",
+    "createdAt": "2026-08-04T00:00:00.000Z",
+    "updatedAt": "2026-08-04T00:00:00.000Z"
+  },
+  {
+    "locationId": "west-wycombe-park-village-and-hill",
+    "name": "West Wycombe Park, Village and Hill",
+    "area": "Buckinghamshire",
+    "category": "Estate",
+    "travel": {
+      "distanceMiles": 75,
+      "driveTimeMinutes": 115
+    },
+    "url": "https://www.nationaltrust.org.uk/visit/oxfordshire-buckinghamshire-berkshire/west-wycombe-park-village-and-hill",
+    "notes": "Historic village, hilltop church, mausoleum views and landscaped park.",
+    "createdAt": "2026-08-04T00:00:00.000Z",
+    "updatedAt": "2026-08-04T00:00:00.000Z"
+  },
+  {
+    "locationId": "dinefwr",
+    "name": "Dinefwr",
+    "area": "Carmarthenshire",
+    "category": "Estate",
+    "travel": {
+      "distanceMiles": 102,
+      "driveTimeMinutes": 150
+    },
+    "url": "https://www.nationaltrust.org.uk/visit/wales/dinefwr",
+    "notes": "Newton House, castle ruins, deer park and historic designed landscape near Llandeilo; a traffic-sensitive boundary case.",
+    "createdAt": "2026-08-04T00:00:00.000Z",
+    "updatedAt": "2026-08-04T00:00:00.000Z"
+  },
+  {
+    "locationId": "dolaucothi-gold-mines",
+    "name": "Dolaucothi Gold Mines",
+    "area": "Carmarthenshire",
+    "category": "Industrial heritage",
+    "travel": {
+      "distanceMiles": 98,
+      "driveTimeMinutes": 145
+    },
+    "url": "https://www.nationaltrust.org.uk/visit/wales/dolaucothi-gold-mines",
+    "notes": "Roman and later gold mine landscape with tours and archaeology.",
+    "createdAt": "2026-08-04T00:00:00.000Z",
+    "updatedAt": "2026-08-04T00:00:00.000Z"
+  },
+  {
+    "locationId": "alderley-edge-and-cheshire-countryside",
+    "name": "Alderley Edge and Cheshire Countryside",
+    "area": "Cheshire",
+    "category": "Countryside",
+    "travel": {
+      "distanceMiles": 125,
+      "driveTimeMinutes": 145
+    },
+    "url": "https://www.nationaltrust.org.uk/visit/cheshire-greater-manchester/alderley-edge-and-cheshire-countryside",
+    "notes": "Woodland walks and sandstone escarpment views in Cheshire.",
+    "createdAt": "2026-08-04T00:00:00.000Z",
+    "updatedAt": "2026-08-04T00:00:00.000Z"
+  },
+  {
+    "locationId": "hare-hill",
+    "name": "Hare Hill",
+    "area": "Cheshire",
+    "category": "Garden",
+    "travel": {
+      "distanceMiles": 130,
+      "driveTimeMinutes": 150
+    },
+    "url": "https://www.nationaltrust.org.uk/visit/cheshire-greater-manchester/hare-hill",
+    "notes": "Walled garden and surrounding woodland near Alderley Edge.",
+    "createdAt": "2026-08-04T00:00:00.000Z",
+    "updatedAt": "2026-08-04T00:00:00.000Z"
+  },
+  {
+    "locationId": "little-moreton-hall",
+    "name": "Little Moreton Hall",
+    "area": "Cheshire",
+    "category": "House and garden",
+    "travel": {
+      "distanceMiles": 114,
+      "driveTimeMinutes": 130
+    },
+    "url": "https://www.nationaltrust.org.uk/visit/cheshire-greater-manchester/little-moreton-hall",
+    "notes": "Iconic timber-framed Tudor manor house with garden and moat.",
+    "createdAt": "2026-08-04T00:00:00.000Z",
+    "updatedAt": "2026-08-04T00:00:00.000Z"
+  },
+  {
+    "locationId": "lyme",
+    "name": "Lyme",
+    "area": "Cheshire",
+    "category": "House and garden",
+    "travel": {
+      "distanceMiles": 132,
+      "driveTimeMinutes": 150
+    },
+    "url": "https://www.nationaltrust.org.uk/visit/cheshire-greater-manchester/lyme",
+    "notes": "Grand house, garden, moorland and deer park on the edge of the Peak District.",
+    "createdAt": "2026-08-04T00:00:00.000Z",
+    "updatedAt": "2026-08-04T00:00:00.000Z"
+  },
+  {
+    "locationId": "nether-alderley-mill",
+    "name": "Nether Alderley Mill",
+    "area": "Cheshire",
+    "category": "Industrial heritage",
+    "travel": {
+      "distanceMiles": 127,
+      "driveTimeMinutes": 145
+    },
+    "url": "https://www.nationaltrust.org.uk/visit/cheshire-greater-manchester/nether-alderley-mill",
+    "notes": "Restored historic corn mill with machinery and millpond setting.",
+    "createdAt": "2026-08-04T00:00:00.000Z",
+    "updatedAt": "2026-08-04T00:00:00.000Z"
+  },
+  {
+    "locationId": "quarry-bank",
+    "name": "Quarry Bank",
+    "area": "Cheshire",
+    "category": "Industrial heritage",
+    "travel": {
+      "distanceMiles": 132,
+      "driveTimeMinutes": 150
+    },
+    "url": "https://www.nationaltrust.org.uk/visit/cheshire-greater-manchester/quarry-bank",
+    "notes": "Cotton mill, apprentice house, gardens and estate landscape.",
+    "createdAt": "2026-08-04T00:00:00.000Z",
+    "updatedAt": "2026-08-04T00:00:00.000Z"
+  },
+  {
+    "locationId": "calke-abbey",
+    "name": "Calke Abbey",
+    "area": "Derbyshire",
+    "category": "House and garden",
+    "travel": {
+      "distanceMiles": 86,
+      "driveTimeMinutes": 115
+    },
+    "url": "https://www.nationaltrust.org.uk/visit/peak-district-derbyshire/calke-abbey",
+    "notes": "Country house, parkland and gardens presented as an unstately home.",
+    "createdAt": "2026-08-04T00:00:00.000Z",
+    "updatedAt": "2026-08-04T00:00:00.000Z"
+  },
+  {
+    "locationId": "hardwick",
+    "name": "Hardwick",
+    "area": "Derbyshire",
+    "category": "House and garden",
+    "travel": {
+      "distanceMiles": 124,
+      "driveTimeMinutes": 145
+    },
+    "url": "https://www.nationaltrust.org.uk/visit/peak-district-derbyshire/hardwick",
+    "notes": "Elizabethan Hardwick Hall, gardens and wider estate.",
+    "createdAt": "2026-08-04T00:00:00.000Z",
+    "updatedAt": "2026-08-04T00:00:00.000Z"
+  },
+  {
+    "locationId": "ilam-park-dovedale-and-the-white-peak",
+    "name": "Ilam Park, Dovedale and the White Peak",
+    "area": "Derbyshire",
+    "category": "Countryside",
+    "travel": {
+      "distanceMiles": 108,
+      "driveTimeMinutes": 140
+    },
+    "url": "https://www.nationaltrust.org.uk/visit/peak-district-derbyshire/ilam-park-dovedale-and-the-white-peak",
+    "notes": "Peak District parkland, limestone ravines and countryside walking routes.",
+    "createdAt": "2026-08-04T00:00:00.000Z",
+    "updatedAt": "2026-08-04T00:00:00.000Z"
+  },
+  {
+    "locationId": "kedleston-hall",
+    "name": "Kedleston Hall",
+    "area": "Derbyshire",
+    "category": "House and garden",
+    "travel": {
+      "distanceMiles": 103,
+      "driveTimeMinutes": 135
+    },
+    "url": "https://www.nationaltrust.org.uk/visit/peak-district-derbyshire/kedleston-hall",
+    "notes": "Neoclassical mansion, collections, parkland and pleasure grounds.",
+    "createdAt": "2026-08-04T00:00:00.000Z",
+    "updatedAt": "2026-08-04T00:00:00.000Z"
+  },
+  {
+    "locationId": "sudbury-hall-and-the-national-trust-museum-of-childhood",
+    "name": "Sudbury Hall and the National Trust Museum of Childhood",
+    "area": "Derbyshire",
+    "category": "House and garden",
+    "travel": {
+      "distanceMiles": 93,
+      "driveTimeMinutes": 125
+    },
+    "url": "https://www.nationaltrust.org.uk/visit/peak-district-derbyshire/sudbury-hall-and-the-national-trust-museum-of-childhood",
+    "notes": "Historic hall, gardens and childhood museum displays.",
+    "createdAt": "2026-08-04T00:00:00.000Z",
+    "updatedAt": "2026-08-04T00:00:00.000Z"
+  },
+  {
+    "locationId": "a-la-ronde",
+    "name": "A la Ronde",
+    "area": "Devon",
+    "category": "Historic building",
+    "travel": {
+      "distanceMiles": 126,
+      "driveTimeMinutes": 145
+    },
+    "url": "https://www.nationaltrust.org.uk/visit/devon/a-la-ronde",
+    "notes": "Sixteen-sided historic house with shell gallery near Exmouth.",
+    "createdAt": "2026-08-04T00:00:00.000Z",
+    "updatedAt": "2026-08-04T00:00:00.000Z"
+  },
+  {
+    "locationId": "killerton",
+    "name": "Killerton",
+    "area": "Devon",
+    "category": "House and garden",
+    "travel": {
+      "distanceMiles": 116,
+      "driveTimeMinutes": 135
+    },
+    "url": "https://www.nationaltrust.org.uk/visit/devon/killerton",
+    "notes": "Georgian house, fashion collection, garden and wider estate near Exeter.",
+    "createdAt": "2026-08-04T00:00:00.000Z",
+    "updatedAt": "2026-08-04T00:00:00.000Z"
+  },
+  {
+    "locationId": "knightshayes",
+    "name": "Knightshayes",
+    "area": "Devon",
+    "category": "House and garden",
+    "travel": {
+      "distanceMiles": 120,
+      "driveTimeMinutes": 140
+    },
+    "url": "https://www.nationaltrust.org.uk/visit/devon/knightshayes",
+    "notes": "Gothic Revival house, formal garden, kitchen garden and woodland walks.",
+    "createdAt": "2026-08-04T00:00:00.000Z",
+    "updatedAt": "2026-08-04T00:00:00.000Z"
+  },
+  {
+    "locationId": "ashleworth-tithe-barn",
+    "name": "Ashleworth Tithe Barn",
+    "area": "Gloucestershire",
+    "category": "Historic building",
+    "travel": {
+      "distanceMiles": 12,
+      "driveTimeMinutes": 25
+    },
+    "url": "https://www.nationaltrust.org.uk/visit/gloucestershire-cotswolds/ashleworth-tithe-barn",
+    "notes": "Large medieval tithe barn beside the River Severn with limited opening.",
+    "createdAt": "2026-08-04T00:00:00.000Z",
+    "updatedAt": "2026-08-04T00:00:00.000Z"
+  },
+  {
+    "locationId": "bibury",
+    "name": "Bibury",
+    "area": "Gloucestershire",
+    "category": "Village",
+    "travel": {
+      "distanceMiles": 30,
+      "driveTimeMinutes": 45
+    },
+    "url": "https://www.nationaltrust.org.uk/visit/gloucestershire-cotswolds/bibury",
+    "notes": "Cotswold village setting including National Trust cared-for historic buildings and riverside walks.",
+    "createdAt": "2026-08-04T00:00:00.000Z",
+    "updatedAt": "2026-08-04T00:00:00.000Z"
+  },
+  {
     "locationId": "chedworth-roman-villa",
     "name": "Chedworth Roman Villa",
     "area": "Gloucestershire",
-    "category": "Roman villa",
-    "travel": { "distanceMiles": 13, "driveTimeMinutes": 30 },
+    "category": "Archaeological site",
+    "travel": {
+      "distanceMiles": 19,
+      "driveTimeMinutes": 35
+    },
     "url": "https://www.nationaltrust.org.uk/visit/gloucestershire-cotswolds/chedworth-roman-villa",
-    "notes": "Excavated remains of one of the largest Roman villas in Britain, with mosaics and a museum.",
-    "createdAt": "2026-08-04",
-    "updatedAt": "2026-08-04"
+    "notes": "Roman villa remains with mosaics, bath houses and museum displays.",
+    "createdAt": "2026-08-04T00:00:00.000Z",
+    "updatedAt": "2026-08-04T00:00:00.000Z"
   },
   {
-    "locationId": "dyrham-park",
-    "name": "Dyrham Park",
-    "area": "South Gloucestershire",
-    "category": "House and garden",
-    "travel": { "distanceMiles": 16, "driveTimeMinutes": 35 },
-    "url": "https://www.nationaltrust.org.uk/visit/bath-bristol/dyrham-park",
-    "notes": "A 17th-century stately home with lavish interiors, parkland and deer.",
-    "createdAt": "2026-08-04",
-    "updatedAt": "2026-08-04"
-  },
-  {
-    "locationId": "newark-park",
-    "name": "Newark Park",
+    "locationId": "crickley-hill",
+    "name": "Crickley Hill",
     "area": "Gloucestershire",
-    "category": "House and garden",
-    "travel": { "distanceMiles": 20, "driveTimeMinutes": 40 },
-    "url": "https://www.nationaltrust.org.uk/visit/gloucestershire-cotswolds/newark-park",
-    "notes": "A former Tudor hunting lodge with gardens, woodland walks and expansive views.",
-    "createdAt": "2026-08-04",
-    "updatedAt": "2026-08-04"
+    "category": "Countryside",
+    "travel": {
+      "distanceMiles": 5,
+      "driveTimeMinutes": 10
+    },
+    "url": "https://www.nationaltrust.org.uk/visit/gloucestershire-cotswolds/crickley-hill",
+    "notes": "Cotswold escarpment countryside with hillfort earthworks, grassland and views over Gloucester.",
+    "createdAt": "2026-08-04T00:00:00.000Z",
+    "updatedAt": "2026-08-04T00:00:00.000Z"
+  },
+  {
+    "locationId": "dovers-hill",
+    "name": "Dover's Hill",
+    "area": "Gloucestershire",
+    "category": "Countryside",
+    "travel": {
+      "distanceMiles": 26,
+      "driveTimeMinutes": 45
+    },
+    "url": "https://www.nationaltrust.org.uk/visit/gloucestershire-cotswolds/dovers-hill",
+    "notes": "Natural amphitheatre on the Cotswold escarpment with views over the Vale of Evesham.",
+    "createdAt": "2026-08-04T00:00:00.000Z",
+    "updatedAt": "2026-08-04T00:00:00.000Z"
+  },
+  {
+    "locationId": "hailes-abbey",
+    "name": "Hailes Abbey",
+    "area": "Gloucestershire",
+    "category": "Historic building",
+    "travel": {
+      "distanceMiles": 23,
+      "driveTimeMinutes": 40
+    },
+    "url": "https://www.nationaltrust.org.uk/visit/gloucestershire-cotswolds/hailes-abbey",
+    "notes": "Ruins of a Cistercian abbey in the Cotswolds, cared for with English Heritage.",
+    "createdAt": "2026-08-04T00:00:00.000Z",
+    "updatedAt": "2026-08-04T00:00:00.000Z"
+  },
+  {
+    "locationId": "haresfield-beacon-and-standish-wood",
+    "name": "Haresfield Beacon and Standish Wood",
+    "area": "Gloucestershire",
+    "category": "Countryside",
+    "travel": {
+      "distanceMiles": 10,
+      "driveTimeMinutes": 20
+    },
+    "url": "https://www.nationaltrust.org.uk/visit/gloucestershire-cotswolds/haresfield-beacon-and-standish-wood",
+    "notes": "Escarpment walks, beech woodland and Iron Age hillfort remains overlooking the Severn Vale.",
+    "createdAt": "2026-08-04T00:00:00.000Z",
+    "updatedAt": "2026-08-04T00:00:00.000Z"
   },
   {
     "locationId": "hidcote",
     "name": "Hidcote",
     "area": "Gloucestershire",
     "category": "Garden",
-    "travel": { "distanceMiles": 25, "driveTimeMinutes": 45 },
+    "travel": {
+      "distanceMiles": 32,
+      "driveTimeMinutes": 55
+    },
     "url": "https://www.nationaltrust.org.uk/visit/gloucestershire-cotswolds/hidcote",
-    "notes": "One of England's best-known Arts and Crafts gardens, known for its vivid garden \"rooms\".",
-    "createdAt": "2026-08-04",
-    "updatedAt": "2026-08-04"
-  },
-  {
-    "locationId": "snowshill-manor-and-garden",
-    "name": "Snowshill Manor and Garden",
-    "area": "Gloucestershire",
-    "category": "House and garden",
-    "travel": { "distanceMiles": 26, "driveTimeMinutes": 48 },
-    "url": "https://www.nationaltrust.org.uk/visit/cotswolds/snowshill-manor-and-garden",
-    "notes": "An eccentric manor house packed with Charles Wade's collections, with a tranquil garden.",
-    "createdAt": "2026-08-04",
-    "updatedAt": "2026-08-04"
-  },
-  {
-    "locationId": "woodchester-park",
-    "name": "Woodchester Park",
-    "area": "Gloucestershire",
-    "category": "Countryside",
-    "travel": { "distanceMiles": 12, "driveTimeMinutes": 28 },
-    "url": "https://www.nationaltrust.org.uk/visit/gloucestershire-cotswolds/woodchester-park",
-    "notes": "A secluded wooded valley with lakes and waymarked walking trails.",
-    "createdAt": "2026-08-04",
-    "updatedAt": "2026-08-04"
-  },
-  {
-    "locationId": "westbury-court-garden",
-    "name": "Westbury Court Garden",
-    "area": "Gloucestershire",
-    "category": "Garden",
-    "travel": { "distanceMiles": 11, "driveTimeMinutes": 25 },
-    "url": "https://www.nationaltrust.org.uk/visit/gloucestershire-cotswolds/westbury-court-garden",
-    "notes": "A rare, restored Dutch-style water garden dating from the 1700s.",
-    "createdAt": "2026-08-04",
-    "updatedAt": "2026-08-04"
+    "notes": "Arts and Crafts garden arranged as a sequence of outdoor rooms.",
+    "createdAt": "2026-08-04T00:00:00.000Z",
+    "updatedAt": "2026-08-04T00:00:00.000Z"
   },
   {
     "locationId": "lodge-park-and-sherborne-estate",
     "name": "Lodge Park and Sherborne Estate",
     "area": "Gloucestershire",
-    "category": "Estate and parkland",
-    "travel": { "distanceMiles": 22, "driveTimeMinutes": 42 },
+    "category": "Estate",
+    "travel": {
+      "distanceMiles": 24,
+      "driveTimeMinutes": 40
+    },
     "url": "https://www.nationaltrust.org.uk/visit/gloucestershire-cotswolds/lodge-park-and-sherborne-estate",
-    "notes": "A 17th-century grandstand set within an extensive estate of walking trails.",
-    "createdAt": "2026-08-04",
-    "updatedAt": "2026-08-04"
+    "notes": "Seventeenth-century grandstand and wider Cotswold estate countryside.",
+    "createdAt": "2026-08-04T00:00:00.000Z",
+    "updatedAt": "2026-08-04T00:00:00.000Z"
   },
   {
     "locationId": "may-hill",
     "name": "May Hill",
     "area": "Gloucestershire",
     "category": "Countryside",
-    "travel": { "distanceMiles": 10, "driveTimeMinutes": 24 },
+    "travel": {
+      "distanceMiles": 13,
+      "driveTimeMinutes": 25
+    },
     "url": "https://www.nationaltrust.org.uk/visit/gloucestershire-cotswolds/may-hill",
-    "notes": "Open hilltop common with panoramic views over the Severn Vale, famous for its clump of pines.",
-    "createdAt": "2026-08-04",
-    "updatedAt": "2026-08-04"
+    "notes": "Distinctive hilltop countryside with woodland, open grassland and long-distance views.",
+    "createdAt": "2026-08-04T00:00:00.000Z",
+    "updatedAt": "2026-08-04T00:00:00.000Z"
   },
   {
-    "locationId": "lacock-abbey",
+    "locationId": "minchinhampton-and-rodborough-commons",
+    "name": "Minchinhampton and Rodborough Commons",
+    "area": "Gloucestershire",
+    "category": "Countryside",
+    "travel": {
+      "distanceMiles": 13,
+      "driveTimeMinutes": 25
+    },
+    "url": "https://www.nationaltrust.org.uk/visit/gloucestershire-cotswolds/minchinhampton-and-rodborough-commons",
+    "notes": "Ancient limestone commons with grazing cattle, grassland habitats and Cotswold views.",
+    "createdAt": "2026-08-04T00:00:00.000Z",
+    "updatedAt": "2026-08-04T00:00:00.000Z"
+  },
+  {
+    "locationId": "newark-park",
+    "name": "Newark Park",
+    "area": "Gloucestershire",
+    "category": "House and garden",
+    "travel": {
+      "distanceMiles": 28,
+      "driveTimeMinutes": 45
+    },
+    "url": "https://www.nationaltrust.org.uk/visit/gloucestershire-cotswolds/newark-park",
+    "notes": "Tudor hunting lodge, gardens, woodland and estate walks near Wotton-under-Edge.",
+    "createdAt": "2026-08-04T00:00:00.000Z",
+    "updatedAt": "2026-08-04T00:00:00.000Z"
+  },
+  {
+    "locationId": "snowshill-manor-and-garden",
+    "name": "Snowshill Manor and Garden",
+    "area": "Gloucestershire",
+    "category": "House and garden",
+    "travel": {
+      "distanceMiles": 29,
+      "driveTimeMinutes": 50
+    },
+    "url": "https://www.nationaltrust.org.uk/visit/gloucestershire-cotswolds/snowshill-manor-and-garden",
+    "notes": "Manor house with Charles Wade collection and hillside garden.",
+    "createdAt": "2026-08-04T00:00:00.000Z",
+    "updatedAt": "2026-08-04T00:00:00.000Z"
+  },
+  {
+    "locationId": "westbury-court-garden",
+    "name": "Westbury Court Garden",
+    "area": "Gloucestershire",
+    "category": "Garden",
+    "travel": {
+      "distanceMiles": 17,
+      "driveTimeMinutes": 30
+    },
+    "url": "https://www.nationaltrust.org.uk/visit/gloucestershire-cotswolds/westbury-court-garden",
+    "notes": "Restored Dutch-style water garden beside the River Severn.",
+    "createdAt": "2026-08-04T00:00:00.000Z",
+    "updatedAt": "2026-08-04T00:00:00.000Z"
+  },
+  {
+    "locationId": "woodchester-park",
+    "name": "Woodchester Park",
+    "area": "Gloucestershire",
+    "category": "Countryside",
+    "travel": {
+      "distanceMiles": 18,
+      "driveTimeMinutes": 35
+    },
+    "url": "https://www.nationaltrust.org.uk/visit/gloucestershire-cotswolds/woodchester-park",
+    "notes": "Wooded valley, lakes, wildlife habitats and estate walks near Stroud.",
+    "createdAt": "2026-08-04T00:00:00.000Z",
+    "updatedAt": "2026-08-04T00:00:00.000Z"
+  },
+  {
+    "locationId": "dunham-massey",
+    "name": "Dunham Massey",
+    "area": "Greater Manchester",
+    "category": "House and garden",
+    "travel": {
+      "distanceMiles": 128,
+      "driveTimeMinutes": 145
+    },
+    "url": "https://www.nationaltrust.org.uk/visit/cheshire-greater-manchester/dunham-massey",
+    "notes": "Georgian house, garden and deer park south-west of Manchester.",
+    "createdAt": "2026-08-04T00:00:00.000Z",
+    "updatedAt": "2026-08-04T00:00:00.000Z"
+  },
+  {
+    "locationId": "hinton-ampner",
+    "name": "Hinton Ampner",
+    "area": "Hampshire",
+    "category": "House and garden",
+    "travel": {
+      "distanceMiles": 98,
+      "driveTimeMinutes": 135
+    },
+    "url": "https://www.nationaltrust.org.uk/visit/hampshire/hinton-ampner",
+    "notes": "Country house, formal garden and parkland with South Downs views.",
+    "createdAt": "2026-08-04T00:00:00.000Z",
+    "updatedAt": "2026-08-04T00:00:00.000Z"
+  },
+  {
+    "locationId": "mottisfont",
+    "name": "Mottisfont",
+    "area": "Hampshire",
+    "category": "House and garden",
+    "travel": {
+      "distanceMiles": 98,
+      "driveTimeMinutes": 135
+    },
+    "url": "https://www.nationaltrust.org.uk/visit/hampshire/mottisfont",
+    "notes": "Historic house, riverside gardens and renowned walled rose garden.",
+    "createdAt": "2026-08-04T00:00:00.000Z",
+    "updatedAt": "2026-08-04T00:00:00.000Z"
+  },
+  {
+    "locationId": "sandham-memorial-chapel",
+    "name": "Sandham Memorial Chapel",
+    "area": "Hampshire",
+    "category": "Historic building",
+    "travel": {
+      "distanceMiles": 75,
+      "driveTimeMinutes": 105
+    },
+    "url": "https://www.nationaltrust.org.uk/visit/hampshire/sandham-memorial-chapel",
+    "notes": "Chapel housing Stanley Spencer murals and garden.",
+    "createdAt": "2026-08-04T00:00:00.000Z",
+    "updatedAt": "2026-08-04T00:00:00.000Z"
+  },
+  {
+    "locationId": "the-vyne",
+    "name": "The Vyne",
+    "area": "Hampshire",
+    "category": "House and garden",
+    "travel": {
+      "distanceMiles": 76,
+      "driveTimeMinutes": 105
+    },
+    "url": "https://www.nationaltrust.org.uk/visit/hampshire/the-vyne",
+    "notes": "Tudor palace, gardens, wetlands and estate near Basingstoke.",
+    "createdAt": "2026-08-04T00:00:00.000Z",
+    "updatedAt": "2026-08-04T00:00:00.000Z"
+  },
+  {
+    "locationId": "winchester-city-mill",
+    "name": "Winchester City Mill",
+    "area": "Hampshire",
+    "category": "Industrial heritage",
+    "travel": {
+      "distanceMiles": 91,
+      "driveTimeMinutes": 125
+    },
+    "url": "https://www.nationaltrust.org.uk/visit/hampshire/winchester-city-mill",
+    "notes": "Working watermill in Winchester with river and milling interpretation.",
+    "createdAt": "2026-08-04T00:00:00.000Z",
+    "updatedAt": "2026-08-04T00:00:00.000Z"
+  },
+  {
+    "locationId": "berrington-hall",
+    "name": "Berrington Hall",
+    "area": "Herefordshire",
+    "category": "House and garden",
+    "travel": {
+      "distanceMiles": 53,
+      "driveTimeMinutes": 80
+    },
+    "url": "https://www.nationaltrust.org.uk/visit/worcestershire-herefordshire/berrington-hall",
+    "notes": "Georgian mansion with Capability Brown parkland and gardens.",
+    "createdAt": "2026-08-04T00:00:00.000Z",
+    "updatedAt": "2026-08-04T00:00:00.000Z"
+  },
+  {
+    "locationId": "brockhampton",
+    "name": "Brockhampton",
+    "area": "Herefordshire",
+    "category": "Estate",
+    "travel": {
+      "distanceMiles": 38,
+      "driveTimeMinutes": 60
+    },
+    "url": "https://www.nationaltrust.org.uk/visit/worcestershire-herefordshire/brockhampton",
+    "notes": "Medieval manor house, orchards and estate walks.",
+    "createdAt": "2026-08-04T00:00:00.000Z",
+    "updatedAt": "2026-08-04T00:00:00.000Z"
+  },
+  {
+    "locationId": "croft-castle-and-parkland",
+    "name": "Croft Castle and Parkland",
+    "area": "Herefordshire",
+    "category": "Castle",
+    "travel": {
+      "distanceMiles": 62,
+      "driveTimeMinutes": 90
+    },
+    "url": "https://www.nationaltrust.org.uk/visit/worcestershire-herefordshire/croft-castle-and-parkland",
+    "notes": "Historic castle, walled garden and ancient parkland.",
+    "createdAt": "2026-08-04T00:00:00.000Z",
+    "updatedAt": "2026-08-04T00:00:00.000Z"
+  },
+  {
+    "locationId": "the-weir-garden",
+    "name": "The Weir Garden",
+    "area": "Herefordshire",
+    "category": "Garden",
+    "travel": {
+      "distanceMiles": 41,
+      "driveTimeMinutes": 70
+    },
+    "url": "https://www.nationaltrust.org.uk/visit/worcestershire-herefordshire/the-weir-garden",
+    "notes": "Riverside garden on the banks of the Wye.",
+    "createdAt": "2026-08-04T00:00:00.000Z",
+    "updatedAt": "2026-08-04T00:00:00.000Z"
+  },
+  {
+    "locationId": "stoneywell",
+    "name": "Stoneywell",
+    "area": "Leicestershire",
+    "category": "House and garden",
+    "travel": {
+      "distanceMiles": 101,
+      "driveTimeMinutes": 135
+    },
+    "url": "https://www.nationaltrust.org.uk/visit/leicestershire-northamptonshire/stoneywell",
+    "notes": "Arts and Crafts cottage, garden and woodland in Charnwood Forest.",
+    "createdAt": "2026-08-04T00:00:00.000Z",
+    "updatedAt": "2026-08-04T00:00:00.000Z"
+  },
+  {
+    "locationId": "clytha-estate",
+    "name": "Clytha Estate",
+    "area": "Monmouthshire",
+    "category": "Estate",
+    "travel": {
+      "distanceMiles": 47,
+      "driveTimeMinutes": 75
+    },
+    "url": "https://www.nationaltrust.org.uk/visit/wales/clytha-estate",
+    "notes": "Historic estate landscape with riverside walks, woodland and Clytha Castle folly.",
+    "createdAt": "2026-08-04T00:00:00.000Z",
+    "updatedAt": "2026-08-04T00:00:00.000Z"
+  },
+  {
+    "locationId": "skenfrith-castle",
+    "name": "Skenfrith Castle",
+    "area": "Monmouthshire",
+    "category": "Castle",
+    "travel": {
+      "distanceMiles": 35,
+      "driveTimeMinutes": 60
+    },
+    "url": "https://www.nationaltrust.org.uk/visit/wales/skenfrith-castle",
+    "notes": "Ruined Norman castle beside the River Monnow.",
+    "createdAt": "2026-08-04T00:00:00.000Z",
+    "updatedAt": "2026-08-04T00:00:00.000Z"
+  },
+  {
+    "locationId": "skirrid",
+    "name": "Skirrid",
+    "area": "Monmouthshire",
+    "category": "Countryside",
+    "travel": {
+      "distanceMiles": 43,
+      "driveTimeMinutes": 70
+    },
+    "url": "https://www.nationaltrust.org.uk/visit/wales/sugar-loaf-skirrid-and-usk-valley",
+    "notes": "Prominent hill and walking landscape within the Sugar Loaf, Skirrid and Usk Valley area.",
+    "createdAt": "2026-08-04T00:00:00.000Z",
+    "updatedAt": "2026-08-04T00:00:00.000Z"
+  },
+  {
+    "locationId": "sugar-loaf-and-usk-valley",
+    "name": "Sugar Loaf and Usk Valley",
+    "area": "Monmouthshire",
+    "category": "Countryside",
+    "travel": {
+      "distanceMiles": 43,
+      "driveTimeMinutes": 70
+    },
+    "url": "https://www.nationaltrust.org.uk/visit/wales/sugar-loaf-skirrid-and-usk-valley",
+    "notes": "Black Mountains peak and Usk Valley countryside cared for by the National Trust.",
+    "createdAt": "2026-08-04T00:00:00.000Z",
+    "updatedAt": "2026-08-04T00:00:00.000Z"
+  },
+  {
+    "locationId": "the-kymin",
+    "name": "The Kymin",
+    "area": "Monmouthshire",
+    "category": "Historic building",
+    "travel": {
+      "distanceMiles": 31,
+      "driveTimeMinutes": 50
+    },
+    "url": "https://www.nationaltrust.org.uk/visit/wales/the-kymin",
+    "notes": "Round House, Naval Temple and hilltop views above Monmouth.",
+    "createdAt": "2026-08-04T00:00:00.000Z",
+    "updatedAt": "2026-08-04T00:00:00.000Z"
+  },
+  {
+    "locationId": "aberdulais",
+    "name": "Aberdulais",
+    "area": "Neath Port Talbot",
+    "category": "Industrial heritage",
+    "travel": {
+      "distanceMiles": 88,
+      "driveTimeMinutes": 125
+    },
+    "url": "https://www.nationaltrust.org.uk/visit/wales/aberdulais",
+    "notes": "Industrial heritage site with waterfall, waterwheel and tinplate history; check current opening before visiting.",
+    "createdAt": "2026-08-04T00:00:00.000Z",
+    "updatedAt": "2026-08-04T00:00:00.000Z"
+  },
+  {
+    "locationId": "tredegar-house",
+    "name": "Tredegar House",
+    "area": "Newport",
+    "category": "House and garden",
+    "travel": {
+      "distanceMiles": 54,
+      "driveTimeMinutes": 70
+    },
+    "url": "https://www.nationaltrust.org.uk/visit/wales/tredegar-house",
+    "notes": "Seventeenth-century mansion with gardens and parkland near Newport.",
+    "createdAt": "2026-08-04T00:00:00.000Z",
+    "updatedAt": "2026-08-04T00:00:00.000Z"
+  },
+  {
+    "locationId": "cadbury-camp",
+    "name": "Cadbury Camp",
+    "area": "North Somerset",
+    "category": "Countryside",
+    "travel": {
+      "distanceMiles": 44,
+      "driveTimeMinutes": 60
+    },
+    "url": "https://www.nationaltrust.org.uk/visit/bath-bristol/cadbury-camp",
+    "notes": "Iron Age hillfort earthworks and countryside near Tickenham.",
+    "createdAt": "2026-08-04T00:00:00.000Z",
+    "updatedAt": "2026-08-04T00:00:00.000Z"
+  },
+  {
+    "locationId": "clevedon-court",
+    "name": "Clevedon Court",
+    "area": "North Somerset",
+    "category": "House and garden",
+    "travel": {
+      "distanceMiles": 51,
+      "driveTimeMinutes": 70
+    },
+    "url": "https://www.nationaltrust.org.uk/visit/bath-bristol/clevedon-court",
+    "notes": "Medieval manor house with terraces, collections and gardens.",
+    "createdAt": "2026-08-04T00:00:00.000Z",
+    "updatedAt": "2026-08-04T00:00:00.000Z"
+  },
+  {
+    "locationId": "leigh-woods",
+    "name": "Leigh Woods",
+    "area": "North Somerset",
+    "category": "Nature reserve",
+    "travel": {
+      "distanceMiles": 43,
+      "driveTimeMinutes": 55
+    },
+    "url": "https://www.nationaltrust.org.uk/visit/bath-bristol/leigh-woods",
+    "notes": "Woodland nature reserve beside the Avon Gorge with city and suspension bridge views.",
+    "createdAt": "2026-08-04T00:00:00.000Z",
+    "updatedAt": "2026-08-04T00:00:00.000Z"
+  },
+  {
+    "locationId": "tyntesfield",
+    "name": "Tyntesfield",
+    "area": "North Somerset",
+    "category": "House and garden",
+    "travel": {
+      "distanceMiles": 46,
+      "driveTimeMinutes": 60
+    },
+    "url": "https://www.nationaltrust.org.uk/visit/bath-bristol/tyntesfield",
+    "notes": "Victorian Gothic Revival house, chapel, gardens and estate near Bristol.",
+    "createdAt": "2026-08-04T00:00:00.000Z",
+    "updatedAt": "2026-08-04T00:00:00.000Z"
+  },
+  {
+    "locationId": "canons-ashby",
+    "name": "Canons Ashby",
+    "area": "Northamptonshire",
+    "category": "House and garden",
+    "travel": {
+      "distanceMiles": 62,
+      "driveTimeMinutes": 95
+    },
+    "url": "https://www.nationaltrust.org.uk/visit/northamptonshire/canons-ashby",
+    "notes": "Elizabethan manor house, terraced garden and church remains.",
+    "createdAt": "2026-08-04T00:00:00.000Z",
+    "updatedAt": "2026-08-04T00:00:00.000Z"
+  },
+  {
+    "locationId": "lyveden",
+    "name": "Lyveden",
+    "area": "Northamptonshire",
+    "category": "Historic building",
+    "travel": {
+      "distanceMiles": 91,
+      "driveTimeMinutes": 130
+    },
+    "url": "https://www.nationaltrust.org.uk/visit/northamptonshire/lyveden",
+    "notes": "Unfinished Elizabethan lodge, moated garden earthworks and orchard landscape.",
+    "createdAt": "2026-08-04T00:00:00.000Z",
+    "updatedAt": "2026-08-04T00:00:00.000Z"
+  },
+  {
+    "locationId": "ashdown",
+    "name": "Ashdown",
+    "area": "Oxfordshire",
+    "category": "House",
+    "travel": {
+      "distanceMiles": 47,
+      "driveTimeMinutes": 70
+    },
+    "url": "https://www.nationaltrust.org.uk/visit/oxfordshire-buckinghamshire-berkshire/ashdown",
+    "notes": "Unusual Dutch-style house in a wooded downland setting.",
+    "createdAt": "2026-08-04T00:00:00.000Z",
+    "updatedAt": "2026-08-04T00:00:00.000Z"
+  },
+  {
+    "locationId": "buscot-park",
+    "name": "Buscot Park",
+    "area": "Oxfordshire",
+    "category": "House and garden",
+    "travel": {
+      "distanceMiles": 35,
+      "driveTimeMinutes": 55
+    },
+    "url": "https://www.nationaltrust.org.uk/visit/oxfordshire-buckinghamshire-berkshire/buscot-park",
+    "notes": "Palladian house, art collection and landscaped gardens on the Buscot and Coleshill estate.",
+    "createdAt": "2026-08-04T00:00:00.000Z",
+    "updatedAt": "2026-08-04T00:00:00.000Z"
+  },
+  {
+    "locationId": "chastleton-house",
+    "name": "Chastleton House",
+    "area": "Oxfordshire",
+    "category": "House and garden",
+    "travel": {
+      "distanceMiles": 34,
+      "driveTimeMinutes": 55
+    },
+    "url": "https://www.nationaltrust.org.uk/visit/oxfordshire-buckinghamshire-berkshire/chastleton-house",
+    "notes": "Jacobean house and garden kept to reflect centuries of family occupation.",
+    "createdAt": "2026-08-04T00:00:00.000Z",
+    "updatedAt": "2026-08-04T00:00:00.000Z"
+  },
+  {
+    "locationId": "coleshill-estate",
+    "name": "Coleshill Estate",
+    "area": "Oxfordshire",
+    "category": "Estate",
+    "travel": {
+      "distanceMiles": 39,
+      "driveTimeMinutes": 60
+    },
+    "url": "https://www.nationaltrust.org.uk/visit/oxfordshire-buckinghamshire-berkshire/coleshill-estate",
+    "notes": "Model farm, parkland and working estate countryside on the Oxfordshire-Wiltshire border.",
+    "createdAt": "2026-08-04T00:00:00.000Z",
+    "updatedAt": "2026-08-04T00:00:00.000Z"
+  },
+  {
+    "locationId": "great-coxwell-barn",
+    "name": "Great Coxwell Barn",
+    "area": "Oxfordshire",
+    "category": "Historic building",
+    "travel": {
+      "distanceMiles": 37,
+      "driveTimeMinutes": 60
+    },
+    "url": "https://www.nationaltrust.org.uk/visit/oxfordshire-buckinghamshire-berkshire/great-coxwell-barn",
+    "notes": "Medieval stone tithe barn on the Buscot and Coleshill estate.",
+    "createdAt": "2026-08-04T00:00:00.000Z",
+    "updatedAt": "2026-08-04T00:00:00.000Z"
+  },
+  {
+    "locationId": "greys-court",
+    "name": "Greys Court",
+    "area": "Oxfordshire",
+    "category": "House and garden",
+    "travel": {
+      "distanceMiles": 70,
+      "driveTimeMinutes": 95
+    },
+    "url": "https://www.nationaltrust.org.uk/visit/oxfordshire-buckinghamshire-berkshire/greys-court",
+    "notes": "Tudor country house, walled gardens and estate walks in the Chilterns.",
+    "createdAt": "2026-08-04T00:00:00.000Z",
+    "updatedAt": "2026-08-04T00:00:00.000Z"
+  },
+  {
+    "locationId": "nuffield-place",
+    "name": "Nuffield Place",
+    "area": "Oxfordshire",
+    "category": "House and garden",
+    "travel": {
+      "distanceMiles": 64,
+      "driveTimeMinutes": 85
+    },
+    "url": "https://www.nationaltrust.org.uk/visit/oxfordshire-buckinghamshire-berkshire/nuffield-place",
+    "notes": "Home and garden of Lord and Lady Nuffield, preserved with domestic collections.",
+    "createdAt": "2026-08-04T00:00:00.000Z",
+    "updatedAt": "2026-08-04T00:00:00.000Z"
+  },
+  {
+    "locationId": "white-horse-hill",
+    "name": "White Horse Hill",
+    "area": "Oxfordshire",
+    "category": "Archaeological site",
+    "travel": {
+      "distanceMiles": 43,
+      "driveTimeMinutes": 65
+    },
+    "url": "https://www.nationaltrust.org.uk/visit/oxfordshire-buckinghamshire-berkshire/white-horse-hill",
+    "notes": "Ancient chalk hill figure, Uffington Castle earthworks and Ridgeway countryside.",
+    "createdAt": "2026-08-04T00:00:00.000Z",
+    "updatedAt": "2026-08-04T00:00:00.000Z"
+  },
+  {
+    "locationId": "henrhyd-falls-and-nant-llech-walk",
+    "name": "Henrhyd Falls and Nant Llech Walk",
+    "area": "Powys",
+    "category": "Countryside",
+    "travel": {
+      "distanceMiles": 74,
+      "driveTimeMinutes": 110
+    },
+    "url": "https://www.nationaltrust.org.uk/visit/wales/henrhyd-falls-and-nant-llech-walk",
+    "notes": "Waterfall and wooded valley walk in Bannau Brycheiniog National Park.",
+    "createdAt": "2026-08-04T00:00:00.000Z",
+    "updatedAt": "2026-08-04T00:00:00.000Z"
+  },
+  {
+    "locationId": "attingham-park",
+    "name": "Attingham Park",
+    "area": "Shropshire",
+    "category": "House and garden",
+    "travel": {
+      "distanceMiles": 94,
+      "driveTimeMinutes": 125
+    },
+    "url": "https://www.nationaltrust.org.uk/visit/shropshire-staffordshire/attingham-park",
+    "notes": "Regency mansion, deer park, walled garden and estate walks.",
+    "createdAt": "2026-08-04T00:00:00.000Z",
+    "updatedAt": "2026-08-04T00:00:00.000Z"
+  },
+  {
+    "locationId": "benthall-hall",
+    "name": "Benthall Hall",
+    "area": "Shropshire",
+    "category": "House and garden",
+    "travel": {
+      "distanceMiles": 75,
+      "driveTimeMinutes": 110
+    },
+    "url": "https://www.nationaltrust.org.uk/visit/shropshire-staffordshire/benthall-hall",
+    "notes": "Sixteenth-century stone house with garden near the Ironbridge Gorge.",
+    "createdAt": "2026-08-04T00:00:00.000Z",
+    "updatedAt": "2026-08-04T00:00:00.000Z"
+  },
+  {
+    "locationId": "carding-mill-valley-and-the-long-mynd",
+    "name": "Carding Mill Valley and the Long Mynd",
+    "area": "Shropshire",
+    "category": "Countryside",
+    "travel": {
+      "distanceMiles": 94,
+      "driveTimeMinutes": 130
+    },
+    "url": "https://www.nationaltrust.org.uk/visit/shropshire-staffordshire/carding-mill-valley-and-the-long-mynd",
+    "notes": "Shropshire Hills valley and moorland landscape for walking and wildlife.",
+    "createdAt": "2026-08-04T00:00:00.000Z",
+    "updatedAt": "2026-08-04T00:00:00.000Z"
+  },
+  {
+    "locationId": "dudmaston",
+    "name": "Dudmaston",
+    "area": "Shropshire",
+    "category": "Estate",
+    "travel": {
+      "distanceMiles": 70,
+      "driveTimeMinutes": 100
+    },
+    "url": "https://www.nationaltrust.org.uk/visit/shropshire-staffordshire/dudmaston",
+    "notes": "Working estate with historic house, gardens, pools and modern art collection.",
+    "createdAt": "2026-08-04T00:00:00.000Z",
+    "updatedAt": "2026-08-04T00:00:00.000Z"
+  },
+  {
+    "locationId": "sunnycroft",
+    "name": "Sunnycroft",
+    "area": "Shropshire",
+    "category": "House and garden",
+    "travel": {
+      "distanceMiles": 82,
+      "driveTimeMinutes": 115
+    },
+    "url": "https://www.nationaltrust.org.uk/visit/shropshire-staffordshire/sunnycroft",
+    "notes": "Suburban villa preserving late Victorian and Edwardian domestic life.",
+    "createdAt": "2026-08-04T00:00:00.000Z",
+    "updatedAt": "2026-08-04T00:00:00.000Z"
+  },
+  {
+    "locationId": "wenlock-edge",
+    "name": "Wenlock Edge",
+    "area": "Shropshire",
+    "category": "Countryside",
+    "travel": {
+      "distanceMiles": 83,
+      "driveTimeMinutes": 120
+    },
+    "url": "https://www.nationaltrust.org.uk/visit/shropshire-staffordshire/wenlock-edge",
+    "notes": "Wooded limestone escarpment with walking trails and wildlife.",
+    "createdAt": "2026-08-04T00:00:00.000Z",
+    "updatedAt": "2026-08-04T00:00:00.000Z"
+  },
+  {
+    "locationId": "wilderhope-manor",
+    "name": "Wilderhope Manor",
+    "area": "Shropshire",
+    "category": "Historic building",
+    "travel": {
+      "distanceMiles": 80,
+      "driveTimeMinutes": 115
+    },
+    "url": "https://www.nationaltrust.org.uk/visit/shropshire-staffordshire/wilderhope-manor",
+    "notes": "Elizabethan manor house in the Shropshire Hills.",
+    "createdAt": "2026-08-04T00:00:00.000Z",
+    "updatedAt": "2026-08-04T00:00:00.000Z"
+  },
+  {
+    "locationId": "barrington-court",
+    "name": "Barrington Court",
+    "area": "Somerset",
+    "category": "House and garden",
+    "travel": {
+      "distanceMiles": 96,
+      "driveTimeMinutes": 130
+    },
+    "url": "https://www.nationaltrust.org.uk/visit/somerset/barrington-court",
+    "notes": "Tudor manor house, working estate and Gertrude Jekyll-inspired gardens.",
+    "createdAt": "2026-08-04T00:00:00.000Z",
+    "updatedAt": "2026-08-04T00:00:00.000Z"
+  },
+  {
+    "locationId": "brean-down",
+    "name": "Brean Down",
+    "area": "Somerset",
+    "category": "Coastline",
+    "travel": {
+      "distanceMiles": 70,
+      "driveTimeMinutes": 95
+    },
+    "url": "https://www.nationaltrust.org.uk/visit/somerset/brean-down",
+    "notes": "Coastal headland, wildlife-rich grassland and Victorian fort.",
+    "createdAt": "2026-08-04T00:00:00.000Z",
+    "updatedAt": "2026-08-04T00:00:00.000Z"
+  },
+  {
+    "locationId": "cheddar-gorge",
+    "name": "Cheddar Gorge",
+    "area": "Somerset",
+    "category": "Countryside",
+    "travel": {
+      "distanceMiles": 69,
+      "driveTimeMinutes": 95
+    },
+    "url": "https://www.nationaltrust.org.uk/visit/somerset/cheddar-gorge",
+    "notes": "Limestone gorge, cliffs, rare plants and dramatic Mendip scenery.",
+    "createdAt": "2026-08-04T00:00:00.000Z",
+    "updatedAt": "2026-08-04T00:00:00.000Z"
+  },
+  {
+    "locationId": "coleridge-cottage",
+    "name": "Coleridge Cottage",
+    "area": "Somerset",
+    "category": "Historic building",
+    "travel": {
+      "distanceMiles": 87,
+      "driveTimeMinutes": 115
+    },
+    "url": "https://www.nationaltrust.org.uk/visit/somerset/coleridge-cottage",
+    "notes": "Cottage home of Samuel Taylor Coleridge with garden and interpretation.",
+    "createdAt": "2026-08-04T00:00:00.000Z",
+    "updatedAt": "2026-08-04T00:00:00.000Z"
+  },
+  {
+    "locationId": "dunster-castle-and-watermill",
+    "name": "Dunster Castle and Watermill",
+    "area": "Somerset",
+    "category": "Castle",
+    "travel": {
+      "distanceMiles": 105,
+      "driveTimeMinutes": 145
+    },
+    "url": "https://www.nationaltrust.org.uk/visit/somerset/dunster-castle-and-watermill",
+    "notes": "Castle, subtropical gardens, parkland and historic working watermill.",
+    "createdAt": "2026-08-04T00:00:00.000Z",
+    "updatedAt": "2026-08-04T00:00:00.000Z"
+  },
+  {
+    "locationId": "ebbor-gorge",
+    "name": "Ebbor Gorge",
+    "area": "Somerset",
+    "category": "Nature reserve",
+    "travel": {
+      "distanceMiles": 63,
+      "driveTimeMinutes": 90
+    },
+    "url": "https://www.nationaltrust.org.uk/visit/somerset/ebbor-gorge",
+    "notes": "Wooded limestone gorge and National Nature Reserve in the Mendip Hills.",
+    "createdAt": "2026-08-04T00:00:00.000Z",
+    "updatedAt": "2026-08-04T00:00:00.000Z"
+  },
+  {
+    "locationId": "fyne-court",
+    "name": "Fyne Court",
+    "area": "Somerset",
+    "category": "Nature reserve",
+    "travel": {
+      "distanceMiles": 80,
+      "driveTimeMinutes": 110
+    },
+    "url": "https://www.nationaltrust.org.uk/visit/somerset/fyne-court",
+    "notes": "Woodland and wildlife garden in the Quantock Hills.",
+    "createdAt": "2026-08-04T00:00:00.000Z",
+    "updatedAt": "2026-08-04T00:00:00.000Z"
+  },
+  {
+    "locationId": "glastonbury-tor",
+    "name": "Glastonbury Tor",
+    "area": "Somerset",
+    "category": "Countryside",
+    "travel": {
+      "distanceMiles": 70,
+      "driveTimeMinutes": 100
+    },
+    "url": "https://www.nationaltrust.org.uk/visit/somerset/glastonbury-tor",
+    "notes": "Iconic hilltop tower, archaeology and panoramic Somerset Levels views.",
+    "createdAt": "2026-08-04T00:00:00.000Z",
+    "updatedAt": "2026-08-04T00:00:00.000Z"
+  },
+  {
+    "locationId": "holnicote-estate",
+    "name": "Holnicote Estate",
+    "area": "Somerset",
+    "category": "Estate",
+    "travel": {
+      "distanceMiles": 105,
+      "driveTimeMinutes": 145
+    },
+    "url": "https://www.nationaltrust.org.uk/visit/somerset/holnicote-estate",
+    "notes": "Large Exmoor estate with woodland, villages, coast, moorland and river landscapes.",
+    "createdAt": "2026-08-04T00:00:00.000Z",
+    "updatedAt": "2026-08-04T00:00:00.000Z"
+  },
+  {
+    "locationId": "lytes-cary-manor",
+    "name": "Lytes Cary Manor",
+    "area": "Somerset",
+    "category": "House and garden",
+    "travel": {
+      "distanceMiles": 86,
+      "driveTimeMinutes": 120
+    },
+    "url": "https://www.nationaltrust.org.uk/visit/somerset/lytes-cary-manor",
+    "notes": "Medieval manor house with Arts and Crafts-inspired garden.",
+    "createdAt": "2026-08-04T00:00:00.000Z",
+    "updatedAt": "2026-08-04T00:00:00.000Z"
+  },
+  {
+    "locationId": "montacute-house",
+    "name": "Montacute House",
+    "area": "Somerset",
+    "category": "House and garden",
+    "travel": {
+      "distanceMiles": 93,
+      "driveTimeMinutes": 125
+    },
+    "url": "https://www.nationaltrust.org.uk/visit/somerset/montacute-house",
+    "notes": "Elizabethan Renaissance house, long gallery, gardens and parkland.",
+    "createdAt": "2026-08-04T00:00:00.000Z",
+    "updatedAt": "2026-08-04T00:00:00.000Z"
+  },
+  {
+    "locationId": "sand-point-and-middle-hope",
+    "name": "Sand Point and Middle Hope",
+    "area": "Somerset",
+    "category": "Coastline",
+    "travel": {
+      "distanceMiles": 63,
+      "driveTimeMinutes": 90
+    },
+    "url": "https://www.nationaltrust.org.uk/visit/somerset/sand-point-and-middle-hope",
+    "notes": "Limestone headland and coastal grassland with views across the Bristol Channel.",
+    "createdAt": "2026-08-04T00:00:00.000Z",
+    "updatedAt": "2026-08-04T00:00:00.000Z"
+  },
+  {
+    "locationId": "stembridge-tower-mill",
+    "name": "Stembridge Tower Mill",
+    "area": "Somerset",
+    "category": "Industrial heritage",
+    "travel": {
+      "distanceMiles": 76,
+      "driveTimeMinutes": 105
+    },
+    "url": "https://www.nationaltrust.org.uk/visit/somerset/stembridge-tower-mill",
+    "notes": "Last remaining thatched windmill in England, with limited visitor opening.",
+    "createdAt": "2026-08-04T00:00:00.000Z",
+    "updatedAt": "2026-08-04T00:00:00.000Z"
+  },
+  {
+    "locationId": "tintinhull-garden",
+    "name": "Tintinhull Garden",
+    "area": "Somerset",
+    "category": "Garden",
+    "travel": {
+      "distanceMiles": 91,
+      "driveTimeMinutes": 125
+    },
+    "url": "https://www.nationaltrust.org.uk/visit/somerset/tintinhull-garden",
+    "notes": "Formal Arts and Crafts garden rooms near Yeovil.",
+    "createdAt": "2026-08-04T00:00:00.000Z",
+    "updatedAt": "2026-08-04T00:00:00.000Z"
+  },
+  {
+    "locationId": "dyrham-park",
+    "name": "Dyrham Park",
+    "area": "South Gloucestershire",
+    "category": "House and garden",
+    "travel": {
+      "distanceMiles": 35,
+      "driveTimeMinutes": 50
+    },
+    "url": "https://www.nationaltrust.org.uk/visit/bath-bristol/dyrham-park",
+    "notes": "Baroque house, deer park and gardens between Bath and Bristol.",
+    "createdAt": "2026-08-04T00:00:00.000Z",
+    "updatedAt": "2026-08-04T00:00:00.000Z"
+  },
+  {
+    "locationId": "biddulph-grange-garden",
+    "name": "Biddulph Grange Garden",
+    "area": "Staffordshire",
+    "category": "Garden",
+    "travel": {
+      "distanceMiles": 123,
+      "driveTimeMinutes": 145
+    },
+    "url": "https://www.nationaltrust.org.uk/visit/shropshire-staffordshire/biddulph-grange-garden",
+    "notes": "Victorian garden with themed global garden rooms and geological features.",
+    "createdAt": "2026-08-04T00:00:00.000Z",
+    "updatedAt": "2026-08-04T00:00:00.000Z"
+  },
+  {
+    "locationId": "downs-banks",
+    "name": "Downs Banks",
+    "area": "Staffordshire",
+    "category": "Countryside",
+    "travel": {
+      "distanceMiles": 99,
+      "driveTimeMinutes": 135
+    },
+    "url": "https://www.nationaltrust.org.uk/visit/shropshire-staffordshire/downs-banks",
+    "notes": "Woodland, heath and stream-side countryside near Stone.",
+    "createdAt": "2026-08-04T00:00:00.000Z",
+    "updatedAt": "2026-08-04T00:00:00.000Z"
+  },
+  {
+    "locationId": "hawksmoor",
+    "name": "Hawksmoor",
+    "area": "Staffordshire",
+    "category": "Nature reserve",
+    "travel": {
+      "distanceMiles": 122,
+      "driveTimeMinutes": 145
+    },
+    "url": "https://www.nationaltrust.org.uk/visit/shropshire-staffordshire/hawksmoor",
+    "notes": "Ancient woodland and valley nature reserve near the Staffordshire Moorlands.",
+    "createdAt": "2026-08-04T00:00:00.000Z",
+    "updatedAt": "2026-08-04T00:00:00.000Z"
+  },
+  {
+    "locationId": "kinver-edge-and-the-rock-houses",
+    "name": "Kinver Edge and the Rock Houses",
+    "area": "Staffordshire",
+    "category": "Countryside",
+    "travel": {
+      "distanceMiles": 56,
+      "driveTimeMinutes": 80
+    },
+    "url": "https://www.nationaltrust.org.uk/visit/shropshire-staffordshire/kinver-edge-and-the-rock-houses",
+    "notes": "Sandstone ridge, heathland and restored rock houses.",
+    "createdAt": "2026-08-04T00:00:00.000Z",
+    "updatedAt": "2026-08-04T00:00:00.000Z"
+  },
+  {
+    "locationId": "moseley-old-hall",
+    "name": "Moseley Old Hall",
+    "area": "Staffordshire",
+    "category": "House and garden",
+    "travel": {
+      "distanceMiles": 74,
+      "driveTimeMinutes": 105
+    },
+    "url": "https://www.nationaltrust.org.uk/visit/shropshire-staffordshire/moseley-old-hall",
+    "notes": "Seventeenth-century farmhouse associated with Charles II and a knot garden.",
+    "createdAt": "2026-08-04T00:00:00.000Z",
+    "updatedAt": "2026-08-04T00:00:00.000Z"
+  },
+  {
+    "locationId": "shugborough-estate",
+    "name": "Shugborough Estate",
+    "area": "Staffordshire",
+    "category": "Estate",
+    "travel": {
+      "distanceMiles": 91,
+      "driveTimeMinutes": 125
+    },
+    "url": "https://www.nationaltrust.org.uk/visit/shropshire-staffordshire/shugborough-estate",
+    "notes": "Georgian estate with mansion, servants quarters, gardens, monuments and parkland.",
+    "createdAt": "2026-08-04T00:00:00.000Z",
+    "updatedAt": "2026-08-04T00:00:00.000Z"
+  },
+  {
+    "locationId": "dyffryn-gardens",
+    "name": "Dyffryn Gardens",
+    "area": "Vale of Glamorgan",
+    "category": "Garden",
+    "travel": {
+      "distanceMiles": 72,
+      "driveTimeMinutes": 95
+    },
+    "url": "https://www.nationaltrust.org.uk/visit/wales/dyffryn-gardens",
+    "notes": "Edwardian gardens with garden rooms, arboretum and restored glasshouse.",
+    "createdAt": "2026-08-04T00:00:00.000Z",
+    "updatedAt": "2026-08-04T00:00:00.000Z"
+  },
+  {
+    "locationId": "lanlay-meadows",
+    "name": "Lanlay Meadows",
+    "area": "Vale of Glamorgan",
+    "category": "Nature reserve",
+    "travel": {
+      "distanceMiles": 76,
+      "driveTimeMinutes": 100
+    },
+    "url": "https://www.nationaltrust.org.uk/visit/wales/lanlay-meadows",
+    "notes": "Wildflower meadows and woodland walks in the Vale of Glamorgan.",
+    "createdAt": "2026-08-04T00:00:00.000Z",
+    "updatedAt": "2026-08-04T00:00:00.000Z"
+  },
+  {
+    "locationId": "baddesley-clinton",
+    "name": "Baddesley Clinton",
+    "area": "Warwickshire",
+    "category": "House and garden",
+    "travel": {
+      "distanceMiles": 56,
+      "driveTimeMinutes": 80
+    },
+    "url": "https://www.nationaltrust.org.uk/visit/warwickshire/baddesley-clinton",
+    "notes": "Moated manor house with gardens and woodland walks.",
+    "createdAt": "2026-08-04T00:00:00.000Z",
+    "updatedAt": "2026-08-04T00:00:00.000Z"
+  },
+  {
+    "locationId": "charlecote-park",
+    "name": "Charlecote Park",
+    "area": "Warwickshire",
+    "category": "House and garden",
+    "travel": {
+      "distanceMiles": 48,
+      "driveTimeMinutes": 70
+    },
+    "url": "https://www.nationaltrust.org.uk/visit/warwickshire/charlecote-park",
+    "notes": "Elizabethan house, deer park and riverside gardens.",
+    "createdAt": "2026-08-04T00:00:00.000Z",
+    "updatedAt": "2026-08-04T00:00:00.000Z"
+  },
+  {
+    "locationId": "coughton-court",
+    "name": "Coughton Court",
+    "area": "Warwickshire",
+    "category": "House and garden",
+    "travel": {
+      "distanceMiles": 40,
+      "driveTimeMinutes": 60
+    },
+    "url": "https://www.nationaltrust.org.uk/visit/warwickshire/coughton-court",
+    "notes": "Tudor house with Catholic history, gardens and riverside walks.",
+    "createdAt": "2026-08-04T00:00:00.000Z",
+    "updatedAt": "2026-08-04T00:00:00.000Z"
+  },
+  {
+    "locationId": "farnborough-hall",
+    "name": "Farnborough Hall",
+    "area": "Warwickshire",
+    "category": "House and garden",
+    "travel": {
+      "distanceMiles": 59,
+      "driveTimeMinutes": 90
+    },
+    "url": "https://www.nationaltrust.org.uk/visit/warwickshire/farnborough-hall",
+    "notes": "Honey-coloured country house with landscaped terrace walks.",
+    "createdAt": "2026-08-04T00:00:00.000Z",
+    "updatedAt": "2026-08-04T00:00:00.000Z"
+  },
+  {
+    "locationId": "kinwarton-dovecote",
+    "name": "Kinwarton Dovecote",
+    "area": "Warwickshire",
+    "category": "Historic building",
+    "travel": {
+      "distanceMiles": 42,
+      "driveTimeMinutes": 65
+    },
+    "url": "https://www.nationaltrust.org.uk/visit/warwickshire/kinwarton-dovecote",
+    "notes": "Circular medieval dovecote near Alcester.",
+    "createdAt": "2026-08-04T00:00:00.000Z",
+    "updatedAt": "2026-08-04T00:00:00.000Z"
+  },
+  {
+    "locationId": "packwood-house",
+    "name": "Packwood House",
+    "area": "Warwickshire",
+    "category": "House and garden",
+    "travel": {
+      "distanceMiles": 55,
+      "driveTimeMinutes": 80
+    },
+    "url": "https://www.nationaltrust.org.uk/visit/warwickshire/packwood-house",
+    "notes": "Historic house known for its yew garden, interiors and estate walks.",
+    "createdAt": "2026-08-04T00:00:00.000Z",
+    "updatedAt": "2026-08-04T00:00:00.000Z"
+  },
+  {
+    "locationId": "upton-house-and-gardens",
+    "name": "Upton House and Gardens",
+    "area": "Warwickshire",
+    "category": "House and garden",
+    "travel": {
+      "distanceMiles": 54,
+      "driveTimeMinutes": 80
+    },
+    "url": "https://www.nationaltrust.org.uk/visit/warwickshire/upton-house-and-gardens",
+    "notes": "Country house, art collection, terraced gardens and Mirror Pool.",
+    "createdAt": "2026-08-04T00:00:00.000Z",
+    "updatedAt": "2026-08-04T00:00:00.000Z"
+  },
+  {
+    "locationId": "birmingham-back-to-backs",
+    "name": "Birmingham Back to Backs",
+    "area": "West Midlands",
+    "category": "Historic building",
+    "travel": {
+      "distanceMiles": 56,
+      "driveTimeMinutes": 75
+    },
+    "url": "https://www.nationaltrust.org.uk/visit/birmingham-west-midlands/birmingham-back-to-backs",
+    "notes": "Restored courtyard of working-class houses in central Birmingham.",
+    "createdAt": "2026-08-04T00:00:00.000Z",
+    "updatedAt": "2026-08-04T00:00:00.000Z"
+  },
+  {
+    "locationId": "clent-hills",
+    "name": "Clent Hills",
+    "area": "West Midlands",
+    "category": "Countryside",
+    "travel": {
+      "distanceMiles": 49,
+      "driveTimeMinutes": 70
+    },
+    "url": "https://www.nationaltrust.org.uk/visit/birmingham-west-midlands/clent-hills",
+    "notes": "Open hills, woodland and viewpoints south-west of Birmingham.",
+    "createdAt": "2026-08-04T00:00:00.000Z",
+    "updatedAt": "2026-08-04T00:00:00.000Z"
+  },
+  {
+    "locationId": "roundhouse-birmingham",
+    "name": "Roundhouse Birmingham",
+    "area": "West Midlands",
+    "category": "Historic building",
+    "travel": {
+      "distanceMiles": 57,
+      "driveTimeMinutes": 80
+    },
+    "url": "https://www.nationaltrust.org.uk/visit/birmingham-west-midlands/roundhouse-birmingham",
+    "notes": "Canal-side former stables now used for heritage tours and city experiences.",
+    "createdAt": "2026-08-04T00:00:00.000Z",
+    "updatedAt": "2026-08-04T00:00:00.000Z"
+  },
+  {
+    "locationId": "wightwick-manor-and-gardens",
+    "name": "Wightwick Manor and Gardens",
+    "area": "West Midlands",
+    "category": "House and garden",
+    "travel": {
+      "distanceMiles": 72,
+      "driveTimeMinutes": 100
+    },
+    "url": "https://www.nationaltrust.org.uk/visit/shropshire-staffordshire/wightwick-manor-and-gardens",
+    "notes": "Arts and Crafts manor with Pre-Raphaelite collections and gardens.",
+    "createdAt": "2026-08-04T00:00:00.000Z",
+    "updatedAt": "2026-08-04T00:00:00.000Z"
+  },
+  {
+    "locationId": "avebury",
+    "name": "Avebury",
+    "area": "Wiltshire",
+    "category": "Archaeological site",
+    "travel": {
+      "distanceMiles": 43,
+      "driveTimeMinutes": 65
+    },
+    "url": "https://www.nationaltrust.org.uk/visit/wiltshire/avebury",
+    "notes": "Stone circle, henge, manor garden and World Heritage Site landscape.",
+    "createdAt": "2026-08-04T00:00:00.000Z",
+    "updatedAt": "2026-08-04T00:00:00.000Z"
+  },
+  {
+    "locationId": "dinton-park-and-philips-house",
+    "name": "Dinton Park and Philipps House",
+    "area": "Wiltshire",
+    "category": "Estate",
+    "travel": {
+      "distanceMiles": 68,
+      "driveTimeMinutes": 95
+    },
+    "url": "https://www.nationaltrust.org.uk/visit/wiltshire/dinton-park-and-philipps-house",
+    "notes": "Parkland, lake and Philipps House in a historic Wiltshire estate landscape.",
+    "createdAt": "2026-08-04T00:00:00.000Z",
+    "updatedAt": "2026-08-04T00:00:00.000Z"
+  },
+  {
+    "locationId": "great-chalfield-manor-and-garden",
+    "name": "Great Chalfield Manor and Garden",
+    "area": "Wiltshire",
+    "category": "House and garden",
+    "travel": {
+      "distanceMiles": 54,
+      "driveTimeMinutes": 80
+    },
+    "url": "https://www.nationaltrust.org.uk/visit/wiltshire/great-chalfield-manor-and-garden",
+    "notes": "Medieval manor house with Arts and Crafts garden.",
+    "createdAt": "2026-08-04T00:00:00.000Z",
+    "updatedAt": "2026-08-04T00:00:00.000Z"
+  },
+  {
+    "locationId": "lacock-abbey-fox-talbot-museum-and-village",
     "name": "Lacock Abbey, Fox Talbot Museum and Village",
     "area": "Wiltshire",
-    "category": "Historic house",
-    "travel": { "distanceMiles": 35, "driveTimeMinutes": 55 },
+    "category": "House and garden",
+    "travel": {
+      "distanceMiles": 46,
+      "driveTimeMinutes": 65
+    },
     "url": "https://www.nationaltrust.org.uk/visit/wiltshire/lacock-abbey-fox-talbot-museum-and-village",
-    "notes": "A 13th-century abbey and photography museum in a well-preserved medieval village.",
-    "createdAt": "2026-08-04",
-    "updatedAt": "2026-08-04"
+    "notes": "Medieval abbey, photography museum, gardens and National Trust village.",
+    "createdAt": "2026-08-04T00:00:00.000Z",
+    "updatedAt": "2026-08-04T00:00:00.000Z"
+  },
+  {
+    "locationId": "mompesson-house",
+    "name": "Mompesson House",
+    "area": "Wiltshire",
+    "category": "House and garden",
+    "travel": {
+      "distanceMiles": 83,
+      "driveTimeMinutes": 115
+    },
+    "url": "https://www.nationaltrust.org.uk/visit/wiltshire/mompesson-house",
+    "notes": "Eighteenth-century townhouse and walled garden in Salisbury Cathedral Close.",
+    "createdAt": "2026-08-04T00:00:00.000Z",
+    "updatedAt": "2026-08-04T00:00:00.000Z"
+  },
+  {
+    "locationId": "stonehenge-landscape",
+    "name": "Stonehenge Landscape",
+    "area": "Wiltshire",
+    "category": "Archaeological site",
+    "travel": {
+      "distanceMiles": 69,
+      "driveTimeMinutes": 95
+    },
+    "url": "https://www.nationaltrust.org.uk/visit/wiltshire/stonehenge-landscape",
+    "notes": "National Trust-managed chalk downland and monuments around Stonehenge.",
+    "createdAt": "2026-08-04T00:00:00.000Z",
+    "updatedAt": "2026-08-04T00:00:00.000Z"
   },
   {
     "locationId": "stourhead",
     "name": "Stourhead",
     "area": "Wiltshire",
     "category": "House and garden",
-    "travel": { "distanceMiles": 42, "driveTimeMinutes": 65 },
+    "travel": {
+      "distanceMiles": 76,
+      "driveTimeMinutes": 105
+    },
     "url": "https://www.nationaltrust.org.uk/visit/wiltshire/stourhead",
-    "notes": "A landscaped garden with a Palladian mansion, lake and classical temples.",
-    "createdAt": "2026-08-04",
-    "updatedAt": "2026-08-04"
+    "notes": "Palladian house, world-famous landscape garden and wider estate.",
+    "createdAt": "2026-08-04T00:00:00.000Z",
+    "updatedAt": "2026-08-04T00:00:00.000Z"
   },
   {
-    "locationId": "cliveden",
-    "name": "Cliveden",
-    "area": "Buckinghamshire",
-    "category": "Estate and parkland",
-    "travel": { "distanceMiles": 65, "driveTimeMinutes": 95 },
-    "url": "https://www.nationaltrust.org.uk/visit/buckinghamshire/cliveden",
-    "notes": "A historic estate above the Thames with formal gardens and woodland walks.",
-    "createdAt": "2026-08-04",
-    "updatedAt": "2026-08-04"
-  },
-  {
-    "locationId": "corfe-castle",
-    "name": "Corfe Castle",
-    "area": "Dorset",
-    "category": "Castle",
-    "travel": { "distanceMiles": 78, "driveTimeMinutes": 120 },
-    "url": "https://www.nationaltrust.org.uk/visit/dorset/corfe-castle",
-    "notes": "Dramatic ruined hilltop castle overlooking the Isle of Purbeck.",
-    "createdAt": "2026-08-04",
-    "updatedAt": "2026-08-04"
-  },
-  {
-    "locationId": "kingston-lacy",
-    "name": "Kingston Lacy",
-    "area": "Dorset",
-    "category": "House and garden",
-    "travel": { "distanceMiles": 76, "driveTimeMinutes": 115 },
-    "url": "https://www.nationaltrust.org.uk/visit/dorset/kingston-lacy",
-    "notes": "A grand 17th-century mansion with fine art collections and formal gardens.",
-    "createdAt": "2026-08-04",
-    "updatedAt": "2026-08-04"
-  },
-  {
-    "locationId": "buckland-abbey",
-    "name": "Buckland Abbey",
-    "area": "Devon",
-    "category": "Historic house",
-    "travel": { "distanceMiles": 105, "driveTimeMinutes": 150 },
-    "url": "https://www.nationaltrust.org.uk/visit/devon/buckland-abbey",
-    "notes": "A medieval abbey turned Tudor house, former home of Sir Francis Drake.",
-    "createdAt": "2026-08-04",
-    "updatedAt": "2026-08-04"
-  },
-  {
-    "locationId": "lanhydrock",
-    "name": "Lanhydrock",
-    "area": "Cornwall",
-    "category": "House and garden",
-    "travel": { "distanceMiles": 145, "driveTimeMinutes": 200 },
-    "url": "https://www.nationaltrust.org.uk/visit/cornwall/lanhydrock",
-    "notes": "A late-Victorian country house with extensive servants' quarters and gardens.",
-    "createdAt": "2026-08-04",
-    "updatedAt": "2026-08-04"
-  },
-  {
-    "locationId": "polesden-lacey",
-    "name": "Polesden Lacey",
-    "area": "Surrey",
-    "category": "House and garden",
-    "travel": { "distanceMiles": 92, "driveTimeMinutes": 130 },
-    "url": "https://www.nationaltrust.org.uk/visit/surrey/polesden-lacey",
-    "notes": "An Edwardian house set in rolling countryside, once a hub for high society.",
-    "createdAt": "2026-08-04",
-    "updatedAt": "2026-08-04"
-  },
-  {
-    "locationId": "chartwell",
-    "name": "Chartwell",
-    "area": "Kent",
-    "category": "House and garden",
-    "travel": { "distanceMiles": 122, "driveTimeMinutes": 165 },
-    "url": "https://www.nationaltrust.org.uk/visit/kent/chartwell",
-    "notes": "The family home of Sir Winston Churchill, with gardens overlooking the Weald.",
-    "createdAt": "2026-08-04",
-    "updatedAt": "2026-08-04"
-  },
-  {
-    "locationId": "sissinghurst-castle-garden",
-    "name": "Sissinghurst Castle Garden",
-    "area": "Kent",
+    "locationId": "the-courts-garden",
+    "name": "The Courts Garden",
+    "area": "Wiltshire",
     "category": "Garden",
-    "travel": { "distanceMiles": 132, "driveTimeMinutes": 175 },
-    "url": "https://www.nationaltrust.org.uk/visit/kent/sissinghurst-castle-garden",
-    "notes": "One of the world's most celebrated gardens, created by Vita Sackville-West.",
-    "createdAt": "2026-08-04",
-    "updatedAt": "2026-08-04"
+    "travel": {
+      "distanceMiles": 55,
+      "driveTimeMinutes": 80
+    },
+    "url": "https://www.nationaltrust.org.uk/visit/wiltshire/the-courts-garden",
+    "notes": "English country garden with water features, orchard and herbaceous borders.",
+    "createdAt": "2026-08-04T00:00:00.000Z",
+    "updatedAt": "2026-08-04T00:00:00.000Z"
   },
   {
-    "locationId": "fountains-abbey-and-studley-royal",
-    "name": "Fountains Abbey and Studley Royal Water Garden",
-    "area": "North Yorkshire",
-    "category": "Historic building",
-    "travel": { "distanceMiles": 165, "driveTimeMinutes": 210 },
-    "url": "https://www.nationaltrust.org.uk/visit/yorkshire/fountains-abbey-and-studley-royal-water-garden",
-    "notes": "A ruined medieval abbey set within an 18th-century water garden, a World Heritage Site.",
-    "createdAt": "2026-08-04",
-    "updatedAt": "2026-08-04"
-  },
-  {
-    "locationId": "cragside",
-    "name": "Cragside",
-    "area": "Northumberland",
+    "locationId": "westwood-manor",
+    "name": "Westwood Manor",
+    "area": "Wiltshire",
     "category": "House and garden",
-    "travel": { "distanceMiles": 265, "driveTimeMinutes": 310 },
-    "url": "https://www.nationaltrust.org.uk/visit/northumberland/cragside",
-    "notes": "A Victorian mansion set in a dramatic rocky landscape, the first house lit by hydroelectricity.",
-    "createdAt": "2026-08-04",
-    "updatedAt": "2026-08-04"
+    "travel": {
+      "distanceMiles": 55,
+      "driveTimeMinutes": 80
+    },
+    "url": "https://www.nationaltrust.org.uk/visit/wiltshire/westwood-manor",
+    "notes": "Small medieval manor house with garden near Bradford-on-Avon.",
+    "createdAt": "2026-08-04T00:00:00.000Z",
+    "updatedAt": "2026-08-04T00:00:00.000Z"
   },
   {
-    "locationId": "tintagel-old-post-office",
-    "name": "Tintagel Old Post Office",
-    "area": "Cornwall",
+    "locationId": "bredon-barn",
+    "name": "Bredon Barn",
+    "area": "Worcestershire",
     "category": "Historic building",
-    "travel": { "distanceMiles": 155, "driveTimeMinutes": 205 },
-    "url": "https://www.nationaltrust.org.uk/visit/cornwall/tintagel-old-post-office",
-    "notes": "A 14th-century yeoman's farmhouse that later served as the village post office.",
-    "createdAt": "2026-08-04",
-    "updatedAt": "2026-08-04"
+    "travel": {
+      "distanceMiles": 17,
+      "driveTimeMinutes": 30
+    },
+    "url": "https://www.nationaltrust.org.uk/visit/worcestershire-herefordshire/bredon-barn",
+    "notes": "Medieval tithe barn with timber roof structure.",
+    "createdAt": "2026-08-04T00:00:00.000Z",
+    "updatedAt": "2026-08-04T00:00:00.000Z"
   },
   {
-    "locationId": "wicken-fen",
-    "name": "Wicken Fen Nature Reserve",
-    "area": "Cambridgeshire",
-    "category": "Nature reserve",
-    "travel": { "distanceMiles": 120, "driveTimeMinutes": 150 },
-    "url": "https://www.nationaltrust.org.uk/visit/cambridgeshire/wicken-fen-nature-reserve",
-    "notes": "One of Europe's most important wetlands, rich in wildlife, with boardwalk trails.",
-    "createdAt": "2026-08-04",
-    "updatedAt": "2026-08-04"
+    "locationId": "croome",
+    "name": "Croome",
+    "area": "Worcestershire",
+    "category": "House and garden",
+    "travel": {
+      "distanceMiles": 25,
+      "driveTimeMinutes": 35
+    },
+    "url": "https://www.nationaltrust.org.uk/visit/worcestershire-herefordshire/croome",
+    "notes": "Neo-Palladian house and Capability Brown parkland near Worcester.",
+    "createdAt": "2026-08-04T00:00:00.000Z",
+    "updatedAt": "2026-08-04T00:00:00.000Z"
   },
   {
-    "locationId": "studland-bay",
-    "name": "Studland Bay",
-    "area": "Dorset",
-    "category": "Coastline",
-    "travel": { "distanceMiles": 85, "driveTimeMinutes": 130 },
-    "url": "https://www.nationaltrust.org.uk/visit/dorset/studland-bay",
-    "notes": "Four miles of sandy beach and heathland on the Isle of Purbeck coast.",
-    "createdAt": "2026-08-04",
-    "updatedAt": "2026-08-04"
+    "locationId": "greyfriars-house-and-garden",
+    "name": "Greyfriars House and Garden",
+    "area": "Worcestershire",
+    "category": "House and garden",
+    "travel": {
+      "distanceMiles": 26,
+      "driveTimeMinutes": 40
+    },
+    "url": "https://www.nationaltrust.org.uk/visit/worcestershire-herefordshire/greyfriars-house-and-garden",
+    "notes": "Timber-framed house and walled garden in central Worcester.",
+    "createdAt": "2026-08-04T00:00:00.000Z",
+    "updatedAt": "2026-08-04T00:00:00.000Z"
+  },
+  {
+    "locationId": "hanbury-hall",
+    "name": "Hanbury Hall",
+    "area": "Worcestershire",
+    "category": "House and garden",
+    "travel": {
+      "distanceMiles": 37,
+      "driveTimeMinutes": 55
+    },
+    "url": "https://www.nationaltrust.org.uk/visit/worcestershire-herefordshire/hanbury-hall",
+    "notes": "William and Mary-style house, formal gardens and parkland.",
+    "createdAt": "2026-08-04T00:00:00.000Z",
+    "updatedAt": "2026-08-04T00:00:00.000Z"
+  },
+  {
+    "locationId": "hawford-dovecote",
+    "name": "Hawford Dovecote",
+    "area": "Worcestershire",
+    "category": "Historic building",
+    "travel": {
+      "distanceMiles": 31,
+      "driveTimeMinutes": 50
+    },
+    "url": "https://www.nationaltrust.org.uk/visit/worcestershire-herefordshire/hawford-dovecote",
+    "notes": "Historic brick dovecote near Worcester.",
+    "createdAt": "2026-08-04T00:00:00.000Z",
+    "updatedAt": "2026-08-04T00:00:00.000Z"
+  },
+  {
+    "locationId": "knowles-mill",
+    "name": "Knowles Mill",
+    "area": "Worcestershire",
+    "category": "Industrial heritage",
+    "travel": {
+      "distanceMiles": 48,
+      "driveTimeMinutes": 75
+    },
+    "url": "https://www.nationaltrust.org.uk/visit/worcestershire-herefordshire/knowles-mill",
+    "notes": "Preserved water-powered mill in the Wyre Forest.",
+    "createdAt": "2026-08-04T00:00:00.000Z",
+    "updatedAt": "2026-08-04T00:00:00.000Z"
+  },
+  {
+    "locationId": "middle-littleton-tithe-barn",
+    "name": "Middle Littleton Tithe Barn",
+    "area": "Worcestershire",
+    "category": "Historic building",
+    "travel": {
+      "distanceMiles": 25,
+      "driveTimeMinutes": 45
+    },
+    "url": "https://www.nationaltrust.org.uk/visit/worcestershire-herefordshire/middle-littleton-tithe-barn",
+    "notes": "Large medieval tithe barn with traditional agricultural setting.",
+    "createdAt": "2026-08-04T00:00:00.000Z",
+    "updatedAt": "2026-08-04T00:00:00.000Z"
+  },
+  {
+    "locationId": "rosedene",
+    "name": "Rosedene",
+    "area": "Worcestershire",
+    "category": "Historic building",
+    "travel": {
+      "distanceMiles": 44,
+      "driveTimeMinutes": 65
+    },
+    "url": "https://www.nationaltrust.org.uk/visit/worcestershire-herefordshire/rosedene",
+    "notes": "Restored Chartist cottage and garden near Bromsgrove.",
+    "createdAt": "2026-08-04T00:00:00.000Z",
+    "updatedAt": "2026-08-04T00:00:00.000Z"
+  },
+  {
+    "locationId": "the-firs",
+    "name": "The Firs",
+    "area": "Worcestershire",
+    "category": "House and garden",
+    "travel": {
+      "distanceMiles": 27,
+      "driveTimeMinutes": 45
+    },
+    "url": "https://www.nationaltrust.org.uk/visit/worcestershire-herefordshire/the-firs",
+    "notes": "Birthplace cottage and garden of composer Edward Elgar.",
+    "createdAt": "2026-08-04T00:00:00.000Z",
+    "updatedAt": "2026-08-04T00:00:00.000Z"
+  },
+  {
+    "locationId": "wichenford-dovecote",
+    "name": "Wichenford Dovecote",
+    "area": "Worcestershire",
+    "category": "Historic building",
+    "travel": {
+      "distanceMiles": 33,
+      "driveTimeMinutes": 55
+    },
+    "url": "https://www.nationaltrust.org.uk/visit/worcestershire-herefordshire/wichenford-dovecote",
+    "notes": "Seventeenth-century dovecote with historic nesting boxes.",
+    "createdAt": "2026-08-04T00:00:00.000Z",
+    "updatedAt": "2026-08-04T00:00:00.000Z"
   }
 ]

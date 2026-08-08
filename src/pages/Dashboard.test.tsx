@@ -7,6 +7,8 @@ import { locations } from '../data/locations'
 import { save } from '../services/storage'
 import type { AwardedStatus, Visit } from '../domain/visit'
 
+const lacockId = 'lacock-abbey-fox-talbot-museum-and-village'
+
 function visit(locationId: string, status: AwardedStatus): Visit {
   return {
     visitId: `${locationId}-${status}`,
@@ -41,7 +43,7 @@ describe('Dashboard', () => {
   })
 
   it('counts silver and gold visits as complete, but not bronze', () => {
-    save({ visits: [visit('lacock-abbey', 'silver'), visit('stourhead', 'gold'), visit('cliveden', 'bronze')] })
+    save({ visits: [visit(lacockId, 'silver'), visit('stourhead', 'gold'), visit('cliveden', 'bronze')] })
 
     renderDashboard()
 
@@ -51,7 +53,7 @@ describe('Dashboard', () => {
   })
 
   it('derives status counts per location', () => {
-    save({ visits: [visit('lacock-abbey', 'silver')] })
+    save({ visits: [visit(lacockId, 'silver')] })
 
     const { getByRole } = renderDashboard()
 

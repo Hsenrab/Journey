@@ -31,8 +31,11 @@ reload.
    their visits is shown.
 2. Search is case-insensitive and matches the combined name, area and category text.
 3. Filtering is applied before sorting; sorting by name uses locale comparison, sorting by progress
-   orders by status value; sorting by distance orders by straight-line miles from Brockworth.
-4. Each card links to `/locations/:id`, where the id is the stable identifier stored on each visit.
+   orders by status value, sorting by distance orders by road miles from Brockworth, sorting by
+   travel time orders by estimated drive minutes, and sorting by last visit date shows newest visits
+   first.
+4. Each card links to `/locations/:id`, where the id is the stable identifier used as the storage
+   key.
 
 ## Future improvements
 
