@@ -96,7 +96,11 @@ export function statusCounts(locations: readonly Location[], visits: readonly Vi
 }
 
 /** Percentage (0-100) of locations that have reached at least the given status. */
-export function progressTowards(locations: readonly Location[], visits: readonly Visit[], status: Status): number {
+export function progressTowards(
+  locations: readonly Location[],
+  visits: readonly Visit[],
+  status: AwardedStatus,
+): number {
   if (locations.length === 0) return 0
   const threshold = statusOrder.indexOf(status)
   const reached = locations.filter(
