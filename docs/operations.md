@@ -36,8 +36,9 @@ credential with this exact, case-sensitive configuration:
 
 Update the federated credential in Entra whenever GitHub changes the repository
 owner or repository name casing. GitHub Actions emits the subject from the
-repository's current canonical identity and it cannot be overridden by the
-workflow.
+repository's current canonical identity, including the numeric identity IDs, and
+it cannot be overridden by the workflow. When recreating the credential, copy
+the subject from the `AADSTS7002138` Azure login error in the failed job.
 
 The production Static Web Apps deployment token is never stored as a GitHub secret.
 The deploy job reads it from Azure at run time and masks it in the logs.
