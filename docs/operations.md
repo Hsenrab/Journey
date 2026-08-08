@@ -25,6 +25,20 @@ repository-level secrets:
 Optional variables: `AZURE_LOCATION` (default `westeurope`) and
 `AZURE_RESOURCE_OWNER` (default `journey-maintainers`).
 
+The Entra application identified by `AZURE_CLIENT_ID` must have a federated
+credential with this exact, case-sensitive configuration:
+
+| Field    | Value                                                          |
+| -------- | -------------------------------------------------------------- |
+| Issuer   | `https://token.actions.githubusercontent.com`                  |
+| Audience | `api://AzureADTokenExchange`                                   |
+| Subject  | `repo:Hsenrab@15820789/Journey@1322350421:ref:refs/heads/main` |
+
+Update the federated credential in Entra whenever GitHub changes the repository
+owner or repository name casing. GitHub Actions emits the subject from the
+repository's current canonical identity and it cannot be overridden by the
+workflow.
+
 The production Static Web Apps deployment token is never stored as a GitHub secret.
 The deploy job reads it from Azure at run time and masks it in the logs.
 
@@ -94,7 +108,7 @@ no server-side database to back up.
 
 | Symptom                              | Likely cause and action                                                                            |
 | ------------------------------------ | -------------------------------------------------------------------------------------------------- |
-| Azure login step fails               | Federated credential subject does not match the `main` branch. Re-check the app registration.      |
+| Azure login step fails               | Update the Entra federated credential to match the exact case-sensitive subject above.             |
 | Bicep deployment fails on SKU        | The Free SKU allows a limited number of apps per subscription. Delete unused apps or use Standard. |
 | Deploy step reports an invalid token | The Static Web App was recreated. Re-run the workflow so the token is read again.                  |
 | Verification step fails              | The CDN may still be propagating. Re-run the job; if it still fails, roll back.                    |
