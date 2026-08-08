@@ -83,4 +83,43 @@ describe('Locations', () => {
     expect(namesByProgress).not.toEqual(namesByName)
     expect([...namesByProgress].sort()).toEqual([...namesByName].sort())
   })
+
+  it('sorts by distance, travel time and last visit date', async () => {
+    save({ visits: [visit('stourhead', 'gold')] })
+    const user = userEvent.setup()
+    renderLocations()
+
+    const namesByName = screen.getAllByRole('heading', { level: 6 }).map((el) => el.textContent)
+
+    await user.click(screen.getAllByRole('combobox')[1])
+    await user.click(screen.getByRole('option', { name: 'Distance (nearest first)' }))
+    const namesByDistance = screen.getAllByRole('heading', { level: 6 }).map((el) => el.textContent)
+    expect([...namesByDistance].sort()).toEqual([...namesByName].sort())
+
+    await user.click(screen.getAllByRole('combobox')[1])
+    await user.click(screen.getByRole('option', { name: 'Travel time' }))
+    const namesByTravel = screen.getAllByRole('heading', { level: 6 }).map((el) => el.textContent)
+    expect([...namesByTravel].sort()).toEqual([...namesByName].sort())
+
+    await user.click(screen.getAllByRole('combobox')[1])
+    await user.click(screen.getByRole('option', { name: 'Last visit date' }))
+    const namesByLastVisit = screen.getAllByRole('heading', { level: 6 }).map((el) => el.textContent)
+    expect([...namesByLastVisit].sort()).toEqual([...namesByName].sort())
+  })
+
+  it('filters by area and category', async () => {
+    const user = userEvent.setup()
+    renderLocations()
+
+    await user.click(screen.getAllByRole('combobox')[3])
+    await user.click(screen.getByRole('option', { name: 'Gloucestershire' }))
+    expect(screen.queryByText('Stourhead')).not.toBeInTheDocument()
+
+    await user.click(screen.getAllByRole('combobox')[3])
+    await user.click(screen.getByRole('option', { name: 'All areas' }))
+
+    await user.click(screen.getAllByRole('combobox')[4])
+    await user.click(screen.getByRole('option', { name: 'Garden' }))
+    expect(screen.getByText('Westbury Court Garden')).toBeInTheDocument()
+  })
 })

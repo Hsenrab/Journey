@@ -69,4 +69,17 @@ describe('LocationDetails', () => {
 
     expect(load().visits[0]).toMatchObject({ locationId: lacockId, date: '2026-07-04' })
   })
+
+  it('shows an error message for an invalid visit date', async () => {
+    const user = userEvent.setup()
+    renderDetails(lacockId)
+
+    const dateInput = screen.getByLabelText('Visit date')
+    await user.clear(dateInput)
+    await user.type(dateInput, 'not-a-date')
+    await user.click(screen.getByRole('button', { name: 'Save visit' }))
+
+    expect(screen.getByText('Please enter a valid visit date in YYYY-MM-DD format.')).toBeInTheDocument()
+    expect(load().visits).toEqual([])
+  })
 })

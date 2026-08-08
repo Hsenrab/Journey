@@ -85,6 +85,18 @@ describe('Settings', () => {
     expect(await screen.findByText(/not a valid tracker backup/)).toBeInTheDocument()
   })
 
+  it('rejects a file with an unsupported mime type before parsing it', async () => {
+    const user = userEvent.setup({ applyAccept: false })
+    renderSettings()
+
+    await user.upload(
+      screen.getByLabelText('Restore JSON'),
+      new File(['not json at all'], 'backup.txt', { type: 'text/plain' }),
+    )
+
+    expect(await screen.findByText('Choose a JSON backup file exported from this app.')).toBeInTheDocument()
+  })
+
   it('exports the current data as a downloadable JSON file', async () => {
     const user = userEvent.setup()
     save({ visits: [visit()] })
@@ -119,5 +131,18 @@ describe('Settings', () => {
 
     expect(await screen.findByText('Your data was cleared.')).toBeInTheDocument()
     expect(load()).toEqual({ visits: [] })
+  })
+
+  it('closes the clear data confirmation dialog when dismissed with escape', async () => {
+    const user = userEvent.setup()
+    save({ visits: [visit()] })
+    renderSettings()
+
+    await user.click(screen.getByRole('button', { name: 'Clear data' }))
+    expect(screen.getByRole('dialog')).toBeInTheDocument()
+
+    await user.keyboard('{Escape}')
+    await waitForElementToBeRemoved(() => screen.queryByRole('dialog'))
+    expect(load().visits).toContainEqual(expect.objectContaining({ locationId: 'dyrham-park', status: 'gold' }))
   })
 })
