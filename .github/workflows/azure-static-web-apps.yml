@@ -26,7 +26,6 @@ jobs:
     needs: validate
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
-    environment: azure-prod
     outputs:
       application_url: ${{ steps.deploy_bicep.outputs.applicationUrl }}
     steps:
@@ -66,9 +65,6 @@ jobs:
     name: Deploy application
     needs: infra
     runs-on: ubuntu-latest
-    environment:
-      name: azure-prod
-      url: ${{ needs.infra.outputs.application_url }}
     steps:
       - name: Checkout
         uses: actions/checkout@v6
