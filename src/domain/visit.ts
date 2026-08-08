@@ -110,12 +110,21 @@ export function lastVisitDate(visits: readonly Visit[], locationId: string): str
   return visitsForLocation(visits, locationId)[0]?.date
 }
 
+/** The date of the most recent visit to each visited location. */
+export function lastVisitDates(visits: readonly Visit[]): Map<string, string> {
+  const dates = new Map<string, string>()
+  for (const visit of visits) {
+    const current = dates.get(visit.locationId)
+    if (current === undefined || visit.date > current) dates.set(visit.locationId, visit.date)
+  }
+  return dates
+}
+
 export function recentlyVisited(locations: readonly Location[], visits: readonly Visit[], limit = 3): Location[] {
+  const dates = lastVisitDates(visits)
   return locations
-    .filter((location) => lastVisitDate(visits, location.locationId) !== undefined)
-    .sort((a, b) =>
-      (lastVisitDate(visits, b.locationId) ?? '').localeCompare(lastVisitDate(visits, a.locationId) ?? ''),
-    )
+    .filter((location) => dates.has(location.locationId))
+    .sort((a, b) => (dates.get(b.locationId) ?? '').localeCompare(dates.get(a.locationId) ?? ''))
     .slice(0, limit)
 }
 

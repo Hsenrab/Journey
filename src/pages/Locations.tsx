@@ -15,7 +15,7 @@ import {
   Typography,
 } from '@mui/material'
 import { locations } from '../data/locations'
-import { lastVisitDate, statusLabels, statusOrder } from '../domain/visit'
+import { lastVisitDates, statusLabels, statusOrder } from '../domain/visit'
 import { useJourney } from '../features/journey/JourneyContext'
 
 const areas = Array.from(new Set(locations.map((location) => location.area))).sort()
@@ -32,37 +32,34 @@ export default function Locations() {
   const [maxDistance, setMaxDistance] = useState('all')
   const [area, setArea] = useState('all')
   const [category, setCategory] = useState('all')
-  const list = useMemo(
-    () =>
-      locations
-        .filter((location) => {
-          const visitStatus = statusFor(location.locationId)
-          return (
-            (status === 'all' || visitStatus === status) &&
-            (maxDistance === 'all' || location.travel.distanceMiles <= Number(maxDistance)) &&
-            (area === 'all' || location.area === area) &&
-            (category === 'all' || location.category === category) &&
-            `${location.name} ${location.area} ${location.category}`.toLowerCase().includes(query.toLowerCase())
-          )
-        })
-        .sort((a, b) => {
-          switch (sort) {
-            case 'travel':
-              return a.travel.driveTimeMinutes - b.travel.driveTimeMinutes
-            case 'distance':
-              return a.travel.distanceMiles - b.travel.distanceMiles
-            case 'status':
-              return statusOrder.indexOf(statusFor(b.locationId)) - statusOrder.indexOf(statusFor(a.locationId))
-            case 'lastVisit':
-              return (lastVisitDate(visits, b.locationId) ?? '').localeCompare(
-                lastVisitDate(visits, a.locationId) ?? '',
-              )
-            default:
-              return a.name.localeCompare(b.name)
-          }
-        }),
-    [area, category, maxDistance, query, sort, status, statusFor, visits],
-  )
+  const list = useMemo(() => {
+    const dates = lastVisitDates(visits)
+    return locations
+      .filter((location) => {
+        const visitStatus = statusFor(location.locationId)
+        return (
+          (status === 'all' || visitStatus === status) &&
+          (maxDistance === 'all' || location.travel.distanceMiles <= Number(maxDistance)) &&
+          (area === 'all' || location.area === area) &&
+          (category === 'all' || location.category === category) &&
+          `${location.name} ${location.area} ${location.category}`.toLowerCase().includes(query.toLowerCase())
+        )
+      })
+      .sort((a, b) => {
+        switch (sort) {
+          case 'travel':
+            return a.travel.driveTimeMinutes - b.travel.driveTimeMinutes
+          case 'distance':
+            return a.travel.distanceMiles - b.travel.distanceMiles
+          case 'status':
+            return statusOrder.indexOf(statusFor(b.locationId)) - statusOrder.indexOf(statusFor(a.locationId))
+          case 'lastVisit':
+            return (dates.get(b.locationId) ?? '').localeCompare(dates.get(a.locationId) ?? '')
+          default:
+            return a.name.localeCompare(b.name)
+        }
+      })
+  }, [area, category, maxDistance, query, sort, status, statusFor, visits])
 
   return (
     <Stack spacing={3}>

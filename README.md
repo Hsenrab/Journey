@@ -164,16 +164,23 @@ Two GitHub Actions workflows drive delivery:
 
 ## Data format
 
-Visit records are stored in this browser's local storage as an object keyed by `locationId`:
+Visits are stored in this browser's local storage as an append-only history; a location's status is
+the highest status awarded by any of its visits:
 
 ```json
 {
-  "may-hill": {
-    "status": "silver",
-    "date": "2026-04-12",
-    "notes": "Walked to the summit and the topograph.",
-    "photos": ["https://example.com/photo.jpg"]
-  }
+  "visits": [
+    {
+      "visitId": "8f0d0f6e-2b4a-4f43-9f0f-6a1f6a5a1c2b",
+      "locationId": "may-hill",
+      "date": "2026-04-12",
+      "status": "silver",
+      "notes": "Walked to the summit and the topograph.",
+      "photos": ["https://example.com/photo.jpg"],
+      "createdAt": "2026-04-12T18:00:00.000Z",
+      "updatedAt": "2026-04-12T18:00:00.000Z"
+    }
+  ]
 }
 ```
 
