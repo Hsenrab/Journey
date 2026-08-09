@@ -511,3 +511,13 @@ export function stillToVisit(waypoints: readonly Waypoint[], activities: readonl
 export function suggestedNext(waypoints: readonly Waypoint[], activities: readonly Activity[], limit = 3): Waypoint[] {
   return stillToVisit(waypoints, activities).slice(0, limit)
 }
+
+export function challengeMilestone(waypoints: readonly Waypoint[], activities: readonly Activity[]): Status {
+  if (waypoints.length === 0) return 'not-started'
+  const completed = completedWaypointCount(waypoints, activities)
+  const ratio = completed / waypoints.length
+  if (ratio >= 1) return 'gold'
+  if (ratio >= 0.5) return 'silver'
+  if (ratio > 0) return 'bronze'
+  return 'not-started'
+}
