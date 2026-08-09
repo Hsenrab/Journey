@@ -14,13 +14,22 @@ import {
 } from '@mui/material'
 import { statusLabels, statusOrder, statusRules } from '../domain/visit'
 import { useWaypoints } from '../features/journey/JourneyContext'
-import { createBackup, createDefaultData, parseImport } from '../services/storage'
+import {
+  createBackup,
+  createDefaultData,
+  createDemoModeData,
+  isDemoModeEnabled,
+  load,
+  parseImport,
+  setDemoMode,
+} from '../services/storage'
 
 export default function Settings() {
   const { data, restore } = useWaypoints()
   const input = useRef<HTMLInputElement>(null)
   const [message, setMessage] = useState<{ text: string; error: boolean } | null>(null)
   const [confirmingClear, setConfirmingClear] = useState(false)
+  const demoModeEnabled = isDemoModeEnabled()
 
   const exportData = () => {
     const blob = new Blob([JSON.stringify(createBackup(data), null, 2)], { type: 'application/json' })
@@ -51,6 +60,52 @@ export default function Settings() {
   return (
     <Stack spacing={4}>
       <Typography variant="h4">Settings</Typography>
+
+      <Stack spacing={2}>
+        <Typography variant="h5">Demo mode</Typography>
+        <Typography>
+          Demo mode loads linked sample waypoints, challenges, ideas, and activities so you can explore the app with
+          realistic data.
+        </Typography>
+        <Stack direction="row" spacing={2}>
+          {demoModeEnabled ? (
+            <Button
+              variant="contained"
+              onClick={() => {
+                setDemoMode(false)
+                restore(load())
+                setMessage({ text: 'Demo mode disabled.', error: false })
+              }}
+            >
+              Disable demo mode
+            </Button>
+          ) : (
+            <Button
+              variant="contained"
+              onClick={() => {
+                setDemoMode(true)
+                restore(load())
+                setMessage({ text: 'Demo mode enabled with sample data.', error: false })
+              }}
+            >
+              Enable demo mode
+            </Button>
+          )}
+        </Stack>
+        {demoModeEnabled && (
+          <Card>
+            <CardContent>
+              <Stack spacing={1}>
+                <Typography variant="subtitle1">Sample data loaded</Typography>
+                <Typography variant="body2">
+                  {data.waypoints.length} waypoints · {data.challenges.length} challenges · {data.ideas.length} ideas ·{' '}
+                  {data.activities.length} activities
+                </Typography>
+              </Stack>
+            </CardContent>
+          </Card>
+        )}
+      </Stack>
 
       <Stack spacing={2}>
         <Typography variant="h5">Your data</Typography>
@@ -95,7 +150,8 @@ export default function Settings() {
           <Button
             color="error"
             onClick={() => {
-              restore({ ...createDefaultData(), activities: [], ideas: [], photoReferences: [] })
+              const reset = demoModeEnabled ? createDemoModeData() : createDefaultData()
+              restore({ ...reset, activities: [], ideas: [], photoReferences: [] })
               setConfirmingClear(false)
               setMessage({ text: 'Your data was cleared.', error: false })
             }}

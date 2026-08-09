@@ -1,6 +1,6 @@
 import { z } from 'zod'
 import { locations } from '../data/locations'
-import { createSeedData, DataSchema, type WaypointsData } from '../domain/visit'
+import { createDemoData, createSeedData, DataSchema, type WaypointsData } from '../domain/visit'
 
 export type Backup = { version: number; exportedAt: string; data: WaypointsData }
 
@@ -15,15 +15,36 @@ const ImportSchema = z
   .strict()
 
 const key = 'waypoints-v1'
+const demoKey = 'waypoints-demo-v1'
+const demoModeKey = 'waypoints-demo-mode-v1'
 
 export function createDefaultData(): WaypointsData {
   return createSeedData(locations)
 }
 
+export function createDemoModeData(): WaypointsData {
+  return createDemoData(locations)
+}
+
+export function isDemoModeEnabled(): boolean {
+  return localStorage.getItem(demoModeKey) === 'true'
+}
+
+function activeKey(): string {
+  return isDemoModeEnabled() ? demoKey : key
+}
+
+export function setDemoMode(enabled: boolean) {
+  localStorage.setItem(demoModeKey, String(enabled))
+  if (enabled && !localStorage.getItem(demoKey)) {
+    localStorage.setItem(demoKey, JSON.stringify(createDemoModeData()))
+  }
+}
+
 export function load(): WaypointsData {
-  const fallback = createDefaultData()
+  const fallback = isDemoModeEnabled() ? createDemoModeData() : createDefaultData()
   try {
-    const raw = localStorage.getItem(key)
+    const raw = localStorage.getItem(activeKey())
     if (!raw) return fallback
     return DataSchema.parse(JSON.parse(raw))
   } catch {
@@ -32,7 +53,7 @@ export function load(): WaypointsData {
 }
 
 export function save(data: WaypointsData) {
-  localStorage.setItem(key, JSON.stringify(data))
+  localStorage.setItem(activeKey(), JSON.stringify(data))
 }
 
 export function createBackup(data: WaypointsData): Backup {

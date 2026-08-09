@@ -1,5 +1,14 @@
 import { beforeEach, describe, expect, it } from 'vitest'
-import { backupVersion, createBackup, createDefaultData, load, parseImport, save } from './storage'
+import {
+  backupVersion,
+  createBackup,
+  createDefaultData,
+  createDemoModeData,
+  load,
+  parseImport,
+  save,
+  setDemoMode,
+} from './storage'
 import type { Activity, WaypointsData } from '../domain/visit'
 
 const activity: Activity = {
@@ -45,6 +54,11 @@ describe('load', () => {
   it('falls back to seeded data when stored data fails validation', () => {
     localStorage.setItem('waypoints-v1', '{"activities":[{"status":"unknown"}]}')
     expect(load().waypoints.length).toBeGreaterThan(0)
+  })
+
+  it('loads demo data when demo mode is enabled', () => {
+    setDemoMode(true)
+    expect(load()).toMatchObject({ waypoints: createDemoModeData().waypoints })
   })
 })
 
@@ -107,5 +121,28 @@ describe('parseImport', () => {
 
   it('rejects impossible calendar dates', () => {
     expect(() => parseImport(backup({ data: { activities: [{ ...activity, date: '2026-02-30' }] } }))).toThrow()
+  })
+})
+
+describe('createDemoModeData', () => {
+  it('creates varied linked demo entities', () => {
+    const demo = createDemoModeData()
+    expect(demo.waypoints.length).toBeGreaterThanOrEqual(5)
+    expect(demo.waypoints.length).toBeLessThanOrEqual(10)
+    expect(demo.challenges.length).toBeGreaterThanOrEqual(5)
+    expect(demo.challenges.length).toBeLessThanOrEqual(10)
+    expect(demo.ideas.length).toBeGreaterThanOrEqual(5)
+    expect(demo.ideas.length).toBeLessThanOrEqual(10)
+    expect(demo.activities.length).toBeGreaterThanOrEqual(5)
+    expect(demo.activities.length).toBeLessThanOrEqual(10)
+
+    const waypointIds = new Set(demo.waypoints.map((waypoint) => waypoint.waypointId))
+    expect(demo.challenges.flatMap((challenge) => challenge.waypointIds).every((id) => waypointIds.has(id))).toBe(true)
+    expect(demo.ideas.every((idea) => idea.waypointIds.every((waypointId) => waypointIds.has(waypointId)))).toBe(true)
+    expect(
+      demo.activities
+        .filter((demoActivity) => demoActivity.waypointId)
+        .every((demoActivity) => waypointIds.has(demoActivity.waypointId!)),
+    ).toBe(true)
   })
 })

@@ -4,7 +4,7 @@ import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it } from 'vitest'
 import Settings from './Settings'
 import { WaypointsProvider } from '../features/journey/JourneyContext'
-import { backupVersion, createDefaultData, load, save } from '../services/storage'
+import { backupVersion, createDefaultData, createDemoModeData, load, save } from '../services/storage'
 import type { Activity } from '../domain/visit'
 
 function activity(status: 'bronze' | 'silver' | 'gold' = 'gold'): Activity {
@@ -48,6 +48,32 @@ describe('Settings', () => {
     renderSettings()
     expect(screen.getByText('Challenge rules')).toBeInTheDocument()
     expect(screen.getByText('At least one linked activity has been recorded.')).toBeInTheDocument()
+  })
+
+  it('enables demo mode and loads linked sample data', async () => {
+    const user = userEvent.setup()
+    renderSettings()
+
+    await user.click(screen.getByRole('button', { name: 'Enable demo mode' }))
+
+    expect(await screen.findByText('Demo mode enabled with sample data.')).toBeInTheDocument()
+    const demo = createDemoModeData()
+    expect(load().challenges).toEqual(demo.challenges)
+    expect(load().ideas).toEqual(demo.ideas)
+    expect(load().activities).toEqual(demo.activities)
+    expect(screen.getByRole('button', { name: 'Disable demo mode' })).toBeInTheDocument()
+  })
+
+  it('disables demo mode and restores the non-demo data set', async () => {
+    const user = userEvent.setup()
+    save({ ...createDefaultData(), activities: [activity('silver')] })
+    renderSettings()
+
+    await user.click(screen.getByRole('button', { name: 'Enable demo mode' }))
+    await user.click(screen.getByRole('button', { name: 'Disable demo mode' }))
+
+    expect(await screen.findByText('Demo mode disabled.')).toBeInTheDocument()
+    expect(load().activities).toContainEqual(expect.objectContaining({ waypointId: 'dyrham-park', status: 'silver' }))
   })
 
   it('restores a valid backup', async () => {
