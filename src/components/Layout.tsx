@@ -44,9 +44,9 @@ export function Layout({ children }: { children: ReactNode }) {
   const theme = useTheme()
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'))
   const [open, setOpen] = useState(false)
+  const [demoModeEnabled, setDemoModeEnabled] = useState(isDemoModeEnabled)
   const location = useLocation()
   const { restore } = useWaypoints()
-  const demoModeEnabled = isDemoModeEnabled()
 
   const navList = (
     <List>
@@ -97,7 +97,9 @@ export function Layout({ children }: { children: ReactNode }) {
                   checked={demoModeEnabled}
                   color="default"
                   onChange={(event) => {
-                    setDemoMode(event.target.checked)
+                    const enabled = event.target.checked
+                    setDemoMode(enabled)
+                    setDemoModeEnabled(enabled)
                     restore(load())
                   }}
                 />
