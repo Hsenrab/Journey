@@ -30,6 +30,9 @@ jobs:
     environment: azure-prod
     outputs:
       application_url: ${{ steps.deploy_bicep.outputs.applicationUrl }}
+      function_app_name: ${{ steps.deploy_bicep.outputs.functionAppName }}
+      function_app_hostname: ${{ steps.deploy_bicep.outputs.functionAppHostname }}
+      app_insights_name: ${{ steps.deploy_bicep.outputs.appInsightsName }}
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -41,7 +44,7 @@ jobs:
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
-      - name: Deploy Bicep (provision Static Web App)
+      - name: Deploy Bicep (provision Static Web App and API boundary)
         id: deploy_bicep
         uses: azure/arm-deploy@v2
         with:
@@ -55,6 +58,10 @@ jobs:
             owner=${{ vars.AZURE_RESOURCE_OWNER || 'journey-maintainers' }}
             repositoryUrl=${{ github.server_url }}/${{ github.repository }}
             repositoryBranch=${{ github.ref_name }}
+            aadClientId=${{ secrets.AAD_CLIENT_ID }}
+            aadClientSecret=${{ secrets.AAD_CLIENT_SECRET }}
+            aadTenantId=${{ secrets.AZURE_TENANT_ID }}
+            ownerObjectId=${{ secrets.JOURNEY_OWNER_OBJECT_ID }}
 
       - name: Publish application URL to the job summary
         env:
@@ -63,14 +70,60 @@ jobs:
           echo "### Azure Static Web App" >> "$GITHUB_STEP_SUMMARY"
           echo "Application URL: ${APPLICATION_URL}" >> "$GITHUB_STEP_SUMMARY"
 
-  deploy:
-    name: Deploy application
+  deploy_api:
+    name: Deploy Functions API
     needs: infra
+    if: needs.infra.outputs.function_app_name != ''
     runs-on: ubuntu-latest
     environment: azure-prod
     steps:
       - name: Checkout
         uses: actions/checkout@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: api/package-lock.json
+
+      - name: Install and build
+        working-directory: api
+        run: |
+          npm ci
+          npm run build
+
+      - name: Azure login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Deploy to Azure Functions
+        uses: Azure/functions-action@v1
+        with:
+          app-name: ${{ needs.infra.outputs.function_app_name }}
+          package: api
+          respect-funcignore: true
+
+  deploy:
+    name: Deploy application
+    needs: [infra, deploy_api]
+    if: always() && needs.infra.result == 'success' && (needs.deploy_api.result == 'success' || needs.deploy_api.result == 'skipped')
+    runs-on: ubuntu-latest
+    environment: azure-prod
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Configure Entra ID tenant for authentication
+        env:
+          AAD_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+        run: |
+          set -euo pipefail
+          test -n "${AAD_TENANT_ID}"
+          sed -i "s/AAD_TENANT_ID/${AAD_TENANT_ID}/" staticwebapp.config.json
 
       - name: Azure login (OIDC)
         uses: azure/login@v2
@@ -120,6 +173,49 @@ jobs:
           echo "::error::Deployment verification failed for ${APPLICATION_URL}"
           exit 1
 
+      - name: Verify anonymous requests to /api/* are denied
+        if: needs.infra.outputs.function_app_name != ''
+        env:
+          APPLICATION_URL: ${{ needs.infra.outputs.application_url }}
+        run: |
+          set -euo pipefail
+          status="$(curl --silent --show-error --max-time 30 --max-redirs 0 \
+            --output /dev/null --write-out '%{http_code}' "${APPLICATION_URL}/api/maps/token" || echo '000')"
+          echo "Anonymous /api/maps/token request: HTTP ${status}"
+          if [ "${status}" != "302" ]; then
+            echo "::error::Expected anonymous /api/maps/token to be redirected to sign-in (302), got ${status}"
+            exit 1
+          fi
+
+      - name: Verify the Function App's default hostname rejects direct requests
+        if: needs.infra.outputs.function_app_hostname != ''
+        env:
+          FUNCTION_APP_HOSTNAME: ${{ needs.infra.outputs.function_app_hostname }}
+        run: |
+          set -euo pipefail
+          status="$(curl --silent --show-error --max-time 30 \
+            --output /dev/null --write-out '%{http_code}' "https://${FUNCTION_APP_HOSTNAME}/api/maps/token" || echo '000')"
+          echo "Direct Function hostname request: HTTP ${status}"
+          if [ "${status}" = "200" ]; then
+            echo "::error::Direct request to the Function App hostname unexpectedly succeeded"
+            exit 1
+          fi
+
+      - name: Verify Application Insights is provisioned and connected
+        if: needs.infra.outputs.function_app_name != ''
+        env:
+          RESOURCE_GROUP: ${{ secrets.AZURE_RESOURCE_GROUP }}
+          FUNCTION_APP_NAME: ${{ needs.infra.outputs.function_app_name }}
+          APP_INSIGHTS_NAME: ${{ needs.infra.outputs.app_insights_name }}
+        run: |
+          set -euo pipefail
+          az monitor app-insights component show \
+            --app "${APP_INSIGHTS_NAME}" --resource-group "${RESOURCE_GROUP}" --output none
+          connection_string="$(az functionapp config appsettings list \
+            --name "${FUNCTION_APP_NAME}" --resource-group "${RESOURCE_GROUP}" \
+            --query "[?name=='APPLICATIONINSIGHTS_CONNECTION_STRING'].value" --output tsv)"
+          test -n "${connection_string}"
+
   preview:
     needs: validate
     if: github.event_name == 'pull_request' && github.event.action != 'closed'
@@ -132,6 +228,14 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6
+
+      - name: Configure Entra ID tenant for authentication
+        env:
+          AAD_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+        run: |
+          set -euo pipefail
+          test -n "${AAD_TENANT_ID}"
+          sed -i "s/AAD_TENANT_ID/${AAD_TENANT_ID}/" staticwebapp.config.json
 
       - name: Azure login (OIDC)
         uses: azure/login@v2

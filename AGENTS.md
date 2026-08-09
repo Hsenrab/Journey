@@ -11,6 +11,9 @@ productively in this repository.
 - Zod for runtime validation of persisted/imported data
 - Vitest + Testing Library for tests
 - Oxlint for linting, Prettier for formatting
+- Azure Static Web Apps with Microsoft Entra ID authentication, and a minimal
+  linked Azure Functions API (`api/`), for the explicitly approved
+  managed-identity API boundary described in "Conventions" below
 
 ## Project philosophy
 
@@ -47,6 +50,9 @@ and easy to change, not for enterprise resilience, extensibility, or compatibili
 | `npm run format:check` | Check formatting without writing changes       |
 | `npm test`             | Run the Vitest test suite                      |
 | `npm run preview`      | Preview the production build locally           |
+
+The `api/` Functions project has its own `package.json` with equivalent `lint`,
+`typecheck`, `test`, `test:coverage`, and `build` scripts, run from within `api/`.
 
 ## Agent execution
 
@@ -87,6 +93,9 @@ src/
   domain/     Core types and business rules, framework-agnostic
   data/       Static/reference data (e.g. the list of locations)
   styles/     Global stylesheets
+api/
+  src/functions/  HTTP-triggered Azure Functions, one purpose-specific endpoint per file
+  src/lib/        Principal validation and downstream-service credential logic
 ```
 
 Tests live alongside the file they cover (`*.test.ts`/`*.test.tsx`).
@@ -100,7 +109,18 @@ Tests live alongside the file they cover (`*.test.ts`/`*.test.tsx`).
   where possible.
 - New routes should be added under `src/pages/` and registered in `src/app/App.tsx`,
   with a corresponding entry in the navigation (`src/components/Layout.tsx`).
-- Do not add Next.js, Redux, a database, authentication, maps, or photo upload storage.
+- Do not add Next.js, Redux, a database, map UI, or photo upload storage. Microsoft
+  Entra authentication through Azure Static Web Apps and a minimal linked Azure
+  Functions API are permitted for explicitly approved features. Browser access to
+  `/api/*` must be restricted to the explicitly assigned work identity; Function
+  access to Azure services must use managed identity and least-privilege,
+  resource-scoped RBAC. Do not expose shared keys, Function keys, database
+  credentials, or long-lived service tokens to browser code.
+- Every newly approved Azure service integration requires its own purpose-specific
+  endpoint(s), infrastructure-as-code in `infra/main.bicep`, focused tests, and
+  `docs/operations.md` updates. This exception does not approve Cosmos DB,
+  multi-user roles, personal-account access, generic backend/data-access
+  infrastructure, or map UI; each requires its own issue and convention update.
 - Do not commit secrets or personal data. Visit data lives only in the browser's
   local storage.
 - Tests should assert explicit success or explicit failure. Do not encode silent
