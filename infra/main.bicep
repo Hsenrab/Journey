@@ -14,12 +14,15 @@ param environmentName string = 'dev'
 @description('Owner recorded in resource tags (for example a team name or distribution list).')
 param owner string
 
-@description('SKU used for the Static Web App.')
+@description('''
+SKU used for the Static Web App. Always Standard: the Free SKU cannot host
+the Microsoft Entra ID authentication configuration that
+staticwebapp.config.json always includes, so Free is not a supported option.
+''')
 @allowed([
-  'Free'
   'Standard'
 ])
-param skuName string = environmentName == 'prod' ? 'Standard' : 'Free'
+param skuName string = 'Standard'
 
 @description('URL of the source repository, recorded as resource metadata.')
 param repositoryUrl string
@@ -33,10 +36,9 @@ param additionalTags object = {}
 @description('''
 Provisions the managed-identity API boundary (linked Functions app and Azure
 Maps account) alongside the Static Web App. Linking a Functions backend
-requires the Standard plan, so this defaults to on only when skuName is
-Standard.
+requires the Standard plan, which skuName always is, so this defaults to on.
 ''')
-param enableApi bool = skuName == 'Standard'
+param enableApi bool = true
 
 @description('Single-tenant Microsoft Entra ID application (client) id used for Static Web Apps authentication.')
 param aadClientId string = ''

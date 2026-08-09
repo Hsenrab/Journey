@@ -5,10 +5,14 @@ application, which runs as an Azure Static Web App.
 
 ## Environments
 
-| Environment | Bicep `environmentName` | Default SKU | Purpose                            |
-| ----------- | ----------------------- | ----------- | ---------------------------------- |
-| dev         | `dev`                   | `Free`      | Manual or experimental deployments |
-| prod        | `prod`                  | `Standard`  | The site published from `main`     |
+| Environment | Bicep `environmentName` | SKU        | Purpose                            |
+| ----------- | ----------------------- | ---------- | ---------------------------------- |
+| dev         | `dev`                   | `Standard` | Manual or experimental deployments |
+| prod        | `prod`                  | `Standard` | The site published from `main`     |
+
+The Static Web App is always provisioned on the **Standard** SKU. The Free SKU
+cannot host the Microsoft Entra ID authentication configuration that
+`staticwebapp.config.json` always includes, so Free is not a supported option.
 
 All resources are tagged with `environment`, `owner`, `application`, and
 `managedBy` so ownership is visible in the Azure portal and in cost reports.
@@ -122,9 +126,9 @@ the caller's tenant and immutable object id.
   Azure Maps Gen2 account, the two role assignments above, and the
   `userProvidedFunctionApps` link that makes the Function App the exclusive
   backend for `/api/*`.
-- The API boundary (`enableApi`) only provisions when `skuName` is `Standard`,
-  because linking a Functions backend requires that plan; the `dev` `Free` SKU
-  does not deploy it.
+- The API boundary (`enableApi`) defaults to `true` and can be disabled per
+  deployment; linking a Functions backend requires the Standard plan, which
+  `skuName` always is.
 - `.github/workflows/azure-static-web-apps.yml` adds a `deploy_api` job that
   builds `api/` and deploys it with `Azure/functions-action@v1` after Bicep
   provisioning, before the Static Web App content deploy.
@@ -242,7 +246,7 @@ no server-side database to back up.
 | Symptom                                                                               | Likely cause and action                                                                                                                                                                                                                 |
 | ------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Azure login step fails                                                                | Federated credential subject does not match the `main` branch. Re-check the app registration.                                                                                                                                           |
-| Bicep deployment fails on SKU                                                         | The Free SKU allows a limited number of apps per subscription. Delete unused apps or use Standard.                                                                                                                                      |
+| Bicep deployment fails on SKU                                                         | Free-tier apps are no longer used; Standard allows a limited number of apps per subscription. Delete unused apps or request a subscription quota increase.                                                                              |
 | Deploy step reports an invalid token                                                  | The Static Web App was recreated. Re-run the workflow so the token is read again.                                                                                                                                                       |
 | Verification step fails                                                               | The CDN may still be propagating. Re-run the job; if it still fails, roll back.                                                                                                                                                         |
 | Routes return 404 on refresh                                                          | Check `staticwebapp.config.json` navigation fallback is still present.                                                                                                                                                                  |
