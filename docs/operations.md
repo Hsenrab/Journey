@@ -123,9 +123,10 @@ the caller's tenant and immutable object id.
 - `infra/main.bicep` provisions the Function App (system-assigned identity,
   Linux Consumption plan), a storage account for the Functions host (using an
   identity-based `AzureWebJobsStorage` connection, not a shared key), the
-  Azure Maps Gen2 account, the two role assignments above, and the
-  `userProvidedFunctionApps` link that makes the Function App the exclusive
-  backend for `/api/*`.
+  Azure Maps Gen2 account, an Application Insights component wired to the
+  Function App via `APPLICATIONINSIGHTS_CONNECTION_STRING`, the two role
+  assignments above, and the `userProvidedFunctionApps` link that makes the
+  Function App the exclusive backend for `/api/*`.
 - The API boundary (`enableApi`) defaults to `true` and can be disabled per
   deployment; linking a Functions backend requires the Standard plan, which
   `skuName` always is.
@@ -138,11 +139,13 @@ the caller's tenant and immutable object id.
 
 ### Diagnostics
 
-- Application Insights is enabled through the Functions host's default
-  logging configuration (`host.json`); function-level `context.warn` /
-  `context.error` calls record the specific rejection reason (for example
-  "wrong tenant" or "listSas request failed") without logging the caller's
-  identity beyond what Static Web Apps already includes in the principal.
+- `infra/main.bicep` provisions a dedicated Application Insights component
+  (`<staticWebAppName>-appi`) and connects it to the Function App through the
+  `APPLICATIONINSIGHTS_CONNECTION_STRING` application setting; function-level
+  `context.warn` / `context.error` calls record the specific rejection reason
+  (for example "wrong tenant" or "listSas request failed") without logging the
+  caller's identity beyond what Static Web Apps already includes in the
+  principal.
 - Use **Function App → Monitor** in the portal, or Application Insights **Logs**,
   filtered by `operation_Name == "mapsToken"`, to inspect recent calls.
 
@@ -162,6 +165,8 @@ the caller's tenant and immutable object id.
 - Azure Maps Gen2 (`G2`) SKU bills per transaction; render/search calls made
   with the issued SAS token by the browser also count.
 - The additional storage account uses the `Standard_LRS` tier at minimal cost.
+- Application Insights bills per ingested telemetry volume, which is minimal
+  for a single-user API surface.
 
 ### Troubleshooting
 
@@ -205,6 +210,22 @@ az deployment group create \
 
 The template is idempotent: repeated runs converge on the same resource and are
 safe to re-run. Use `--what-if` first to preview changes.
+
+## Manual test deployment
+
+The `Deploy test environment` GitHub Actions workflow (`.github/workflows/deploy-test.yml`)
+is triggered only via **Run workflow** (`workflow_dispatch`). It provisions and deploys a
+full stack, including the API boundary, to a dedicated `journey-hsenrab-test` Static Web
+App:
+
+1. Deploys `infra/main.bicep` with `staticWebAppName=journey-hsenrab-test`,
+   `environmentName=dev`, and `enableApi=true`.
+2. Builds and deploys the Functions package (`api/`) to the provisioned Function App.
+3. Deploys the built static content to `journey-hsenrab-test`'s primary environment
+   (not a PR preview slot).
+
+It reuses the `azure-test` GitHub environment's OIDC login and resource group secrets, so
+`journey-hsenrab-test` must live in the same resource group as the shared preview resource.
 
 ## Preview environments
 

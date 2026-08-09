@@ -1,6 +1,17 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest'
 import type { InvocationContext } from '@azure/functions'
 
+const issueMapsSasToken = vi.fn()
+
+vi.mock('@azure/identity', () => ({
+  DefaultAzureCredential: vi.fn(),
+}))
+
+vi.mock('../lib/mapsSas.js', async () => {
+  const actual = await vi.importActual<typeof import('../lib/mapsSas.js')>('../lib/mapsSas.js')
+  return { ...actual, issueMapsSasToken }
+})
+
 const encodePrincipal = (principal: Record<string, unknown>): string =>
   Buffer.from(JSON.stringify(principal)).toString('base64')
 
@@ -36,8 +47,13 @@ function fakeContext(): InvocationContext {
 const ORIGINAL_ENV = { ...process.env }
 
 beforeEach(() => {
+  issueMapsSasToken.mockReset()
   process.env.JOURNEY_ENTRA_TENANT_ID = OWNER_TENANT
   process.env.JOURNEY_OWNER_OBJECT_ID = OWNER_OBJECT_ID
+  process.env.AZURE_SUBSCRIPTION_ID = 'sub-1'
+  process.env.AZURE_RESOURCE_GROUP = 'rg-1'
+  process.env.AZURE_MAPS_ACCOUNT_NAME = 'maps-1'
+  process.env.AZURE_MAPS_PRINCIPAL_ID = 'principal-1'
 })
 
 afterEach(() => {
@@ -81,5 +97,35 @@ describe('mapsToken', () => {
     })
     const result = await mapsToken(requestWithPrincipal(header), fakeContext())
     expect(result.status).toBe(403)
+  })
+
+  it('returns a Maps SAS token for the assigned owner', async () => {
+    issueMapsSasToken.mockResolvedValueOnce({ token: 'sas-token-value', expiresOn: '2024-01-01T00:15:00.000Z' })
+
+    const { mapsToken } = await import('./mapsToken.js')
+    const result = await mapsToken(requestWithPrincipal(ownerHeader()), fakeContext())
+
+    expect(result.status).toBe(200)
+    expect(result.jsonBody).toEqual({ token: 'sas-token-value', expiresOn: '2024-01-01T00:15:00.000Z' })
+    expect(issueMapsSasToken).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        subscriptionId: 'sub-1',
+        resourceGroupName: 'rg-1',
+        accountName: 'maps-1',
+        principalId: 'principal-1',
+      }),
+    )
+  })
+
+  it('fails explicitly when a required application setting is missing', async () => {
+    delete process.env.AZURE_MAPS_ACCOUNT_NAME
+
+    const { mapsToken } = await import('./mapsToken.js')
+
+    await expect(mapsToken(requestWithPrincipal(ownerHeader()), fakeContext())).rejects.toThrow(
+      /AZURE_MAPS_ACCOUNT_NAME/,
+    )
+    expect(issueMapsSasToken).not.toHaveBeenCalled()
   })
 })

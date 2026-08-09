@@ -67,6 +67,7 @@ var functionAppName = '${staticWebAppName}-api'
 var storageAccountName = replace('${take(staticWebAppName, 17)}apist', '-', '')
 var hostingPlanName = '${staticWebAppName}-api-plan'
 var mapsAccountName = '${staticWebAppName}-maps'
+var appInsightsName = '${staticWebAppName}-appi'
 
 @description('Built-in role: Azure Maps Contributor. Required to call the listSas control-plane action.')
 var azureMapsContributorRoleId = 'dba33070-676a-4fb0-87fa-064dc56ff7fb'
@@ -136,6 +137,18 @@ resource storageAccount 'Microsoft.Storage/storageAccounts@2023-05-01' = if (ena
   }
 }
 
+resource appInsights 'Microsoft.Insights/components@2020-02-02' = if (enableApi) {
+  name: appInsightsName
+  location: location
+  tags: tags
+  kind: 'web'
+  properties: {
+    Application_Type: 'web'
+    Flow_Type: 'Bluefield'
+    Request_Source: 'rest'
+  }
+}
+
 resource hostingPlan 'Microsoft.Web/serverfarms@2023-12-01' = if (enableApi) {
   name: hostingPlanName
   location: location
@@ -186,6 +199,7 @@ resource functionAppSettings 'Microsoft.Web/sites/config@2023-12-01' = if (enabl
       AZURE_SUBSCRIPTION_ID: subscription().subscriptionId
       AZURE_RESOURCE_GROUP: resourceGroup().name
       AZURE_MAPS_ACCOUNT_NAME: mapsAccountName
+      APPLICATIONINSIGHTS_CONNECTION_STRING: appInsights!.properties.ConnectionString
     },
     { AZURE_MAPS_PRINCIPAL_ID: functionApp!.identity.principalId }
   )
@@ -287,5 +301,11 @@ output applicationUrl string = 'https://${staticWebApp.properties.defaultHostnam
 @description('Name of the linked Function App, or empty when enableApi is false.')
 output functionAppName string = enableApi ? functionApp.name : ''
 
+@description('Default (unlinked) hostname of the Function App, or empty when enableApi is false. Direct requests to this hostname are expected to be rejected once the Static Web Apps link is established.')
+output functionAppHostname string = enableApi ? functionApp!.properties.defaultHostName : ''
+
 @description('Name of the provisioned Azure Maps Gen2 account, or empty when enableApi is false.')
 output mapsAccountName string = enableApi ? mapsAccount.name : ''
+
+@description('Name of the provisioned Application Insights component, or empty when enableApi is false.')
+output appInsightsName string = enableApi ? appInsights.name : ''

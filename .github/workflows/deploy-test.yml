@@ -1,0 +1,138 @@
+name: Deploy test environment
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: deploy-test-journey-hsenrab-test
+  cancel-in-progress: true
+
+jobs:
+  test_deploy:
+    name: Deploy journey-hsenrab-test
+    runs-on: ubuntu-latest
+    environment: azure-test
+    env:
+      TEST_STATIC_WEB_APP_NAME: journey-hsenrab-test
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Configure Entra ID tenant for authentication
+        env:
+          AAD_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+        run: |
+          set -euo pipefail
+          test -n "${AAD_TENANT_ID}"
+          sed -i "s/AAD_TENANT_ID/${AAD_TENANT_ID}/" staticwebapp.config.json
+
+      - name: Azure login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Deploy Bicep (provision Static Web App and API boundary)
+        id: deploy_bicep
+        uses: azure/arm-deploy@v2
+        with:
+          scope: resourcegroup
+          resourceGroupName: ${{ secrets.AZURE_RESOURCE_GROUP }}
+          template: ./infra/main.bicep
+          parameters: >
+            location=${{ vars.AZURE_LOCATION || 'westeurope' }}
+            staticWebAppName=${{ env.TEST_STATIC_WEB_APP_NAME }}
+            environmentName=dev
+            enableApi=true
+            owner=${{ vars.AZURE_RESOURCE_OWNER || 'journey-maintainers' }}
+            repositoryUrl=${{ github.server_url }}/${{ github.repository }}
+            repositoryBranch=${{ github.ref_name }}
+            aadClientId=${{ secrets.AAD_CLIENT_ID }}
+            aadClientSecret=${{ secrets.AAD_CLIENT_SECRET }}
+            aadTenantId=${{ secrets.AZURE_TENANT_ID }}
+            ownerObjectId=${{ secrets.JOURNEY_OWNER_OBJECT_ID }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: api/package-lock.json
+
+      - name: Install and build API
+        working-directory: api
+        run: |
+          npm ci
+          npm run build
+
+      - name: Deploy to Azure Functions
+        uses: Azure/functions-action@v1
+        with:
+          app-name: ${{ steps.deploy_bicep.outputs.functionAppName }}
+          package: api
+          respect-funcignore: true
+
+      - name: Read deployment token
+        id: swa_token
+        run: |
+          set -euo pipefail
+          token="$(az staticwebapp secrets list \
+            --name "${TEST_STATIC_WEB_APP_NAME}" \
+            --resource-group "${{ secrets.AZURE_RESOURCE_GROUP }}" \
+            --query 'properties.apiKey' --output tsv)"
+          echo "::add-mask::${token}"
+          echo "token=${token}" >> "$GITHUB_OUTPUT"
+
+      - name: Deploy static content to primary environment
+        uses: Azure/static-web-apps-deploy@v1
+        with:
+          azure_static_web_apps_api_token: ${{ steps.swa_token.outputs.token }}
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          action: upload
+          app_location: /
+          output_location: dist
+
+      - name: Verify anonymous requests to /api/* are denied
+        env:
+          APPLICATION_URL: ${{ steps.deploy_bicep.outputs.applicationUrl }}
+        run: |
+          set -euo pipefail
+          status="$(curl --silent --show-error --max-time 30 --max-redirs 0 \
+            --output /dev/null --write-out '%{http_code}' "${APPLICATION_URL}/api/maps/token" || echo '000')"
+          echo "Anonymous /api/maps/token request: HTTP ${status}"
+          if [ "${status}" != "302" ]; then
+            echo "::error::Expected anonymous /api/maps/token to be redirected to sign-in (302), got ${status}"
+            exit 1
+          fi
+
+      - name: Verify the Function App's default hostname rejects direct requests
+        env:
+          FUNCTION_APP_HOSTNAME: ${{ steps.deploy_bicep.outputs.functionAppHostname }}
+        run: |
+          set -euo pipefail
+          status="$(curl --silent --show-error --max-time 30 \
+            --output /dev/null --write-out '%{http_code}' "https://${FUNCTION_APP_HOSTNAME}/api/maps/token" || echo '000')"
+          echo "Direct Function hostname request: HTTP ${status}"
+          if [ "${status}" = "200" ]; then
+            echo "::error::Direct request to the Function App hostname unexpectedly succeeded"
+            exit 1
+          fi
+
+      - name: Verify Application Insights is provisioned and connected
+        env:
+          RESOURCE_GROUP: ${{ secrets.AZURE_RESOURCE_GROUP }}
+          FUNCTION_APP_NAME: ${{ steps.deploy_bicep.outputs.functionAppName }}
+          APP_INSIGHTS_NAME: ${{ steps.deploy_bicep.outputs.appInsightsName }}
+        run: |
+          set -euo pipefail
+          az monitor app-insights component show \
+            --app "${APP_INSIGHTS_NAME}" --resource-group "${RESOURCE_GROUP}" --output none
+          connection_string="$(az functionapp config appsettings list \
+            --name "${FUNCTION_APP_NAME}" --resource-group "${RESOURCE_GROUP}" \
+            --query "[?name=='APPLICATIONINSIGHTS_CONNECTION_STRING'].value" --output tsv)"
+          test -n "${connection_string}"

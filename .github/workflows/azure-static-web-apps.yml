@@ -31,6 +31,8 @@ jobs:
     outputs:
       application_url: ${{ steps.deploy_bicep.outputs.applicationUrl }}
       function_app_name: ${{ steps.deploy_bicep.outputs.functionAppName }}
+      function_app_hostname: ${{ steps.deploy_bicep.outputs.functionAppHostname }}
+      app_insights_name: ${{ steps.deploy_bicep.outputs.appInsightsName }}
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -170,6 +172,49 @@ jobs:
           done
           echo "::error::Deployment verification failed for ${APPLICATION_URL}"
           exit 1
+
+      - name: Verify anonymous requests to /api/* are denied
+        if: needs.infra.outputs.function_app_name != ''
+        env:
+          APPLICATION_URL: ${{ needs.infra.outputs.application_url }}
+        run: |
+          set -euo pipefail
+          status="$(curl --silent --show-error --max-time 30 --max-redirs 0 \
+            --output /dev/null --write-out '%{http_code}' "${APPLICATION_URL}/api/maps/token" || echo '000')"
+          echo "Anonymous /api/maps/token request: HTTP ${status}"
+          if [ "${status}" != "302" ]; then
+            echo "::error::Expected anonymous /api/maps/token to be redirected to sign-in (302), got ${status}"
+            exit 1
+          fi
+
+      - name: Verify the Function App's default hostname rejects direct requests
+        if: needs.infra.outputs.function_app_hostname != ''
+        env:
+          FUNCTION_APP_HOSTNAME: ${{ needs.infra.outputs.function_app_hostname }}
+        run: |
+          set -euo pipefail
+          status="$(curl --silent --show-error --max-time 30 \
+            --output /dev/null --write-out '%{http_code}' "https://${FUNCTION_APP_HOSTNAME}/api/maps/token" || echo '000')"
+          echo "Direct Function hostname request: HTTP ${status}"
+          if [ "${status}" = "200" ]; then
+            echo "::error::Direct request to the Function App hostname unexpectedly succeeded"
+            exit 1
+          fi
+
+      - name: Verify Application Insights is provisioned and connected
+        if: needs.infra.outputs.function_app_name != ''
+        env:
+          RESOURCE_GROUP: ${{ secrets.AZURE_RESOURCE_GROUP }}
+          FUNCTION_APP_NAME: ${{ needs.infra.outputs.function_app_name }}
+          APP_INSIGHTS_NAME: ${{ needs.infra.outputs.app_insights_name }}
+        run: |
+          set -euo pipefail
+          az monitor app-insights component show \
+            --app "${APP_INSIGHTS_NAME}" --resource-group "${RESOURCE_GROUP}" --output none
+          connection_string="$(az functionapp config appsettings list \
+            --name "${FUNCTION_APP_NAME}" --resource-group "${RESOURCE_GROUP}" \
+            --query "[?name=='APPLICATIONINSIGHTS_CONNECTION_STRING'].value" --output tsv)"
+          test -n "${connection_string}"
 
   preview:
     needs: validate
