@@ -9,7 +9,7 @@ import {
   save,
   setDemoMode,
 } from './storage'
-import { challengeMilestone, statusForWaypoint, type Activity, type WaypointsData } from '../domain/visit'
+import { completedWaypointCount, statusForWaypoint, type Activity, type WaypointsData } from '../domain/visit'
 
 const activity: Activity = {
   activityId: 'a1',
@@ -196,13 +196,16 @@ describe('createDemoModeData', () => {
     const completedWaypoints = demo.waypoints.filter((waypoint) =>
       completedChallenge.waypointIds.includes(waypoint.waypointId),
     )
-    expect(challengeMilestone(completedWaypoints, demo.activities)).toBe('gold')
+    expect(completedWaypoints.length).toBeGreaterThan(0)
+    expect(completedWaypointCount(completedWaypoints, demo.activities)).toBe(completedWaypoints.length)
 
     const partialChallenge = demo.challenges.find((challenge) => challenge.challengeId === 'national-trust')!
     const partialWaypoints = demo.waypoints.filter((waypoint) =>
       partialChallenge.waypointIds.includes(waypoint.waypointId),
     )
-    expect(challengeMilestone(partialWaypoints, demo.activities)).toBe('silver')
+    const partialCompleted = completedWaypointCount(partialWaypoints, demo.activities)
+    expect(partialCompleted).toBeGreaterThan(0)
+    expect(partialCompleted).toBeLessThan(partialWaypoints.length)
 
     expect(demo.challenges).toContainEqual(
       expect.objectContaining({ challengeId: 'future-shortlist', waypointIds: [] }),
