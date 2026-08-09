@@ -13,21 +13,30 @@ import {
   Typography,
 } from '@mui/material'
 import { statusLabels, statusOrder, statusRules } from '../domain/visit'
-import { useJourney } from '../features/journey/JourneyContext'
-import { createBackup, parseImport } from '../services/storage'
+import { useWaypoints } from '../features/journey/JourneyContext'
+import {
+  createBackup,
+  createDefaultData,
+  createDemoModeData,
+  isDemoModeEnabled,
+  load,
+  parseImport,
+  setDemoMode,
+} from '../services/storage'
 
 export default function Settings() {
-  const { data, restore } = useJourney()
+  const { data, restore } = useWaypoints()
   const input = useRef<HTMLInputElement>(null)
   const [message, setMessage] = useState<{ text: string; error: boolean } | null>(null)
   const [confirmingClear, setConfirmingClear] = useState(false)
+  const demoModeEnabled = isDemoModeEnabled()
 
   const exportData = () => {
     const blob = new Blob([JSON.stringify(createBackup(data), null, 2)], { type: 'application/json' })
     const url = URL.createObjectURL(blob)
     const link = document.createElement('a')
     link.href = url
-    link.download = 'national-trust-tracker.json'
+    link.download = 'waypoints.json'
     link.click()
     URL.revokeObjectURL(url)
   }
@@ -42,7 +51,7 @@ export default function Settings() {
       setMessage({ text: 'Your data was restored.', error: false })
     } catch {
       setMessage({
-        text: 'That file is not a valid tracker backup, so your existing data was left unchanged.',
+        text: 'That file is not a valid Waypoints backup, so your existing data was left unchanged.',
         error: true,
       })
     }
@@ -53,9 +62,55 @@ export default function Settings() {
       <Typography variant="h4">Settings</Typography>
 
       <Stack spacing={2}>
+        <Typography variant="h5">Demo mode</Typography>
+        <Typography>
+          Demo mode loads linked sample waypoints, challenges, ideas, and activities so you can explore the app with
+          realistic data.
+        </Typography>
+        <Stack direction="row" spacing={2}>
+          {demoModeEnabled ? (
+            <Button
+              variant="contained"
+              onClick={() => {
+                setDemoMode(false)
+                restore(load())
+                setMessage({ text: 'Demo mode disabled.', error: false })
+              }}
+            >
+              Disable demo mode
+            </Button>
+          ) : (
+            <Button
+              variant="contained"
+              onClick={() => {
+                setDemoMode(true)
+                restore(load())
+                setMessage({ text: 'Demo mode enabled with sample data.', error: false })
+              }}
+            >
+              Enable demo mode
+            </Button>
+          )}
+        </Stack>
+        {demoModeEnabled && (
+          <Card>
+            <CardContent>
+              <Stack spacing={1}>
+                <Typography variant="subtitle1">Sample data loaded</Typography>
+                <Typography variant="body2">
+                  {data.waypoints.length} waypoints · {data.challenges.length} challenges · {data.ideas.length} ideas ·{' '}
+                  {data.activities.length} activities
+                </Typography>
+              </Stack>
+            </CardContent>
+          </Card>
+        )}
+      </Stack>
+
+      <Stack spacing={2}>
         <Typography variant="h5">Your data</Typography>
         <Typography>
-          Visits, notes and photo references stay in this browser. Export regularly to keep a portable backup.
+          Activities, notes, and references stay in this browser. Export regularly to keep a portable backup.
         </Typography>
         <Stack direction="row" spacing={2}>
           <Button variant="contained" onClick={exportData}>
@@ -83,11 +138,11 @@ export default function Settings() {
       </Stack>
 
       <Dialog open={confirmingClear} onClose={() => setConfirmingClear(false)}>
-        <DialogTitle>Clear all visit data?</DialogTitle>
+        <DialogTitle>Clear all activity data?</DialogTitle>
         <DialogContent>
           <DialogContentText>
-            This permanently removes every visit, note and photo reference from this browser. Export a backup first if
-            you want to keep it.
+            This permanently removes every activity, note and photo reference from this browser. Export a backup first
+            if you want to keep it.
           </DialogContentText>
         </DialogContent>
         <DialogActions>
@@ -95,7 +150,8 @@ export default function Settings() {
           <Button
             color="error"
             onClick={() => {
-              restore({ visits: [] })
+              const reset = demoModeEnabled ? createDemoModeData() : createDefaultData()
+              restore({ ...reset, activities: [], ideas: [], photoReferences: [] })
               setConfirmingClear(false)
               setMessage({ text: 'Your data was cleared.', error: false })
             }}
@@ -108,9 +164,8 @@ export default function Settings() {
       <Stack spacing={2}>
         <Typography variant="h5">Challenge rules</Typography>
         <Typography>
-          Locations are publicly accessible National Trust visitor destinations with their own visitor information page
-          and an estimated one-way drive time of 150 minutes or less from Brockworth GL3. Cafés, shops, offices, holiday
-          cottages, standalone car parks and non-qualifying tenant attractions are excluded.
+          National Trust is represented as a challenge made up of waypoints. Activities link to waypoints and require
+          location data before they can be saved.
         </Typography>
         {statusOrder.map((status) => (
           <Card key={status}>

@@ -2,21 +2,24 @@ import { render, screen } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { beforeEach, describe, expect, it } from 'vitest'
 import Dashboard from './Dashboard'
-import { JourneyProvider } from '../features/journey/JourneyContext'
-import { locations } from '../data/locations'
-import { save } from '../services/storage'
-import type { AwardedStatus, Visit } from '../domain/visit'
+import { WaypointsProvider } from '../features/journey/JourneyContext'
+import { createDefaultData, save } from '../services/storage'
+import type { Activity } from '../domain/visit'
 
 const lacockId = 'lacock-abbey-fox-talbot-museum-and-village'
 
-function visit(locationId: string, status: AwardedStatus): Visit {
+function activity(waypointId: string, status: 'bronze' | 'silver' | 'gold'): Activity {
   return {
-    visitId: `${locationId}-${status}`,
-    locationId,
-    status,
+    activityId: `${waypointId}-${status}`,
+    waypointId,
+    challengeId: 'national-trust',
     date: '2026-08-01',
+    status,
+    location: { placeName: waypointId },
     notes: '',
     photos: [],
+    referenceIds: [],
+    photoReferenceIds: [],
     createdAt: '2026-08-01T10:00:00.000Z',
     updatedAt: '2026-08-01T10:00:00.000Z',
   }
@@ -25,9 +28,9 @@ function visit(locationId: string, status: AwardedStatus): Visit {
 function renderDashboard() {
   return render(
     <MemoryRouter>
-      <JourneyProvider>
+      <WaypointsProvider>
         <Dashboard />
-      </JourneyProvider>
+      </WaypointsProvider>
     </MemoryRouter>,
   )
 }
@@ -35,25 +38,27 @@ function renderDashboard() {
 describe('Dashboard', () => {
   beforeEach(() => localStorage.clear())
 
-  it('shows zero progress when no visits are recorded', () => {
+  it('shows zero progress when no activities are recorded', () => {
+    const seed = createDefaultData()
     renderDashboard()
-    expect(
-      screen.getByText(`0 of ${locations.length} main experiences completed`, { exact: false }),
-    ).toBeInTheDocument()
+    expect(screen.getByText(`0 of ${seed.waypoints.length} waypoints completed`, { exact: false })).toBeInTheDocument()
   })
 
-  it('counts silver and gold visits as complete, but not bronze', () => {
-    save({ visits: [visit(lacockId, 'silver'), visit('stourhead', 'gold'), visit('cliveden', 'bronze')] })
+  it('counts completed waypoints when any activity exists (including bronze)', () => {
+    const seed = createDefaultData()
+    save({
+      ...seed,
+      activities: [activity(lacockId, 'silver'), activity('stourhead', 'gold'), activity('cliveden', 'bronze')],
+    })
 
     renderDashboard()
 
-    expect(
-      screen.getByText(`2 of ${locations.length} main experiences completed`, { exact: false }),
-    ).toBeInTheDocument()
+    expect(screen.getByText(`3 of ${seed.waypoints.length} waypoints completed`, { exact: false })).toBeInTheDocument()
   })
 
-  it('derives status counts per location', () => {
-    save({ visits: [visit(lacockId, 'silver')] })
+  it('derives status counts per waypoint', () => {
+    const seed = createDefaultData()
+    save({ ...seed, activities: [activity(lacockId, 'silver')] })
 
     const { getByRole } = renderDashboard()
 
@@ -61,6 +66,6 @@ describe('Dashboard', () => {
     expect(silverCard).toHaveTextContent('1')
 
     const notStartedCard = getByRole('heading', { name: 'Not Started' }).closest('div')
-    expect(notStartedCard).toHaveTextContent(String(locations.length - 1))
+    expect(notStartedCard).toHaveTextContent(String(seed.waypoints.length - 1))
   })
 })

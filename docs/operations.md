@@ -1,6 +1,6 @@
 # Operations guide
 
-This guide covers deploying, verifying, rolling back, and backing up the Journey
+This guide covers deploying, verifying, rolling back, and backing up the Waypoints
 application, which runs as an Azure Static Web App.
 
 ## Environments

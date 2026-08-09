@@ -15,62 +15,70 @@ import {
   Typography,
 } from '@mui/material'
 import { locations } from '../data/locations'
-import { lastVisitDates, statusLabels, statusOrder } from '../domain/visit'
-import { useJourney } from '../features/journey/JourneyContext'
+import { lastActivityDates, statusLabels, statusOrder } from '../domain/visit'
+import { useWaypoints } from '../features/journey/JourneyContext'
 
+const locationById = new Map(locations.map((location) => [location.locationId, location]))
 const areas = Array.from(new Set(locations.map((location) => location.area))).sort()
 const categories = Array.from(new Set(locations.map((location) => location.category))).sort()
 
-type SortKey = 'name' | 'travel' | 'distance' | 'status' | 'lastVisit'
+type SortKey = 'name' | 'travel' | 'distance' | 'status' | 'lastActivity'
 
 export default function Locations() {
-  const { data, statusFor } = useJourney()
-  const visits = data.visits
+  const { data, statusFor } = useWaypoints()
+  const activities = data.activities
   const [query, setQuery] = useState('')
   const [status, setStatus] = useState('all')
   const [sort, setSort] = useState<SortKey>('name')
   const [maxDistance, setMaxDistance] = useState('all')
   const [area, setArea] = useState('all')
   const [category, setCategory] = useState('all')
+
   const list = useMemo(() => {
-    const dates = lastVisitDates(visits)
-    return locations
-      .filter((location) => {
-        const visitStatus = statusFor(location.locationId)
+    const dates = lastActivityDates(activities)
+    return data.waypoints
+      .filter((waypoint) => waypoint.challengeIds.includes('national-trust'))
+      .filter((waypoint) => {
+        const source = locationById.get(waypoint.waypointId)
+        if (!source) return false
+        const waypointStatus = statusFor(waypoint.waypointId)
         return (
-          (status === 'all' || visitStatus === status) &&
-          (maxDistance === 'all' || location.travel.distanceMiles <= Number(maxDistance)) &&
-          (area === 'all' || location.area === area) &&
-          (category === 'all' || location.category === category) &&
-          `${location.name} ${location.area} ${location.category}`.toLowerCase().includes(query.toLowerCase())
+          (status === 'all' || waypointStatus === status) &&
+          (maxDistance === 'all' || source.travel.distanceMiles <= Number(maxDistance)) &&
+          (area === 'all' || source.area === area) &&
+          (category === 'all' || source.category === category) &&
+          `${waypoint.title} ${source.area} ${source.category}`.toLowerCase().includes(query.toLowerCase())
         )
       })
       .sort((a, b) => {
+        const sourceA = locationById.get(a.waypointId)
+        const sourceB = locationById.get(b.waypointId)
+        if (!sourceA || !sourceB) return a.title.localeCompare(b.title)
         switch (sort) {
           case 'travel':
-            return a.travel.driveTimeMinutes - b.travel.driveTimeMinutes
+            return sourceA.travel.driveTimeMinutes - sourceB.travel.driveTimeMinutes
           case 'distance':
-            return a.travel.distanceMiles - b.travel.distanceMiles
+            return sourceA.travel.distanceMiles - sourceB.travel.distanceMiles
           case 'status':
-            return statusOrder.indexOf(statusFor(b.locationId)) - statusOrder.indexOf(statusFor(a.locationId))
-          case 'lastVisit':
-            return (dates.get(b.locationId) ?? '').localeCompare(dates.get(a.locationId) ?? '')
+            return statusOrder.indexOf(statusFor(b.waypointId)) - statusOrder.indexOf(statusFor(a.waypointId))
+          case 'lastActivity':
+            return (dates.get(b.waypointId) ?? '').localeCompare(dates.get(a.waypointId) ?? '')
           default:
-            return a.name.localeCompare(b.name)
+            return a.title.localeCompare(b.title)
         }
       })
-  }, [area, category, maxDistance, query, sort, status, statusFor, visits])
+  }, [activities, area, category, data.waypoints, maxDistance, query, sort, status, statusFor])
 
   return (
     <Stack spacing={3}>
-      <Typography variant="h4">Locations</Typography>
+      <Typography variant="h4">Waypoints</Typography>
       <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} sx={{ flexWrap: 'wrap' }}>
-        <TextField label="Search locations" value={query} onChange={(e) => setQuery(e.target.value)} fullWidth />
+        <TextField label="Search waypoints" value={query} onChange={(e) => setQuery(e.target.value)} fullWidth />
         <FormControl sx={{ minWidth: 160 }}>
-          <InputLabel id="location-status-label">Status</InputLabel>
+          <InputLabel id="waypoint-status-label">Status</InputLabel>
           <Select
-            id="location-status"
-            labelId="location-status-label"
+            id="waypoint-status"
+            labelId="waypoint-status-label"
             label="Status"
             value={status}
             onChange={(e) => setStatus(e.target.value)}
@@ -84,10 +92,10 @@ export default function Locations() {
           </Select>
         </FormControl>
         <FormControl sx={{ minWidth: 160 }}>
-          <InputLabel id="location-sort-label">Sort</InputLabel>
+          <InputLabel id="waypoint-sort-label">Sort</InputLabel>
           <Select
-            id="location-sort"
-            labelId="location-sort-label"
+            id="waypoint-sort"
+            labelId="waypoint-sort-label"
             label="Sort"
             value={sort}
             onChange={(e) => setSort(e.target.value as SortKey)}
@@ -96,7 +104,7 @@ export default function Locations() {
             <MenuItem value="status">Progress</MenuItem>
             <MenuItem value="distance">Distance (nearest first)</MenuItem>
             <MenuItem value="travel">Travel time</MenuItem>
-            <MenuItem value="lastVisit">Last visit date</MenuItem>
+            <MenuItem value="lastActivity">Last activity date</MenuItem>
           </Select>
         </FormControl>
         <FormControl sx={{ minWidth: 220 }}>
@@ -139,7 +147,7 @@ export default function Locations() {
         </FormControl>
       </Stack>
       {list.length === 0 ? (
-        <Typography color="text.secondary">No locations match your search and filters.</Typography>
+        <Typography color="text.secondary">No waypoints match your search and filters.</Typography>
       ) : (
         <Box
           sx={{
@@ -148,29 +156,33 @@ export default function Locations() {
             gridTemplateColumns: 'repeat(auto-fit, minmax(230px, 1fr))',
           }}
         >
-          {list.map((location) => (
-            <Card key={location.locationId}>
-              <CardContent>
-                <Stack spacing={1}>
-                  <Typography variant="h6">{location.name}</Typography>
-                  <Typography color="text.secondary">
-                    {location.area} · {location.category}
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    Driving distance: {location.travel.distanceMiles} miles from Brockworth (~
-                    {location.travel.driveTimeMinutes} min drive)
-                  </Typography>
-                  <Chip
-                    label={statusLabels[statusFor(location.locationId)]}
-                    color={statusFor(location.locationId) === 'gold' ? 'success' : 'default'}
-                  />
-                  <Button component={Link} to={`/locations/${location.locationId}`}>
-                    View details
-                  </Button>
-                </Stack>
-              </CardContent>
-            </Card>
-          ))}
+          {list.map((waypoint) => {
+            const source = locationById.get(waypoint.waypointId)
+            if (!source) return null
+            return (
+              <Card key={waypoint.waypointId}>
+                <CardContent>
+                  <Stack spacing={1}>
+                    <Typography variant="h6">{waypoint.title}</Typography>
+                    <Typography color="text.secondary">
+                      {source.area} · {source.category}
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      Driving distance: {source.travel.distanceMiles} miles from Brockworth (~
+                      {source.travel.driveTimeMinutes} min drive)
+                    </Typography>
+                    <Chip
+                      label={statusLabels[statusFor(waypoint.waypointId)]}
+                      color={statusFor(waypoint.waypointId) === 'gold' ? 'success' : 'default'}
+                    />
+                    <Button component={Link} to={`/waypoints/${waypoint.waypointId}`}>
+                      View waypoint
+                    </Button>
+                  </Stack>
+                </CardContent>
+              </Card>
+            )
+          })}
         </Box>
       )}
     </Stack>

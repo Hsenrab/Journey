@@ -1,40 +1,65 @@
 import { z } from 'zod'
 import { locations } from '../data/locations'
-import { visitsSchema, type Visit } from '../domain/visit'
+import { createDemoData, createSeedData, DataSchema, type WaypointsData } from '../domain/visit'
 
-export type JourneyData = { visits: Visit[] }
-export type Backup = { version: number; exportedAt: string; visits: Visit[] }
+export type Backup = { version: number; exportedAt: string; data: WaypointsData }
 
 export const backupVersion = 1
 
-const VisitListSchema = visitsSchema(locations.map((location) => location.locationId))
-const DataSchema = z.object({ visits: VisitListSchema })
 const ImportSchema = z
   .object({
     version: z.literal(backupVersion),
     exportedAt: z.string(),
-    visits: VisitListSchema,
+    data: DataSchema,
   })
   .strict()
 
-const key = 'national-trust-tracker-v2'
+const key = 'waypoints-v1'
+const demoKey = 'waypoints-demo-v1'
+const demoModeKey = 'waypoints-demo-mode-v1'
 
-export function load(): JourneyData {
-  try {
-    return DataSchema.parse(JSON.parse(localStorage.getItem(key) ?? '{"visits":[]}'))
-  } catch {
-    return { visits: [] }
+export function createDefaultData(): WaypointsData {
+  return createSeedData(locations)
+}
+
+export function createDemoModeData(): WaypointsData {
+  return createDemoData(locations)
+}
+
+export function isDemoModeEnabled(): boolean {
+  return localStorage.getItem(demoModeKey) === 'true'
+}
+
+function activeKey(): string {
+  return isDemoModeEnabled() ? demoKey : key
+}
+
+export function setDemoMode(enabled: boolean) {
+  localStorage.setItem(demoModeKey, String(enabled))
+  if (enabled && !localStorage.getItem(demoKey)) {
+    localStorage.setItem(demoKey, JSON.stringify(createDemoModeData()))
   }
 }
 
-export function save(data: JourneyData) {
-  localStorage.setItem(key, JSON.stringify(data))
+export function load(): WaypointsData {
+  const fallback = isDemoModeEnabled() ? createDemoModeData() : createDefaultData()
+  try {
+    const raw = localStorage.getItem(activeKey())
+    if (!raw) return fallback
+    return DataSchema.parse(JSON.parse(raw))
+  } catch {
+    return fallback
+  }
 }
 
-export function createBackup(data: JourneyData): Backup {
-  return { version: backupVersion, exportedAt: new Date().toISOString(), visits: data.visits }
+export function save(data: WaypointsData) {
+  localStorage.setItem(activeKey(), JSON.stringify(data))
 }
 
-export function parseImport(value: string): JourneyData {
-  return { visits: ImportSchema.parse(JSON.parse(value)).visits }
+export function createBackup(data: WaypointsData): Backup {
+  return { version: backupVersion, exportedAt: new Date().toISOString(), data }
+}
+
+export function parseImport(value: string): WaypointsData {
+  return ImportSchema.parse(JSON.parse(value)).data
 }
