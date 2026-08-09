@@ -51,7 +51,6 @@ export async function mapsToken(request: HttpRequest, context: InvocationContext
   }).catch((error: unknown) => {
     if (error instanceof MapsSasError) {
       context.error(`Azure Maps token issuance failed: ${error.message}`)
-      throw error
     }
     throw error
   })

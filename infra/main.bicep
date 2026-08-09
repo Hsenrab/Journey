@@ -213,7 +213,7 @@ resource mapsAccount 'Microsoft.Maps/accounts@2023-06-01' = if (enableApi) {
   }
   kind: 'Gen2'
   properties: {
-    disableLocalAuth: false
+    disableLocalAuth: true
   }
 }
 
