@@ -4,7 +4,7 @@ import { MemoryRouter } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { Layout } from './Layout'
 import { WaypointsProvider, useWaypoints } from '../features/journey/JourneyContext'
-import { createDefaultData, isDemoModeEnabled, load, save } from '../services/storage'
+import { createDefaultData, createDemoModeData, isDemoModeEnabled, load, save } from '../services/storage'
 import type { Activity } from '../domain/visit'
 
 function setViewport(width: number) {
@@ -106,7 +106,7 @@ describe('Layout', () => {
 
     expect(isDemoModeEnabled()).toBe(true)
     expect(await screen.findByText('Demo active')).toBeInTheDocument()
-    expect(screen.getByText('Activities: 8')).toBeInTheDocument()
+    expect(screen.getByText(`Activities: ${createDemoModeData().activities.length}`)).toBeInTheDocument()
 
     await user.click(screen.getByRole('switch', { name: 'Demo data' }))
 

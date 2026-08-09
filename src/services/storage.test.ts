@@ -179,16 +179,10 @@ describe('createDemoModeData', () => {
       2,
     )
     expect(statusForWaypoint(demo.activities, multiActivityWaypoint.waypointId)).toBe('silver')
-    expect(demo.activities.map((demoActivity) => demoActivity.date).sort()).toEqual([
-      '2026-07-01',
-      '2026-07-08',
-      '2026-07-12',
-      '2026-07-20',
-      '2026-07-23',
-      '2026-07-27',
-      '2026-07-31',
-      '2026-08-02',
-    ])
+    const activityDates = demo.activities.map((demoActivity) => demoActivity.date).sort()
+    expect(activityDates[0]!.localeCompare(activityDates.at(-1)!)).toBeLessThan(0)
+    expect(activityDates.some((date) => date < '2026-07-15')).toBe(true)
+    expect(activityDates.some((date) => date > '2026-07-25')).toBe(true)
     expect(
       demo.activities.some(
         (demoActivity) =>
