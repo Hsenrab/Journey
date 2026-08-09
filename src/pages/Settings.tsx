@@ -14,7 +14,13 @@ import {
 } from '@mui/material'
 import { statusLabels, statusOrder, statusRules } from '../domain/visit'
 import { useWaypoints } from '../features/journey/JourneyContext'
-import { createBackup, createDefaultData, createDemoModeData, isDemoModeEnabled, parseImport } from '../services/storage'
+import {
+  createBackup,
+  createDefaultData,
+  createDemoModeData,
+  isDemoModeEnabled,
+  parseImport,
+} from '../services/storage'
 
 export default function Settings() {
   const { data, restore } = useWaypoints()
