@@ -30,6 +30,7 @@ jobs:
     environment: azure-prod
     outputs:
       application_url: ${{ steps.deploy_bicep.outputs.applicationUrl }}
+      function_app_name: ${{ steps.deploy_bicep.outputs.functionAppName }}
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -41,7 +42,7 @@ jobs:
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
-      - name: Deploy Bicep (provision Static Web App)
+      - name: Deploy Bicep (provision Static Web App and API boundary)
         id: deploy_bicep
         uses: azure/arm-deploy@v2
         with:
@@ -55,6 +56,10 @@ jobs:
             owner=${{ vars.AZURE_RESOURCE_OWNER || 'journey-maintainers' }}
             repositoryUrl=${{ github.server_url }}/${{ github.repository }}
             repositoryBranch=${{ github.ref_name }}
+            aadClientId=${{ secrets.AAD_CLIENT_ID }}
+            aadClientSecret=${{ secrets.AAD_CLIENT_SECRET }}
+            aadTenantId=${{ secrets.AZURE_TENANT_ID }}
+            ownerObjectId=${{ secrets.JOURNEY_OWNER_OBJECT_ID }}
 
       - name: Publish application URL to the job summary
         env:
@@ -63,14 +68,60 @@ jobs:
           echo "### Azure Static Web App" >> "$GITHUB_STEP_SUMMARY"
           echo "Application URL: ${APPLICATION_URL}" >> "$GITHUB_STEP_SUMMARY"
 
-  deploy:
-    name: Deploy application
+  deploy_api:
+    name: Deploy Functions API
     needs: infra
+    if: needs.infra.outputs.function_app_name != ''
     runs-on: ubuntu-latest
     environment: azure-prod
     steps:
       - name: Checkout
         uses: actions/checkout@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: api/package-lock.json
+
+      - name: Install and build
+        working-directory: api
+        run: |
+          npm ci
+          npm run build
+
+      - name: Azure login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Deploy to Azure Functions
+        uses: Azure/functions-action@v1
+        with:
+          app-name: ${{ needs.infra.outputs.function_app_name }}
+          package: api
+          respect-funcignore: true
+
+  deploy:
+    name: Deploy application
+    needs: [infra, deploy_api]
+    if: always() && needs.infra.result == 'success' && (needs.deploy_api.result == 'success' || needs.deploy_api.result == 'skipped')
+    runs-on: ubuntu-latest
+    environment: azure-prod
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Configure Entra ID tenant for authentication
+        env:
+          AAD_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+        run: |
+          set -euo pipefail
+          test -n "${AAD_TENANT_ID}"
+          sed -i "s/AAD_TENANT_ID/${AAD_TENANT_ID}/" staticwebapp.config.json
 
       - name: Azure login (OIDC)
         uses: azure/login@v2
@@ -132,6 +183,14 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6
+
+      - name: Configure Entra ID tenant for authentication
+        env:
+          AAD_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+        run: |
+          set -euo pipefail
+          test -n "${AAD_TENANT_ID}"
+          sed -i "s/AAD_TENANT_ID/${AAD_TENANT_ID}/" staticwebapp.config.json
 
       - name: Azure login (OIDC)
         uses: azure/login@v2

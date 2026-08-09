@@ -30,3 +30,6 @@ playwright/.cache
 
 # Test coverage
 coverage
+
+# Azure Functions local development
+api/local.settings.json
