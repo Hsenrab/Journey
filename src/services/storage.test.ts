@@ -86,24 +86,26 @@ describe('parseImport', () => {
   })
 
   it('rejects malformed activity records', () => {
+    expect(() => parseImport(backup({ data: { activities: [{ status: 'silver' } as unknown as Activity] } }))).toThrow()
+  })
+
+  it('rejects unknown statuses', () => {
     expect(() =>
-      parseImport(backup({ data: { activities: [{ status: 'silver' } as unknown as Activity] } })),
+      parseImport(backup({ data: { activities: [{ ...activity, status: 'platinum' as never }] } })),
     ).toThrow()
   })
 
   it('rejects activities without location data', () => {
-    expect(() => parseImport(backup({ data: { activities: [{ ...activity, location: {} }] } }))).toThrow()
+    expect(() =>
+      parseImport(backup({ data: { activities: [{ ...activity, location: {} as unknown as Activity['location'] }] } })),
+    ).toThrow()
   })
 
   it('rejects dates that are not YYYY-MM-DD', () => {
-    expect(() =>
-      parseImport(backup({ data: { activities: [{ ...activity, date: '01/08/2026' }] } })),
-    ).toThrow()
+    expect(() => parseImport(backup({ data: { activities: [{ ...activity, date: '01/08/2026' }] } }))).toThrow()
   })
 
   it('rejects impossible calendar dates', () => {
-    expect(() =>
-      parseImport(backup({ data: { activities: [{ ...activity, date: '2026-02-30' }] } })),
-    ).toThrow()
+    expect(() => parseImport(backup({ data: { activities: [{ ...activity, date: '2026-02-30' }] } }))).toThrow()
   })
 })

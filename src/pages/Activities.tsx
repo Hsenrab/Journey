@@ -5,6 +5,7 @@ import { useWaypoints } from '../features/journey/JourneyContext'
 
 export default function Activities() {
   const { data, addActivity } = useWaypoints()
+  const waypointById = new Map(data.waypoints.map((waypoint) => [waypoint.waypointId, waypoint]))
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10))
   const [placeName, setPlaceName] = useState('')
   const [notes, setNotes] = useState('')
@@ -72,7 +73,12 @@ export default function Activities() {
                   <Typography variant="h6">{activity.date}</Typography>
                   <Stack direction="row" spacing={1}>
                     <Chip label={statusLabels[activity.status]} />
-                    {activity.waypointId && <Chip label={`Waypoint: ${activity.waypointId}`} variant="outlined" />}
+                    {activity.waypointId && (
+                      <Chip
+                        label={`Waypoint: ${waypointById.get(activity.waypointId)?.title ?? activity.waypointId}`}
+                        variant="outlined"
+                      />
+                    )}
                   </Stack>
                   <Typography color="text.secondary">{activity.location.placeName}</Typography>
                   {activity.notes && <Typography>{activity.notes}</Typography>}

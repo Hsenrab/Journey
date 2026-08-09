@@ -78,7 +78,11 @@ export default function Dashboard() {
                 <Typography>{statusLabels[status]}</Typography>
                 <Typography color="text.secondary">{percent}%</Typography>
               </Stack>
-              <LinearProgress variant="determinate" value={percent} aria-label={`Progress towards ${statusLabels[status]}`} />
+              <LinearProgress
+                variant="determinate"
+                value={percent}
+                aria-label={`Progress towards ${statusLabels[status]}`}
+              />
             </Box>
           )
         })}

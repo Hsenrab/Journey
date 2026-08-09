@@ -44,7 +44,7 @@ describe('Dashboard', () => {
     expect(screen.getByText(`0 of ${seed.waypoints.length} waypoints completed`, { exact: false })).toBeInTheDocument()
   })
 
-  it('counts completed waypoints from activities', () => {
+  it('counts completed waypoints when any activity exists (including bronze)', () => {
     const seed = createDefaultData()
     save({
       ...seed,

@@ -238,7 +238,11 @@ export function lastActivityDates(activities: readonly Activity[]): Map<string, 
   return dates
 }
 
-export function recentlyVisited(waypoints: readonly Waypoint[], activities: readonly Activity[], limit = 3): Waypoint[] {
+export function recentlyVisited(
+  waypoints: readonly Waypoint[],
+  activities: readonly Activity[],
+  limit = 3,
+): Waypoint[] {
   const dates = lastActivityDates(activities)
   return waypoints
     .filter((waypoint) => dates.has(waypoint.waypointId))

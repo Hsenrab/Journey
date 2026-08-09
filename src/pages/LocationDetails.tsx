@@ -50,8 +50,8 @@ export default function LocationDetails() {
       <Chip label={`Status: ${statusLabels[statusFor(id)]}`} />
       <Typography>{waypoint.notes}</Typography>
       <Typography color="text.secondary">
-        {waypoint.area} · {waypoint.category} · {waypoint.travel.distanceMiles} miles · {waypoint.travel.driveTimeMinutes}{' '}
-        min drive from Brockworth GL3
+        {waypoint.area} · {waypoint.category} · {waypoint.travel.distanceMiles} miles ·{' '}
+        {waypoint.travel.driveTimeMinutes} min drive from Brockworth GL3
       </Typography>
       <Button component="a" href={waypoint.url} target="_blank" rel="noreferrer">
         National Trust visitor information
