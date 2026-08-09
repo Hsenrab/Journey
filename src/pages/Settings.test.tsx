@@ -4,7 +4,7 @@ import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it } from 'vitest'
 import Settings from './Settings'
 import { WaypointsProvider } from '../features/journey/JourneyContext'
-import { backupVersion, createDefaultData, createDemoModeData, load, save } from '../services/storage'
+import { backupVersion, createDefaultData, createDemoModeData, load, save, setDemoMode } from '../services/storage'
 import type { Activity } from '../domain/visit'
 
 function activity(status: 'bronze' | 'silver' | 'gold' = 'gold'): Activity {
@@ -50,30 +50,24 @@ describe('Settings', () => {
     expect(screen.getByText('At least one linked activity has been recorded.')).toBeInTheDocument()
   })
 
-  it('enables demo mode and loads linked sample data', async () => {
-    const user = userEvent.setup()
+  it('documents the header demo switch instead of showing duplicate mode buttons', () => {
     renderSettings()
 
-    await user.click(screen.getByRole('button', { name: 'Enable demo mode' }))
-
-    expect(await screen.findByText('Demo mode enabled with sample data.')).toBeInTheDocument()
-    const demo = createDemoModeData()
-    expect(load().challenges).toEqual(demo.challenges)
-    expect(load().ideas).toEqual(demo.ideas)
-    expect(load().activities).toEqual(demo.activities)
-    expect(screen.getByRole('button', { name: 'Disable demo mode' })).toBeInTheDocument()
+    expect(screen.getByText(/Use the Demo data switch in the header/)).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /demo mode/i })).not.toBeInTheDocument()
   })
 
-  it('disables demo mode and restores the non-demo data set', async () => {
-    const user = userEvent.setup()
-    save({ ...createDefaultData(), activities: [activity('silver')] })
+  it('summarizes the active demo dataset', () => {
+    setDemoMode(true)
     renderSettings()
 
-    await user.click(screen.getByRole('button', { name: 'Enable demo mode' }))
-    await user.click(screen.getByRole('button', { name: 'Disable demo mode' }))
-
-    expect(await screen.findByText('Demo mode disabled.')).toBeInTheDocument()
-    expect(load().activities).toContainEqual(expect.objectContaining({ waypointId: 'dyrham-park', status: 'silver' }))
+    const demo = createDemoModeData()
+    expect(screen.getByText('Active demo data')).toBeInTheDocument()
+    expect(
+      screen.getByText(
+        `${demo.waypoints.length} waypoints · ${demo.challenges.length} challenges · ${demo.ideas.length} ideas · ${demo.activities.length} activities`,
+      ),
+    ).toBeInTheDocument()
   })
 
   it('restores a valid backup', async () => {
@@ -91,7 +85,7 @@ describe('Settings', () => {
       ),
     )
 
-    expect(await screen.findByText('Your data was restored.')).toBeInTheDocument()
+    expect(await screen.findByText('Personal data was restored.')).toBeInTheDocument()
     expect(load().activities).toContainEqual(expect.objectContaining({ waypointId: 'dyrham-park', status: 'gold' }))
   })
 
@@ -159,8 +153,25 @@ describe('Settings', () => {
     await user.click(screen.getByRole('button', { name: 'Clear data' }))
     await user.click(screen.getByRole('button', { name: 'Clear everything' }))
 
-    expect(await screen.findByText('Your data was cleared.')).toBeInTheDocument()
+    expect(await screen.findByText('Personal data was cleared.')).toBeInTheDocument()
     expect(load().activities).toEqual([])
+  })
+
+  it('clears only the active demo dataset', async () => {
+    const user = userEvent.setup()
+    const personalActivity = activity('silver')
+    save({ ...createDefaultData(), activities: [personalActivity] })
+    setDemoMode(true)
+    renderSettings()
+
+    await user.click(screen.getByRole('button', { name: 'Clear data' }))
+    await user.click(screen.getByRole('button', { name: 'Clear everything' }))
+
+    expect(await screen.findByText('Demo data was cleared.')).toBeInTheDocument()
+    expect(load().activities).toEqual([])
+
+    setDemoMode(false)
+    expect(load().activities).toEqual([personalActivity])
   })
 
   it('closes the clear data confirmation dialog when dismissed with escape', async () => {

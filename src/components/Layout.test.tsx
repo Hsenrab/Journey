@@ -3,6 +3,9 @@ import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { Layout } from './Layout'
+import { WaypointsProvider, useWaypoints } from '../features/journey/JourneyContext'
+import { createDefaultData, isDemoModeEnabled, load, save } from '../services/storage'
+import type { Activity } from '../domain/visit'
 
 function setViewport(width: number) {
   Object.defineProperty(window, 'matchMedia', {
@@ -21,17 +24,50 @@ function setViewport(width: number) {
 }
 
 describe('Layout', () => {
-  beforeEach(() => setViewport(1200))
+  beforeEach(() => {
+    localStorage.clear()
+    setViewport(1200)
+  })
   afterEach(() => vi.restoreAllMocks())
 
-  it('renders navigation links and page content', () => {
+  function activity(status: 'bronze' | 'silver' | 'gold' = 'silver'): Activity {
+    return {
+      activityId: `layout-${status}`,
+      waypointId: 'dyrham-park',
+      challengeId: 'national-trust',
+      status,
+      date: '2026-08-01',
+      location: { placeName: 'Dyrham Park' },
+      notes: 'Personal visit',
+      photos: [],
+      referenceIds: [],
+      photoReferenceIds: [],
+      createdAt: '2026-08-01T10:00:00.000Z',
+      updatedAt: '2026-08-01T10:00:00.000Z',
+    }
+  }
+
+  function ActivityCount() {
+    const { data } = useWaypoints()
+    return <div>Activities: {data.activities.length}</div>
+  }
+
+  function renderLayout(width = 1200) {
+    setViewport(width)
     render(
       <MemoryRouter>
-        <Layout>
-          <div>Page content</div>
-        </Layout>
+        <WaypointsProvider>
+          <Layout>
+            <ActivityCount />
+            <div>Page content</div>
+          </Layout>
+        </WaypointsProvider>
       </MemoryRouter>,
     )
+  }
+
+  it('renders navigation links and page content', () => {
+    renderLayout()
 
     expect(screen.getByRole('link', { name: 'Waypoints' })).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Challenges' })).toBeInTheDocument()
@@ -43,15 +79,8 @@ describe('Layout', () => {
   })
 
   it('shows a menu button and toggles the drawer on small screens', async () => {
-    setViewport(400)
     const user = userEvent.setup()
-    render(
-      <MemoryRouter>
-        <Layout>
-          <div>Page content</div>
-        </Layout>
-      </MemoryRouter>,
-    )
+    renderLayout(400)
 
     const menuButton = screen.getByLabelText('open navigation')
     expect(menuButton).toBeInTheDocument()
@@ -61,5 +90,29 @@ describe('Layout', () => {
     expect(links.length).toBeGreaterThan(0)
 
     await user.click(links[0])
+  })
+
+  it('switches to demo data immediately and back to the personal dataset', async () => {
+    const user = userEvent.setup()
+    save({ ...createDefaultData(), activities: [activity()] })
+    renderLayout()
+
+    const demoSwitch = screen.getByRole('switch', { name: 'Demo data' })
+    expect(demoSwitch).not.toBeChecked()
+    expect(screen.getByText('Personal data')).toBeInTheDocument()
+    expect(screen.getByText('Activities: 1')).toBeInTheDocument()
+
+    await user.click(demoSwitch)
+
+    expect(isDemoModeEnabled()).toBe(true)
+    expect(await screen.findByText('Demo active')).toBeInTheDocument()
+    expect(screen.getByText('Activities: 8')).toBeInTheDocument()
+
+    await user.click(screen.getByRole('switch', { name: 'Demo data' }))
+
+    expect(isDemoModeEnabled()).toBe(false)
+    expect(await screen.findByText('Personal data')).toBeInTheDocument()
+    expect(screen.getByText('Activities: 1')).toBeInTheDocument()
+    expect(load().activities).toEqual([activity()])
   })
 })

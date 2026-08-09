@@ -3,14 +3,17 @@ import { Link, useLocation } from 'react-router-dom'
 import {
   AppBar,
   Box,
+  Chip,
   Container,
   Divider,
   Drawer,
+  FormControlLabel,
   IconButton,
   List,
   ListItemButton,
   ListItemIcon,
   ListItemText,
+  Switch,
   Toolbar,
   Typography,
   useMediaQuery,
@@ -23,6 +26,8 @@ import LightbulbIcon from '@mui/icons-material/Lightbulb'
 import HikingIcon from '@mui/icons-material/Hiking'
 import MapIcon from '@mui/icons-material/Map'
 import SettingsIcon from '@mui/icons-material/Settings'
+import { useWaypoints } from '../features/journey/JourneyContext'
+import { isDemoModeEnabled, load, setDemoMode } from '../services/storage'
 
 const navItems = [
   { label: 'Waypoints', to: '/waypoints', icon: <PlaceIcon /> },
@@ -40,6 +45,8 @@ export function Layout({ children }: { children: ReactNode }) {
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'))
   const [open, setOpen] = useState(false)
   const location = useLocation()
+  const { restore } = useWaypoints()
+  const demoModeEnabled = isDemoModeEnabled()
 
   const navList = (
     <List>
@@ -61,7 +68,7 @@ export function Layout({ children }: { children: ReactNode }) {
   return (
     <Box sx={{ display: 'flex' }}>
       <AppBar position="fixed" sx={{ zIndex: (t) => t.zIndex.drawer + 1 }}>
-        <Toolbar>
+        <Toolbar sx={{ gap: 2 }}>
           {isMobile && (
             <IconButton
               color="inherit"
@@ -76,6 +83,35 @@ export function Layout({ children }: { children: ReactNode }) {
           <Typography variant="h6" sx={{ flexGrow: 1 }}>
             Waypoints
           </Typography>
+          <Box
+            sx={{
+              alignItems: 'center',
+              display: 'flex',
+              flexShrink: 0,
+              gap: 1,
+            }}
+          >
+            <FormControlLabel
+              control={
+                <Switch
+                  checked={demoModeEnabled}
+                  color="default"
+                  onChange={(event) => {
+                    setDemoMode(event.target.checked)
+                    restore(load())
+                  }}
+                />
+              }
+              label="Demo data"
+              sx={{ m: 0, whiteSpace: 'nowrap' }}
+            />
+            <Chip
+              color={demoModeEnabled ? 'warning' : 'default'}
+              label={demoModeEnabled ? 'Demo active' : 'Personal data'}
+              size="small"
+              variant={demoModeEnabled ? 'filled' : 'outlined'}
+            />
+          </Box>
         </Toolbar>
       </AppBar>
 
