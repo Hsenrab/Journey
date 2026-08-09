@@ -9,7 +9,7 @@ import {
   save,
   setDemoMode,
 } from './storage'
-import type { Activity, WaypointsData } from '../domain/visit'
+import { challengeMilestone, statusForWaypoint, type Activity, type WaypointsData } from '../domain/visit'
 
 const activity: Activity = {
   activityId: 'a1',
@@ -69,6 +69,21 @@ describe('save', () => {
     const data: WaypointsData = { ...createDefaultData(), activities: [{ ...activity, status: 'bronze' as const }] }
     save(data)
     expect(JSON.parse(localStorage.getItem('waypoints-v1')!)).toEqual(data)
+  })
+
+  it('keeps personal and demo data in separate storage partitions', () => {
+    const personal = { ...createDefaultData(), activities: [{ ...activity, status: 'silver' as const }] }
+    save(personal)
+
+    setDemoMode(true)
+    const demo = load()
+    save({ ...demo, activities: [{ ...activity, activityId: 'demo-only', status: 'gold' }] })
+
+    setDemoMode(false)
+    expect(load().activities).toEqual(personal.activities)
+
+    setDemoMode(true)
+    expect(load().activities).toEqual([{ ...activity, activityId: 'demo-only', status: 'gold' }])
   })
 })
 
@@ -144,5 +159,56 @@ describe('createDemoModeData', () => {
         .filter((demoActivity) => demoActivity.waypointId)
         .every((demoActivity) => waypointIds.has(demoActivity.waypointId!)),
     ).toBe(true)
+  })
+
+  it('covers representative statuses, challenge progress, links, and standalone examples', () => {
+    const demo = createDemoModeData()
+    const statusCounts = demo.waypoints.reduce<Record<string, number>>((counts, waypoint) => {
+      const status = statusForWaypoint(demo.activities, waypoint.waypointId)
+      counts[status] = (counts[status] ?? 0) + 1
+      return counts
+    }, {})
+
+    expect(statusCounts).toMatchObject({ 'not-started': 2, bronze: 1, silver: 3, gold: 2 })
+    expect(demo.waypoints.some((waypoint) => waypoint.completion.mode === 'count')).toBe(true)
+    expect(new Set(demo.waypoints.map((waypoint) => waypoint.category)).size).toBeGreaterThanOrEqual(4)
+    expect(new Set(demo.waypoints.map((waypoint) => waypoint.location?.addressOrRegion)).size).toBeGreaterThanOrEqual(4)
+
+    const multiActivityWaypoint = demo.waypoints[0]!
+    expect(
+      demo.activities.filter((demoActivity) => demoActivity.waypointId === multiActivityWaypoint.waypointId),
+    ).toHaveLength(2)
+    expect(statusForWaypoint(demo.activities, multiActivityWaypoint.waypointId)).toBe('silver')
+    const activityDates = demo.activities.map((demoActivity) => demoActivity.date).sort()
+    expect(activityDates[0]!.localeCompare(activityDates.at(-1)!)).toBeLessThan(0)
+    expect(activityDates.some((date) => date < '2026-07-15')).toBe(true)
+    expect(activityDates.some((date) => date > '2026-07-25')).toBe(true)
+    expect(
+      demo.activities.some(
+        (demoActivity) =>
+          demoActivity.notes &&
+          demoActivity.referenceIds.length > 0 &&
+          (demoActivity.photos.length > 0 || demoActivity.photoReferenceIds.length > 0),
+      ),
+    ).toBe(true)
+
+    const completedChallenge = demo.challenges.find((challenge) => challenge.challengeId === 'completed-highlights')!
+    const completedWaypoints = demo.waypoints.filter((waypoint) =>
+      completedChallenge.waypointIds.includes(waypoint.waypointId),
+    )
+    expect(challengeMilestone(completedWaypoints, demo.activities)).toBe('gold')
+
+    const partialChallenge = demo.challenges.find((challenge) => challenge.challengeId === 'national-trust')!
+    const partialWaypoints = demo.waypoints.filter((waypoint) =>
+      partialChallenge.waypointIds.includes(waypoint.waypointId),
+    )
+    expect(challengeMilestone(partialWaypoints, demo.activities)).toBe('silver')
+
+    expect(demo.challenges).toContainEqual(
+      expect.objectContaining({ challengeId: 'future-shortlist', waypointIds: [] }),
+    )
+    expect(demo.ideas).toContainEqual(
+      expect.objectContaining({ ideaId: 'idea-standalone', waypointIds: [], challengeIds: [] }),
+    )
   })
 })

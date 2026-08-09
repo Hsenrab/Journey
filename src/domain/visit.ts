@@ -184,6 +184,12 @@ export function createDemoData(locations: readonly Location[]): WaypointsData {
         waypointIds: waypointIds.slice(0, 5),
       },
       {
+        challengeId: 'completed-highlights',
+        title: 'Completed Highlights',
+        description: 'A finished demo challenge for checking the Gold challenge milestone.',
+        waypointIds: [waypointIds[2], waypointIds[7]].filter(Boolean),
+      },
+      {
         challengeId: 'historic-weekend',
         title: 'Historic Weekend',
         description: 'Focus on the most heritage-rich waypoints.',
@@ -200,6 +206,12 @@ export function createDemoData(locations: readonly Location[]): WaypointsData {
         title: 'Nearby Day Trips',
         description: 'Shorter trips to fit into one day.',
         waypointIds: waypointIds.slice(1, 6),
+      },
+      {
+        challengeId: 'future-shortlist',
+        title: 'Future Shortlist',
+        description: 'An empty demo challenge for checking empty challenge states.',
+        waypointIds: [],
       },
     ],
     ideas: [
@@ -250,6 +262,14 @@ export function createDemoData(locations: readonly Location[]): WaypointsData {
         waypointIds: [waypointIds[0], waypointIds[3]].filter(Boolean),
         challengeIds: ['national-trust'],
         location: { placeName: selected[3]?.name ?? 'Demo waypoint', addressOrRegion: selected[3]?.area },
+      },
+      {
+        ideaId: 'idea-standalone',
+        title: 'Standalone inspiration',
+        description: 'A note that is not linked to any waypoint or challenge yet.',
+        waypointIds: [],
+        challengeIds: [],
+        location: { placeName: 'Notebook' },
       },
     ],
     activities: [

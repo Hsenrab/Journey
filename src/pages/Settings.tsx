@@ -19,9 +19,7 @@ import {
   createDefaultData,
   createDemoModeData,
   isDemoModeEnabled,
-  load,
   parseImport,
-  setDemoMode,
 } from '../services/storage'
 
 export default function Settings() {
@@ -36,7 +34,7 @@ export default function Settings() {
     const url = URL.createObjectURL(blob)
     const link = document.createElement('a')
     link.href = url
-    link.download = 'waypoints.json'
+    link.download = demoModeEnabled ? 'waypoints-demo.json' : 'waypoints.json'
     link.click()
     URL.revokeObjectURL(url)
   }
@@ -48,7 +46,7 @@ export default function Settings() {
     }
     try {
       restore(parseImport(await file.text()))
-      setMessage({ text: 'Your data was restored.', error: false })
+      setMessage({ text: `${demoModeEnabled ? 'Demo' : 'Personal'} data was restored.`, error: false })
     } catch {
       setMessage({
         text: 'That file is not a valid Waypoints backup, so your existing data was left unchanged.',
@@ -64,34 +62,9 @@ export default function Settings() {
       <Stack spacing={2}>
         <Typography variant="h5">Demo mode</Typography>
         <Typography>
-          Demo mode loads linked sample waypoints, challenges, ideas, and activities so you can explore the app with
-          realistic data.
+          Use the Demo data switch in the header to swap between your personal data and a separate sample dataset.
+          Switching modes never overwrites the other dataset.
         </Typography>
-        <Stack direction="row" spacing={2}>
-          {demoModeEnabled ? (
-            <Button
-              variant="contained"
-              onClick={() => {
-                setDemoMode(false)
-                restore(load())
-                setMessage({ text: 'Demo mode disabled.', error: false })
-              }}
-            >
-              Disable demo mode
-            </Button>
-          ) : (
-            <Button
-              variant="contained"
-              onClick={() => {
-                setDemoMode(true)
-                restore(load())
-                setMessage({ text: 'Demo mode enabled with sample data.', error: false })
-              }}
-            >
-              Enable demo mode
-            </Button>
-          )}
-        </Stack>
         {demoModeEnabled && (
           <Card>
             <CardContent>
@@ -108,9 +81,10 @@ export default function Settings() {
       </Stack>
 
       <Stack spacing={2}>
-        <Typography variant="h5">Your data</Typography>
+        <Typography variant="h5">{demoModeEnabled ? 'Active demo data' : 'Your data'}</Typography>
         <Typography>
-          Activities, notes, and references stay in this browser. Export regularly to keep a portable backup.
+          Export, restore, and clear actions apply only to the active {demoModeEnabled ? 'demo' : 'personal'} dataset.
+          The other dataset stays in its separate browser storage partition.
         </Typography>
         <Stack direction="row" spacing={2}>
           <Button variant="contained" onClick={exportData}>
@@ -153,7 +127,7 @@ export default function Settings() {
               const reset = demoModeEnabled ? createDemoModeData() : createDefaultData()
               restore({ ...reset, activities: [], ideas: [], photoReferences: [] })
               setConfirmingClear(false)
-              setMessage({ text: 'Your data was cleared.', error: false })
+              setMessage({ text: `${demoModeEnabled ? 'Demo' : 'Personal'} data was cleared.`, error: false })
             }}
           >
             Clear everything
