@@ -37,6 +37,12 @@ The deploy job reads it from Azure at run time and masks it in the logs.
 
 The `azure-test` GitHub environment must define `AZURE_STATIC_WEB_APPS_API_TOKEN` for
 pull request previews. This token targets the shared Static Web App preview environment.
+That preview resource must be provisioned on the **Standard** SKU — `staticwebapp.config.json`
+always includes the `auth` block, and Static Web Apps rejects that configuration outright
+on the Free SKU. Upgrade the existing preview resource (`az staticwebapp update --sku
+Standard --name <name> --resource-group <group>`, or via the Azure portal) once; no
+workflow change is required afterwards since previews reuse the same config file as
+production.
 
 ## API authentication and authorization
 
@@ -64,13 +70,10 @@ Assigned work user
    `AAD_CLIENT_SECRET` GitHub secrets, and the owner's object id (`oid`, found
    on the user's Entra ID profile) as `JOURNEY_OWNER_OBJECT_ID`.
 4. `staticwebapp.config.json` restricts `/api/*` to the `authenticated` role
-   and configures the Entra ID identity provider. The production deploy job
-   substitutes the `AAD_TENANT_ID` placeholder in that file with the real
-   tenant id at deploy time, since Static Web Apps does not support an
-   app-setting reference for the OpenID issuer URL. The `auth` block is only
-   supported on the Standard SKU, so the pull request preview job (which
-   targets the shared Free-SKU preview environment) strips it from the
-   deployed config instead of substituting the tenant id.
+   and configures the Entra ID identity provider. The deploy and preview
+   workflow jobs substitute the `AAD_TENANT_ID` placeholder in that file with
+   the real tenant id at deploy time, since Static Web Apps does not support an
+   app-setting reference for the OpenID issuer URL.
 5. Managing and revoking access — add or remove the enterprise application
    assignment in the Entra portal. This repository does not build a roles or
    administration UI; access changes always go through the portal.
@@ -201,13 +204,13 @@ safe to re-run. Use `--what-if` first to preview changes.
 
 ## Preview environments
 
-Pull requests targeting `main` are published to Static Web Apps staging environments
-(`stagingEnvironmentPolicy` is enabled in the template). The workflow summary reports
-the preview URL. Preview environments share the production resource but not the
-production URL, and are automatically deleted on merge or close. The shared preview
-resource is on the Free SKU, which does not support the `auth` configuration block, so
-the preview job strips `auth` from `staticwebapp.config.json` before deploying; previews
-are unauthenticated and do not expose `/api/*`.
+Pull requests targeting `main` are published to a Static Web App preview resource,
+identified by the `azure-test` GitHub environment's `AZURE_STATIC_WEB_APP_NAME` /
+`AZURE_RESOURCE_GROUP` secrets. The workflow summary reports the preview URL, and the
+`close_preview` job deletes the preview environment when the pull request is closed.
+That resource must be on the Standard SKU (see "Required configuration" above) because
+`staticwebapp.config.json` always includes the `auth` block, which Static Web Apps
+only supports on Standard.
 
 ## Rollback
 
