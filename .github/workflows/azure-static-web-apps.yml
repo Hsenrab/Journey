@@ -184,13 +184,11 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
 
-      - name: Configure Entra ID tenant for authentication
-        env:
-          AAD_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+      - name: Remove auth configuration unsupported on preview's Free SKU
         run: |
           set -euo pipefail
-          test -n "${AAD_TENANT_ID}"
-          sed -i "s/AAD_TENANT_ID/${AAD_TENANT_ID}/" staticwebapp.config.json
+          jq 'del(.auth)' staticwebapp.config.json > staticwebapp.config.json.tmp
+          mv staticwebapp.config.json.tmp staticwebapp.config.json
 
       - name: Azure login (OIDC)
         uses: azure/login@v2
