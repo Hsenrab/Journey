@@ -4,35 +4,43 @@ Route: `/settings` — implemented in `src/pages/Settings.tsx`.
 
 ## Purpose
 
-Manage the tracker's data (backup and restore) and explain the challenge rules and status
-definitions.
+Manage the active data partition (backup, restore, and clear), explain demo mode isolation,
+and document the challenge rules and status definitions.
 
 ## Supported actions
 
-- Export all visit data as a versioned JSON backup (`national-trust-tracker.json`)
-- Restore visit data from a previously exported JSON backup
-- Clear all visit data, after confirming a warning dialog
+- Read how the header **Demo data** switch swaps between personal and sample data
+- Export the active data partition as a versioned JSON backup (`waypoints.json` or
+  `waypoints-demo.json`)
+- Restore the active data partition from a previously exported JSON backup
+- Clear the active data partition, after confirming a warning dialog
 - Read the qualifying-location rules and what each status means
 
 ## Data read
 
-- The whole visit history from `useJourney().data`
+- The active Waypoints dataset from `useWaypoints().data`
 
 ## Data written
 
-- On restore, the entire visit history is replaced via `useJourney().restore` and saved to local
-  storage.
-- On clear, the history is replaced with an empty one.
+- On restore, the active dataset is replaced via `useWaypoints().restore` and saved to the
+  active local-storage partition.
+- On clear, the active dataset is reset and its activities, ideas, and photo references are
+  emptied.
 
 ## Rules and data flow
 
-1. Export wraps the current data in a `{ version, exportedAt, visits }` envelope, serialises it as
+1. The **Demo data** switch lives in the app header so it is available from every route.
+   Turning it on loads the demo local-storage partition; turning it off restores the personal
+   partition. The two partitions are stored separately.
+2. Export wraps the active dataset in a `{ version, exportedAt, data }` envelope, serialises it as
    formatted JSON and downloads it in the browser; nothing is sent anywhere.
-2. Restore parses and validates the selected file with the Zod schemas in `src/services/storage.ts`,
+3. Restore parses and validates the selected file with the Zod schemas in `src/services/storage.ts`,
    including the backup version, the visit shape, dates, statuses and known location ids.
-3. Invalid files are rejected with an error message and the existing data is left untouched.
-4. A successful restore **replaces** all existing data — it is not a merge.
-5. Clearing data requires confirmation and cannot be undone without a backup.
+4. Invalid files are rejected with an error message and the existing active data is left untouched.
+5. A successful restore **replaces** the active dataset — it is not a merge and does not change the
+   inactive partition.
+6. Clearing data requires confirmation and cannot be undone without a backup. It clears only the
+   active partition.
 
 ## Future improvements
 
