@@ -1,42 +1,49 @@
 import { createContext, useContext, useEffect, useMemo, useReducer, type ReactNode } from 'react'
-import { load, save, type JourneyData } from '../../services/storage'
-import { statusForLocation, visitsForLocation, type Visit } from '../../domain/visit'
-import type { Status } from '../../domain/location'
+import { load, save } from '../../services/storage'
+import {
+  activitiesForWaypoint,
+  statusForWaypoint,
+  type Activity,
+  type Status,
+  type WaypointsData,
+} from '../../domain/visit'
 
-type Action = { type: 'add'; visit: Visit } | { type: 'restore'; data: JourneyData }
+type Action = { type: 'add-activity'; activity: Activity } | { type: 'restore'; data: WaypointsData }
 
-type JourneyValue = {
-  data: JourneyData
-  addVisit: (visit: Visit) => void
-  restore: (data: JourneyData) => void
-  visitsFor: (locationId: string) => Visit[]
-  statusFor: (locationId: string) => Status
+type WaypointsValue = {
+  data: WaypointsData
+  addActivity: (activity: Activity) => void
+  restore: (data: WaypointsData) => void
+  activitiesFor: (waypointId: string) => Activity[]
+  statusFor: (waypointId: string) => Status
 }
 
-const Context = createContext<JourneyValue | null>(null)
+const Context = createContext<WaypointsValue | null>(null)
 
-function reducer(data: JourneyData, action: Action): JourneyData {
-  return action.type === 'add' ? { visits: [...data.visits, action.visit] } : action.data
+function reducer(data: WaypointsData, action: Action): WaypointsData {
+  return action.type === 'add-activity' ? { ...data, activities: [...data.activities, action.activity] } : action.data
 }
 
-export function JourneyProvider({ children }: { children: ReactNode }) {
+export function WaypointsProvider({ children }: { children: ReactNode }) {
   const [data, dispatch] = useReducer(reducer, undefined, load)
   useEffect(() => save(data), [data])
-  const value = useMemo<JourneyValue>(
+  const value = useMemo<WaypointsValue>(
     () => ({
       data,
-      addVisit: (visit) => dispatch({ type: 'add', visit }),
+      addActivity: (activity) => dispatch({ type: 'add-activity', activity }),
       restore: (newData) => dispatch({ type: 'restore', data: newData }),
-      visitsFor: (locationId) => visitsForLocation(data.visits, locationId),
-      statusFor: (locationId) => statusForLocation(data.visits, locationId),
+      activitiesFor: (waypointId) => activitiesForWaypoint(data.activities, waypointId),
+      statusFor: (waypointId) => statusForWaypoint(data.activities, waypointId),
     }),
     [data],
   )
   return <Context.Provider value={value}>{children}</Context.Provider>
 }
 
-export function useJourney() {
+export function useWaypoints() {
   const value = useContext(Context)
-  if (!value) throw new Error('useJourney must be used inside JourneyProvider')
+  if (!value) throw new Error('useWaypoints must be used inside WaypointsProvider')
   return value
 }
+
+export type { WaypointsData }

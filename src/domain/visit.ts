@@ -1,7 +1,8 @@
 import { z } from 'zod'
-import type { Location, Status } from './location'
+import type { Location } from './location'
 
-export const statusOrder: Status[] = ['not-started', 'bronze', 'silver', 'gold']
+export const statusOrder = ['not-started', 'bronze', 'silver', 'gold'] as const
+export type Status = (typeof statusOrder)[number]
 
 export const statusLabels: Record<Status, string> = {
   'not-started': 'Not Started',
@@ -11,132 +12,254 @@ export const statusLabels: Record<Status, string> = {
 }
 
 export const statusRules: Record<Status, string> = {
-  'not-started': 'No visit recorded.',
-  bronze: 'Physically visited.',
-  silver: 'Main visitor experience completed — the main challenge completion level.',
-  gold: 'Everything reasonably available to a normal visitor completed.',
+  'not-started': 'No qualifying activity recorded.',
+  bronze: 'At least one linked activity has been recorded.',
+  silver: 'Main waypoint experience completed.',
+  gold: 'Every planned waypoint in the challenge is completed.',
 }
 
-/** Statuses that a visit can award. A visit always awards at least Bronze. */
 export const awardableStatuses = ['bronze', 'silver', 'gold'] as const satisfies readonly Status[]
-
 export const AwardedStatusSchema = z.enum(awardableStatuses)
+export type AwardedStatus = z.infer<typeof AwardedStatusSchema>
 
 const isoDate = z
   .string()
-  .regex(/^\d{4}-\d{2}-\d{2}$/, 'Visit date must use YYYY-MM-DD format')
+  .regex(/^\d{4}-\d{2}-\d{2}$/, 'Activity date must use YYYY-MM-DD format')
   .refine((value) => {
     const date = new Date(`${value}T00:00:00Z`)
     return !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === value
-  }, 'Visit date must be a real calendar date')
+  }, 'Activity date must be a real calendar date')
 
-export const VisitSchema = z.object({
-  visitId: z.string().min(1),
-  locationId: z.string().min(1),
+export const ActivityLocationSchema = z.object({
+  placeName: z.string().min(1),
+  latitude: z.number().min(-90).max(90).optional(),
+  longitude: z.number().min(-180).max(180).optional(),
+  addressOrRegion: z.string().min(1).optional(),
+  source: z.string().min(1).optional(),
+  approximate: z.boolean().optional(),
+})
+
+const CompletionSchema = z.discriminatedUnion('mode', [
+  z.object({ mode: z.literal('once') }),
+  z.object({ mode: z.literal('count'), target: z.number().int().positive() }),
+])
+
+export const WaypointSchema = z.object({
+  waypointId: z.string().min(1),
+  title: z.string().min(1),
+  description: z.string().min(1),
+  category: z.string().min(1),
+  tags: z.array(z.string().min(1)),
+  challengeIds: z.array(z.string().min(1)),
+  completion: CompletionSchema,
+  location: ActivityLocationSchema.partial({ placeName: true }).optional(),
+  referenceIds: z.array(z.string().min(1)),
+  photoReferenceIds: z.array(z.string().min(1)),
+})
+
+export const ChallengeSchema = z.object({
+  challengeId: z.string().min(1),
+  title: z.string().min(1),
+  description: z.string().min(1),
+  waypointIds: z.array(z.string().min(1)),
+  location: ActivityLocationSchema.partial({ placeName: true }).optional(),
+})
+
+export const IdeaSchema = z.object({
+  ideaId: z.string().min(1),
+  title: z.string().min(1),
+  description: z.string().min(1),
+  waypointIds: z.array(z.string().min(1)),
+  challengeIds: z.array(z.string().min(1)),
+  location: ActivityLocationSchema.partial({ placeName: true }).optional(),
+})
+
+export const ReferenceSchema = z.object({
+  referenceId: z.string().min(1),
+  title: z.string().min(1),
+  url: z.string().url().startsWith('https://'),
+})
+
+export const ExternalPhotoReferenceSchema = z.object({
+  photoReferenceId: z.string().min(1),
+  title: z.string().min(1),
+  url: z.string().url().startsWith('https://'),
+})
+
+export const ActivitySchema = z.object({
+  activityId: z.string().min(1),
+  waypointId: z.string().min(1).optional(),
+  challengeId: z.string().min(1).optional(),
+  ideaId: z.string().min(1).optional(),
   date: isoDate,
   status: AwardedStatusSchema,
+  location: ActivityLocationSchema,
   notes: z.string(),
   photos: z.array(z.string()),
+  referenceIds: z.array(z.string().min(1)),
+  photoReferenceIds: z.array(z.string().min(1)),
   createdAt: z.iso.datetime(),
   updatedAt: z.iso.datetime(),
 })
 
-export type Visit = z.infer<typeof VisitSchema>
-export type AwardedStatus = z.infer<typeof AwardedStatusSchema>
+export const DataSchema = z.object({
+  waypoints: z.array(WaypointSchema),
+  challenges: z.array(ChallengeSchema),
+  ideas: z.array(IdeaSchema),
+  activities: z.array(ActivitySchema),
+  references: z.array(ReferenceSchema),
+  photoReferences: z.array(ExternalPhotoReferenceSchema),
+})
 
-/** Builds a schema that also rejects visits referencing an unknown location. */
-export function visitsSchema(knownLocationIds: readonly string[]) {
-  const known = new Set(knownLocationIds)
-  return z.array(
-    VisitSchema.refine((visit) => known.has(visit.locationId), {
-      message: 'Visit references an unknown location',
-      path: ['locationId'],
-    }),
-  )
+export type Waypoint = z.infer<typeof WaypointSchema>
+export type Challenge = z.infer<typeof ChallengeSchema>
+export type Idea = z.infer<typeof IdeaSchema>
+export type Activity = z.infer<typeof ActivitySchema>
+export type WaypointsData = z.infer<typeof DataSchema>
+
+export function createSeedData(locations: readonly Location[]): WaypointsData {
+  const waypoints: Waypoint[] = locations.map((location) => ({
+    waypointId: location.locationId,
+    title: location.name,
+    description: location.notes,
+    category: location.category,
+    tags: [location.area, location.category],
+    challengeIds: ['national-trust'],
+    completion: { mode: 'once' },
+    location: { placeName: location.name, addressOrRegion: location.area },
+    referenceIds: [`reference-${location.locationId}`],
+    photoReferenceIds: [],
+  }))
+
+  return {
+    waypoints,
+    challenges: [
+      {
+        challengeId: 'national-trust',
+        title: 'National Trust',
+        description: 'Visit National Trust properties using the shared Waypoints model.',
+        waypointIds: waypoints.map((waypoint) => waypoint.waypointId),
+      },
+    ],
+    ideas: [],
+    activities: [],
+    references: locations.map((location) => ({
+      referenceId: `reference-${location.locationId}`,
+      title: `${location.name} visitor information`,
+      url: location.url,
+    })),
+    photoReferences: [],
+  }
 }
 
-export function createVisit(input: {
-  locationId: string
+export function createActivity(input: {
+  waypointId?: string
+  challengeId?: string
+  ideaId?: string
   date: string
   status: AwardedStatus
+  location: z.input<typeof ActivityLocationSchema>
   notes?: string
   photos?: string[]
-}): Visit {
+  referenceIds?: string[]
+  photoReferenceIds?: string[]
+}): Activity {
   const now = new Date().toISOString()
-  return VisitSchema.parse({
-    visitId: crypto.randomUUID(),
-    locationId: input.locationId,
+  return ActivitySchema.parse({
+    activityId: crypto.randomUUID(),
+    waypointId: input.waypointId,
+    challengeId: input.challengeId,
+    ideaId: input.ideaId,
     date: input.date,
     status: input.status,
+    location: input.location,
     notes: input.notes ?? '',
     photos: input.photos ?? [],
+    referenceIds: input.referenceIds ?? [],
+    photoReferenceIds: input.photoReferenceIds ?? [],
     createdAt: now,
     updatedAt: now,
   })
 }
 
-export function visitsForLocation(visits: readonly Visit[], locationId: string): Visit[] {
-  return visits.filter((visit) => visit.locationId === locationId).sort((a, b) => b.date.localeCompare(a.date))
+export function activitiesForWaypoint(activities: readonly Activity[], waypointId: string): Activity[] {
+  return activities
+    .filter((activity) => activity.waypointId === waypointId)
+    .sort((a, b) => b.date.localeCompare(a.date))
 }
 
-/** The current status of a location is the highest status awarded by any of its visits. */
-export function statusForLocation(visits: readonly Visit[], locationId: string): Status {
-  return visits
-    .filter((visit) => visit.locationId === locationId)
+export function statusForWaypoint(activities: readonly Activity[], waypointId: string): Status {
+  return activities
+    .filter((activity) => activity.waypointId === waypointId)
     .reduce<Status>(
-      (highest, visit) => (statusOrder.indexOf(visit.status) > statusOrder.indexOf(highest) ? visit.status : highest),
+      (highest, activity) =>
+        statusOrder.indexOf(activity.status) > statusOrder.indexOf(highest) ? activity.status : highest,
       'not-started',
     )
 }
 
-export function statusCounts(locations: readonly Location[], visits: readonly Visit[]): Record<Status, number> {
+export function completedWaypointCount(waypoints: readonly Waypoint[], activities: readonly Activity[]): number {
+  return waypoints.filter((waypoint) => {
+    const count = activities.filter((activity) => activity.waypointId === waypoint.waypointId).length
+    return waypoint.completion.mode === 'once' ? count > 0 : count >= waypoint.completion.target
+  }).length
+}
+
+export function statusCounts(waypoints: readonly Waypoint[], activities: readonly Activity[]): Record<Status, number> {
   const counts: Record<Status, number> = { 'not-started': 0, bronze: 0, silver: 0, gold: 0 }
-  for (const location of locations) counts[statusForLocation(visits, location.locationId)]++
+  for (const waypoint of waypoints) counts[statusForWaypoint(activities, waypoint.waypointId)]++
   return counts
 }
 
-/** Percentage (0-100) of locations that have reached at least the given status. */
 export function progressTowards(
-  locations: readonly Location[],
-  visits: readonly Visit[],
+  waypoints: readonly Waypoint[],
+  activities: readonly Activity[],
   status: AwardedStatus,
 ): number {
-  if (locations.length === 0) return 0
+  if (waypoints.length === 0) return 0
   const threshold = statusOrder.indexOf(status)
-  const reached = locations.filter(
-    (location) => statusOrder.indexOf(statusForLocation(visits, location.locationId)) >= threshold,
+  const reached = waypoints.filter(
+    (waypoint) => statusOrder.indexOf(statusForWaypoint(activities, waypoint.waypointId)) >= threshold,
   ).length
-  return Math.round((reached / locations.length) * 100)
+  return Math.round((reached / waypoints.length) * 100)
 }
 
-/** The date of the most recent visit to a location, or undefined if never visited. */
-export function lastVisitDate(visits: readonly Visit[], locationId: string): string | undefined {
-  return visitsForLocation(visits, locationId)[0]?.date
+export function lastActivityDate(activities: readonly Activity[], waypointId: string): string | undefined {
+  return activitiesForWaypoint(activities, waypointId)[0]?.date
 }
 
-/** The date of the most recent visit to each visited location. */
-export function lastVisitDates(visits: readonly Visit[]): Map<string, string> {
+export function lastActivityDates(activities: readonly Activity[]): Map<string, string> {
   const dates = new Map<string, string>()
-  for (const visit of visits) {
-    const current = dates.get(visit.locationId)
-    if (current === undefined || visit.date > current) dates.set(visit.locationId, visit.date)
+  for (const activity of activities) {
+    if (!activity.waypointId) continue
+    const current = dates.get(activity.waypointId)
+    if (current === undefined || activity.date > current) dates.set(activity.waypointId, activity.date)
   }
   return dates
 }
 
-export function recentlyVisited(locations: readonly Location[], visits: readonly Visit[], limit = 3): Location[] {
-  const dates = lastVisitDates(visits)
-  return locations
-    .filter((location) => dates.has(location.locationId))
-    .sort((a, b) => (dates.get(b.locationId) ?? '').localeCompare(dates.get(a.locationId) ?? ''))
+export function recentlyVisited(waypoints: readonly Waypoint[], activities: readonly Activity[], limit = 3): Waypoint[] {
+  const dates = lastActivityDates(activities)
+  return waypoints
+    .filter((waypoint) => dates.has(waypoint.waypointId))
+    .sort((a, b) => (dates.get(b.waypointId) ?? '').localeCompare(dates.get(a.waypointId) ?? ''))
     .slice(0, limit)
 }
 
-export function stillToVisit(locations: readonly Location[], visits: readonly Visit[]): Location[] {
-  return locations.filter((location) => statusForLocation(visits, location.locationId) === 'not-started')
+export function stillToVisit(waypoints: readonly Waypoint[], activities: readonly Activity[]): Waypoint[] {
+  return waypoints.filter((waypoint) => statusForWaypoint(activities, waypoint.waypointId) === 'not-started')
 }
 
-/** Suggests the next locations to visit, preferring those not yet started. */
-export function suggestedNext(locations: readonly Location[], visits: readonly Visit[], limit = 3): Location[] {
-  return stillToVisit(locations, visits).slice(0, limit)
+export function suggestedNext(waypoints: readonly Waypoint[], activities: readonly Activity[], limit = 3): Waypoint[] {
+  return stillToVisit(waypoints, activities).slice(0, limit)
+}
+
+export function challengeMilestone(waypoints: readonly Waypoint[], activities: readonly Activity[]): Status {
+  if (waypoints.length === 0) return 'not-started'
+  const completed = completedWaypointCount(waypoints, activities)
+  const ratio = completed / waypoints.length
+  if (ratio >= 1) return 'gold'
+  if (ratio >= 0.5) return 'silver'
+  if (ratio > 0) return 'bronze'
+  return 'not-started'
 }

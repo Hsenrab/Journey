@@ -1,48 +1,55 @@
 import { Link } from 'react-router-dom'
 import { Box, Button, Card, CardContent, LinearProgress, Stack, Typography } from '@mui/material'
-import { locations } from '../data/locations'
 import {
-  lastVisitDate,
+  challengeMilestone,
+  completedWaypointCount,
+  lastActivityDate,
   progressTowards,
   recentlyVisited,
   statusCounts,
-  statusForLocation,
+  statusForWaypoint,
   statusLabels,
   statusOrder,
-  stillToVisit,
-  suggestedNext,
 } from '../domain/visit'
-import { useJourney } from '../features/journey/JourneyContext'
+import { useWaypoints } from '../features/journey/JourneyContext'
 
 export default function Dashboard() {
-  const { data } = useJourney()
-  const visits = data.visits
+  const { data } = useWaypoints()
+  const challenge = data.challenges.find((item) => item.challengeId === 'national-trust')
 
-  if (locations.length === 0) {
+  if (!challenge) {
     return (
       <Stack spacing={3}>
-        <Typography variant="h4">Dashboard</Typography>
-        <Typography color="text.secondary">No locations are available yet.</Typography>
+        <Typography variant="h4">Challenges</Typography>
+        <Typography color="text.secondary">No challenges are available yet.</Typography>
       </Stack>
     )
   }
 
-  const counts = statusCounts(locations, visits)
-  const recent = recentlyVisited(locations, visits)
-  const toVisit = stillToVisit(locations, visits)
-  const suggestions = suggestedNext(locations, visits)
-  const complete = locations.filter(
-    (location) => statusOrder.indexOf(statusForLocation(visits, location.locationId)) >= 2,
-  ).length
+  const waypoints = data.waypoints.filter((waypoint) => challenge.waypointIds.includes(waypoint.waypointId))
+  const activities = data.activities
+  const counts = statusCounts(waypoints, activities)
+  const recent = recentlyVisited(waypoints, activities)
+  const complete = completedWaypointCount(waypoints, activities)
+  const milestone = challengeMilestone(waypoints, activities)
 
   return (
     <Stack spacing={4}>
       <Box>
-        <Typography variant="h4">Dashboard</Typography>
-        <Typography color="text.secondary">
-          Within 150 minutes of Brockworth GL3 · {complete} of {locations.length} main experiences completed
-        </Typography>
+        <Typography variant="h4">Challenges</Typography>
+        <Typography color="text.secondary">National Trust · {statusLabels[milestone]} milestone</Typography>
       </Box>
+
+      <Card>
+        <CardContent>
+          <Stack spacing={1}>
+            <Typography variant="h5">National Trust</Typography>
+            <Typography color="text.secondary">
+              {complete} of {waypoints.length} waypoints completed
+            </Typography>
+          </Stack>
+        </CardContent>
+      </Card>
 
       <Box
         sx={{
@@ -64,18 +71,14 @@ export default function Dashboard() {
       <Stack spacing={2}>
         <Typography variant="h5">Progress</Typography>
         {(['bronze', 'silver', 'gold'] as const).map((status) => {
-          const percent = progressTowards(locations, visits, status)
+          const percent = progressTowards(waypoints, activities, status)
           return (
             <Box key={status}>
               <Stack direction="row" sx={{ justifyContent: 'space-between' }}>
                 <Typography>{statusLabels[status]}</Typography>
                 <Typography color="text.secondary">{percent}%</Typography>
               </Stack>
-              <LinearProgress
-                variant="determinate"
-                value={percent}
-                aria-label={`Progress towards ${statusLabels[status]}`}
-              />
+              <LinearProgress variant="determinate" value={percent} aria-label={`Progress towards ${statusLabels[status]}`} />
             </Box>
           )
         })}
@@ -84,66 +87,26 @@ export default function Dashboard() {
       <Stack spacing={2}>
         <Typography variant="h5">Recently visited</Typography>
         {recent.length === 0 ? (
-          <Typography color="text.secondary">You haven't logged any visits yet.</Typography>
+          <Typography color="text.secondary">You haven't logged any activities yet.</Typography>
         ) : (
           <Stack spacing={1}>
-            {recent.map((location) => (
-              <Card key={location.locationId}>
+            {recent.map((waypoint) => (
+              <Card key={waypoint.waypointId}>
                 <CardContent sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <Box>
-                    <Typography variant="h6">{location.name}</Typography>
+                    <Typography variant="h6">{waypoint.title}</Typography>
                     <Typography color="text.secondary">
-                      {statusLabels[statusForLocation(visits, location.locationId)]} ·{' '}
-                      {lastVisitDate(visits, location.locationId)}
+                      {statusLabels[statusForWaypoint(activities, waypoint.waypointId)]} ·{' '}
+                      {lastActivityDate(activities, waypoint.waypointId)}
                     </Typography>
                   </Box>
-                  <Button component={Link} to={`/locations/${location.locationId}`}>
-                    View details
+                  <Button component={Link} to={`/waypoints/${waypoint.waypointId}`}>
+                    View waypoint
                   </Button>
                 </CardContent>
               </Card>
             ))}
           </Stack>
-        )}
-      </Stack>
-
-      <Stack spacing={2}>
-        <Typography variant="h5">Still to visit</Typography>
-        {toVisit.length === 0 ? (
-          <Typography color="text.secondary">You've started every location. Well done!</Typography>
-        ) : (
-          <Typography color="text.secondary">{toVisit.length} locations not started yet.</Typography>
-        )}
-      </Stack>
-
-      <Stack spacing={2}>
-        <Typography variant="h5">Suggested next locations</Typography>
-        {suggestions.length === 0 ? (
-          <Typography color="text.secondary">No suggestions right now — you're all caught up.</Typography>
-        ) : (
-          <Box
-            sx={{
-              display: 'grid',
-              gap: 2,
-              gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-            }}
-          >
-            {suggestions.map((location) => (
-              <Card key={location.locationId}>
-                <CardContent>
-                  <Stack spacing={1}>
-                    <Typography variant="h6">{location.name}</Typography>
-                    <Typography color="text.secondary">
-                      {location.area} · {location.travel.driveTimeMinutes} min · {location.travel.distanceMiles} miles
-                    </Typography>
-                    <Button component={Link} to={`/locations/${location.locationId}`}>
-                      View details
-                    </Button>
-                  </Stack>
-                </CardContent>
-              </Card>
-            ))}
-          </Box>
         )}
       </Stack>
     </Stack>

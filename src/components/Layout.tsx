@@ -17,13 +17,19 @@ import {
   useTheme,
 } from '@mui/material'
 import MenuIcon from '@mui/icons-material/Menu'
-import DashboardIcon from '@mui/icons-material/Dashboard'
 import PlaceIcon from '@mui/icons-material/Place'
+import EmojiEventsIcon from '@mui/icons-material/EmojiEvents'
+import LightbulbIcon from '@mui/icons-material/Lightbulb'
+import HikingIcon from '@mui/icons-material/Hiking'
+import MapIcon from '@mui/icons-material/Map'
 import SettingsIcon from '@mui/icons-material/Settings'
 
 const navItems = [
-  { label: 'Dashboard', to: '/', icon: <DashboardIcon /> },
-  { label: 'Locations', to: '/locations', icon: <PlaceIcon /> },
+  { label: 'Waypoints', to: '/waypoints', icon: <PlaceIcon /> },
+  { label: 'Challenges', to: '/challenges', icon: <EmojiEventsIcon /> },
+  { label: 'Ideas', to: '/ideas', icon: <LightbulbIcon /> },
+  { label: 'Activities', to: '/activities', icon: <HikingIcon /> },
+  { label: 'Map', to: '/map', icon: <MapIcon /> },
   { label: 'Settings', to: '/settings', icon: <SettingsIcon /> },
 ]
 
@@ -42,7 +48,7 @@ export function Layout({ children }: { children: ReactNode }) {
           key={item.to}
           component={Link}
           to={item.to}
-          selected={location.pathname === item.to}
+          selected={location.pathname === item.to || location.pathname.startsWith(`${item.to}/`)}
           onClick={() => setOpen(false)}
         >
           <ListItemIcon>{item.icon}</ListItemIcon>
@@ -68,7 +74,7 @@ export function Layout({ children }: { children: ReactNode }) {
             </IconButton>
           )}
           <Typography variant="h6" sx={{ flexGrow: 1 }}>
-            National Trust Tracker
+            Waypoints
           </Typography>
         </Toolbar>
       </AppBar>

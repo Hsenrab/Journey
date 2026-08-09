@@ -5,35 +5,30 @@ import App from './App'
 
 afterEach(cleanup)
 
-describe('location list', () => {
+describe('waypoint list', () => {
   beforeEach(() => localStorage.clear())
   afterEach(cleanup)
 
-  it('filters locations by a search term', async () => {
+  it('filters waypoints by a search term', async () => {
     const user = userEvent.setup()
     render(<App />)
 
-    await user.click(screen.getByRole('link', { name: 'Locations' }))
-    await user.type(screen.getByLabelText('Search locations'), 'Chedworth')
+    await user.type(screen.getByLabelText('Search waypoints'), 'Chedworth')
 
     expect(screen.getByText('Chedworth Roman Villa')).toBeInTheDocument()
     expect(screen.queryByText('Dyrham Park')).not.toBeInTheDocument()
   })
 
-  it('shows each location driving distance', async () => {
-    const user = userEvent.setup()
+  it('shows each waypoint driving distance', async () => {
     render(<App />)
-
-    await user.click(screen.getByRole('link', { name: 'Locations' }))
 
     expect(screen.getByText('Driving distance: 49 miles from Brockworth (~75 min drive)')).toBeInTheDocument()
   })
 
-  it('sorts locations by nearest driving distance first', async () => {
+  it('sorts waypoints by nearest driving distance first', async () => {
     const user = userEvent.setup()
     render(<App />)
 
-    await user.click(screen.getByRole('link', { name: 'Locations' }))
     await user.click(screen.getByRole('combobox', { name: 'Sort' }))
     await user.click(screen.getByRole('option', { name: 'Distance (nearest first)' }))
 
@@ -42,11 +37,10 @@ describe('location list', () => {
     expect(nearest.compareDocumentPosition(farther) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
   })
 
-  it('filters locations at the maximum driving distance inclusively', async () => {
+  it('filters waypoints at the maximum driving distance inclusively', async () => {
     const user = userEvent.setup()
     render(<App />)
 
-    await user.click(screen.getByRole('link', { name: 'Locations' }))
     await user.click(screen.getByRole('combobox', { name: 'Maximum driving distance' }))
     await user.click(screen.getByRole('option', { name: 'Up to 25 miles' }))
 
@@ -55,36 +49,35 @@ describe('location list', () => {
   })
 })
 
-describe('visit logging', () => {
+describe('activity logging', () => {
   beforeEach(() => localStorage.clear())
 
-  const logVisit = async (user: ReturnType<typeof userEvent.setup>, level: string, date: string) => {
+  const logActivity = async (user: ReturnType<typeof userEvent.setup>, level: string, date: string) => {
     await user.click(screen.getByRole('combobox', { name: 'Completion level' }))
     await user.click(screen.getByRole('option', { name: level }))
-    fireEvent.change(screen.getByLabelText('Visit date'), { target: { value: date } })
-    await user.click(screen.getByRole('button', { name: 'Save visit' }))
+    fireEvent.change(screen.getByLabelText('Activity date'), { target: { value: date } })
+    await user.click(screen.getByRole('button', { name: 'Save activity' }))
   }
 
-  it('records visits, keeps history and derives the highest status', async () => {
+  it('records activities, keeps history and derives the highest status', async () => {
     const user = userEvent.setup()
     render(<App />)
 
-    await user.click(screen.getByRole('link', { name: 'Locations' }))
-    await user.click(screen.getAllByRole('link', { name: 'View details' })[0])
+    await user.click(screen.getAllByRole('link', { name: 'View waypoint' })[0])
 
-    await logVisit(user, 'Gold', '2026-08-01')
-    expect(screen.getByText('Visit saved.')).toBeInTheDocument()
+    await logActivity(user, 'Gold', '2026-08-01')
+    expect(screen.getByText('Activity saved.')).toBeInTheDocument()
     expect(screen.getByText('Status: Gold')).toBeInTheDocument()
 
-    await logVisit(user, 'Bronze', '2026-08-02')
+    await logActivity(user, 'Bronze', '2026-08-02')
     expect(screen.getByText('2026-08-01 · Gold')).toBeInTheDocument()
     expect(screen.getByText('2026-08-02 · Bronze')).toBeInTheDocument()
     expect(screen.getByText('Status: Gold')).toBeInTheDocument()
 
     cleanup()
     render(<App />)
-    await user.click(screen.getByRole('link', { name: 'Locations' }))
-    await user.click(screen.getAllByRole('link', { name: 'View details' })[0])
+    await user.click(screen.getByRole('link', { name: 'Waypoints' }))
+    await user.click(screen.getAllByRole('link', { name: 'View waypoint' })[0])
     expect(screen.getByText('Status: Gold')).toBeInTheDocument()
   })
 })

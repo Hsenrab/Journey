@@ -33,8 +33,11 @@ describe('Layout', () => {
       </MemoryRouter>,
     )
 
-    expect(screen.getByRole('link', { name: 'Dashboard' })).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: 'Locations' })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Waypoints' })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Challenges' })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Ideas' })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Activities' })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Map' })).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Settings' })).toBeInTheDocument()
     expect(screen.getByText('Page content')).toBeInTheDocument()
   })
@@ -54,7 +57,7 @@ describe('Layout', () => {
     expect(menuButton).toBeInTheDocument()
 
     await user.click(menuButton)
-    const links = screen.getAllByRole('link', { name: 'Dashboard' })
+    const links = screen.getAllByRole('link', { name: 'Waypoints' })
     expect(links.length).toBeGreaterThan(0)
 
     await user.click(links[0])

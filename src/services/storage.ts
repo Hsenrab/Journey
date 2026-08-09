@@ -1,40 +1,44 @@
 import { z } from 'zod'
 import { locations } from '../data/locations'
-import { visitsSchema, type Visit } from '../domain/visit'
+import { createSeedData, DataSchema, type WaypointsData } from '../domain/visit'
 
-export type JourneyData = { visits: Visit[] }
-export type Backup = { version: number; exportedAt: string; visits: Visit[] }
+export type Backup = { version: number; exportedAt: string; data: WaypointsData }
 
 export const backupVersion = 1
 
-const VisitListSchema = visitsSchema(locations.map((location) => location.locationId))
-const DataSchema = z.object({ visits: VisitListSchema })
 const ImportSchema = z
   .object({
     version: z.literal(backupVersion),
     exportedAt: z.string(),
-    visits: VisitListSchema,
+    data: DataSchema,
   })
   .strict()
 
-const key = 'national-trust-tracker-v2'
+const key = 'waypoints-v1'
 
-export function load(): JourneyData {
+export function createDefaultData(): WaypointsData {
+  return createSeedData(locations)
+}
+
+export function load(): WaypointsData {
+  const fallback = createDefaultData()
   try {
-    return DataSchema.parse(JSON.parse(localStorage.getItem(key) ?? '{"visits":[]}'))
+    const raw = localStorage.getItem(key)
+    if (!raw) return fallback
+    return DataSchema.parse(JSON.parse(raw))
   } catch {
-    return { visits: [] }
+    return fallback
   }
 }
 
-export function save(data: JourneyData) {
+export function save(data: WaypointsData) {
   localStorage.setItem(key, JSON.stringify(data))
 }
 
-export function createBackup(data: JourneyData): Backup {
-  return { version: backupVersion, exportedAt: new Date().toISOString(), visits: data.visits }
+export function createBackup(data: WaypointsData): Backup {
+  return { version: backupVersion, exportedAt: new Date().toISOString(), data }
 }
 
-export function parseImport(value: string): JourneyData {
-  return { visits: ImportSchema.parse(JSON.parse(value)).visits }
+export function parseImport(value: string): WaypointsData {
+  return ImportSchema.parse(JSON.parse(value)).data
 }

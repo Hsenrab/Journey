@@ -1,91 +1,139 @@
 import { describe, expect, it } from 'vitest'
-import type { Location } from './location'
 import {
-  createVisit,
+  createActivity,
   progressTowards,
   recentlyVisited,
   statusCounts,
-  statusForLocation,
+  statusForWaypoint,
   stillToVisit,
   suggestedNext,
-  visitsForLocation,
+  type Waypoint,
 } from './visit'
 
-describe('visit rules', () => {
-  it('creates a visit with a stable id and timestamps', () => {
-    const visit = createVisit({ locationId: 'lacock-abbey', date: '2026-08-01', status: 'bronze' })
-    expect(visit.visitId).not.toHaveLength(0)
-    expect(visit.createdAt).toBe(visit.updatedAt)
+function waypoint(waypointId: string): Waypoint {
+  return {
+    waypointId,
+    title: waypointId.toUpperCase(),
+    description: `${waypointId} description`,
+    category: 'Historic building',
+    tags: ['Test'],
+    challengeIds: ['national-trust'],
+    completion: { mode: 'once' },
+    location: { placeName: waypointId },
+    referenceIds: [],
+    photoReferenceIds: [],
+  }
+}
+
+describe('activity rules', () => {
+  it('creates an activity with a stable id and timestamps', () => {
+    const activity = createActivity({
+      waypointId: 'lacock-abbey',
+      date: '2026-08-01',
+      status: 'bronze',
+      location: { placeName: 'Lacock Abbey' },
+    })
+    expect(activity.activityId).not.toHaveLength(0)
+    expect(activity.createdAt).toBe(activity.updatedAt)
   })
 
-  it('rejects an invalid visit date', () => {
-    expect(() => createVisit({ locationId: 'lacock-abbey', date: 'yesterday', status: 'bronze' })).toThrow()
+  it('rejects an invalid activity date', () => {
+    expect(() =>
+      createActivity({
+        waypointId: 'lacock-abbey',
+        date: 'yesterday',
+        status: 'bronze',
+        location: { placeName: 'Lacock Abbey' },
+      }),
+    ).toThrow()
   })
 
-  it('reports Not Started when no visit exists', () => {
-    expect(statusForLocation([], 'lacock-abbey')).toBe('not-started')
+  it('rejects activities that do not include location data', () => {
+    expect(() =>
+      createActivity({
+        waypointId: 'lacock-abbey',
+        date: '2026-08-01',
+        status: 'bronze',
+        location: { placeName: '' },
+      }),
+    ).toThrow()
   })
 
-  it('derives the highest awarded status across multiple visits', () => {
-    const visits = [
-      createVisit({ locationId: 'lacock-abbey', date: '2026-08-01', status: 'bronze' }),
-      createVisit({ locationId: 'lacock-abbey', date: '2026-08-02', status: 'gold' }),
-      createVisit({ locationId: 'lacock-abbey', date: '2026-08-03', status: 'silver' }),
-      createVisit({ locationId: 'cliveden', date: '2026-08-03', status: 'bronze' }),
+  it('reports Not Started when no activity exists', () => {
+    expect(statusForWaypoint([], 'lacock-abbey')).toBe('not-started')
+  })
+
+  it('derives the highest awarded status across multiple activities', () => {
+    const activities = [
+      createActivity({
+        waypointId: 'lacock-abbey',
+        date: '2026-08-01',
+        status: 'bronze',
+        location: { placeName: 'Lacock Abbey' },
+      }),
+      createActivity({
+        waypointId: 'lacock-abbey',
+        date: '2026-08-02',
+        status: 'gold',
+        location: { placeName: 'Lacock Abbey' },
+      }),
+      createActivity({
+        waypointId: 'lacock-abbey',
+        date: '2026-08-03',
+        status: 'silver',
+        location: { placeName: 'Lacock Abbey' },
+      }),
+      createActivity({
+        waypointId: 'cliveden',
+        date: '2026-08-03',
+        status: 'bronze',
+        location: { placeName: 'Cliveden' },
+      }),
     ]
-    expect(statusForLocation(visits, 'lacock-abbey')).toBe('gold')
-    expect(statusForLocation(visits, 'cliveden')).toBe('bronze')
-    expect(visitsForLocation(visits, 'lacock-abbey')).toHaveLength(3)
+    expect(statusForWaypoint(activities, 'lacock-abbey')).toBe('gold')
+    expect(statusForWaypoint(activities, 'cliveden')).toBe('bronze')
   })
 })
 
-const location = (locationId: string, index: number): Location => ({
-  locationId,
-  name: locationId.toUpperCase(),
-  area: 'Gloucestershire',
-  category: 'Roman villa',
-  travel: { distanceMiles: index + 1, driveTimeMinutes: index + 1 },
-  url: 'https://www.nationaltrust.org.uk/visit/gloucestershire-cotswolds/chedworth-roman-villa',
-  notes: 'Excavated remains of a Roman villa.',
-  createdAt: '2026-08-04',
-  updatedAt: '2026-08-04',
-})
+const waypoints: Waypoint[] = ['a', 'b', 'c'].map(waypoint)
 
-const locations: Location[] = ['a', 'b', 'c'].map(location)
-
-describe('progress across locations', () => {
-  it('counts locations by derived status', () => {
-    const visits = [
-      createVisit({ locationId: 'a', date: '2026-01-01', status: 'bronze' }),
-      createVisit({ locationId: 'b', date: '2026-01-02', status: 'gold' }),
+describe('progress across waypoints', () => {
+  it('counts waypoints by derived status', () => {
+    const activities = [
+      createActivity({ waypointId: 'a', date: '2026-01-01', status: 'bronze', location: { placeName: 'A' } }),
+      createActivity({ waypointId: 'b', date: '2026-01-02', status: 'gold', location: { placeName: 'B' } }),
     ]
-    expect(statusCounts(locations, visits)).toEqual({ 'not-started': 1, bronze: 1, silver: 0, gold: 1 })
+    expect(statusCounts(waypoints, activities)).toEqual({ 'not-started': 1, bronze: 1, silver: 0, gold: 1 })
   })
 
   it('calculates progress towards a status as a percentage', () => {
-    const visits = [
-      createVisit({ locationId: 'a', date: '2026-01-01', status: 'silver' }),
-      createVisit({ locationId: 'b', date: '2026-01-02', status: 'gold' }),
+    const activities = [
+      createActivity({ waypointId: 'a', date: '2026-01-01', status: 'silver', location: { placeName: 'A' } }),
+      createActivity({ waypointId: 'b', date: '2026-01-02', status: 'gold', location: { placeName: 'B' } }),
     ]
-    expect(progressTowards(locations, visits, 'silver')).toBe(67)
-    expect(progressTowards(locations, visits, 'gold')).toBe(33)
+    expect(progressTowards(waypoints, activities, 'silver')).toBe(67)
+    expect(progressTowards(waypoints, activities, 'gold')).toBe(33)
   })
 
-  it('orders recently visited locations by most recent visit first', () => {
-    const visits = [
-      createVisit({ locationId: 'a', date: '2026-01-01', status: 'bronze' }),
-      createVisit({ locationId: 'b', date: '2026-02-01', status: 'silver' }),
+  it('orders recently visited waypoints by most recent activity first', () => {
+    const activities = [
+      createActivity({ waypointId: 'a', date: '2026-01-01', status: 'bronze', location: { placeName: 'A' } }),
+      createActivity({ waypointId: 'b', date: '2026-02-01', status: 'silver', location: { placeName: 'B' } }),
     ]
-    expect(recentlyVisited(locations, visits).map((item) => item.locationId)).toEqual(['b', 'a'])
+    expect(recentlyVisited(waypoints, activities).map((item) => item.waypointId)).toEqual(['b', 'a'])
   })
 
-  it('lists locations that are still not started', () => {
-    const visits = [createVisit({ locationId: 'a', date: '2026-01-01', status: 'bronze' })]
-    expect(stillToVisit(locations, visits).map((item) => item.locationId)).toEqual(['b', 'c'])
+  it('lists waypoints that are still not started', () => {
+    const activities = [
+      createActivity({ waypointId: 'a', date: '2026-01-01', status: 'bronze', location: { placeName: 'A' } }),
+    ]
+    expect(stillToVisit(waypoints, activities).map((item) => item.waypointId)).toEqual(['b', 'c'])
   })
 
-  it('suggests next locations from those not yet started', () => {
-    const visits = [createVisit({ locationId: 'a', date: '2026-01-01', status: 'bronze' })]
-    expect(suggestedNext(locations, visits, 1).map((item) => item.locationId)).toEqual(['b'])
+  it('suggests next waypoints from those not yet started', () => {
+    const activities = [
+      createActivity({ waypointId: 'a', date: '2026-01-01', status: 'bronze', location: { placeName: 'A' } }),
+    ]
+    expect(suggestedNext(waypoints, activities, 1).map((item) => item.waypointId)).toEqual(['b'])
   })
 })
