@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import {
   Box,
   Button,
@@ -27,8 +27,20 @@ type SortKey = 'name' | 'travel' | 'distance' | 'status' | 'lastActivity'
 export default function Locations() {
   const { data, statusFor } = useWaypoints()
   const activities = data.activities
+  const [searchParams, setSearchParams] = useSearchParams()
+  const status = searchParams.get('status') ?? 'all'
+  const setStatus = (value: string) => {
+    setSearchParams(
+      (previous) => {
+        const next = new URLSearchParams(previous)
+        if (value === 'all') next.delete('status')
+        else next.set('status', value)
+        return next
+      },
+      { replace: true },
+    )
+  }
   const [query, setQuery] = useState('')
-  const [status, setStatus] = useState('all')
   const [sort, setSort] = useState<SortKey>('name')
   const [maxDistance, setMaxDistance] = useState('all')
   const [area, setArea] = useState('all')

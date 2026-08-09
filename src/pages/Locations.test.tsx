@@ -24,9 +24,9 @@ function activity(waypointId: string, status: 'bronze' | 'silver' | 'gold'): Act
   }
 }
 
-function renderLocations() {
+function renderLocations(initialEntries: string[] = ['/waypoints']) {
   return render(
-    <MemoryRouter>
+    <MemoryRouter initialEntries={initialEntries}>
       <WaypointsProvider>
         <Locations />
       </WaypointsProvider>
@@ -61,6 +61,14 @@ describe('Locations', () => {
 
     await user.click(screen.getAllByRole('combobox')[0])
     await user.click(screen.getByRole('option', { name: 'Gold' }))
+
+    expect(screen.getByText('Stourhead')).toBeInTheDocument()
+    expect(screen.queryByText('Dyrham Park')).not.toBeInTheDocument()
+  })
+
+  it('applies the status filter from a URL query parameter', () => {
+    save({ ...createDefaultData(), activities: [activity('stourhead', 'gold')] })
+    renderLocations(['/waypoints?status=gold'])
 
     expect(screen.getByText('Stourhead')).toBeInTheDocument()
     expect(screen.queryByText('Dyrham Park')).not.toBeInTheDocument()

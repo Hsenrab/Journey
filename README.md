@@ -31,7 +31,12 @@ Navigation includes:
 - National Trust catalogue entries are seeded as waypoints using
   `src/data/locations.json`.
 - National Trust visits are saved as activities linked to waypoint/challenge IDs.
-- Bronze/Silver/Gold progress remains available as challenge milestone language.
+- The `/challenges` page presents the National Trust Challenge dashboard: overall
+  completion percentage and completed waypoint count are the primary summary, with
+  Bronze/Silver/Gold activity-category counts shown underneath as secondary
+  information. Bronze/Silver/Gold describe how well an activity fits the challenge;
+  they are not challenge completion milestones. Each category count links to a
+  filtered Waypoints view (e.g. `/waypoints?status=bronze`).
 
 ## Data and validation
 
