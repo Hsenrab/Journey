@@ -43,13 +43,9 @@ export function setDemoMode(enabled: boolean) {
 
 export function load(): WaypointsData {
   const fallback = isDemoModeEnabled() ? createDemoModeData() : createDefaultData()
-  try {
-    const raw = localStorage.getItem(activeKey())
-    if (!raw) return fallback
-    return DataSchema.parse(JSON.parse(raw))
-  } catch {
-    return fallback
-  }
+  const raw = localStorage.getItem(activeKey())
+  if (!raw) return fallback
+  return DataSchema.parse(JSON.parse(raw))
 }
 
 export function save(data: WaypointsData) {

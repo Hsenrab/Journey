@@ -12,10 +12,10 @@ export const statusLabels: Record<Status, string> = {
 }
 
 export const statusRules: Record<Status, string> = {
-  'not-started': 'No qualifying activity recorded.',
-  bronze: 'At least one linked activity has been recorded.',
-  silver: 'Main waypoint experience completed.',
-  gold: 'Every planned waypoint in the challenge is completed.',
+  'not-started': 'No linked activity with a Bronze, Silver or Gold category has been recorded.',
+  bronze: 'At least one linked Bronze activity has been recorded.',
+  silver: 'At least one linked Silver activity has been recorded.',
+  gold: 'At least one linked Gold activity has been recorded.',
 }
 
 export const awardableStatuses = ['bronze', 'silver', 'gold'] as const satisfies readonly Status[]
@@ -30,8 +30,21 @@ const isoDate = z
     return !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === value
   }, 'Activity date must be a real calendar date')
 
-export const ActivityLocationSchema = z.object({
-  placeName: z.string().min(1),
+const PostcodeLocationSchema = z.object({
+  kind: z.literal('postcode'),
+  postcode: z.string().trim().min(1, 'Postcode is required'),
+})
+
+const CoordinateLocationSchema = z.object({
+  kind: z.literal('coordinates'),
+  latitude: z.number().min(-90).max(90),
+  longitude: z.number().min(-180).max(180),
+})
+
+export const ActivityLocationSchema = z.discriminatedUnion('kind', [PostcodeLocationSchema, CoordinateLocationSchema])
+
+const WaypointLocationSchema = z.object({
+  placeName: z.string().min(1).optional(),
   latitude: z.number().min(-90).max(90).optional(),
   longitude: z.number().min(-180).max(180).optional(),
   addressOrRegion: z.string().min(1).optional(),
@@ -52,7 +65,7 @@ export const WaypointSchema = z.object({
   tags: z.array(z.string().min(1)),
   challengeIds: z.array(z.string().min(1)),
   completion: CompletionSchema,
-  location: ActivityLocationSchema.partial({ placeName: true }).optional(),
+  location: WaypointLocationSchema.optional(),
   referenceIds: z.array(z.string().min(1)),
   photoReferenceIds: z.array(z.string().min(1)),
 })
@@ -62,7 +75,8 @@ export const ChallengeSchema = z.object({
   title: z.string().min(1),
   description: z.string().min(1),
   waypointIds: z.array(z.string().min(1)),
-  location: ActivityLocationSchema.partial({ placeName: true }).optional(),
+  supportsActivityCategories: z.boolean(),
+  location: WaypointLocationSchema.optional(),
 })
 
 export const IdeaSchema = z.object({
@@ -71,19 +85,24 @@ export const IdeaSchema = z.object({
   description: z.string().min(1),
   waypointIds: z.array(z.string().min(1)),
   challengeIds: z.array(z.string().min(1)),
-  location: ActivityLocationSchema.partial({ placeName: true }).optional(),
+  location: WaypointLocationSchema.optional(),
 })
+
+const httpsUrl = z.url('Please enter a valid URL').startsWith('https://', 'URL must use https://')
 
 export const ReferenceSchema = z.object({
   referenceId: z.string().min(1),
-  title: z.string().min(1),
-  url: z.string().url().startsWith('https://'),
+  title: z.string().trim().min(1, 'Reference title is required'),
+  description: z.string().trim().min(1).optional(),
+  url: httpsUrl,
+  previewImageUrl: httpsUrl.optional(),
 })
 
 export const ExternalPhotoReferenceSchema = z.object({
   photoReferenceId: z.string().min(1),
-  title: z.string().min(1),
-  url: z.string().url().startsWith('https://'),
+  title: z.string().trim().min(1, 'Photo title is required'),
+  altText: z.string().trim().min(1).optional(),
+  url: httpsUrl,
 })
 
 export const ActivitySchema = z.object({
@@ -92,10 +111,9 @@ export const ActivitySchema = z.object({
   challengeId: z.string().min(1).optional(),
   ideaId: z.string().min(1).optional(),
   date: isoDate,
-  status: AwardedStatusSchema,
+  category: AwardedStatusSchema.optional(),
   location: ActivityLocationSchema,
   notes: z.string(),
-  photos: z.array(z.string()),
   referenceIds: z.array(z.string().min(1)),
   photoReferenceIds: z.array(z.string().min(1)),
   createdAt: z.iso.datetime(),
@@ -114,8 +132,17 @@ export const DataSchema = z.object({
 export type Waypoint = z.infer<typeof WaypointSchema>
 export type Challenge = z.infer<typeof ChallengeSchema>
 export type Idea = z.infer<typeof IdeaSchema>
+export type Reference = z.infer<typeof ReferenceSchema>
+export type ExternalPhotoReference = z.infer<typeof ExternalPhotoReferenceSchema>
 export type Activity = z.infer<typeof ActivitySchema>
+export type ActivityLocation = z.infer<typeof ActivityLocationSchema>
 export type WaypointsData = z.infer<typeof DataSchema>
+
+export function locationSummary(location: ActivityLocation): string {
+  return location.kind === 'postcode'
+    ? `Postcode: ${location.postcode}`
+    : `${location.latitude.toFixed(5)}, ${location.longitude.toFixed(5)}`
+}
 
 export function createSeedData(locations: readonly Location[]): WaypointsData {
   const waypoints: Waypoint[] = locations.map((location) => ({
@@ -139,6 +166,7 @@ export function createSeedData(locations: readonly Location[]): WaypointsData {
         title: 'National Trust',
         description: 'Visit National Trust properties using the shared Waypoints model.',
         waypointIds: waypoints.map((waypoint) => waypoint.waypointId),
+        supportsActivityCategories: true,
       },
     ],
     ideas: [],
@@ -176,113 +204,60 @@ export function createDemoData(locations: readonly Location[]): WaypointsData {
         title: 'National Trust',
         description: 'Demo challenge: complete waypoint activities across National Trust places.',
         waypointIds,
+        supportsActivityCategories: true,
       },
       {
         challengeId: 'autumn-explorers',
         title: 'Autumn Explorers',
         description: 'Collect five varied waypoints before winter.',
         waypointIds: waypointIds.slice(0, 5),
+        supportsActivityCategories: false,
       },
       {
         challengeId: 'completed-highlights',
         title: 'Completed Highlights',
         description: 'A finished demo challenge for checking the Gold challenge milestone.',
         waypointIds: [waypointIds[2], waypointIds[7]].filter(Boolean),
+        supportsActivityCategories: false,
       },
       {
         challengeId: 'historic-weekend',
         title: 'Historic Weekend',
         description: 'Focus on the most heritage-rich waypoints.',
         waypointIds: waypointIds.slice(0, 4),
+        supportsActivityCategories: false,
       },
       {
         challengeId: 'garden-route',
         title: 'Garden Route',
         description: 'A challenge with mostly gardens and house-and-garden stops.',
         waypointIds: waypointIds.slice(2, 7),
+        supportsActivityCategories: false,
       },
       {
         challengeId: 'nearby-day-trips',
         title: 'Nearby Day Trips',
         description: 'Shorter trips to fit into one day.',
         waypointIds: waypointIds.slice(1, 6),
+        supportsActivityCategories: false,
       },
       {
         challengeId: 'future-shortlist',
         title: 'Future Shortlist',
         description: 'An empty demo challenge for checking empty challenge states.',
         waypointIds: [],
+        supportsActivityCategories: false,
       },
     ],
-    ideas: [
-      {
-        ideaId: 'idea-sunrise-photos',
-        title: 'Sunrise photo walk',
-        description: 'Visit early for low crowds and morning light.',
-        waypointIds: [waypointIds[0], waypointIds[1]].filter(Boolean),
-        challengeIds: ['national-trust', 'autumn-explorers'],
-        location: { placeName: selected[0]?.name ?? 'Demo waypoint', addressOrRegion: selected[0]?.area },
-      },
-      {
-        ideaId: 'idea-history-notes',
-        title: 'History notes challenge',
-        description: 'Capture one historical fact from each stop.',
-        waypointIds: [waypointIds[2], waypointIds[3]].filter(Boolean),
-        challengeIds: ['historic-weekend'],
-        location: { placeName: selected[2]?.name ?? 'Demo waypoint', addressOrRegion: selected[2]?.area },
-      },
-      {
-        ideaId: 'idea-picnic-loop',
-        title: 'Picnic loop',
-        description: 'Choose scenic gardens with picnic spots.',
-        waypointIds: [waypointIds[4], waypointIds[5]].filter(Boolean),
-        challengeIds: ['garden-route'],
-        location: { placeName: selected[4]?.name ?? 'Demo waypoint', addressOrRegion: selected[4]?.area },
-      },
-      {
-        ideaId: 'idea-rainy-day',
-        title: 'Rainy-day interiors',
-        description: 'Prefer indoor exhibits and houses when weather turns.',
-        waypointIds: [waypointIds[6]].filter(Boolean),
-        challengeIds: ['nearby-day-trips'],
-        location: { placeName: selected[6]?.name ?? 'Demo waypoint', addressOrRegion: selected[6]?.area },
-      },
-      {
-        ideaId: 'idea-evening-walk',
-        title: 'Evening golden hour',
-        description: 'End-of-day walks and quick photography sessions.',
-        waypointIds: [waypointIds[7], waypointIds[1]].filter(Boolean),
-        challengeIds: ['autumn-explorers'],
-        location: { placeName: selected[7]?.name ?? 'Demo waypoint', addressOrRegion: selected[7]?.area },
-      },
-      {
-        ideaId: 'idea-checklist',
-        title: 'Return visit favourites',
-        description: 'Places worth a second look on a quieter day.',
-        waypointIds: [waypointIds[0], waypointIds[3]].filter(Boolean),
-        challengeIds: ['national-trust'],
-        location: { placeName: selected[3]?.name ?? 'Demo waypoint', addressOrRegion: selected[3]?.area },
-      },
-      {
-        ideaId: 'idea-standalone',
-        title: 'Standalone inspiration',
-        description: 'A note that is not linked to any waypoint or challenge yet.',
-        waypointIds: [],
-        challengeIds: [],
-        location: { placeName: 'Notebook' },
-      },
-    ],
+    ideas: [],
     activities: [
       {
         activityId: 'activity-demo-1',
         waypointId: waypointIds[0],
-        challengeId: 'national-trust',
-        ideaId: 'idea-sunrise-photos',
         date: '2026-07-01',
-        status: 'bronze',
-        location: { placeName: selected[0]?.name ?? 'Demo waypoint', addressOrRegion: selected[0]?.area },
+        category: 'bronze',
+        location: { kind: 'postcode', postcode: 'BA1 1AA' },
         notes: 'Arrived at opening time and walked the full grounds.',
-        photos: ['sunrise-gate.jpg'],
         referenceIds: [`reference-${waypointIds[0]}`],
         photoReferenceIds: [`photo-reference-${waypointIds[0]}`],
         createdAt: '2026-07-01T08:00:00.000Z',
@@ -291,164 +266,90 @@ export function createDemoData(locations: readonly Location[]): WaypointsData {
       {
         activityId: 'activity-demo-2',
         waypointId: waypointIds[1],
-        challengeId: 'autumn-explorers',
-        ideaId: 'idea-evening-walk',
         date: '2026-07-08',
-        status: 'silver',
-        location: { placeName: selected[1]?.name ?? 'Demo waypoint', addressOrRegion: selected[1]?.area },
-        notes: 'Completed the longer trail route.',
-        photos: ['ridge-view.jpg'],
+        location: { kind: 'coordinates', latitude: 51.4209, longitude: -2.0998 },
+        notes: 'Completed the longer trail route without category.',
         referenceIds: [`reference-${waypointIds[1]}`],
         photoReferenceIds: [`photo-reference-${waypointIds[1]}`],
         createdAt: '2026-07-08T18:15:00.000Z',
         updatedAt: '2026-07-08T18:15:00.000Z',
       },
-      {
-        activityId: 'activity-demo-3',
-        waypointId: waypointIds[2],
-        challengeId: 'garden-route',
-        ideaId: 'idea-picnic-loop',
-        date: '2026-07-12',
-        status: 'gold',
-        location: { placeName: selected[2]?.name ?? 'Demo waypoint', addressOrRegion: selected[2]?.area },
-        notes: 'Visited all planned sections and completed photo checklist.',
-        photos: ['lakeside-path.jpg', 'garden-map.jpg'],
-        referenceIds: [`reference-${waypointIds[2]}`],
-        photoReferenceIds: [`photo-reference-${waypointIds[2]}`],
-        createdAt: '2026-07-12T13:30:00.000Z',
-        updatedAt: '2026-07-12T13:30:00.000Z',
-      },
-      {
-        activityId: 'activity-demo-4',
-        waypointId: waypointIds[0],
-        challengeId: 'national-trust',
-        ideaId: 'idea-checklist',
-        date: '2026-07-20',
-        status: 'silver',
-        location: { placeName: selected[0]?.name ?? 'Demo waypoint', addressOrRegion: selected[0]?.area },
-        notes: 'Returned for the members-only evening tour and explored the parts missed first time.',
-        photos: ['courtyard-second-visit.jpg'],
-        referenceIds: [`reference-${waypointIds[0]}`],
-        photoReferenceIds: [`photo-reference-${waypointIds[0]}`],
-        createdAt: '2026-07-20T11:45:00.000Z',
-        updatedAt: '2026-07-20T11:45:00.000Z',
-      },
-      {
-        activityId: 'activity-demo-5',
-        waypointId: waypointIds[3],
-        challengeId: 'historic-weekend',
-        ideaId: 'idea-history-notes',
-        date: '2026-07-23',
-        status: 'bronze',
-        location: { placeName: selected[3]?.name ?? 'Demo waypoint', addressOrRegion: selected[3]?.area },
-        notes: 'Focused on exhibits; noted three facts.',
-        photos: [],
-        referenceIds: [`reference-${waypointIds[3]}`],
-        photoReferenceIds: [`photo-reference-${waypointIds[3]}`],
-        createdAt: '2026-07-23T14:00:00.000Z',
-        updatedAt: '2026-07-23T14:00:00.000Z',
-      },
-      {
-        activityId: 'activity-demo-6',
-        waypointId: waypointIds[6],
-        challengeId: 'nearby-day-trips',
-        ideaId: 'idea-rainy-day',
-        date: '2026-07-27',
-        status: 'silver',
-        location: { placeName: selected[6]?.name ?? 'Demo waypoint', addressOrRegion: selected[6]?.area },
-        notes: 'Shorter interior-focused route due to weather.',
-        photos: ['entry-hall.jpg'],
-        referenceIds: [`reference-${waypointIds[6]}`],
-        photoReferenceIds: [`photo-reference-${waypointIds[6]}`],
-        createdAt: '2026-07-27T10:30:00.000Z',
-        updatedAt: '2026-07-27T10:30:00.000Z',
-      },
-      {
-        activityId: 'activity-demo-7',
-        waypointId: waypointIds[4],
-        challengeId: 'garden-route',
-        ideaId: 'idea-picnic-loop',
-        date: '2026-07-31',
-        status: 'bronze',
-        location: { placeName: selected[4]?.name ?? 'Demo waypoint', addressOrRegion: selected[4]?.area },
-        notes: 'Stopped for a picnic lunch and a slow walk around the walled garden.',
-        photos: ['walled-garden.jpg'],
-        referenceIds: [`reference-${waypointIds[4]}`],
-        photoReferenceIds: [`photo-reference-${waypointIds[4]}`],
-        createdAt: '2026-07-31T20:00:00.000Z',
-        updatedAt: '2026-07-31T20:00:00.000Z',
-      },
-      {
-        activityId: 'activity-demo-8',
-        waypointId: waypointIds[7],
-        challengeId: 'national-trust',
-        ideaId: 'idea-evening-walk',
-        date: '2026-08-02',
-        status: 'gold',
-        location: { placeName: selected[7]?.name ?? 'Demo waypoint', addressOrRegion: selected[7]?.area },
-        notes: 'Evening walk completed with full activity notes.',
-        photos: ['sunset-grounds.jpg'],
-        referenceIds: [`reference-${waypointIds[7]}`],
-        photoReferenceIds: [`photo-reference-${waypointIds[7]}`],
-        createdAt: '2026-08-02T19:10:00.000Z',
-        updatedAt: '2026-08-02T19:10:00.000Z',
-      },
     ],
     references: selected.map((location) => ({
       referenceId: `reference-${location.locationId}`,
       title: `${location.name} visitor information`,
+      description: 'Official visitor details and opening times.',
       url: location.url,
     })),
     photoReferences: selected.map((location) => ({
       photoReferenceId: `photo-reference-${location.locationId}`,
       title: `${location.name} sample photo`,
+      altText: `${location.name} sample external photo`,
       url: `https://example.com/photos/${location.locationId}.jpg`,
     })),
   }
 }
 
+export function waypointSupportsActivityCategory(data: WaypointsData, waypointId: string | undefined): boolean {
+  if (!waypointId) return false
+  const waypoint = data.waypoints.find((item) => item.waypointId === waypointId)
+  if (!waypoint) return false
+  return waypoint.challengeIds.some((challengeId) =>
+    data.challenges.some((challenge) => challenge.challengeId === challengeId && challenge.supportsActivityCategories),
+  )
+}
+
+export function validateActivityCategory(data: WaypointsData, activity: Activity) {
+  if (activity.category && !waypointSupportsActivityCategory(data, activity.waypointId)) {
+    throw new Error('Selected waypoint does not support Bronze, Silver or Gold categories.')
+  }
+}
+
 export function createActivity(input: {
+  activityId?: string
   waypointId?: string
   challengeId?: string
   ideaId?: string
   date: string
-  status: AwardedStatus
+  category?: AwardedStatus
   location: z.input<typeof ActivityLocationSchema>
   notes?: string
-  photos?: string[]
   referenceIds?: string[]
   photoReferenceIds?: string[]
+  createdAt?: string
+  updatedAt?: string
 }): Activity {
   const now = new Date().toISOString()
   return ActivitySchema.parse({
-    activityId: crypto.randomUUID(),
+    activityId: input.activityId ?? crypto.randomUUID(),
     waypointId: input.waypointId,
     challengeId: input.challengeId,
     ideaId: input.ideaId,
     date: input.date,
-    status: input.status,
+    category: input.category,
     location: input.location,
     notes: input.notes ?? '',
-    photos: input.photos ?? [],
     referenceIds: input.referenceIds ?? [],
     photoReferenceIds: input.photoReferenceIds ?? [],
-    createdAt: now,
-    updatedAt: now,
+    createdAt: input.createdAt ?? now,
+    updatedAt: input.updatedAt ?? now,
   })
 }
 
 export function activitiesForWaypoint(activities: readonly Activity[], waypointId: string): Activity[] {
   return activities
     .filter((activity) => activity.waypointId === waypointId)
-    .sort((a, b) => b.date.localeCompare(a.date))
+    .sort((a, b) => b.date.localeCompare(a.date) || b.updatedAt.localeCompare(a.updatedAt))
 }
 
 export function statusForWaypoint(activities: readonly Activity[], waypointId: string): Status {
   return activities
-    .filter((activity) => activity.waypointId === waypointId)
+    .filter((activity) => activity.waypointId === waypointId && activity.category)
     .reduce<Status>(
       (highest, activity) =>
-        statusOrder.indexOf(activity.status) > statusOrder.indexOf(highest) ? activity.status : highest,
+        statusOrder.indexOf(activity.category ?? 'not-started') > statusOrder.indexOf(highest)
+          ? (activity.category ?? highest)
+          : highest,
       'not-started',
     )
 }
@@ -506,7 +407,7 @@ export function recentlyVisited(
 }
 
 export function stillToVisit(waypoints: readonly Waypoint[], activities: readonly Activity[]): Waypoint[] {
-  return waypoints.filter((waypoint) => statusForWaypoint(activities, waypoint.waypointId) === 'not-started')
+  return waypoints.filter((waypoint) => activities.every((activity) => activity.waypointId !== waypoint.waypointId))
 }
 
 export function suggestedNext(waypoints: readonly Waypoint[], activities: readonly Activity[], limit = 3): Waypoint[] {

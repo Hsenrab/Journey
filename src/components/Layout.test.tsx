@@ -30,16 +30,15 @@ describe('Layout', () => {
   })
   afterEach(() => vi.restoreAllMocks())
 
-  function activity(status: 'bronze' | 'silver' | 'gold' = 'silver'): Activity {
+  function activity(category: 'bronze' | 'silver' | 'gold' = 'silver'): Activity {
     return {
-      activityId: `layout-${status}`,
+      activityId: `layout-${category}`,
       waypointId: 'dyrham-park',
       challengeId: 'national-trust',
-      status,
+      category,
       date: '2026-08-01',
-      location: { placeName: 'Dyrham Park' },
+      location: { kind: 'postcode', postcode: 'Dyrham Park' },
       notes: 'Personal visit',
-      photos: [],
       referenceIds: [],
       photoReferenceIds: [],
       createdAt: '2026-08-01T10:00:00.000Z',

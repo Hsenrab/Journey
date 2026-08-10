@@ -7,16 +7,15 @@ import { WaypointsProvider } from '../features/journey/JourneyContext'
 import { backupVersion, createDefaultData, createDemoModeData, load, save, setDemoMode } from '../services/storage'
 import type { Activity } from '../domain/visit'
 
-function activity(status: 'bronze' | 'silver' | 'gold' = 'gold'): Activity {
+function activity(category: 'bronze' | 'silver' | 'gold' = 'gold'): Activity {
   return {
-    activityId: `dyrham-park-${status}`,
+    activityId: `dyrham-park-${category}`,
     waypointId: 'dyrham-park',
     challengeId: 'national-trust',
-    status,
+    category,
     date: '2026-08-01',
-    location: { placeName: 'Dyrham Park' },
+    location: { kind: 'postcode', postcode: 'Dyrham Park' },
     notes: 'Great day',
-    photos: [],
     referenceIds: [],
     photoReferenceIds: [],
     createdAt: '2026-08-01T10:00:00.000Z',
@@ -47,7 +46,7 @@ describe('Settings', () => {
   it('shows the challenge rules', () => {
     renderSettings()
     expect(screen.getByText('Challenge rules')).toBeInTheDocument()
-    expect(screen.getByText('At least one linked activity has been recorded.')).toBeInTheDocument()
+    expect(screen.getByText('At least one linked Bronze activity has been recorded.')).toBeInTheDocument()
   })
 
   it('documents the header demo switch instead of showing duplicate mode buttons', () => {
@@ -86,7 +85,7 @@ describe('Settings', () => {
     )
 
     expect(await screen.findByText('Personal data was restored.')).toBeInTheDocument()
-    expect(load().activities).toContainEqual(expect.objectContaining({ waypointId: 'dyrham-park', status: 'gold' }))
+    expect(load().activities).toContainEqual(expect.objectContaining({ waypointId: 'dyrham-park', category: 'gold' }))
   })
 
   it('keeps existing data when the backup is invalid', async () => {
@@ -97,7 +96,7 @@ describe('Settings', () => {
     await user.upload(screen.getByLabelText('Restore JSON'), backupFile('{"version":99,"data":{}}'))
 
     expect(await screen.findByText(/not a valid Waypoints backup/)).toBeInTheDocument()
-    expect(load().activities).toContainEqual(expect.objectContaining({ waypointId: 'dyrham-park', status: 'gold' }))
+    expect(load().activities).toContainEqual(expect.objectContaining({ waypointId: 'dyrham-park', category: 'gold' }))
   })
 
   it('shows an error message for a file that is not JSON', async () => {
@@ -148,7 +147,7 @@ describe('Settings', () => {
     await user.click(screen.getByRole('button', { name: 'Clear data' }))
     await user.click(screen.getByRole('button', { name: 'Cancel' }))
     await waitForElementToBeRemoved(() => screen.queryByRole('dialog'))
-    expect(load().activities).toContainEqual(expect.objectContaining({ waypointId: 'dyrham-park', status: 'gold' }))
+    expect(load().activities).toContainEqual(expect.objectContaining({ waypointId: 'dyrham-park', category: 'gold' }))
 
     await user.click(screen.getByRole('button', { name: 'Clear data' }))
     await user.click(screen.getByRole('button', { name: 'Clear everything' }))
@@ -184,6 +183,6 @@ describe('Settings', () => {
 
     await user.keyboard('{Escape}')
     await waitForElementToBeRemoved(() => screen.queryByRole('dialog'))
-    expect(load().activities).toContainEqual(expect.objectContaining({ waypointId: 'dyrham-park', status: 'gold' }))
+    expect(load().activities).toContainEqual(expect.objectContaining({ waypointId: 'dyrham-park', category: 'gold' }))
   })
 })
