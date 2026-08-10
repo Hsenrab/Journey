@@ -5,12 +5,19 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createDefaultData } from '../services/storage'
 import { WaypointsProvider } from '../features/journey/JourneyContext'
 
+type MapClickHandler = (event: {
+  shapes?: Array<{ getProperties?: () => { waypointId?: string }; properties?: { waypointId?: string } }>
+}) => void
+
+const mapEvents = vi.hoisted(() => ({ click: undefined as MapClickHandler | undefined }))
+
 vi.mock('azure-maps-control', () => ({
   AuthenticationType: { sas: 'sas' },
   Map: class {
     events = {
       add: (...args: unknown[]) => {
         if (args[0] === 'ready' && args.length === 2) (args[1] as () => void)()
+        if (args[0] === 'click' && args.length === 3) mapEvents.click = args[2] as MapClickHandler
       },
     }
     sources = { add: vi.fn() }
@@ -41,7 +48,10 @@ vi.mock('azure-maps-control', () => ({
 import MapPage from './MapPage'
 
 describe('MapPage', () => {
-  beforeEach(() => localStorage.clear())
+  beforeEach(() => {
+    localStorage.clear()
+    mapEvents.click = undefined
+  })
 
   it('renders accessible layer, status, and nearby controls', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, text: () => Promise.resolve('Sign in required') }))
@@ -115,6 +125,53 @@ describe('MapPage', () => {
     expect(screen.queryByText('Choose a nearby origin')).not.toBeInTheDocument()
   })
 
+  it('uses the sole nearby search result', async () => {
+    const user = userEvent.setup()
+    vi.stubGlobal(
+      'fetch',
+      vi
+        .fn()
+        .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve({ token: 'sas', expiresOn: '2026-01-01' }) })
+        .mockResolvedValueOnce({
+          ok: true,
+          json: () =>
+            Promise.resolve({
+              results: [{ address: { freeformAddress: 'Oxford' }, position: { lat: 51.752, lon: -1.258 } }],
+            }),
+        }),
+    )
+    render(
+      <MemoryRouter>
+        <WaypointsProvider>
+          <MapPage />
+        </WaypointsProvider>
+      </MemoryRouter>,
+    )
+    await user.click(screen.getByRole('button', { name: 'Search' }))
+    expect(screen.queryByText('Choose a nearby origin')).not.toBeInTheDocument()
+    expect(screen.queryByRole('alert', { name: /error/i })).not.toBeInTheDocument()
+  })
+
+  it('shows the Maps search failure message', async () => {
+    const user = userEvent.setup()
+    vi.stubGlobal(
+      'fetch',
+      vi
+        .fn()
+        .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve({ token: 'sas', expiresOn: '2026-01-01' }) })
+        .mockResolvedValueOnce({ ok: false, text: () => Promise.resolve('Search requires authentication') }),
+    )
+    render(
+      <MemoryRouter>
+        <WaypointsProvider>
+          <MapPage />
+        </WaypointsProvider>
+      </MemoryRouter>,
+    )
+    await user.click(screen.getByRole('button', { name: 'Search' }))
+    expect(await screen.findByText('Nearby search failed: Search requires authentication')).toBeInTheDocument()
+  })
+
   it('adds coordinate-bearing waypoints and activities to the enabled map layers', async () => {
     const data = createDefaultData()
     const waypoint = data.waypoints[0]!
@@ -125,6 +182,18 @@ describe('MapPage', () => {
       date: '2026-08-10',
       category: 'bronze',
       location: { kind: 'coordinates', latitude: 51.85, longitude: -2.14 },
+      notes: '',
+      referenceIds: [],
+      photoReferenceIds: [],
+      createdAt: '2026-08-10T00:00:00.000Z',
+      updatedAt: '2026-08-10T00:00:00.000Z',
+    })
+    data.activities.push({
+      activityId: 'postcode-activity',
+      waypointId: 'missing-waypoint',
+      date: '2026-08-10',
+      category: undefined,
+      location: { kind: 'postcode', postcode: 'GL3 4AA' },
       notes: '',
       referenceIds: [],
       photoReferenceIds: [],
@@ -145,6 +214,34 @@ describe('MapPage', () => {
       </MemoryRouter>,
     )
     await user.click(screen.getByLabelText('Waypoint status: Gold'))
+    await user.click(screen.getByLabelText('Show activities'))
+    await user.click(screen.getByLabelText('Show activities'))
     expect(screen.getByRole('link', { name: /Bronze:.*miles/ })).toBeInTheDocument()
+  })
+
+  it('handles map marker clicks with and without a matching waypoint', async () => {
+    const data = createDefaultData()
+    const waypoint = data.waypoints[0]!
+    waypoint.location = { ...waypoint.location, latitude: 51.84, longitude: -2.15 }
+    localStorage.setItem('waypoints-v1', JSON.stringify(data))
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({ ok: true, json: () => Promise.resolve({ token: 'sas', expiresOn: '2026-01-01' }) }),
+    )
+    render(
+      <MemoryRouter>
+        <WaypointsProvider>
+          <MapPage />
+        </WaypointsProvider>
+      </MemoryRouter>,
+    )
+    await vi.waitFor(() => expect(mapEvents.click).toBeDefined())
+    expect(() => {
+      mapEvents.click!({})
+      mapEvents.click!({ shapes: [{ getProperties: () => ({}) }] })
+      mapEvents.click!({ shapes: [{ properties: { waypointId: 'unknown' } }] })
+      mapEvents.click!({ shapes: [{ getProperties: () => ({ waypointId: waypoint.waypointId }) }] })
+    }).not.toThrow()
+    expect(await screen.findByRole('status')).toHaveTextContent('Opening waypoint details.')
   })
 })
