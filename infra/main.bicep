@@ -162,7 +162,7 @@ resource functionStorageSubscriptionRule 'Microsoft.Network/networkSecurityPerim
     direction: 'Inbound'
     subscriptions: [
       {
-        id: subscription().subscriptionId
+        id: subscription().id
       }
     ]
   }
