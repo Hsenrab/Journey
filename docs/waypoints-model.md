@@ -44,7 +44,7 @@ Examples:
 - Walked a local trail
 
 Activities may link to waypoint/challenge/idea IDs or stand alone, but they **must**
-include location data before they are saved.
+include structured location data before they are saved (`postcode` or coordinate pair).
 
 ## Relationships
 
@@ -69,15 +69,14 @@ category; for `count` waypoints, completion requires the target number of linked
 activities.
 
 Bronze/Silver/Gold describe how well an activity fits the challenge — they are not
-challenge completion milestones. Each waypoint's category is derived from the highest
-awarded status among its linked activities, and each category count on the challenge
-dashboard represents the number of waypoints whose highest linked activity category
-has that value.
+challenge completion milestones. Category selection is only available when the selected
+waypoint belongs to a challenge with explicit `supportsActivityCategories: true`.
+Waypoint completion still counts linked activities even when they have no category.
 
 ## External references
 
-References and photo references store metadata and external HTTPS links only. Image files
-are not stored by the application.
+References and photo references are top-level records linked by ID from activities.
+They store metadata and external HTTPS links only. Image files are not stored by the app.
 
 ## Shared validation
 

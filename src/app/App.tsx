@@ -10,6 +10,7 @@ import LocationDetails from '../pages/LocationDetails'
 import Settings from '../pages/Settings'
 import Ideas from '../pages/Ideas'
 import Activities from '../pages/Activities'
+import ActivityDetails from '../pages/ActivityDetails'
 import MapPage from '../pages/MapPage'
 
 export default function App() {
@@ -26,6 +27,7 @@ export default function App() {
               <Route path="/challenges" element={<Dashboard />} />
               <Route path="/ideas" element={<Ideas />} />
               <Route path="/activities" element={<Activities />} />
+              <Route path="/activities/:activityId" element={<ActivityDetails />} />
               <Route path="/map" element={<MapPage />} />
               <Route path="/settings" element={<Settings />} />
             </Routes>

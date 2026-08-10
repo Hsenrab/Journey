@@ -1,91 +1,94 @@
 import { useState } from 'react'
-import { Alert, Button, Card, CardContent, Chip, Stack, TextField, Typography } from '@mui/material'
-import { createActivity, statusLabels } from '../domain/visit'
+import { Link } from 'react-router-dom'
+import { Alert, Button, Card, CardContent, Chip, Stack, Typography } from '@mui/material'
+import { ActivityEditor } from '../components/ActivityEditor'
+import { locationSummary, statusLabels } from '../domain/visit'
 import { useWaypoints } from '../features/journey/JourneyContext'
 
 export default function Activities() {
   const { data, addActivity } = useWaypoints()
   const waypointById = new Map(data.waypoints.map((waypoint) => [waypoint.waypointId, waypoint]))
-  const [date, setDate] = useState(new Date().toISOString().slice(0, 10))
-  const [placeName, setPlaceName] = useState('')
-  const [notes, setNotes] = useState('')
+  const [showEditor, setShowEditor] = useState(false)
   const [message, setMessage] = useState<{ severity: 'success' | 'error'; text: string } | null>(null)
 
-  const activities = [...data.activities].sort((a, b) => b.date.localeCompare(a.date))
+  const activities = [...data.activities].sort(
+    (a, b) => b.date.localeCompare(a.date) || b.updatedAt.localeCompare(a.updatedAt),
+  )
 
   return (
     <Stack spacing={3}>
-      <Typography variant="h4">Activities</Typography>
-      <Card>
-        <CardContent>
-          <Stack
-            component="form"
-            spacing={2}
-            onSubmit={(event) => {
-              event.preventDefault()
-              try {
-                addActivity(
-                  createActivity({
-                    date,
-                    status: 'bronze',
-                    location: { placeName },
-                    notes,
-                  }),
-                )
-                setPlaceName('')
-                setNotes('')
-                setMessage({ severity: 'success', text: 'Activity saved.' })
-              } catch {
-                setMessage({ severity: 'error', text: 'Enter a valid date and location before saving.' })
-              }
-            }}
-          >
-            {message && <Alert severity={message.severity}>{message.text}</Alert>}
-            <TextField
-              label="Activity date"
-              type="date"
-              value={date}
-              onChange={(e) => setDate(e.target.value)}
-              slotProps={{ inputLabel: { shrink: true } }}
-            />
-            <TextField
-              label="Location"
-              value={placeName}
-              onChange={(e) => setPlaceName(e.target.value)}
-              helperText="Activities require a location record."
-            />
-            <TextField label="Notes" value={notes} onChange={(e) => setNotes(e.target.value)} multiline minRows={2} />
-            <Button type="submit" variant="contained">
-              Save activity
-            </Button>
-          </Stack>
-        </CardContent>
-      </Card>
+      <Stack
+        direction={{ xs: 'column', sm: 'row' }}
+        spacing={2}
+        sx={{ justifyContent: 'space-between', alignItems: { sm: 'center' } }}
+      >
+        <Typography variant="h4">Activities</Typography>
+        {!showEditor && (
+          <Button variant="contained" onClick={() => setShowEditor(true)}>
+            Add activity
+          </Button>
+        )}
+      </Stack>
+
+      {message && <Alert severity={message.severity}>{message.text}</Alert>}
+
+      {showEditor && (
+        <ActivityEditor
+          data={data}
+          submitLabel="Save activity"
+          onSubmit={(draft) => {
+            try {
+              addActivity(draft)
+              setShowEditor(false)
+              setMessage({ severity: 'success', text: 'Activity saved.' })
+            } catch (error) {
+              setMessage({
+                severity: 'error',
+                text: error instanceof Error ? error.message : 'Failed to save activity.',
+              })
+            }
+          }}
+          onCancel={() => setShowEditor(false)}
+        />
+      )}
+
       <Stack spacing={2}>
         <Typography variant="h5">Activity log</Typography>
         {activities.length === 0 ? (
           <Typography color="text.secondary">No activities logged yet.</Typography>
         ) : (
-          activities.map((activity) => (
-            <Card key={activity.activityId}>
-              <CardContent>
-                <Stack spacing={1}>
-                  <Typography variant="h6">{activity.date}</Typography>
-                  <Stack direction="row" spacing={1}>
-                    <Chip label={statusLabels[activity.status]} />
-                    {activity.waypointId && (
-                      <Chip
-                        label={`Waypoint: ${waypointById.get(activity.waypointId)?.title ?? activity.waypointId}`}
-                        variant="outlined"
-                      />
-                    )}
+          activities.map((activity) => {
+            const waypoint = activity.waypointId ? waypointById.get(activity.waypointId) : undefined
+            return (
+              <Card key={activity.activityId}>
+                <CardContent>
+                  <Stack spacing={1}>
+                    <Typography variant="h6" component={Link} to={`/activities/${activity.activityId}`}>
+                      {activity.date}
+                    </Typography>
+                    <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: 'wrap' }}>
+                      {activity.category && <Chip label={statusLabels[activity.category]} />}
+                      {waypoint && (
+                        <Chip
+                          component={Link}
+                          clickable
+                          label={`Waypoint: ${waypoint.title}`}
+                          to={`/waypoints/${waypoint.waypointId}`}
+                          variant="outlined"
+                        />
+                      )}
+                    </Stack>
+                    <Typography color="text.secondary">{locationSummary(activity.location)}</Typography>
+                    {activity.notes && <Typography>{activity.notes.slice(0, 140)}</Typography>}
+                    <Typography color="text.secondary">
+                      {activity.photoReferenceIds.length} photo{activity.photoReferenceIds.length === 1 ? '' : 's'} ·{' '}
+                      {activity.referenceIds.length} link{activity.referenceIds.length === 1 ? '' : 's'}
+                    </Typography>
                   </Stack>
-                  <Typography color="text.secondary">{activity.location.placeName}</Typography>
-                  {activity.notes && <Typography>{activity.notes}</Typography>}
-                </Stack>
-              </CardContent>
-            </Card>
-          ))
+                </CardContent>
+              </Card>
+            )
+          })
         )}
       </Stack>
     </Stack>

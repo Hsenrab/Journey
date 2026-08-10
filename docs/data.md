@@ -2,113 +2,65 @@
 
 ## Where data lives
 
-All visit data is stored in the browser's local storage under the key
-`national-trust-tracker-v2`. There is no server, database or account: the data belongs to the
-browser profile on the device where it was entered.
+All app data is stored in browser local storage (`waypoints-v1` for personal data, `waypoints-demo-v1` for demo data).
+There is no server persistence.
 
-Reference data about the locations themselves is compiled into the app from
-`src/data/locations.json` (validated by `src/data/locations.ts`) and is never stored in the browser.
+## Stored shape
 
-## Format
-
-The stored value is an append-only visit history: a JSON object with a `visits` array holding one
-record per logged visit. A location can therefore have several visits, and its current status is
-derived as the highest status awarded by any of them.
+The persisted root object is:
 
 ```json
 {
-  "visits": [
-    {
-      "visitId": "8f0d0f6e-2b4a-4f43-9f0f-6a1f6a5a1c2b",
-      "locationId": "may-hill",
-      "date": "2026-04-12",
-      "status": "silver",
-      "notes": "Walked to the summit and the topograph.",
-      "photos": ["https://example.com/photo.jpg", "IMG_1234.jpg"],
-      "createdAt": "2026-04-12T18:00:00.000Z",
-      "updatedAt": "2026-04-12T18:00:00.000Z"
-    }
-  ]
+  "waypoints": [],
+  "challenges": [],
+  "ideas": [],
+  "activities": [],
+  "references": [],
+  "photoReferences": []
 }
 ```
 
-| Field        | Type                           | Notes                                       |
-| ------------ | ------------------------------ | ------------------------------------------- |
-| `visitId`    | string                         | Unique identifier for the visit             |
-| `locationId` | string                         | `locationId` from `src/data/locations.json` |
-| `date`       | string                         | Visit date as a real `YYYY-MM-DD` date      |
-| `status`     | `bronze` \| `silver` \| `gold` | The status this visit awards                |
-| `notes`      | string                         | Free text; may be empty                     |
-| `photos`     | string[]                       | URLs or filenames; no images are stored     |
-| `createdAt`  | string                         | ISO timestamp the record was created        |
-| `updatedAt`  | string                         | ISO timestamp the record was last changed   |
+`activities` records include:
 
-`not-started` is never stored: it is the derived status of a location with no visits.
+- stable IDs and timestamps (`activityId`, `createdAt`, `updatedAt`)
+- `date` (`YYYY-MM-DD`)
+- optional `waypointId`
+- optional `category` (`bronze` | `silver` | `gold`)
+- structured location:
+  - `{ "kind": "postcode", "postcode": "..." }`, or
+  - `{ "kind": "coordinates", "latitude": number, "longitude": number }`
+- `notes`
+- `referenceIds` and `photoReferenceIds`
 
-## Validation
+Raw `Activity.photos` strings are not used for new data.
 
-`src/services/storage.ts` validates data with Zod on every load and on import:
+## Validation and failure behavior
 
-- Unreadable or invalid stored data falls back to an empty dataset rather than crashing the app.
-- An import file is parsed as data only — nothing in it is executed — and its type, structure,
-  `version`, location ids, dates and status values are all validated before anything is saved.
-- An invalid or unsupported-version file is rejected with an error and the existing data is left
-  unchanged.
-- Backups referencing location ids that are not in the catalogue are rejected.
+Validation is shared in `src/domain/visit.ts` and enforced by storage import/load.
 
-## Backup file format
+- Invalid stored JSON or invalid persisted shape throws immediately.
+- Import validates `version`, envelope shape, and full `data` schema.
+- Unsupported or malformed imports are rejected; existing stored data remains unchanged.
 
-Exports wrap the visit records in a versioned envelope so future formats can be migrated:
+## Backup format
 
 ```json
 {
   "version": 1,
   "exportedAt": "2026-08-01T00:00:00.000Z",
-  "visits": [
-    {
-      "visitId": "8f0d0f6e-2b4a-4f43-9f0f-6a1f6a5a1c2b",
-      "locationId": "may-hill",
-      "date": "2026-04-12",
-      "status": "silver",
-      "notes": "",
-      "photos": [],
-      "createdAt": "2026-04-12T18:00:00.000Z",
-      "updatedAt": "2026-04-12T18:00:00.000Z"
-    }
-  ]
+  "data": {
+    "waypoints": [],
+    "challenges": [],
+    "ideas": [],
+    "activities": [],
+    "references": [],
+    "photoReferences": []
+  }
 }
 ```
 
-## Export (backup)
+## Export / restore / clear
 
-1. Open **Settings**.
-2. Select **Export JSON**.
-3. The browser downloads `national-trust-tracker.json` containing all visit data.
-
-Take a backup regularly, and especially before clearing browser data, switching device or browser,
-or restoring a file.
-
-## Import (restore)
-
-1. Open **Settings**.
-2. Select **Restore JSON** and choose a previously exported file.
-3. A confirmation message appears on success; an error message appears if the file is not a valid
-   tracker export.
-
-Restore **replaces** the whole visit history — it does not merge with what is already there.
-
-## Clearing data
-
-**Settings → Clear data** removes every visit from this browser after a confirmation prompt. Export
-a backup first if the data is still wanted.
-
-## Moving to another device or browser
-
-Export on the old browser, transfer the file yourself (for example via a private file transfer),
-and restore on the new browser.
-
-## Privacy
-
-Data never leaves the browser except when a backup file is exported deliberately. Do not record
-secrets, precise home location information, or other people's personal data in notes or photo
-references; exported files are ordinary unencrypted JSON.
+- **Export JSON** downloads the active partition as the envelope above.
+- **Restore JSON** replaces the active partition with validated backup content.
+- **Clear data** clears activities in the active partition (after confirmation).

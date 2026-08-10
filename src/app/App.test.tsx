@@ -53,8 +53,10 @@ describe('activity logging', () => {
   beforeEach(() => localStorage.clear())
 
   const logActivity = async (user: ReturnType<typeof userEvent.setup>, level: string, date: string) => {
-    await user.click(screen.getByRole('combobox', { name: 'Completion level' }))
+    await user.click(screen.getByRole('button', { name: 'Add activity' }))
+    await user.click(screen.getByRole('combobox', { name: 'Activity category' }))
     await user.click(screen.getByRole('option', { name: level }))
+    await user.type(screen.getByLabelText('Postcode'), 'SN15 2LG')
     fireEvent.change(screen.getByLabelText('Activity date'), { target: { value: date } })
     await user.click(screen.getByRole('button', { name: 'Save activity' }))
   }
@@ -67,17 +69,17 @@ describe('activity logging', () => {
 
     await logActivity(user, 'Gold', '2026-08-01')
     expect(screen.getByText('Activity saved.')).toBeInTheDocument()
-    expect(screen.getByText('Status: Gold')).toBeInTheDocument()
+    expect(screen.getByText('Category summary: Gold')).toBeInTheDocument()
 
     await logActivity(user, 'Bronze', '2026-08-02')
-    expect(screen.getByText('2026-08-01 · Gold')).toBeInTheDocument()
-    expect(screen.getByText('2026-08-02 · Bronze')).toBeInTheDocument()
-    expect(screen.getByText('Status: Gold')).toBeInTheDocument()
+    expect(screen.getByText('2026-08-01')).toBeInTheDocument()
+    expect(screen.getByText('2026-08-02')).toBeInTheDocument()
+    expect(screen.getByText('Category summary: Gold')).toBeInTheDocument()
 
     cleanup()
     render(<App />)
     await user.click(screen.getByRole('link', { name: 'Waypoints' }))
     await user.click(screen.getAllByRole('link', { name: 'View waypoint' })[0])
-    expect(screen.getByText('Status: Gold')).toBeInTheDocument()
+    expect(screen.getByText('Category summary: Gold')).toBeInTheDocument()
   })
 })

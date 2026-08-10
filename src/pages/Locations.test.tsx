@@ -7,16 +7,15 @@ import { WaypointsProvider } from '../features/journey/JourneyContext'
 import { createDefaultData, save } from '../services/storage'
 import type { Activity } from '../domain/visit'
 
-function activity(waypointId: string, status: 'bronze' | 'silver' | 'gold'): Activity {
+function activity(waypointId: string, category: 'bronze' | 'silver' | 'gold'): Activity {
   return {
-    activityId: `${waypointId}-${status}`,
+    activityId: `${waypointId}-${category}`,
     waypointId,
     challengeId: 'national-trust',
     date: '2026-08-01',
-    status,
-    location: { placeName: waypointId },
+    category,
+    location: { kind: 'postcode', postcode: waypointId },
     notes: '',
-    photos: [],
     referenceIds: [],
     photoReferenceIds: [],
     createdAt: '2026-08-01T10:00:00.000Z',

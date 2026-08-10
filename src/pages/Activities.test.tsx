@@ -25,27 +25,34 @@ describe('Activities', () => {
     expect(screen.getByText('No activities logged yet.')).toBeInTheDocument()
   })
 
-  it('requires location data before saving', async () => {
+  it('preserves entered values when validation fails', async () => {
     const user = userEvent.setup()
     renderActivities()
 
+    await user.click(screen.getByRole('button', { name: 'Add activity' }))
+    await user.click(screen.getByRole('combobox', { name: 'Location type' }))
+    await user.click(screen.getByRole('option', { name: 'Latitude and longitude' }))
+    await user.type(screen.getByLabelText('Latitude'), 'not-a-number')
+    await user.type(screen.getByLabelText('Longitude'), '-1.26')
     await user.click(screen.getByRole('button', { name: 'Save activity' }))
 
-    expect(screen.getByText('Enter a valid date and location before saving.')).toBeInTheDocument()
+    expect(screen.getByText('Latitude and longitude must be numeric.')).toBeInTheDocument()
+    expect(screen.getByLabelText('Latitude')).toHaveValue('not-a-number')
     expect(load().activities).toEqual([])
   })
 
-  it('saves an independent activity with location', async () => {
+  it('saves an independent activity with postcode location', async () => {
     const user = userEvent.setup()
     renderActivities()
 
-    await user.type(screen.getByLabelText('Location'), 'Bristol Harbourside')
-    await user.type(screen.getByLabelText('Notes'), 'Evening walk')
+    await user.click(screen.getByRole('button', { name: 'Add activity' }))
+    await user.type(screen.getByLabelText('Postcode'), 'GL1 1AA')
+    await user.type(screen.getByLabelText('Description / notes'), 'Evening walk')
     await user.click(screen.getByRole('button', { name: 'Save activity' }))
 
     expect(screen.getByText('Activity saved.')).toBeInTheDocument()
     expect(load().activities[0]).toMatchObject({
-      location: { placeName: 'Bristol Harbourside' },
+      location: { kind: 'postcode', postcode: 'GL1 1AA' },
       notes: 'Evening walk',
     })
   })
@@ -57,10 +64,9 @@ describe('Activities', () => {
       waypointId: 'stourhead',
       challengeId: 'national-trust',
       date: '2026-08-01',
-      status: 'gold',
-      location: { placeName: 'Stourhead' },
+      category: 'gold',
+      location: { kind: 'postcode', postcode: 'BA12 6QF' },
       notes: '',
-      photos: [],
       referenceIds: [],
       photoReferenceIds: [],
       createdAt: '2026-08-01T10:00:00.000Z',
