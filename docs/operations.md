@@ -134,6 +134,12 @@ the caller's tenant and immutable object id.
   permits network access from Azure resources in the deployment subscription;
   Microsoft Entra authentication and the storage data-plane role assignments
   still determine which identities can access storage data.
+- The GitHub OIDC deployment principal has the custom **Journey NSP Subscription
+  Join** role at subscription scope. Its only action is
+  `Microsoft.Network/networkSecurityPerimeters/joinPerimeterRule/action`, which
+  authorizes the subscription referenced by the permanent perimeter rule. This
+  role must be created and assigned once by a subscription administrator; the
+  deployment workflow cannot grant itself subscription permissions.
 - The API boundary (`enableApi`) defaults to `true` and can be disabled per
   deployment; linking a Functions backend requires the Standard plan, which
   `skuName` always is.
@@ -297,6 +303,7 @@ no server-side database to back up.
 | `/api/*` returns 401                                                                       | The signed-in account is not assigned to the Entra enterprise application, or is not signed in. Confirm assignment in the Entra portal.                                                                                                                                                      |
 | `/api/*` returns 403                                                                       | The principal's tenant or object id does not match `JOURNEY_ENTRA_TENANT_ID` / `JOURNEY_OWNER_OBJECT_ID`. Confirm the assigned account is the intended owner.                                                                                                                                |
 | `/api/maps/token` returns 500 with a `listSas` error                                       | The Function's managed identity is missing the Azure Maps Contributor role assignment on the Maps account, or the account name/subscription/resource group app settings are wrong.                                                                                                           |
+| Bicep deployment fails with `LinkedAuthorizationFailed` for `joinPerimeterRule/action`     | Assign the GitHub OIDC principal the custom **Journey NSP Subscription Join** role at subscription scope. The role must contain only `Microsoft.Network/networkSecurityPerimeters/joinPerimeterRule/action`; a subscription administrator must create and assign it.                        |
 | Deploy Functions API fails with `This request is not authorized to perform this operation` | The deploying GitHub OIDC principal lacks data-plane access to the Functions storage account it uploads the package to. Re-run the workflow: the Bicep deployment creates the Storage Blob Data Contributor assignment for `deployer().objectId`, which can take a few minutes to propagate. |
 | Function package upload reports a storage authorization error                              | Check that the workflow created its `github-<run-id>-<attempt>` inbound rule in the Network Security Perimeter profile and that the deploy identity still has Storage Blob Data Contributor on the host storage account.                                                                     |
 | A temporary `github-*` perimeter rule remains after a cancelled workflow                   | Delete that exact rule with `az network perimeter profile access-rule delete --name <rule> --perimeter-name <perimeter> --profile-name function-storage --resource-group <resource-group> --yes`.                                                                                            |
