@@ -125,15 +125,24 @@ the caller's tenant and immutable object id.
   Linux Consumption plan), a storage account for the Functions host (using an
   identity-based `AzureWebJobsStorage` connection, not a shared key), the
   Azure Maps Gen2 account, an Application Insights component wired to the
-  Function App via `APPLICATIONINSIGHTS_CONNECTION_STRING`, the two role
+  Function App via `APPLICATIONINSIGHTS_CONNECTION_STRING`, the role
   assignments above, and the `userProvidedFunctionApps` link that makes the
   Function App the exclusive backend for `/api/*`.
+- The host storage account disables shared-key access and sets public network
+  access to `SecuredByPerimeter`. It is associated in enforced mode with a
+  Network Security Perimeter profile. A permanent inbound subscription rule
+  permits network access from Azure resources in the deployment subscription;
+  Microsoft Entra authentication and the storage data-plane role assignments
+  still determine which identities can access storage data.
 - The API boundary (`enableApi`) defaults to `true` and can be disabled per
   deployment; linking a Functions backend requires the Standard plan, which
   `skuName` always is.
 - `.github/workflows/azure-static-web-apps.yml` adds a `deploy_api` job that
   builds `api/` and deploys it with `Azure/functions-action@v1` after Bicep
-  provisioning, before the Static Web App content deploy.
+  provisioning, before the Static Web App content deploy. The job discovers
+  the GitHub-hosted runner's public IPv4 address, creates a uniquely named
+  inbound `/32` rule on the storage perimeter, confirms authenticated Blob
+  access, deploys the package, and removes the rule even when deployment fails.
 - Because `AzureWebJobsStorage` is identity-based, `Azure/functions-action`
   deploys a Linux Consumption app by uploading the package zip to the Functions
   storage account from the runner with the **deploying** principal's own
@@ -174,6 +183,8 @@ the caller's tenant and immutable object id.
 - Azure Maps Gen2 (`G2`) SKU bills per transaction; render/search calls made
   with the issued SAS token by the browser also count.
 - The additional storage account uses the `Standard_LRS` tier at minimal cost.
+- Network Security Perimeter has no separate hourly charge. Normal charges for
+  the associated resources and diagnostic log ingestion still apply.
 - Application Insights bills per ingested telemetry volume, which is minimal
   for a single-user API surface.
 
@@ -233,6 +244,9 @@ App:
 3. Deploys the built static content to `journey-hsenrab-test`'s primary environment
    (not a PR preview slot).
 
+The workflow uses the same temporary runner `/32` perimeter rule and guaranteed
+cleanup as the production deployment.
+
 It reuses the `azure-test` GitHub environment's OIDC login and resource group variable, so
 `journey-hsenrab-test` must live in the same resource group as the shared preview resource.
 
@@ -284,6 +298,8 @@ no server-side database to back up.
 | `/api/*` returns 403                                                                       | The principal's tenant or object id does not match `JOURNEY_ENTRA_TENANT_ID` / `JOURNEY_OWNER_OBJECT_ID`. Confirm the assigned account is the intended owner.                                                                                                                                |
 | `/api/maps/token` returns 500 with a `listSas` error                                       | The Function's managed identity is missing the Azure Maps Contributor role assignment on the Maps account, or the account name/subscription/resource group app settings are wrong.                                                                                                           |
 | Deploy Functions API fails with `This request is not authorized to perform this operation` | The deploying GitHub OIDC principal lacks data-plane access to the Functions storage account it uploads the package to. Re-run the workflow: the Bicep deployment creates the Storage Blob Data Contributor assignment for `deployer().objectId`, which can take a few minutes to propagate. |
+| Function package upload reports a storage authorization error                              | Check that the workflow created its `github-<run-id>-<attempt>` inbound rule in the Network Security Perimeter profile and that the deploy identity still has Storage Blob Data Contributor on the host storage account.                                                                     |
+| A temporary `github-*` perimeter rule remains after a cancelled workflow                   | Delete that exact rule with `az network perimeter profile access-rule delete --name <rule> --perimeter-name <perimeter> --profile-name function-storage --resource-group <resource-group> --yes`.                                                                                            |
 | Direct calls to the Function App's `*.azurewebsites.net` hostname succeed anonymously      | The `userProvidedFunctionApps` link was removed or another identity provider was added to the Function App, disabling the automatic Static-Web-Apps-only restriction. Re-run the Bicep deployment and do not add another auth provider.                                                      |
 
 ## Routine operational checks

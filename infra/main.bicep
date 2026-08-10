@@ -68,6 +68,8 @@ var storageAccountName = replace('${take(staticWebAppName, 17)}apist', '-', '')
 var hostingPlanName = '${staticWebAppName}-api-plan'
 var mapsAccountName = '${staticWebAppName}-maps'
 var appInsightsName = '${staticWebAppName}-appi'
+var networkSecurityPerimeterName = '${staticWebAppName}-nsp'
+var networkSecurityPerimeterProfileName = 'function-storage'
 
 @description('Built-in role: Azure Maps Contributor. Required to call the listSas control-plane action.')
 var azureMapsContributorRoleId = 'dba33070-676a-4fb0-87fa-064dc56ff7fb'
@@ -136,8 +138,49 @@ resource storageAccount 'Microsoft.Storage/storageAccounts@2023-05-01' = if (ena
   properties: {
     minimumTlsVersion: 'TLS1_2'
     allowBlobPublicAccess: false
+    allowSharedKeyAccess: false
+    publicNetworkAccess: 'SecuredByPerimeter'
     supportsHttpsTrafficOnly: true
   }
+}
+
+resource networkSecurityPerimeter 'Microsoft.Network/networkSecurityPerimeters@2024-07-01' = if (enableApi) {
+  name: networkSecurityPerimeterName
+  location: location
+  tags: tags
+}
+
+resource functionStorageProfile 'Microsoft.Network/networkSecurityPerimeters/profiles@2024-07-01' = if (enableApi) {
+  parent: networkSecurityPerimeter
+  name: networkSecurityPerimeterProfileName
+}
+
+resource functionStorageSubscriptionRule 'Microsoft.Network/networkSecurityPerimeters/profiles/accessRules@2024-07-01' = if (enableApi) {
+  parent: functionStorageProfile
+  name: 'function-host-subscription'
+  properties: {
+    direction: 'Inbound'
+    subscriptions: [
+      {
+        id: subscription().subscriptionId
+      }
+    ]
+  }
+}
+
+resource functionStorageAssociation 'Microsoft.Network/networkSecurityPerimeters/resourceAssociations@2024-07-01' = if (enableApi) {
+  parent: networkSecurityPerimeter
+  name: 'function-storage'
+  properties: {
+    accessMode: 'Enforced'
+    privateLinkResource: {
+      id: storageAccount.id
+    }
+    profile: {
+      id: functionStorageProfile.id
+    }
+  }
+  dependsOn: [functionStorageSubscriptionRule]
 }
 
 resource appInsights 'Microsoft.Insights/components@2020-02-02' = if (enableApi) {
@@ -330,3 +373,12 @@ output mapsAccountName string = enableApi ? mapsAccount.name : ''
 
 @description('Name of the provisioned Application Insights component, or empty when enableApi is false.')
 output appInsightsName string = enableApi ? appInsights.name : ''
+
+@description('Name of the Function host storage account, or empty when enableApi is false.')
+output storageAccountName string = enableApi ? storageAccount.name : ''
+
+@description('Name of the storage Network Security Perimeter, or empty when enableApi is false.')
+output networkSecurityPerimeterName string = enableApi ? networkSecurityPerimeter.name : ''
+
+@description('Name of the storage Network Security Perimeter profile, or empty when enableApi is false.')
+output networkSecurityPerimeterProfileName string = enableApi ? functionStorageProfile.name : ''
