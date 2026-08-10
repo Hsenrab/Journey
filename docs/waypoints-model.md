@@ -63,8 +63,16 @@ Waypoint completion mode supports:
 
 Challenge progress is derived from completed waypoints.
 
-National Trust Bronze/Silver/Gold milestone wording is retained for challenge progress
-presentation.
+Challenge completion is the percentage of waypoints whose completion rule has been
+met: for `once` waypoints, any linked activity completes the waypoint regardless of
+category; for `count` waypoints, completion requires the target number of linked
+activities.
+
+Bronze/Silver/Gold describe how well an activity fits the challenge — they are not
+challenge completion milestones. Each waypoint's category is derived from the highest
+awarded status among its linked activities, and each category count on the challenge
+dashboard represents the number of waypoints whose highest linked activity category
+has that value.
 
 ## External references
 

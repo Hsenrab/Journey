@@ -162,7 +162,7 @@ export function createDemoData(locations: readonly Location[]): WaypointsData {
     category: location.category,
     tags: [location.area, location.category, index % 2 === 0 ? 'weekend' : 'day-trip'],
     challengeIds: ['national-trust', 'autumn-explorers'],
-    completion: index % 3 === 0 ? { mode: 'count', target: 2 } : { mode: 'once' },
+    completion: { mode: 'once' },
     location: { placeName: location.name, addressOrRegion: location.area },
     referenceIds: [`reference-${location.locationId}`],
     photoReferenceIds: [`photo-reference-${location.locationId}`],
@@ -257,8 +257,8 @@ export function createDemoData(locations: readonly Location[]): WaypointsData {
       },
       {
         ideaId: 'idea-checklist',
-        title: 'Completion checklist',
-        description: 'Track repeated visits where a waypoint needs multiple activities.',
+        title: 'Return visit favourites',
+        description: 'Places worth a second look on a quieter day.',
         waypointIds: [waypointIds[0], waypointIds[3]].filter(Boolean),
         challengeIds: ['national-trust'],
         location: { placeName: selected[3]?.name ?? 'Demo waypoint', addressOrRegion: selected[3]?.area },
@@ -326,7 +326,7 @@ export function createDemoData(locations: readonly Location[]): WaypointsData {
         date: '2026-07-20',
         status: 'silver',
         location: { placeName: selected[0]?.name ?? 'Demo waypoint', addressOrRegion: selected[0]?.area },
-        notes: 'Second visit to satisfy count-based completion.',
+        notes: 'Returned for the members-only evening tour and explored the parts missed first time.',
         photos: ['courtyard-second-visit.jpg'],
         referenceIds: [`reference-${waypointIds[0]}`],
         photoReferenceIds: [`photo-reference-${waypointIds[0]}`],
@@ -365,15 +365,16 @@ export function createDemoData(locations: readonly Location[]): WaypointsData {
       },
       {
         activityId: 'activity-demo-7',
-        challengeId: 'autumn-explorers',
-        ideaId: 'idea-checklist',
+        waypointId: waypointIds[4],
+        challengeId: 'garden-route',
+        ideaId: 'idea-picnic-loop',
         date: '2026-07-31',
         status: 'bronze',
-        location: { placeName: 'Trip planning desk', addressOrRegion: 'Home' },
-        notes: 'Planned route and packed checklist for next trip.',
-        photos: [],
-        referenceIds: [`reference-${waypointIds[6]}`],
-        photoReferenceIds: [`photo-reference-${waypointIds[6]}`],
+        location: { placeName: selected[4]?.name ?? 'Demo waypoint', addressOrRegion: selected[4]?.area },
+        notes: 'Stopped for a picnic lunch and a slow walk around the walled garden.',
+        photos: ['walled-garden.jpg'],
+        referenceIds: [`reference-${waypointIds[4]}`],
+        photoReferenceIds: [`photo-reference-${waypointIds[4]}`],
         createdAt: '2026-07-31T20:00:00.000Z',
         updatedAt: '2026-07-31T20:00:00.000Z',
       },
@@ -510,14 +511,4 @@ export function stillToVisit(waypoints: readonly Waypoint[], activities: readonl
 
 export function suggestedNext(waypoints: readonly Waypoint[], activities: readonly Activity[], limit = 3): Waypoint[] {
   return stillToVisit(waypoints, activities).slice(0, limit)
-}
-
-export function challengeMilestone(waypoints: readonly Waypoint[], activities: readonly Activity[]): Status {
-  if (waypoints.length === 0) return 'not-started'
-  const completed = completedWaypointCount(waypoints, activities)
-  const ratio = completed / waypoints.length
-  if (ratio >= 1) return 'gold'
-  if (ratio >= 0.5) return 'silver'
-  if (ratio > 0) return 'bronze'
-  return 'not-started'
 }

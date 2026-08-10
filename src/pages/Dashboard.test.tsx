@@ -38,9 +38,15 @@ function renderDashboard() {
 describe('Dashboard', () => {
   beforeEach(() => localStorage.clear())
 
+  it('shows one clear National Trust Challenge header', () => {
+    renderDashboard()
+    expect(screen.getAllByText('National Trust Challenge', { exact: true })).toHaveLength(1)
+  })
+
   it('shows zero progress when no activities are recorded', () => {
     const seed = createDefaultData()
     renderDashboard()
+    expect(screen.getByText('0% complete')).toBeInTheDocument()
     expect(screen.getByText(`0 of ${seed.waypoints.length} waypoints completed`, { exact: false })).toBeInTheDocument()
   })
 
@@ -56,16 +62,32 @@ describe('Dashboard', () => {
     expect(screen.getByText(`3 of ${seed.waypoints.length} waypoints completed`, { exact: false })).toBeInTheDocument()
   })
 
-  it('derives status counts per waypoint', () => {
-    const seed = createDefaultData()
-    save({ ...seed, activities: [activity(lacockId, 'silver')] })
+  it('derives status counts per waypoint and links each to a filtered Waypoints view', () => {
+    save({ ...createDefaultData(), activities: [activity(lacockId, 'silver')] })
 
     const { getByRole } = renderDashboard()
 
     const silverCard = getByRole('heading', { name: 'Silver' }).closest('div')
     expect(silverCard).toHaveTextContent('1')
 
-    const notStartedCard = getByRole('heading', { name: 'Not Started' }).closest('div')
-    expect(notStartedCard).toHaveTextContent(String(seed.waypoints.length - 1))
+    expect(getByRole('link', { name: 'Bronze 0' })).toHaveAttribute('href', '/waypoints?status=bronze')
+    expect(getByRole('link', { name: 'Silver 1' })).toHaveAttribute('href', '/waypoints?status=silver')
+    expect(getByRole('link', { name: 'Gold 0' })).toHaveAttribute('href', '/waypoints?status=gold')
+  })
+
+  it('formats recent activity dates for the user locale', () => {
+    save({ ...createDefaultData(), activities: [activity(lacockId, 'silver')] })
+
+    renderDashboard()
+
+    expect(screen.getByText(new Date('2026-08-01T00:00:00').toLocaleDateString(), { exact: false })).toBeInTheDocument()
+  })
+
+  it('makes recent-waypoint rows keyboard accessible links to the waypoint', () => {
+    save({ ...createDefaultData(), activities: [activity(lacockId, 'silver')] })
+
+    const { getByRole } = renderDashboard()
+
+    expect(getByRole('link', { name: /Lacock Abbey/ })).toHaveAttribute('href', `/waypoints/${lacockId}`)
   })
 })

@@ -24,7 +24,6 @@ repository-level secrets:
 
 - `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID` — federated
   (OIDC) credentials; no client secret is stored.
-- `AZURE_RESOURCE_GROUP`, `AZURE_STATIC_WEB_APP_NAME` — the deployment target.
 - `AAD_CLIENT_ID`, `AAD_CLIENT_SECRET` — the Microsoft Entra ID app registration
   used for Static Web Apps authentication (see "API authentication and
   authorization" below). `AAD_CLIENT_SECRET` is only ever read by the deploy
@@ -33,8 +32,10 @@ repository-level secrets:
 - `JOURNEY_OWNER_OBJECT_ID` — the immutable object id (`oid`) of the single work
   account permitted to call `/api/*`.
 
-Optional variables: `AZURE_LOCATION` (default `westeurope`) and
-`AZURE_RESOURCE_OWNER` (default `journey-maintainers`).
+Define `AZURE_RESOURCE_GROUP` and `AZURE_STATIC_WEB_APP_NAME` as environment
+variables for the deployment target. Optional variables: `AZURE_LOCATION`
+(default `westeurope`) and `AZURE_RESOURCE_OWNER` (default
+`journey-maintainers`).
 
 The production Static Web Apps deployment token is never stored as a GitHub secret.
 The deploy job reads it from Azure at run time and masks it in the logs.
@@ -142,6 +143,14 @@ the caller's tenant and immutable object id.
   the GitHub-hosted runner's public IPv4 address, creates a uniquely named
   inbound `/32` rule on the storage perimeter, confirms authenticated Blob
   access, deploys the package, and removes the rule even when deployment fails.
+- Because `AzureWebJobsStorage` is identity-based, `Azure/functions-action`
+  deploys a Linux Consumption app by uploading the package zip to the Functions
+  storage account from the runner with the **deploying** principal's own
+  credentials, not the Function App's managed identity. `infra/main.bicep`
+  therefore also grants **Storage Blob Data Contributor** on that storage
+  account to `deployer().objectId`, the GitHub OIDC principal that runs the
+  Bicep deployment. No extra secret or variable is needed; the object id comes
+  from the deployment itself.
 - Pull request previews do not include the API: Azure does not support linked
   Functions backends in Static Web Apps preview environments, so preview
   deployments only carry static content.
@@ -238,14 +247,14 @@ App:
 The workflow uses the same temporary runner `/32` perimeter rule and guaranteed
 cleanup as the production deployment.
 
-It reuses the `azure-test` GitHub environment's OIDC login and resource group secrets, so
+It reuses the `azure-test` GitHub environment's OIDC login and resource group variable, so
 `journey-hsenrab-test` must live in the same resource group as the shared preview resource.
 
 ## Preview environments
 
 Pull requests targeting `main` are published to a Static Web App preview resource,
 identified by the `azure-test` GitHub environment's `AZURE_STATIC_WEB_APP_NAME` /
-`AZURE_RESOURCE_GROUP` secrets. The workflow summary reports the preview URL, and the
+`AZURE_RESOURCE_GROUP` variables. The workflow summary reports the preview URL, and the
 `close_preview` job deletes the preview environment when the pull request is closed.
 That resource must be on the Standard SKU (see "Required configuration" above) because
 `staticwebapp.config.json` always includes the `auth` block, which Static Web Apps
@@ -278,19 +287,20 @@ no server-side database to back up.
 
 ## Troubleshooting
 
-| Symptom                                                                               | Likely cause and action                                                                                                                                                                                                                 |
-| ------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Azure login step fails                                                                | Federated credential subject does not match the `main` branch. Re-check the app registration.                                                                                                                                           |
-| Bicep deployment fails on SKU                                                         | Free-tier apps are no longer used; Standard allows a limited number of apps per subscription. Delete unused apps or request a subscription quota increase.                                                                              |
-| Deploy step reports an invalid token                                                  | The Static Web App was recreated. Re-run the workflow so the token is read again.                                                                                                                                                       |
-| Verification step fails                                                               | The CDN may still be propagating. Re-run the job; if it still fails, roll back.                                                                                                                                                         |
-| Routes return 404 on refresh                                                          | Check `staticwebapp.config.json` navigation fallback is still present.                                                                                                                                                                  |
-| `/api/*` returns 401                                                                  | The signed-in account is not assigned to the Entra enterprise application, or is not signed in. Confirm assignment in the Entra portal.                                                                                                 |
-| `/api/*` returns 403                                                                  | The principal's tenant or object id does not match `JOURNEY_ENTRA_TENANT_ID` / `JOURNEY_OWNER_OBJECT_ID`. Confirm the assigned account is the intended owner.                                                                           |
-| `/api/maps/token` returns 500 with a `listSas` error                                  | The Function's managed identity is missing the Azure Maps Contributor role assignment on the Maps account, or the account name/subscription/resource group app settings are wrong.                                                      |
-| Function package upload reports a storage authorization error                         | Check that the workflow created its `github-<run-id>-<attempt>` inbound rule in the Network Security Perimeter profile and that the deploy identity still has Storage Blob Data Contributor on the host storage account.                 |
-| A temporary `github-*` perimeter rule remains after a cancelled workflow              | Delete that exact rule with `az network perimeter profile access-rule delete --name <rule> --perimeter-name <perimeter> --profile-name function-storage --resource-group <resource-group> --yes`.                                        |
-| Direct calls to the Function App's `*.azurewebsites.net` hostname succeed anonymously | The `userProvidedFunctionApps` link was removed or another identity provider was added to the Function App, disabling the automatic Static-Web-Apps-only restriction. Re-run the Bicep deployment and do not add another auth provider. |
+| Symptom                                                                                    | Likely cause and action                                                                                                                                                                                                                                                                      |
+| ------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Azure login step fails                                                                     | Federated credential subject does not match the `main` branch. Re-check the app registration.                                                                                                                                                                                                |
+| Bicep deployment fails on SKU                                                              | Free-tier apps are no longer used; Standard allows a limited number of apps per subscription. Delete unused apps or request a subscription quota increase.                                                                                                                                   |
+| Deploy step reports an invalid token                                                       | The Static Web App was recreated. Re-run the workflow so the token is read again.                                                                                                                                                                                                            |
+| Verification step fails                                                                    | The CDN may still be propagating. Re-run the job; if it still fails, roll back.                                                                                                                                                                                                              |
+| Routes return 404 on refresh                                                               | Check `staticwebapp.config.json` navigation fallback is still present.                                                                                                                                                                                                                       |
+| `/api/*` returns 401                                                                       | The signed-in account is not assigned to the Entra enterprise application, or is not signed in. Confirm assignment in the Entra portal.                                                                                                                                                      |
+| `/api/*` returns 403                                                                       | The principal's tenant or object id does not match `JOURNEY_ENTRA_TENANT_ID` / `JOURNEY_OWNER_OBJECT_ID`. Confirm the assigned account is the intended owner.                                                                                                                                |
+| `/api/maps/token` returns 500 with a `listSas` error                                       | The Function's managed identity is missing the Azure Maps Contributor role assignment on the Maps account, or the account name/subscription/resource group app settings are wrong.                                                                                                           |
+| Deploy Functions API fails with `This request is not authorized to perform this operation` | The deploying GitHub OIDC principal lacks data-plane access to the Functions storage account it uploads the package to. Re-run the workflow: the Bicep deployment creates the Storage Blob Data Contributor assignment for `deployer().objectId`, which can take a few minutes to propagate. |
+| Function package upload reports a storage authorization error                              | Check that the workflow created its `github-<run-id>-<attempt>` inbound rule in the Network Security Perimeter profile and that the deploy identity still has Storage Blob Data Contributor on the host storage account.                                                                     |
+| A temporary `github-*` perimeter rule remains after a cancelled workflow                   | Delete that exact rule with `az network perimeter profile access-rule delete --name <rule> --perimeter-name <perimeter> --profile-name function-storage --resource-group <resource-group> --yes`.                                                                                            |
+| Direct calls to the Function App's `*.azurewebsites.net` hostname succeed anonymously      | The `userProvidedFunctionApps` link was removed or another identity provider was added to the Function App, disabling the automatic Static-Web-Apps-only restriction. Re-run the Bicep deployment and do not add another auth provider.                                                      |
 
 ## Routine operational checks
 

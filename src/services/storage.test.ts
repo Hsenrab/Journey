@@ -9,7 +9,7 @@ import {
   save,
   setDemoMode,
 } from './storage'
-import { challengeMilestone, statusForWaypoint, type Activity, type WaypointsData } from '../domain/visit'
+import { completedWaypointCount, statusForWaypoint, type Activity, type WaypointsData } from '../domain/visit'
 
 const activity: Activity = {
   activityId: 'a1',
@@ -169,8 +169,8 @@ describe('createDemoModeData', () => {
       return counts
     }, {})
 
-    expect(statusCounts).toMatchObject({ 'not-started': 2, bronze: 1, silver: 3, gold: 2 })
-    expect(demo.waypoints.some((waypoint) => waypoint.completion.mode === 'count')).toBe(true)
+    expect(statusCounts).toMatchObject({ 'not-started': 1, bronze: 2, silver: 3, gold: 2 })
+    expect(demo.waypoints.every((waypoint) => waypoint.completion.mode === 'once')).toBe(true)
     expect(new Set(demo.waypoints.map((waypoint) => waypoint.category)).size).toBeGreaterThanOrEqual(4)
     expect(new Set(demo.waypoints.map((waypoint) => waypoint.location?.addressOrRegion)).size).toBeGreaterThanOrEqual(4)
 
@@ -196,13 +196,16 @@ describe('createDemoModeData', () => {
     const completedWaypoints = demo.waypoints.filter((waypoint) =>
       completedChallenge.waypointIds.includes(waypoint.waypointId),
     )
-    expect(challengeMilestone(completedWaypoints, demo.activities)).toBe('gold')
+    expect(completedWaypoints.length).toBeGreaterThan(0)
+    expect(completedWaypointCount(completedWaypoints, demo.activities)).toBe(completedWaypoints.length)
 
     const partialChallenge = demo.challenges.find((challenge) => challenge.challengeId === 'national-trust')!
     const partialWaypoints = demo.waypoints.filter((waypoint) =>
       partialChallenge.waypointIds.includes(waypoint.waypointId),
     )
-    expect(challengeMilestone(partialWaypoints, demo.activities)).toBe('silver')
+    const partialCompleted = completedWaypointCount(partialWaypoints, demo.activities)
+    expect(partialCompleted).toBeGreaterThan(0)
+    expect(partialCompleted).toBeLessThan(partialWaypoints.length)
 
     expect(demo.challenges).toContainEqual(
       expect.objectContaining({ challengeId: 'future-shortlist', waypointIds: [] }),
@@ -210,5 +213,24 @@ describe('createDemoModeData', () => {
     expect(demo.ideas).toContainEqual(
       expect.objectContaining({ ideaId: 'idea-standalone', waypointIds: [], challengeIds: [] }),
     )
+  })
+
+  it('represents every activity as a real visit that happened at a waypoint', () => {
+    const demo = createDemoModeData()
+
+    expect(demo.activities.every((demoActivity) => demoActivity.waypointId !== undefined)).toBe(true)
+    expect(
+      demo.activities.every((demoActivity) => !/count-based|planned route|packed checklist/i.test(demoActivity.notes)),
+    ).toBe(true)
+
+    const waypointVisitCounts = demo.activities.reduce<Record<string, number>>((counts, demoActivity) => {
+      counts[demoActivity.waypointId!] = (counts[demoActivity.waypointId!] ?? 0) + 1
+      return counts
+    }, {})
+    const revisitedWaypointId = Object.keys(waypointVisitCounts).find((id) => waypointVisitCounts[id]! > 1)
+    expect(revisitedWaypointId).toBeDefined()
+    const revisitedWaypoint = demo.waypoints.find((waypoint) => waypoint.waypointId === revisitedWaypointId)
+    expect(revisitedWaypoint).toBeDefined()
+    expect(revisitedWaypoint!.completion.mode).toBe('once')
   })
 })
