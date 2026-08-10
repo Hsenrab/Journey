@@ -78,6 +78,9 @@ var azureMapsDataReaderRoleId = '423170ca-a8f6-4b0f-8487-9e4eb8f49bfa'
 @description('Built-in role: Storage Blob Data Owner. Required for the Functions host to use an identity-based AzureWebJobsStorage connection.')
 var storageBlobDataOwnerRoleId = 'b7e6dc6d-f1e8-4753-8033-0f276bb0955b'
 
+@description('Built-in role: Storage Blob Data Contributor. Required by the deploying principal, which uploads the Functions package to this storage account itself because AzureWebJobsStorage is identity-based.')
+var storageBlobDataContributorRoleId = 'ba92f5b4-2d11-453d-a403-e96b0029c9fe'
+
 @description('Built-in role: Storage Queue Data Contributor. Required for Functions trigger/queue bindings with an identity-based connection.')
 var storageQueueDataContributorRoleId = '974c5e8b-45b9-4653-ba55-5f855dd0fb88'
 
@@ -259,6 +262,24 @@ resource storageBlobDataOwnerAssignment 'Microsoft.Authorization/roleAssignments
   properties: {
     roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', storageBlobDataOwnerRoleId)
     principalId: functionApp!.identity.principalId
+    principalType: 'ServicePrincipal'
+  }
+}
+
+// Azure/functions-action uploads the deployment package to this storage
+// account from the workflow runner using the deploying principal's own
+// credentials, not the Function App's managed identity, because
+// AzureWebJobsStorage is identity-based. Without data-plane blob access the
+// upload fails with "This request is not authorized to perform this operation".
+resource deployerStorageBlobDataContributorAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = if (enableApi) {
+  name: guid(storageAccount.id, deployer().objectId, storageBlobDataContributorRoleId)
+  scope: storageAccount
+  properties: {
+    roleDefinitionId: subscriptionResourceId(
+      'Microsoft.Authorization/roleDefinitions',
+      storageBlobDataContributorRoleId
+    )
+    principalId: deployer().objectId
     principalType: 'ServicePrincipal'
   }
 }
