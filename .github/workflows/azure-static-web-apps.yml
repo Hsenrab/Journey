@@ -49,11 +49,11 @@ jobs:
         uses: azure/arm-deploy@v2
         with:
           scope: resourcegroup
-          resourceGroupName: ${{ secrets.AZURE_RESOURCE_GROUP }}
+          resourceGroupName: ${{ vars.AZURE_RESOURCE_GROUP }}
           template: ./infra/main.bicep
           parameters: >
             location=${{ vars.AZURE_LOCATION || 'westeurope' }}
-            staticWebAppName=${{ secrets.AZURE_STATIC_WEB_APP_NAME }}
+            staticWebAppName=${{ vars.AZURE_STATIC_WEB_APP_NAME }}
             environmentName=prod
             owner=${{ vars.AZURE_RESOURCE_OWNER || 'journey-maintainers' }}
             repositoryUrl=${{ github.server_url }}/${{ github.repository }}
@@ -135,8 +135,8 @@ jobs:
       - name: Read deployment token
         id: swa_token
         env:
-          RESOURCE_GROUP: ${{ secrets.AZURE_RESOURCE_GROUP }}
-          STATIC_WEB_APP_NAME: ${{ secrets.AZURE_STATIC_WEB_APP_NAME }}
+          RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
+          STATIC_WEB_APP_NAME: ${{ vars.AZURE_STATIC_WEB_APP_NAME }}
         run: |
           set -euo pipefail
           token="$(az staticwebapp secrets list \
@@ -204,7 +204,7 @@ jobs:
       - name: Verify Application Insights is provisioned and connected
         if: needs.infra.outputs.function_app_name != ''
         env:
-          RESOURCE_GROUP: ${{ secrets.AZURE_RESOURCE_GROUP }}
+          RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
           FUNCTION_APP_NAME: ${{ needs.infra.outputs.function_app_name }}
           APP_INSIGHTS_NAME: ${{ needs.infra.outputs.app_insights_name }}
         run: |
@@ -247,8 +247,8 @@ jobs:
       - name: Read deployment token
         id: swa_token
         env:
-          RESOURCE_GROUP: ${{ secrets.AZURE_RESOURCE_GROUP }}
-          STATIC_WEB_APP_NAME: ${{ secrets.AZURE_STATIC_WEB_APP_NAME }}
+          RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
+          STATIC_WEB_APP_NAME: ${{ vars.AZURE_STATIC_WEB_APP_NAME }}
         run: |
           set -euo pipefail
           token="$(az staticwebapp secrets list \
@@ -296,8 +296,8 @@ jobs:
       - name: Read deployment token
         id: swa_token
         env:
-          RESOURCE_GROUP: ${{ secrets.AZURE_RESOURCE_GROUP }}
-          STATIC_WEB_APP_NAME: ${{ secrets.AZURE_STATIC_WEB_APP_NAME }}
+          RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
+          STATIC_WEB_APP_NAME: ${{ vars.AZURE_STATIC_WEB_APP_NAME }}
         run: |
           set -euo pipefail
           token="$(az staticwebapp secrets list \

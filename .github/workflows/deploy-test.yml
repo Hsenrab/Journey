@@ -42,7 +42,7 @@ jobs:
         uses: azure/arm-deploy@v2
         with:
           scope: resourcegroup
-          resourceGroupName: ${{ secrets.AZURE_RESOURCE_GROUP }}
+          resourceGroupName: ${{ vars.AZURE_RESOURCE_GROUP }}
           template: ./infra/main.bicep
           parameters: >
             location=${{ vars.AZURE_LOCATION || 'westeurope' }}
@@ -83,7 +83,7 @@ jobs:
           set -euo pipefail
           token="$(az staticwebapp secrets list \
             --name "${TEST_STATIC_WEB_APP_NAME}" \
-            --resource-group "${{ secrets.AZURE_RESOURCE_GROUP }}" \
+            --resource-group "${{ vars.AZURE_RESOURCE_GROUP }}" \
             --query 'properties.apiKey' --output tsv)"
           echo "::add-mask::${token}"
           echo "token=${token}" >> "$GITHUB_OUTPUT"
@@ -125,7 +125,7 @@ jobs:
 
       - name: Verify Application Insights is provisioned and connected
         env:
-          RESOURCE_GROUP: ${{ secrets.AZURE_RESOURCE_GROUP }}
+          RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
           FUNCTION_APP_NAME: ${{ steps.deploy_bicep.outputs.functionAppName }}
           APP_INSIGHTS_NAME: ${{ steps.deploy_bicep.outputs.appInsightsName }}
         run: |

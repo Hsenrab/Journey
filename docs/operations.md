@@ -24,7 +24,6 @@ repository-level secrets:
 
 - `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID` — federated
   (OIDC) credentials; no client secret is stored.
-- `AZURE_RESOURCE_GROUP`, `AZURE_STATIC_WEB_APP_NAME` — the deployment target.
 - `AAD_CLIENT_ID`, `AAD_CLIENT_SECRET` — the Microsoft Entra ID app registration
   used for Static Web Apps authentication (see "API authentication and
   authorization" below). `AAD_CLIENT_SECRET` is only ever read by the deploy
@@ -33,8 +32,10 @@ repository-level secrets:
 - `JOURNEY_OWNER_OBJECT_ID` — the immutable object id (`oid`) of the single work
   account permitted to call `/api/*`.
 
-Optional variables: `AZURE_LOCATION` (default `westeurope`) and
-`AZURE_RESOURCE_OWNER` (default `journey-maintainers`).
+Define `AZURE_RESOURCE_GROUP` and `AZURE_STATIC_WEB_APP_NAME` as environment
+variables for the deployment target. Optional variables: `AZURE_LOCATION`
+(default `westeurope`) and `AZURE_RESOURCE_OWNER` (default
+`journey-maintainers`).
 
 The production Static Web Apps deployment token is never stored as a GitHub secret.
 The deploy job reads it from Azure at run time and masks it in the logs.
@@ -224,14 +225,14 @@ App:
 3. Deploys the built static content to `journey-hsenrab-test`'s primary environment
    (not a PR preview slot).
 
-It reuses the `azure-test` GitHub environment's OIDC login and resource group secrets, so
+It reuses the `azure-test` GitHub environment's OIDC login and resource group variable, so
 `journey-hsenrab-test` must live in the same resource group as the shared preview resource.
 
 ## Preview environments
 
 Pull requests targeting `main` are published to a Static Web App preview resource,
 identified by the `azure-test` GitHub environment's `AZURE_STATIC_WEB_APP_NAME` /
-`AZURE_RESOURCE_GROUP` secrets. The workflow summary reports the preview URL, and the
+`AZURE_RESOURCE_GROUP` variables. The workflow summary reports the preview URL, and the
 `close_preview` job deletes the preview environment when the pull request is closed.
 That resource must be on the Standard SKU (see "Required configuration" above) because
 `staticwebapp.config.json` always includes the `auth` block, which Static Web Apps
