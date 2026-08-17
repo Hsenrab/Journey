@@ -22,6 +22,20 @@ type SearchResult = {
   type?: string
 }
 
+async function requestApi(path: string, operation: string): Promise<Response> {
+  const response = await fetch(path, { redirect: 'manual' })
+  if (response.type === 'opaqueredirect') {
+    throw new Error(`${operation} requires sign-in. Reload the page to sign in with your work account.`)
+  }
+  if (response.status === 404) {
+    throw new Error(
+      `${operation} is unavailable in this environment because the Maps API is not deployed. Pull request previews do not include the API; use the production site.`,
+    )
+  }
+  if (!response.ok) throw new Error(`${operation} failed: ${await response.text()}`)
+  return response
+}
+
 async function responseJson<T>(response: Response, operation: string): Promise<T> {
   const contentType = response.headers.get('content-type')
   if (!contentType || !contentType.includes('application/json')) {
@@ -31,8 +45,7 @@ async function responseJson<T>(response: Response, operation: string): Promise<T
 }
 
 async function getMapsToken(): Promise<MapsToken> {
-  const response = await fetch('/api/maps/token')
-  if (!response.ok) throw new Error(`Map access failed: ${await response.text()}`)
+  const response = await requestApi('/api/maps/token', 'Map access')
   return responseJson<MapsToken>(response, 'Map access')
 }
 
@@ -173,9 +186,11 @@ export default function MapPage() {
 
   const findNearby = async () => {
     setError(null)
-    const response = await fetch(`/api/maps/search?query=${encodeURIComponent(originQuery)}`)
-    if (!response.ok) {
-      setError(`Nearby search failed: ${await response.text()}`)
+    let response: Response
+    try {
+      response = await requestApi(`/api/maps/search?query=${encodeURIComponent(originQuery)}`, 'Nearby search')
+    } catch (cause: unknown) {
+      setError(cause instanceof Error ? cause.message : String(cause))
       return
     }
     const body = await responseJson<{ results: Array<{ position?: { lat: number; lon: number } }> }>(

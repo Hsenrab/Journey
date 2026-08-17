@@ -181,7 +181,11 @@ the caller's tenant and immutable object id.
   from the deployment itself.
 - Pull request previews do not include the API: Azure does not support linked
   Functions backends in Static Web Apps preview environments, so preview
-  deployments only carry static content.
+  deployments only carry static content. `staticwebapp.config.json` excludes
+  `/api/*` from the SPA `navigationFallback`, so those requests return 404
+  rather than `index.html`, and the Map page reports that the Maps API is not
+  deployed in the current environment instead of failing on an HTML body. Use
+  the production site to exercise the map.
 
 ### Diagnostics
 
