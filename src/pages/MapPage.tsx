@@ -23,9 +23,9 @@ type SearchResult = {
 }
 
 async function responseJson<T>(response: Response, operation: string): Promise<T> {
-  const contentType = response.headers?.get('content-type')
-  if (contentType && !contentType.includes('application/json')) {
-    throw new Error(`${operation} returned ${contentType} instead of JSON.`)
+  const contentType = response.headers.get('content-type')
+  if (!contentType || !contentType.includes('application/json')) {
+    throw new Error(`${operation} returned ${contentType ?? 'no content type'} instead of JSON.`)
   }
   return (await response.json()) as T
 }

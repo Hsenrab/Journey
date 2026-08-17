@@ -11,6 +11,14 @@ type MapClickHandler = (event: {
 
 const mapEvents = vi.hoisted(() => ({ click: undefined as MapClickHandler | undefined }))
 
+function jsonResponse(body: unknown) {
+  return {
+    ok: true,
+    headers: new Headers({ 'content-type': 'application/json' }),
+    json: () => Promise.resolve(body),
+  }
+}
+
 vi.mock('azure-maps-control', () => ({
   AuthenticationType: { sas: 'sas' },
   Map: class {
@@ -94,8 +102,8 @@ describe('MapPage', () => {
       'fetch',
       vi
         .fn()
-        .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve({ token: 'sas', expiresOn: '2026-01-01' }) })
-        .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve({ results: [] }) }),
+        .mockResolvedValueOnce(jsonResponse({ token: 'sas', expiresOn: '2026-01-01' }))
+        .mockResolvedValueOnce(jsonResponse({ results: [] })),
     )
     render(
       <MemoryRouter>
@@ -118,17 +126,15 @@ describe('MapPage', () => {
       'fetch',
       vi
         .fn()
-        .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve({ token: 'sas', expiresOn: '2026-01-01' }) })
-        .mockResolvedValueOnce({
-          ok: true,
-          json: () =>
-            Promise.resolve({
-              results: [
-                { address: { freeformAddress: 'Brockworth A' }, position: { lat: 51.8, lon: -2.1 } },
-                { address: { freeformAddress: 'Brockworth B' }, position: { lat: 51.9, lon: -2.2 } },
-              ],
-            }),
-        }),
+        .mockResolvedValueOnce(jsonResponse({ token: 'sas', expiresOn: '2026-01-01' }))
+        .mockResolvedValueOnce(
+          jsonResponse({
+            results: [
+              { address: { freeformAddress: 'Brockworth A' }, position: { lat: 51.8, lon: -2.1 } },
+              { address: { freeformAddress: 'Brockworth B' }, position: { lat: 51.9, lon: -2.2 } },
+            ],
+          }),
+        ),
     )
     render(
       <MemoryRouter>
@@ -149,14 +155,12 @@ describe('MapPage', () => {
       'fetch',
       vi
         .fn()
-        .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve({ token: 'sas', expiresOn: '2026-01-01' }) })
-        .mockResolvedValueOnce({
-          ok: true,
-          json: () =>
-            Promise.resolve({
-              results: [{ address: { freeformAddress: 'Oxford' }, position: { lat: 51.752, lon: -1.258 } }],
-            }),
-        }),
+        .mockResolvedValueOnce(jsonResponse({ token: 'sas', expiresOn: '2026-01-01' }))
+        .mockResolvedValueOnce(
+          jsonResponse({
+            results: [{ address: { freeformAddress: 'Oxford' }, position: { lat: 51.752, lon: -1.258 } }],
+          }),
+        ),
     )
     render(
       <MemoryRouter>
@@ -176,7 +180,7 @@ describe('MapPage', () => {
       'fetch',
       vi
         .fn()
-        .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve({ token: 'sas', expiresOn: '2026-01-01' }) })
+        .mockResolvedValueOnce(jsonResponse({ token: 'sas', expiresOn: '2026-01-01' }))
         .mockResolvedValueOnce({ ok: false, text: () => Promise.resolve('Search requires authentication') }),
     )
     render(
@@ -220,10 +224,7 @@ describe('MapPage', () => {
     })
     localStorage.setItem('waypoints-v1', JSON.stringify(data))
     const user = userEvent.setup()
-    vi.stubGlobal(
-      'fetch',
-      vi.fn().mockResolvedValue({ ok: true, json: () => Promise.resolve({ token: 'sas', expiresOn: '2026-01-01' }) }),
-    )
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(jsonResponse({ token: 'sas', expiresOn: '2026-01-01' })))
     render(
       <MemoryRouter>
         <WaypointsProvider>
@@ -242,10 +243,7 @@ describe('MapPage', () => {
     const waypoint = data.waypoints[0]!
     waypoint.location = { ...waypoint.location, latitude: 51.84, longitude: -2.15 }
     localStorage.setItem('waypoints-v1', JSON.stringify(data))
-    vi.stubGlobal(
-      'fetch',
-      vi.fn().mockResolvedValue({ ok: true, json: () => Promise.resolve({ token: 'sas', expiresOn: '2026-01-01' }) }),
-    )
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(jsonResponse({ token: 'sas', expiresOn: '2026-01-01' })))
     render(
       <MemoryRouter>
         <WaypointsProvider>
