@@ -64,7 +64,8 @@ var tags = union(
 )
 
 var functionAppName = '${staticWebAppName}-api'
-var storageAccountName = replace('${take(staticWebAppName, 17)}apist', '-', '')
+var storageAccountPrefix = replace(take(toLower(staticWebAppName), 9), '-', '')
+var storageAccountName = '${storageAccountPrefix}${uniqueString(resourceGroup().id, staticWebAppName)}st'
 var hostingPlanName = '${staticWebAppName}-api-plan'
 var mapsAccountName = '${staticWebAppName}-maps'
 var appInsightsName = '${staticWebAppName}-appi'

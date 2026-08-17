@@ -173,6 +173,8 @@ the caller's tenant and immutable object id.
   permits network access from Azure resources in the deployment subscription;
   Microsoft Entra authentication and the storage data-plane role assignments
   still determine which identities can access storage data.
+- The host storage account name includes a stable resource-group-specific suffix
+  because Azure Storage account names are globally unique.
 - The GitHub OIDC deployment principal has the custom **Journey NSP Subscription
   Join** role at subscription scope. Its only action is
   `Microsoft.Network/networkSecurityPerimeters/joinPerimeterRule/action`, which
