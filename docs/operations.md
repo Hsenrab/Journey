@@ -252,10 +252,11 @@ verification failures are reported with an `::error::` annotation.
 
 ## Main branch protection
 
-GitHub repository settings, which are not stored in source control, should protect
-`main` with a ruleset named **Protect main with PR validation**. The ruleset targets
-only `main`, is enforced for repository administrators, and allows only the
-explicitly assigned owner bypass actor for emergencies.
+This policy requires a manual GitHub repository settings change: rulesets are not
+stored in source control. In GitHub, go to **Settings → Rules → Rulesets → New
+ruleset → New branch ruleset** and create **Protect main with PR validation**. The
+ruleset targets only `main`, is enforced for repository administrators, and allows
+only the explicitly assigned owner bypass actor for emergencies.
 
 Active rules:
 
