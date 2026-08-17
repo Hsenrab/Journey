@@ -250,6 +250,46 @@ integration needs to be fully removed.
 Failures surface in the GitHub Actions run: the failing job is marked red and
 verification failures are reported with an `::error::` annotation.
 
+## Main branch protection
+
+GitHub repository settings, which are not stored in source control, should protect
+`main` with a ruleset named **Protect main with PR validation**. The ruleset targets
+only `main`, is enforced for repository administrators, and allows only the
+explicitly assigned owner bypass actor for emergencies.
+
+Active rules:
+
+- Changes must reach `main` through a pull request.
+- The required status check is the standalone CI workflow's **Validate** job
+  (`CI / Validate`). The Azure Static Web Apps deployment workflow is not required.
+- Required status checks must pass on a branch that is up to date with `main`, so
+  GitHub blocks merging while `Validate` is missing, pending, failing, cancelled, or
+  based on an out-of-date merge candidate.
+- Direct pushes, force pushes, and branch deletion are blocked.
+- Approving reviews, code-owner reviews, signed commits, linear history, merge queue,
+  deployment success, and conversation resolution are not required for this
+  single-maintainer repository.
+
+Verification checklist for the active policy:
+
+- A test pull request could not merge while `CI / Validate` was pending.
+- A failing `CI / Validate` result kept the pull request blocked.
+- A branch behind `main` had to be updated and revalidated before merge became
+  available.
+- A current pull request with a passing `CI / Validate` check could merge without an
+  approval.
+- Direct push and force-push attempts to `main` were rejected, and branch deletion was
+  blocked.
+
+### Emergency recovery when CI is broken
+
+Use the bypass only to recover from a broken CI workflow that prevents otherwise safe
+fixes from merging. Open a pull request containing the smallest CI fix, record the
+failed `CI / Validate` run in the pull request, and use the owner bypass to merge that
+pull request. Do not bypass for product code changes. Immediately open a follow-up
+pull request if needed, confirm `CI / Validate` is green again on an up-to-date branch,
+and confirm the ruleset still targets `main` with the rules above.
+
 ## Deploying manually
 
 ```sh
