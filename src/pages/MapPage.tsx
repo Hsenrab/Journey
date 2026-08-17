@@ -22,10 +22,18 @@ type SearchResult = {
   type?: string
 }
 
+async function responseJson<T>(response: Response, operation: string): Promise<T> {
+  const contentType = response.headers?.get('content-type')
+  if (contentType && !contentType.includes('application/json')) {
+    throw new Error(`${operation} returned ${contentType} instead of JSON.`)
+  }
+  return (await response.json()) as T
+}
+
 async function getMapsToken(): Promise<MapsToken> {
   const response = await fetch('/api/maps/token')
   if (!response.ok) throw new Error(`Map access failed: ${await response.text()}`)
-  return (await response.json()) as MapsToken
+  return responseJson<MapsToken>(response, 'Map access')
 }
 
 export default function MapPage() {
@@ -170,7 +178,10 @@ export default function MapPage() {
       setError(`Nearby search failed: ${await response.text()}`)
       return
     }
-    const body = (await response.json()) as { results: Array<{ position?: { lat: number; lon: number } }> }
+    const body = await responseJson<{ results: Array<{ position?: { lat: number; lon: number } }> }>(
+      response,
+      'Nearby search',
+    )
     const results = body.results.filter((result) => result.position)
     if (results.length === 0) {
       setError('No places matched that search. Choose another postcode or place.')

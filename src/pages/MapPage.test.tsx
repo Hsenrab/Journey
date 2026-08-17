@@ -70,6 +70,24 @@ describe('MapPage', () => {
     expect(await screen.findByText('Map access failed: Sign in required')).toBeInTheDocument()
   })
 
+  it('reports an HTML response from the Maps API instead of attempting to parse it as JSON', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: true,
+        headers: new Headers({ 'content-type': 'text/html' }),
+      }),
+    )
+    render(
+      <MemoryRouter>
+        <WaypointsProvider>
+          <MapPage />
+        </WaypointsProvider>
+      </MemoryRouter>,
+    )
+    expect(await screen.findByText('Map access returned text/html instead of JSON.')).toBeInTheDocument()
+  })
+
   it('keeps layer and status filters while showing an explicit no-results origin error', async () => {
     const user = userEvent.setup()
     vi.stubGlobal(
