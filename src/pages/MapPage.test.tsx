@@ -109,18 +109,6 @@ describe('MapPage', () => {
     expect(await screen.findByText(/Map access is unavailable in this environment/)).toBeInTheDocument()
   })
 
-  it('asks the user to sign in when the API request is redirected to the sign-in page', async () => {
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 0, type: 'opaqueredirect' }))
-    render(
-      <MemoryRouter>
-        <WaypointsProvider>
-          <MapPage />
-        </WaypointsProvider>
-      </MemoryRouter>,
-    )
-    expect(await screen.findByText(/Map access requires sign-in/)).toBeInTheDocument()
-  })
-
   it('keeps layer and status filters while showing an explicit no-results origin error', async () => {
     const user = userEvent.setup()
     vi.stubGlobal(

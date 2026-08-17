@@ -96,11 +96,12 @@ Assigned work user
 3. Store the application id and secret as the `AAD_CLIENT_ID` /
    `AAD_CLIENT_SECRET` GitHub secrets, and the owner's object id (`oid`, found
    on the user's Entra ID profile) as `JOURNEY_OWNER_OBJECT_ID`.
-4. `staticwebapp.config.json` restricts `/api/*` to the `authenticated` role
-   and configures the Entra ID identity provider. The deploy and preview
-   workflow jobs substitute the `AAD_TENANT_ID` placeholder in that file with
-   the real tenant id at deploy time, since Static Web Apps does not support an
-   app-setting reference for the OpenID issuer URL.
+4. `staticwebapp.config.json` restricts all application routes and `/api/*` to
+   the `authenticated` role, leaves `/.auth/*` reachable for the platform login
+   endpoints, and configures the Entra ID identity provider. The deploy and
+   preview workflow jobs substitute the `AAD_TENANT_ID` placeholder in that file
+   with the real tenant id at deploy time, since Static Web Apps does not support
+   an app-setting reference for the OpenID issuer URL.
 5. Managing and revoking access — add or remove the enterprise application
    assignment in the Entra portal. This repository does not build a roles or
    administration UI; access changes always go through the portal.
@@ -125,6 +126,22 @@ identity is present, so `az login` with an account that has the required Azure
 Maps roles is required to exercise token issuance locally. Because Static Web
 Apps' proxy is not present locally, `x-ms-client-principal` must be supplied by
 hand (for example with `curl -H`) to test principal validation end to end.
+
+### Application access flow
+
+- Journey is sign-in first. An unauthenticated request to `/`, `/waypoints`,
+  `/activities`, `/map`, `/settings`, or a supported client-side deep link is
+  rejected by Static Web Apps before the React app loads.
+- The 401 response override redirects to
+  `/.auth/login/aad?post_login_redirect_uri=.referrer`, which starts Microsoft
+  Entra sign-in and returns the browser to the originally requested route after a
+  successful sign-in.
+- Only the explicitly assigned owner work account should be assigned to the
+  Enterprise application. Unassigned users, users from another tenant, and
+  personal Microsoft accounts cannot complete the app sign-in flow.
+- `/api/*` remains protected by Static Web Apps, and the Functions API still
+  validates the Static Web Apps principal's provider (`aad`), tenant id,
+  authenticated role, and immutable owner object id before calling Azure Maps.
 
 ### RBAC (managed identity to Azure Maps)
 
@@ -326,6 +343,9 @@ no server-side database to back up.
 | Deploy step reports an invalid token                                                       | The Static Web App was recreated. Re-run the workflow so the token is read again.                                                                                                                                                                                                            |
 | Verification step fails                                                                    | The CDN may still be propagating. Re-run the job; if it still fails, roll back.                                                                                                                                                                                                              |
 | Routes return 404 on refresh                                                               | Check `staticwebapp.config.json` navigation fallback is still present.                                                                                                                                                                                                                       |
+| Application routes do not redirect to Entra sign-in                                        | Confirm the catch-all `/*` route in `staticwebapp.config.json` still requires the `authenticated` role and the 401 override redirects to `/.auth/login/aad?post_login_redirect_uri=.referrer`.                                                                                                |
+| Sign-in succeeds but returns to the wrong page                                             | Confirm the 401 override still uses `post_login_redirect_uri=.referrer`; without it, Static Web Apps may return to the default post-login page instead of the originally requested deep link.                                                                                                  |
+| Owner work account cannot sign in                                                         | Confirm the account is assigned to the Entra Enterprise application, the app registration is single-tenant, and the deployed OpenID issuer contains the expected tenant id.                                                                                                                     |
 | `/api/*` returns 401                                                                       | The signed-in account is not assigned to the Entra enterprise application, or is not signed in. Confirm assignment in the Entra portal.                                                                                                                                                      |
 | `/api/*` returns 403                                                                       | The principal's tenant or object id does not match `JOURNEY_ENTRA_TENANT_ID` / `JOURNEY_OWNER_OBJECT_ID`. Confirm the assigned account is the intended owner.                                                                                                                                |
 | `/api/maps/token` returns 500 with a `listSas` error                                       | The Function's managed identity is missing the Azure Maps Contributor role assignment on the Maps account, or the account name/subscription/resource group app settings are wrong.                                                                                                           |
