@@ -17,14 +17,25 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  guard:
+    name: Guard production dispatch
+    runs-on: ubuntu-latest
+    steps:
+      - name: Reject workflow_dispatch from a non-main branch
+        if: github.event_name == 'workflow_dispatch' && github.ref != 'refs/heads/main'
+        run: |
+          echo "::error::Production deploys can only be dispatched from the main branch. Use the 'Deploy test environment' workflow for branch testing."
+          exit 1
+
   validate:
     name: Validate
+    needs: guard
     if: github.event_name != 'pull_request' || github.event.action != 'closed'
     uses: ./.github/workflows/ci.yml
 
   infra:
     name: Provision infrastructure
-    needs: validate
+    needs: [guard, validate]
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     environment: azure-prod
@@ -75,7 +86,7 @@ jobs:
 
   deploy_api:
     name: Deploy Functions API
-    needs: infra
+    needs: [guard, infra]
     if: needs.infra.outputs.function_app_name != ''
     runs-on: ubuntu-latest
     environment: azure-prod
@@ -174,7 +185,7 @@ jobs:
 
   deploy:
     name: Deploy application
-    needs: [infra, deploy_api]
+    needs: [guard, infra, deploy_api]
     if: always() && needs.infra.result == 'success' && (needs.deploy_api.result == 'success' || needs.deploy_api.result == 'skipped')
     runs-on: ubuntu-latest
     environment: azure-prod
@@ -281,7 +292,15 @@ jobs:
             --query "[?name=='APPLICATIONINSIGHTS_CONNECTION_STRING'].value" --output tsv)"
           test -n "${connection_string}"
 
+  # PR previews hang off the test Static Web App (see the `environment: azure-test`
+  # below, which resolves `vars.AZURE_STATIC_WEB_APP_NAME` to the test SWA). Azure
+  # Static Web Apps only serves a linked Functions backend on an app's production
+  # environment, never on preview environments, so previews never have a working
+  # /api/* endpoint regardless of which SWA they hang off. Anything that needs the
+  # Functions API (Azure Maps token issuance, search) must be validated with a
+  # manual "Deploy test environment" run instead.
   preview:
+    name: Deploy PR preview (test SWA)
     needs: validate
     if: github.event_name == 'pull_request' && github.event.action != 'closed'
     runs-on: ubuntu-latest
@@ -337,9 +356,15 @@ jobs:
       - name: Publish preview URL
         env:
           PREVIEW_URL: ${{ steps.deploy_preview.outputs.static_web_app_url }}
+          STATIC_WEB_APP_NAME: ${{ vars.AZURE_STATIC_WEB_APP_NAME }}
         run: |
+          set -euo pipefail
           test -n "$PREVIEW_URL"
-          echo "Preview URL: $PREVIEW_URL" >> "$GITHUB_STEP_SUMMARY"
+          {
+            echo "Preview environment deployed to test SWA: $STATIC_WEB_APP_NAME"
+            echo "Preview URL: $PREVIEW_URL"
+            echo "Note: this preview has no working /api/* backend (Azure Static Web Apps limitation)."
+          } >> "$GITHUB_STEP_SUMMARY"
 
   close_preview:
     name: Close pull request preview

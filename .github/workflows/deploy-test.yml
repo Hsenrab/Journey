@@ -2,22 +2,90 @@ name: Deploy test environment
 
 on:
   workflow_dispatch:
+    inputs:
+      deploy_api:
+        description: 'Deploy the Functions API (auto = only when api/ or infra/ changed since the last successful test deploy)'
+        type: choice
+        options: [auto, 'true', 'false']
+        default: auto
 
 permissions:
   contents: read
   id-token: write
+  actions: read
 
 concurrency:
-  group: deploy-test-journey-hsenrab-test
+  group: deploy-test-${{ github.workflow }}
   cancel-in-progress: true
 
 jobs:
+  plan:
+    name: Plan deployment
+    runs-on: ubuntu-latest
+    outputs:
+      deploy_api: ${{ steps.decide.outputs.deploy_api }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Decide whether to deploy the API
+        id: decide
+        env:
+          GH_TOKEN: ${{ github.token }}
+          INPUT_DEPLOY_API: ${{ inputs.deploy_api }}
+        run: |
+          set -euo pipefail
+
+          if [ "${INPUT_DEPLOY_API}" = "true" ] || [ "${INPUT_DEPLOY_API}" = "false" ]; then
+            echo "deploy_api=${INPUT_DEPLOY_API}" >> "$GITHUB_OUTPUT"
+            {
+              echo "### Deploy test environment plan"
+              echo "\`deploy_api\` input explicitly set to \`${INPUT_DEPLOY_API}\`."
+            } >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          last_success_sha="$(gh api \
+            "/repos/${{ github.repository }}/actions/workflows/deploy-test.yml/runs?status=success&per_page=1" \
+            --jq '.workflow_runs[0].head_sha // empty')"
+
+          echo "### Deploy test environment plan" >> "$GITHUB_STEP_SUMMARY"
+
+          if [ -z "${last_success_sha}" ]; then
+            echo "deploy_api=true" >> "$GITHUB_OUTPUT"
+            echo "No previous successful run found; deploying the API (fail safe)." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          if ! git cat-file -e "${last_success_sha}^{commit}" 2>/dev/null; then
+            echo "deploy_api=true" >> "$GITHUB_OUTPUT"
+            echo "Last successful commit ${last_success_sha} is not reachable in history; deploying the API (fail safe)." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          changed_paths="$(git diff --name-only "${last_success_sha}...HEAD")"
+          {
+            echo "Changed paths since last successful run (${last_success_sha}):"
+            echo '```'
+            echo "${changed_paths:-<none>}"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          if echo "${changed_paths}" | grep -qE '^(api/|infra/|staticwebapp\.config\.json|\.github/workflows/deploy-test\.yml)'; then
+            echo "deploy_api=true" >> "$GITHUB_OUTPUT"
+            echo "Decision: deploy the API (relevant paths changed)." >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "deploy_api=false" >> "$GITHUB_OUTPUT"
+            echo "Decision: skip the API deploy (only frontend files changed)." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
   test_deploy:
-    name: Deploy journey-hsenrab-test
+    name: Deploy journey test environment
+    needs: plan
     runs-on: ubuntu-latest
     environment: azure-test
-    env:
-      TEST_STATIC_WEB_APP_NAME: journey-hsenrab-test
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -46,7 +114,7 @@ jobs:
           template: ./infra/main.bicep
           parameters: >
             location=${{ vars.AZURE_LOCATION || 'westeurope' }}
-            staticWebAppName=${{ env.TEST_STATIC_WEB_APP_NAME }}
+            staticWebAppName=${{ vars.AZURE_STATIC_WEB_APP_NAME }}
             environmentName=dev
             enableApi=true
             owner=${{ vars.AZURE_RESOURCE_OWNER || 'journey-maintainers' }}
@@ -58,6 +126,7 @@ jobs:
             ownerObjectId=${{ secrets.JOURNEY_OWNER_OBJECT_ID }}
 
       - name: Setup Node.js
+        if: needs.plan.outputs.deploy_api == 'true'
         uses: actions/setup-node@v5
         with:
           node-version: 24
@@ -65,6 +134,7 @@ jobs:
           cache-dependency-path: api/package-lock.json
 
       - name: Install and build API
+        if: needs.plan.outputs.deploy_api == 'true'
         working-directory: api
         run: |
           npm ci
@@ -72,6 +142,7 @@ jobs:
 
       - name: Allow runner access to Function storage
         id: allow_function_storage
+        if: needs.plan.outputs.deploy_api == 'true'
         env:
           RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
           STORAGE_ACCOUNT_NAME: ${{ steps.deploy_bicep.outputs.storageAccountName }}
@@ -116,6 +187,7 @@ jobs:
           done
 
       - name: Deploy to Azure Functions
+        if: needs.plan.outputs.deploy_api == 'true'
         uses: Azure/functions-action@v1
         with:
           app-name: ${{ steps.deploy_bicep.outputs.functionAppName }}
@@ -123,7 +195,7 @@ jobs:
           respect-funcignore: true
 
       - name: Remove runner access to Function storage
-        if: always() && steps.allow_function_storage.outputs.rule_name != ''
+        if: always() && needs.plan.outputs.deploy_api == 'true' && steps.allow_function_storage.outputs.rule_name != ''
         env:
           RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
           PERIMETER_NAME: ${{ steps.deploy_bicep.outputs.networkSecurityPerimeterName }}
@@ -141,10 +213,12 @@ jobs:
 
       - name: Read deployment token
         id: swa_token
+        env:
+          STATIC_WEB_APP_NAME: ${{ vars.AZURE_STATIC_WEB_APP_NAME }}
         run: |
           set -euo pipefail
           token="$(az staticwebapp secrets list \
-            --name "${TEST_STATIC_WEB_APP_NAME}" \
+            --name "${STATIC_WEB_APP_NAME}" \
             --resource-group "${{ vars.AZURE_RESOURCE_GROUP }}" \
             --query 'properties.apiKey' --output tsv)"
           echo "::add-mask::${token}"
@@ -159,7 +233,32 @@ jobs:
           app_location: /
           output_location: dist
 
+      - name: Publish application URL to the job summary
+        env:
+          APPLICATION_URL: ${{ steps.deploy_bicep.outputs.applicationUrl }}
+        run: |
+          echo "### Journey test environment" >> "$GITHUB_STEP_SUMMARY"
+          echo "Application URL: ${APPLICATION_URL}" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Verify deployment
+        env:
+          APPLICATION_URL: ${{ steps.deploy_bicep.outputs.applicationUrl }}
+        run: |
+          set -euo pipefail
+          for attempt in 1 2 3 4 5; do
+            status="$(curl --silent --show-error --location --max-time 30 \
+              --output /dev/null --write-out '%{http_code}' "${APPLICATION_URL}" || echo '000')"
+            echo "Attempt ${attempt}: HTTP ${status}"
+            if [ "${status}" = "200" ]; then
+              exit 0
+            fi
+            sleep 15
+          done
+          echo "::error::Deployment verification failed for ${APPLICATION_URL}"
+          exit 1
+
       - name: Verify anonymous requests to /api/* are denied
+        if: steps.deploy_bicep.outputs.functionAppName != ''
         env:
           APPLICATION_URL: ${{ steps.deploy_bicep.outputs.applicationUrl }}
         run: |
@@ -173,6 +272,7 @@ jobs:
           fi
 
       - name: Verify the Function App's default hostname rejects direct requests
+        if: steps.deploy_bicep.outputs.functionAppHostname != ''
         env:
           FUNCTION_APP_HOSTNAME: ${{ steps.deploy_bicep.outputs.functionAppHostname }}
         run: |
@@ -186,6 +286,7 @@ jobs:
           fi
 
       - name: Verify Application Insights is provisioned and connected
+        if: steps.deploy_bicep.outputs.functionAppName != ''
         env:
           RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
           FUNCTION_APP_NAME: ${{ steps.deploy_bicep.outputs.functionAppName }}

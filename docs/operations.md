@@ -266,31 +266,61 @@ safe to re-run. Use `--what-if` first to preview changes.
 ## Manual test deployment
 
 The `Deploy test environment` GitHub Actions workflow (`.github/workflows/deploy-test.yml`)
-is triggered only via **Run workflow** (`workflow_dispatch`). It provisions and deploys a
-full stack, including the API boundary, to a dedicated `journey-hsenrab-test` Static Web
-App:
+is triggered only via **Run workflow** (`workflow_dispatch`), from any branch. It provisions
+and deploys a full stack to the Static Web App identified by the `azure-test` GitHub
+environment's `AZURE_STATIC_WEB_APP_NAME` variable — the same app previews target (see
+"Preview environments" below):
 
-1. Deploys `infra/main.bicep` with `staticWebAppName=journey-hsenrab-test`,
-   `environmentName=dev`, and `enableApi=true`.
-2. Builds and deploys the Functions package (`api/`) to the provisioned Function App.
-3. Deploys the built static content to `journey-hsenrab-test`'s primary environment
-   (not a PR preview slot).
+1. A `plan` job resolves the `deploy_api` input (`auto`, `true`, or `false`):
+   - `true` always builds and deploys the Functions API.
+   - `false` skips the API build, the NSP access-rule steps, and the Functions deploy
+     entirely, deploying static content only.
+   - `auto` (the default) compares the current commit against the `head_sha` of the most
+     recent **successful** `Deploy test environment` run (via the GitHub API) and deploys
+     the API only if `api/`, `infra/`, `staticwebapp.config.json`, or the workflow file
+     itself changed since then. If there is no previous successful run, or that commit is
+     no longer reachable in history, it fails safe and deploys the API. The decision and
+     the changed paths are written to the job summary.
+2. Deploys `infra/main.bicep` with `environmentName=dev` and `enableApi=true` on every run
+   (idempotent, so this always runs regardless of the `deploy_api` decision).
+3. When the API is being deployed, builds and deploys the Functions package (`api/`) to the
+   provisioned Function App.
+4. Deploys the built static content to the test Static Web App's primary environment (not a
+   PR preview slot), so the linked Function backend — when deployed — is active.
+5. Publishes the application URL to the job summary and, when the API exists, verifies that
+   anonymous `/api/maps/token` requests redirect to sign-in (302) and that the Function
+   App's default hostname rejects direct requests, mirroring the production workflow's
+   verification steps.
 
 The workflow uses the same temporary runner `/32` perimeter rule and guaranteed
-cleanup as the production deployment.
-
-It reuses the `azure-test` GitHub environment's OIDC login and resource group variable, so
-`journey-hsenrab-test` must live in the same resource group as the shared preview resource.
+cleanup as the production deployment, and reuses the `azure-test` GitHub environment's
+OIDC login and resource group variable, so the test Static Web App must live in the same
+resource group as the shared preview resource.
 
 ## Preview environments
 
 Pull requests targeting `main` are published to a Static Web App preview resource,
 identified by the `azure-test` GitHub environment's `AZURE_STATIC_WEB_APP_NAME` /
-`AZURE_RESOURCE_GROUP` variables. The workflow summary reports the preview URL, and the
-`close_preview` job deletes the preview environment when the pull request is closed.
-That resource must be on the Standard SKU (see "Required configuration" above) because
-`staticwebapp.config.json` always includes the `auth` block, which Static Web Apps
-only supports on Standard.
+`AZURE_RESOURCE_GROUP` variables — the same test Static Web App the manual
+`Deploy test environment` workflow deploys to. The workflow summary reports the preview
+URL and the resolved test SWA name, and the `close_preview` job deletes the preview
+environment when the pull request is closed. That resource must be on the Standard SKU
+(see "Required configuration" above) because `staticwebapp.config.json` always includes
+the `auth` block, which Static Web Apps only supports on Standard.
+
+Azure Static Web Apps only links a Functions backend to an app's **production**
+environment; preview environments never get a working backend, regardless of which app
+they hang off. So PR previews never have a working `/api/*` endpoint — validate anything
+that needs the Functions API (Azure Maps token issuance, search) with a manual
+`Deploy test environment` run instead.
+
+## Production dispatch guard
+
+`.github/workflows/azure-static-web-apps.yml` keeps `workflow_dispatch` as a trigger, but
+a `guard` job fails immediately with an `::error::` annotation if it is dispatched from any
+ref other than `refs/heads/main`, instead of silently skipping `infra`, `deploy_api`, and
+`deploy`. `validate`, `infra`, `deploy_api`, and `deploy` all depend on `guard`. Use the
+`Deploy test environment` workflow to test changes from a branch.
 
 ## Rollback
 
