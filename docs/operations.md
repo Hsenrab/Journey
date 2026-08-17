@@ -3,6 +3,28 @@
 This guide covers deploying, verifying, rolling back, and backing up the Waypoints
 application, which runs as an Azure Static Web App.
 
+## Azure Maps
+
+The map obtains a short-lived SAS token only from the authenticated same-origin
+`/api/maps/token` endpoint. The browser never receives a shared key, Function key,
+or long-lived credential. Place and postcode searches use `/api/maps/search`; the
+Function validates the assigned principal and queries Azure Maps with its managed
+identity-issued SAS. Do not add another provider, client credential, retry layer, or
+bulk geocoding.
+
+Coordinates are saved only when a location is deliberately geocoded or changed.
+Records without coordinates remain valid and are reported as omitted by the map.
+Application Insights should be used to review token, search, error, and throttling
+counts without recording search strings or precise locations.
+
+Azure Maps Gen2 pricing was checked on 2026-08-10: the planning baseline is 5,000
+free Base Map Tile transactions (15 tile requests per transaction) and 5,000 free
+Search transactions monthly. The published overage is US$4.50 per 1,000
+transactions; confirm regional pricing in the Azure Maps pricing page before
+deployment. Review monthly usage and cost in Azure Cost Management by Maps resource.
+No proportionate budget resource is provisioned because this personal workload is
+expected to remain in the free allowance.
+
 ## Environments
 
 | Environment | Bicep `environmentName` | SKU        | Purpose                            |
@@ -159,7 +181,11 @@ the caller's tenant and immutable object id.
   from the deployment itself.
 - Pull request previews do not include the API: Azure does not support linked
   Functions backends in Static Web Apps preview environments, so preview
-  deployments only carry static content.
+  deployments only carry static content. `staticwebapp.config.json` excludes
+  `/api/*` from the SPA `navigationFallback`, so those requests return 404
+  rather than `index.html`, and the Map page reports that the Maps API is not
+  deployed in the current environment instead of failing on an HTML body. Use
+  the production site to exercise the map.
 
 ### Diagnostics
 

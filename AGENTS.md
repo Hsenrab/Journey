@@ -14,6 +14,7 @@ productively in this repository.
 - Azure Static Web Apps with Microsoft Entra ID authentication, and a minimal
   linked Azure Functions API (`api/`), for the explicitly approved
   managed-identity API boundary described in "Conventions" below
+- Azure Maps Web SDK for the explicitly approved waypoint and activity map
 
 ## Project philosophy
 
@@ -93,8 +94,9 @@ src/
   domain/     Core types and business rules, framework-agnostic
   data/       Static/reference data (e.g. the list of locations)
   styles/     Global stylesheets
+  domain/     Map filtering and nearby-ordering rules
 api/
-  src/functions/  HTTP-triggered Azure Functions, one purpose-specific endpoint per file
+  src/functions/  HTTP-triggered Azure Functions, one purpose-specific endpoint per file (including Maps token/search)
   src/lib/        Principal validation and downstream-service credential logic
 ```
 
@@ -109,7 +111,7 @@ Tests live alongside the file they cover (`*.test.ts`/`*.test.tsx`).
   where possible.
 - New routes should be added under `src/pages/` and registered in `src/app/App.tsx`,
   with a corresponding entry in the navigation (`src/components/Layout.tsx`).
-- Do not add Next.js, Redux, a database, map UI, or photo upload storage. Microsoft
+- Do not add Next.js, Redux, a database, arbitrary map UI, or photo upload storage. Azure Maps is approved only for the waypoint and activity map through the protected boundary below. Microsoft
   Entra authentication through Azure Static Web Apps and a minimal linked Azure
   Functions API are permitted for explicitly approved features. Browser access to
   `/api/*` must be restricted to the explicitly assigned work identity; Function
@@ -120,7 +122,11 @@ Tests live alongside the file they cover (`*.test.ts`/`*.test.tsx`).
   endpoint(s), infrastructure-as-code in `infra/main.bicep`, focused tests, and
   `docs/operations.md` updates. This exception does not approve Cosmos DB,
   multi-user roles, personal-account access, generic backend/data-access
-  infrastructure, or map UI; each requires its own issue and convention update.
+  infrastructure, or arbitrary map UI; each requires its own issue and convention update.
+- Azure Maps browser rendering must use the short-lived authenticated SAS mechanism
+  from issue #32. Geocoding must use the purpose-specific protected Maps search API.
+  Do not add a second map provider, shared-key fallback, client-side service
+  credential, retry layer, or bulk-geocoding migration without an explicit requirement.
 - Do not commit secrets or personal data. Visit data lives only in the browser's
   local storage.
 - Tests should assert explicit success or explicit failure. Do not encode silent
