@@ -11,7 +11,7 @@ const principal = Buffer.from(
     identityProvider: 'aad',
     userId: 'user',
     userDetails: 'owner@example.com',
-    userRoles: ['authenticated'],
+    userRoles: ['authenticated', 'owner'],
     claims: [
       { typ: 'tid', val: 'tenant' },
       { typ: 'oid', val: 'owner' },

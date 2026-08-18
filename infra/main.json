@@ -1,0 +1,471 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "metadata": {
+    "_generator": {
+      "name": "bicep",
+      "version": "0.45.15.27210",
+      "templateHash": "10326547495225679751"
+    }
+  },
+  "parameters": {
+    "location": {
+      "type": "string",
+      "defaultValue": "[resourceGroup().location]",
+      "metadata": {
+        "description": "Azure region for the Static Web App."
+      }
+    },
+    "staticWebAppName": {
+      "type": "string",
+      "metadata": {
+        "description": "Name of the Static Web App resource."
+      }
+    },
+    "environmentName": {
+      "type": "string",
+      "defaultValue": "dev",
+      "allowedValues": [
+        "dev",
+        "prod"
+      ],
+      "metadata": {
+        "description": "Deployment environment. Controls the environment tag and the default SKU."
+      }
+    },
+    "owner": {
+      "type": "string",
+      "metadata": {
+        "description": "Owner recorded in resource tags (for example a team name or distribution list)."
+      }
+    },
+    "skuName": {
+      "type": "string",
+      "defaultValue": "Standard",
+      "allowedValues": [
+        "Standard"
+      ],
+      "metadata": {
+        "description": "SKU used for the Static Web App. Always Standard: the Free SKU cannot host\nthe Microsoft Entra ID authentication configuration that\nstaticwebapp.config.json always includes, so Free is not a supported option.\n"
+      }
+    },
+    "repositoryUrl": {
+      "type": "string",
+      "metadata": {
+        "description": "URL of the source repository, recorded as resource metadata."
+      }
+    },
+    "repositoryBranch": {
+      "type": "string",
+      "defaultValue": "main",
+      "metadata": {
+        "description": "Branch published to this environment."
+      }
+    },
+    "additionalTags": {
+      "type": "object",
+      "defaultValue": {},
+      "metadata": {
+        "description": "Additional tags merged with the standard ownership tags."
+      }
+    },
+    "enableApi": {
+      "type": "bool",
+      "defaultValue": true,
+      "metadata": {
+        "description": "Provisions the managed-identity API boundary (linked Functions app and Azure\nMaps account) alongside the Static Web App. Linking a Functions backend\nrequires the Standard plan, which skuName always is, so this defaults to on.\n"
+      }
+    },
+    "aadTenantId": {
+      "type": "string",
+      "defaultValue": "",
+      "metadata": {
+        "description": "Microsoft Entra ID tenant id that the assigned owner work account signs in from."
+      }
+    },
+    "ownerObjectId": {
+      "type": "string",
+      "defaultValue": "",
+      "metadata": {
+        "description": "Immutable object id (oid) of the single work account permitted to call the API."
+      }
+    }
+  },
+  "variables": {
+    "tags": "[union(createObject('environment', parameters('environmentName'), 'owner', parameters('owner'), 'application', 'journey', 'managedBy', 'bicep'), parameters('additionalTags'))]",
+    "functionAppName": "[format('{0}-api', parameters('staticWebAppName'))]",
+    "storageAccountPrefix": "[replace(take(toLower(parameters('staticWebAppName')), 9), '-', '')]",
+    "storageAccountName": "[format('{0}{1}st', variables('storageAccountPrefix'), uniqueString(resourceGroup().id, parameters('staticWebAppName')))]",
+    "hostingPlanName": "[format('{0}-api-plan', parameters('staticWebAppName'))]",
+    "mapsAccountName": "[format('{0}-maps', parameters('staticWebAppName'))]",
+    "appInsightsName": "[format('{0}-appi', parameters('staticWebAppName'))]",
+    "networkSecurityPerimeterName": "[format('{0}-nsp', parameters('staticWebAppName'))]",
+    "networkSecurityPerimeterProfileName": "function-storage",
+    "azureMapsContributorRoleId": "dba33070-676a-4fb0-87fa-064dc56ff7fb",
+    "azureMapsDataReaderRoleId": "423170ca-a8f6-4b0f-8487-9e4eb8f49bfa",
+    "storageBlobDataOwnerRoleId": "b7e6dc6d-f1e8-4753-8033-0f276bb0955b",
+    "storageBlobDataContributorRoleId": "ba92f5b4-2d11-453d-a403-e96b0029c9fe",
+    "storageQueueDataContributorRoleId": "974c5e8b-45b9-4653-ba55-5f855dd0fb88",
+    "storageTableDataContributorRoleId": "0a9a7e1f-b9d0-4cc4-a60d-0319b160aaa3"
+  },
+  "resources": [
+    {
+      "type": "Microsoft.Web/staticSites",
+      "apiVersion": "2023-12-01",
+      "name": "[parameters('staticWebAppName')]",
+      "location": "[parameters('location')]",
+      "tags": "[variables('tags')]",
+      "sku": {
+        "name": "[parameters('skuName')]",
+        "tier": "[parameters('skuName')]"
+      },
+      "properties": {
+        "repositoryUrl": "[parameters('repositoryUrl')]",
+        "branch": "[parameters('repositoryBranch')]",
+        "provider": "Custom",
+        "stagingEnvironmentPolicy": "Enabled",
+        "allowConfigFileUpdates": true,
+        "buildProperties": {
+          "appLocation": "/",
+          "outputLocation": "dist",
+          "skipGithubActionWorkflowGeneration": true
+        }
+      }
+    },
+    {
+      "condition": "[parameters('enableApi')]",
+      "type": "Microsoft.Storage/storageAccounts",
+      "apiVersion": "2023-05-01",
+      "name": "[variables('storageAccountName')]",
+      "location": "[parameters('location')]",
+      "tags": "[variables('tags')]",
+      "sku": {
+        "name": "Standard_LRS"
+      },
+      "kind": "StorageV2",
+      "properties": {
+        "minimumTlsVersion": "TLS1_2",
+        "allowBlobPublicAccess": false,
+        "allowSharedKeyAccess": false,
+        "publicNetworkAccess": "SecuredByPerimeter",
+        "supportsHttpsTrafficOnly": true
+      }
+    },
+    {
+      "condition": "[parameters('enableApi')]",
+      "type": "Microsoft.Network/networkSecurityPerimeters",
+      "apiVersion": "2024-07-01",
+      "name": "[variables('networkSecurityPerimeterName')]",
+      "location": "[parameters('location')]",
+      "tags": "[variables('tags')]"
+    },
+    {
+      "condition": "[parameters('enableApi')]",
+      "type": "Microsoft.Network/networkSecurityPerimeters/profiles",
+      "apiVersion": "2024-07-01",
+      "name": "[format('{0}/{1}', variables('networkSecurityPerimeterName'), variables('networkSecurityPerimeterProfileName'))]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Network/networkSecurityPerimeters', variables('networkSecurityPerimeterName'))]"
+      ]
+    },
+    {
+      "condition": "[parameters('enableApi')]",
+      "type": "Microsoft.Network/networkSecurityPerimeters/profiles/accessRules",
+      "apiVersion": "2024-07-01",
+      "name": "[format('{0}/{1}/{2}', variables('networkSecurityPerimeterName'), variables('networkSecurityPerimeterProfileName'), 'function-host-subscription')]",
+      "properties": {
+        "direction": "Inbound",
+        "subscriptions": [
+          {
+            "id": "[subscription().id]"
+          }
+        ]
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Network/networkSecurityPerimeters/profiles', variables('networkSecurityPerimeterName'), variables('networkSecurityPerimeterProfileName'))]"
+      ]
+    },
+    {
+      "condition": "[parameters('enableApi')]",
+      "type": "Microsoft.Network/networkSecurityPerimeters/resourceAssociations",
+      "apiVersion": "2024-07-01",
+      "name": "[format('{0}/{1}', variables('networkSecurityPerimeterName'), 'function-storage')]",
+      "properties": {
+        "accessMode": "Enforced",
+        "privateLinkResource": {
+          "id": "[resourceId('Microsoft.Storage/storageAccounts', variables('storageAccountName'))]"
+        },
+        "profile": {
+          "id": "[resourceId('Microsoft.Network/networkSecurityPerimeters/profiles', variables('networkSecurityPerimeterName'), variables('networkSecurityPerimeterProfileName'))]"
+        }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Network/networkSecurityPerimeters/profiles', variables('networkSecurityPerimeterName'), variables('networkSecurityPerimeterProfileName'))]",
+        "[resourceId('Microsoft.Network/networkSecurityPerimeters/profiles/accessRules', variables('networkSecurityPerimeterName'), variables('networkSecurityPerimeterProfileName'), 'function-host-subscription')]",
+        "[resourceId('Microsoft.Network/networkSecurityPerimeters', variables('networkSecurityPerimeterName'))]",
+        "[resourceId('Microsoft.Storage/storageAccounts', variables('storageAccountName'))]"
+      ]
+    },
+    {
+      "condition": "[parameters('enableApi')]",
+      "type": "Microsoft.Insights/components",
+      "apiVersion": "2020-02-02",
+      "name": "[variables('appInsightsName')]",
+      "location": "[parameters('location')]",
+      "tags": "[variables('tags')]",
+      "kind": "web",
+      "properties": {
+        "Application_Type": "web",
+        "Flow_Type": "Bluefield",
+        "Request_Source": "rest"
+      }
+    },
+    {
+      "condition": "[parameters('enableApi')]",
+      "type": "Microsoft.Web/serverfarms",
+      "apiVersion": "2023-12-01",
+      "name": "[variables('hostingPlanName')]",
+      "location": "[parameters('location')]",
+      "tags": "[variables('tags')]",
+      "sku": {
+        "name": "Y1",
+        "tier": "Dynamic"
+      },
+      "properties": {
+        "reserved": true
+      }
+    },
+    {
+      "condition": "[parameters('enableApi')]",
+      "type": "Microsoft.Web/sites",
+      "apiVersion": "2023-12-01",
+      "name": "[variables('functionAppName')]",
+      "location": "[parameters('location')]",
+      "tags": "[variables('tags')]",
+      "kind": "functionapp,linux",
+      "identity": {
+        "type": "SystemAssigned"
+      },
+      "properties": {
+        "serverFarmId": "[if(parameters('enableApi'), resourceId('Microsoft.Web/serverfarms', variables('hostingPlanName')), null())]",
+        "httpsOnly": true,
+        "siteConfig": {
+          "linuxFxVersion": "Node|22",
+          "ftpsState": "Disabled",
+          "minTlsVersion": "1.2"
+        }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Web/serverfarms', variables('hostingPlanName'))]"
+      ]
+    },
+    {
+      "condition": "[parameters('enableApi')]",
+      "type": "Microsoft.Web/sites/config",
+      "apiVersion": "2023-12-01",
+      "name": "[format('{0}/{1}', variables('functionAppName'), 'appsettings')]",
+      "properties": "[union(createObject('FUNCTIONS_EXTENSION_VERSION', '~4', 'FUNCTIONS_WORKER_RUNTIME', 'node', 'AzureWebJobsStorage__accountName', variables('storageAccountName'), 'AzureWebJobsStorage__credential', 'managedidentity', 'JOURNEY_ENTRA_TENANT_ID', parameters('aadTenantId'), 'JOURNEY_OWNER_OBJECT_ID', parameters('ownerObjectId'), 'AZURE_SUBSCRIPTION_ID', subscription().subscriptionId, 'AZURE_RESOURCE_GROUP', resourceGroup().name, 'AZURE_MAPS_ACCOUNT_NAME', variables('mapsAccountName'), 'APPLICATIONINSIGHTS_CONNECTION_STRING', reference(resourceId('Microsoft.Insights/components', variables('appInsightsName')), '2020-02-02').ConnectionString), createObject('AZURE_MAPS_PRINCIPAL_ID', reference(resourceId('Microsoft.Web/sites', variables('functionAppName')), '2023-12-01', 'full').identity.principalId))]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Insights/components', variables('appInsightsName'))]",
+        "[resourceId('Microsoft.Web/sites', variables('functionAppName'))]",
+        "[resourceId('Microsoft.Storage/storageAccounts', variables('storageAccountName'))]"
+      ]
+    },
+    {
+      "condition": "[parameters('enableApi')]",
+      "type": "Microsoft.Web/staticSites/userProvidedFunctionApps",
+      "apiVersion": "2023-12-01",
+      "name": "[format('{0}/{1}', parameters('staticWebAppName'), 'journey-api')]",
+      "properties": {
+        "functionAppResourceId": "[resourceId('Microsoft.Web/sites', variables('functionAppName'))]",
+        "functionAppRegion": "[parameters('location')]"
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Web/sites', variables('functionAppName'))]",
+        "[resourceId('Microsoft.Web/staticSites', parameters('staticWebAppName'))]"
+      ]
+    },
+    {
+      "condition": "[parameters('enableApi')]",
+      "type": "Microsoft.Maps/accounts",
+      "apiVersion": "2023-06-01",
+      "name": "[variables('mapsAccountName')]",
+      "location": "global",
+      "tags": "[variables('tags')]",
+      "sku": {
+        "name": "G2"
+      },
+      "kind": "Gen2",
+      "properties": {
+        "disableLocalAuth": true
+      }
+    },
+    {
+      "condition": "[parameters('enableApi')]",
+      "type": "Microsoft.Authorization/roleAssignments",
+      "apiVersion": "2022-04-01",
+      "scope": "[resourceId('Microsoft.Maps/accounts', variables('mapsAccountName'))]",
+      "name": "[guid(resourceId('Microsoft.Maps/accounts', variables('mapsAccountName')), variables('functionAppName'), variables('azureMapsContributorRoleId'))]",
+      "properties": {
+        "roleDefinitionId": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', variables('azureMapsContributorRoleId'))]",
+        "principalId": "[reference(resourceId('Microsoft.Web/sites', variables('functionAppName')), '2023-12-01', 'full').identity.principalId]",
+        "principalType": "ServicePrincipal"
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Web/sites', variables('functionAppName'))]",
+        "[resourceId('Microsoft.Maps/accounts', variables('mapsAccountName'))]"
+      ]
+    },
+    {
+      "condition": "[parameters('enableApi')]",
+      "type": "Microsoft.Authorization/roleAssignments",
+      "apiVersion": "2022-04-01",
+      "scope": "[resourceId('Microsoft.Maps/accounts', variables('mapsAccountName'))]",
+      "name": "[guid(resourceId('Microsoft.Maps/accounts', variables('mapsAccountName')), variables('functionAppName'), variables('azureMapsDataReaderRoleId'))]",
+      "properties": {
+        "roleDefinitionId": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', variables('azureMapsDataReaderRoleId'))]",
+        "principalId": "[reference(resourceId('Microsoft.Web/sites', variables('functionAppName')), '2023-12-01', 'full').identity.principalId]",
+        "principalType": "ServicePrincipal"
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Web/sites', variables('functionAppName'))]",
+        "[resourceId('Microsoft.Maps/accounts', variables('mapsAccountName'))]"
+      ]
+    },
+    {
+      "condition": "[parameters('enableApi')]",
+      "type": "Microsoft.Authorization/roleAssignments",
+      "apiVersion": "2022-04-01",
+      "scope": "[resourceId('Microsoft.Storage/storageAccounts', variables('storageAccountName'))]",
+      "name": "[guid(resourceId('Microsoft.Storage/storageAccounts', variables('storageAccountName')), variables('functionAppName'), variables('storageBlobDataOwnerRoleId'))]",
+      "properties": {
+        "roleDefinitionId": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', variables('storageBlobDataOwnerRoleId'))]",
+        "principalId": "[reference(resourceId('Microsoft.Web/sites', variables('functionAppName')), '2023-12-01', 'full').identity.principalId]",
+        "principalType": "ServicePrincipal"
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Web/sites', variables('functionAppName'))]",
+        "[resourceId('Microsoft.Storage/storageAccounts', variables('storageAccountName'))]"
+      ]
+    },
+    {
+      "condition": "[parameters('enableApi')]",
+      "type": "Microsoft.Authorization/roleAssignments",
+      "apiVersion": "2022-04-01",
+      "scope": "[resourceId('Microsoft.Storage/storageAccounts', variables('storageAccountName'))]",
+      "name": "[guid(resourceId('Microsoft.Storage/storageAccounts', variables('storageAccountName')), deployer().objectId, variables('storageBlobDataContributorRoleId'))]",
+      "properties": {
+        "roleDefinitionId": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', variables('storageBlobDataContributorRoleId'))]",
+        "principalId": "[deployer().objectId]",
+        "principalType": "ServicePrincipal"
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Storage/storageAccounts', variables('storageAccountName'))]"
+      ]
+    },
+    {
+      "condition": "[parameters('enableApi')]",
+      "type": "Microsoft.Authorization/roleAssignments",
+      "apiVersion": "2022-04-01",
+      "scope": "[resourceId('Microsoft.Storage/storageAccounts', variables('storageAccountName'))]",
+      "name": "[guid(resourceId('Microsoft.Storage/storageAccounts', variables('storageAccountName')), variables('functionAppName'), variables('storageQueueDataContributorRoleId'))]",
+      "properties": {
+        "roleDefinitionId": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', variables('storageQueueDataContributorRoleId'))]",
+        "principalId": "[reference(resourceId('Microsoft.Web/sites', variables('functionAppName')), '2023-12-01', 'full').identity.principalId]",
+        "principalType": "ServicePrincipal"
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Web/sites', variables('functionAppName'))]",
+        "[resourceId('Microsoft.Storage/storageAccounts', variables('storageAccountName'))]"
+      ]
+    },
+    {
+      "condition": "[parameters('enableApi')]",
+      "type": "Microsoft.Authorization/roleAssignments",
+      "apiVersion": "2022-04-01",
+      "scope": "[resourceId('Microsoft.Storage/storageAccounts', variables('storageAccountName'))]",
+      "name": "[guid(resourceId('Microsoft.Storage/storageAccounts', variables('storageAccountName')), variables('functionAppName'), variables('storageTableDataContributorRoleId'))]",
+      "properties": {
+        "roleDefinitionId": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', variables('storageTableDataContributorRoleId'))]",
+        "principalId": "[reference(resourceId('Microsoft.Web/sites', variables('functionAppName')), '2023-12-01', 'full').identity.principalId]",
+        "principalType": "ServicePrincipal"
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Web/sites', variables('functionAppName'))]",
+        "[resourceId('Microsoft.Storage/storageAccounts', variables('storageAccountName'))]"
+      ]
+    }
+  ],
+  "outputs": {
+    "staticWebAppName": {
+      "type": "string",
+      "metadata": {
+        "description": "Name of the deployed Static Web App."
+      },
+      "value": "[parameters('staticWebAppName')]"
+    },
+    "defaultHostname": {
+      "type": "string",
+      "metadata": {
+        "description": "Default hostname of the deployed Static Web App."
+      },
+      "value": "[reference(resourceId('Microsoft.Web/staticSites', parameters('staticWebAppName')), '2023-12-01').defaultHostname]"
+    },
+    "applicationUrl": {
+      "type": "string",
+      "metadata": {
+        "description": "Public URL of the deployed application."
+      },
+      "value": "[format('https://{0}', reference(resourceId('Microsoft.Web/staticSites', parameters('staticWebAppName')), '2023-12-01').defaultHostname)]"
+    },
+    "functionAppName": {
+      "type": "string",
+      "metadata": {
+        "description": "Name of the linked Function App, or empty when enableApi is false."
+      },
+      "value": "[if(parameters('enableApi'), variables('functionAppName'), '')]"
+    },
+    "functionAppHostname": {
+      "type": "string",
+      "metadata": {
+        "description": "Default (unlinked) hostname of the Function App, or empty when enableApi is false. Direct requests to this hostname are expected to be rejected once the Static Web Apps link is established."
+      },
+      "value": "[if(parameters('enableApi'), reference(resourceId('Microsoft.Web/sites', variables('functionAppName')), '2023-12-01').defaultHostName, '')]"
+    },
+    "mapsAccountName": {
+      "type": "string",
+      "metadata": {
+        "description": "Name of the provisioned Azure Maps Gen2 account, or empty when enableApi is false."
+      },
+      "value": "[if(parameters('enableApi'), variables('mapsAccountName'), '')]"
+    },
+    "appInsightsName": {
+      "type": "string",
+      "metadata": {
+        "description": "Name of the provisioned Application Insights component, or empty when enableApi is false."
+      },
+      "value": "[if(parameters('enableApi'), variables('appInsightsName'), '')]"
+    },
+    "storageAccountName": {
+      "type": "string",
+      "metadata": {
+        "description": "Name of the Function host storage account, or empty when enableApi is false."
+      },
+      "value": "[if(parameters('enableApi'), variables('storageAccountName'), '')]"
+    },
+    "networkSecurityPerimeterName": {
+      "type": "string",
+      "metadata": {
+        "description": "Name of the storage Network Security Perimeter, or empty when enableApi is false."
+      },
+      "value": "[if(parameters('enableApi'), variables('networkSecurityPerimeterName'), '')]"
+    },
+    "networkSecurityPerimeterProfileName": {
+      "type": "string",
+      "metadata": {
+        "description": "Name of the storage Network Security Perimeter profile, or empty when enableApi is false."
+      },
+      "value": "[if(parameters('enableApi'), variables('networkSecurityPerimeterProfileName'), '')]"
+    }
+  }
+}

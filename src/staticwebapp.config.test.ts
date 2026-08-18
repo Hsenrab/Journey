@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import config from '../staticwebapp.config.json'
 
 describe('staticwebapp.config.json', () => {
-  it('requires Entra sign-in for application routes while preserving auth and API endpoints', () => {
+  it('requires the invited owner role while preserving auth endpoints', () => {
     expect(config.navigationFallback).toEqual({
       rewrite: '/index.html',
       exclude: ['/.auth/*', '/api/*'],
@@ -14,11 +14,11 @@ describe('staticwebapp.config.json', () => {
       },
       {
         route: '/api/*',
-        allowedRoles: ['authenticated'],
+        allowedRoles: ['owner'],
       },
       {
         route: '/*',
-        allowedRoles: ['authenticated'],
+        allowedRoles: ['owner'],
       },
     ])
     expect(config.responseOverrides['401']).toEqual({
@@ -27,11 +27,7 @@ describe('staticwebapp.config.json', () => {
     })
   })
 
-  it('keeps the single-tenant Microsoft Entra identity provider configuration', () => {
-    expect(config.auth.identityProviders.azureActiveDirectory.registration).toEqual({
-      openIdIssuer: 'https://login.microsoftonline.com/AAD_TENANT_ID/v2.0',
-      clientIdSettingName: 'AAD_CLIENT_ID',
-      clientSecretSettingName: 'AAD_CLIENT_SECRET',
-    })
+  it('uses the built-in identity providers', () => {
+    expect(config).not.toHaveProperty('auth.identityProviders')
   })
 })

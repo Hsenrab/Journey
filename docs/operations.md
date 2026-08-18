@@ -46,11 +46,6 @@ repository-level secrets:
 
 - `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID` — federated
   (OIDC) credentials; no client secret is stored.
-- `AAD_CLIENT_ID`, `AAD_CLIENT_SECRET` — the Microsoft Entra ID app registration
-  used for Static Web Apps authentication (see "API authentication and
-  authorization" below). `AAD_CLIENT_SECRET` is only ever read by the deploy
-  workflow and passed straight into the Bicep deployment; it is never logged or
-  written to a file.
 - `JOURNEY_OWNER_OBJECT_ID` — the immutable object id (`oid`) of the single work
   account permitted to call `/api/*`.
 
@@ -86,25 +81,19 @@ Assigned work user
 
 ### Sign-in and role assignment
 
-1. Register a single-tenant Microsoft Entra ID application for Journey (Azure
-   portal: Microsoft Entra ID → App registrations). Record the application
-   (client) id, a client secret, and the tenant id.
-2. On the app registration's **Enterprise application**, set
-   **Assignment required?** to **Yes**, then assign only the owner's work
-   account. No other tenant user, and no personal Microsoft account, can sign
-   in once this is set.
-3. Store the application id and secret as the `AAD_CLIENT_ID` /
-   `AAD_CLIENT_SECRET` GitHub secrets, and the owner's object id (`oid`, found
-   on the user's Entra ID profile) as `JOURNEY_OWNER_OBJECT_ID`.
+1. Deploy the Static Web App, which uses the platform's built-in Microsoft Entra
+   (`aad`) provider. No custom app registration, client secret, Graph permission,
+   or tenant-wide admin consent is required.
+2. In the Static Web App's **Role management** page, generate an invitation for
+   the owner's work account with the custom role `owner` and the Microsoft Entra
+   provider. Open the generated link while signed in as that account. Repeat for
+   each production, test, or preview domain that the owner must access.
+3. Store the owner's immutable object id (`oid`, found on the user's Entra ID
+   profile) as `JOURNEY_OWNER_OBJECT_ID`.
 4. `staticwebapp.config.json` restricts all application routes and `/api/*` to
-   the `authenticated` role, leaves `/.auth/*` reachable for the platform login
-   endpoints, and configures the Entra ID identity provider. The deploy and
-   preview workflow jobs substitute the `AAD_TENANT_ID` placeholder in that file
-   with the real tenant id at deploy time, since Static Web Apps does not support
-   an app-setting reference for the OpenID issuer URL.
-5. Managing and revoking access — add or remove the enterprise application
-   assignment in the Entra portal. This repository does not build a roles or
-   administration UI; access changes always go through the portal.
+   the `owner` role while leaving `/.auth/*` reachable for platform login.
+5. Manage and revoke access from the Static Web App's **Role management** page.
+   This repository does not build a roles or administration UI.
 
 ### Local development
 
@@ -136,12 +125,11 @@ hand (for example with `curl -H`) to test principal validation end to end.
   `/.auth/login/aad?post_login_redirect_uri=.referrer`, which starts Microsoft
   Entra sign-in and returns the browser to the originally requested route after a
   successful sign-in.
-- Only the explicitly assigned owner work account should be assigned to the
-  Enterprise application. Unassigned users, users from another tenant, and
-  personal Microsoft accounts cannot complete the app sign-in flow.
+- Only the owner's work account should accept an invitation for the `owner` role.
+  Other authenticated users cannot load the application or call its API.
 - `/api/*` remains protected by Static Web Apps, and the Functions API still
   validates the Static Web Apps principal's provider (`aad`), tenant id,
-  authenticated role, and immutable owner object id before calling Azure Maps.
+  `owner` role, and immutable owner object id before calling Azure Maps.
 
 ### RBAC (managed identity to Azure Maps)
 

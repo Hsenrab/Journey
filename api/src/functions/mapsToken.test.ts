@@ -23,7 +23,7 @@ function ownerHeader(overrides: Record<string, unknown> = {}): string {
     identityProvider: 'aad',
     userId: 'user-1',
     userDetails: 'owner@example.com',
-    userRoles: ['anonymous', 'authenticated'],
+    userRoles: ['anonymous', 'authenticated', 'owner'],
     claims: [
       { typ: 'tid', val: OWNER_TENANT },
       { typ: 'oid', val: OWNER_OBJECT_ID },
@@ -80,9 +80,9 @@ describe('mapsToken', () => {
     expect(result.status).toBe(403)
   })
 
-  it('returns 403 for a principal missing the authenticated role', async () => {
+  it('returns 403 for a principal missing the owner role', async () => {
     const { mapsToken } = await import('./mapsToken.js')
-    const header = ownerHeader({ userRoles: ['anonymous'] })
+    const header = ownerHeader({ userRoles: ['anonymous', 'authenticated'] })
     const result = await mapsToken(requestWithPrincipal(header), fakeContext())
     expect(result.status).toBe(403)
   })

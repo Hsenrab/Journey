@@ -12,7 +12,7 @@ function ownerHeader(overrides: Record<string, unknown> = {}): string {
     identityProvider: 'aad',
     userId: 'user-1',
     userDetails: 'owner@example.com',
-    userRoles: ['anonymous', 'authenticated'],
+    userRoles: ['anonymous', 'authenticated', 'owner'],
     claims: [
       { typ: 'tid', val: OWNER.tenantId },
       { typ: 'oid', val: OWNER.objectId },
@@ -38,7 +38,7 @@ describe('parseClientPrincipalHeader', () => {
   it('parses a well-formed header', () => {
     const principal = parseClientPrincipalHeader(ownerHeader())
     expect(principal.identityProvider).toBe('aad')
-    expect(principal.userRoles).toContain('authenticated')
+    expect(principal.userRoles).toContain('owner')
   })
 })
 
@@ -53,8 +53,8 @@ describe('assertOwnerPrincipal', () => {
     expect(() => assertOwnerPrincipal(principal, OWNER)).toThrow(PrincipalValidationError)
   })
 
-  it('rejects a principal missing the authenticated role', () => {
-    const principal = parseClientPrincipalHeader(ownerHeader({ userRoles: ['anonymous'] }))
+  it('rejects a principal missing the owner role', () => {
+    const principal = parseClientPrincipalHeader(ownerHeader({ userRoles: ['anonymous', 'authenticated'] }))
     expect(() => assertOwnerPrincipal(principal, OWNER)).toThrow(PrincipalValidationError)
   })
 
