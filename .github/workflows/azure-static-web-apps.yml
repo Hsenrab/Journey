@@ -311,7 +311,6 @@ jobs:
           action: upload
           app_location: /
           output_location: dist
-          production_branch: main
 
       - name: Publish preview URL
         env:
