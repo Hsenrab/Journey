@@ -72,8 +72,6 @@ jobs:
             owner=${{ vars.AZURE_RESOURCE_OWNER || 'journey-maintainers' }}
             repositoryUrl=${{ github.server_url }}/${{ github.repository }}
             repositoryBranch=${{ github.ref_name }}
-            aadClientId=${{ secrets.AAD_CLIENT_ID }}
-            aadClientSecret=${{ secrets.AAD_CLIENT_SECRET }}
             aadTenantId=${{ secrets.AZURE_TENANT_ID }}
             ownerObjectId=${{ secrets.JOURNEY_OWNER_OBJECT_ID }}
 
@@ -193,14 +191,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
 
-      - name: Configure Entra ID tenant for authentication
-        env:
-          AAD_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
-        run: |
-          set -euo pipefail
-          test -n "${AAD_TENANT_ID}"
-          sed -i "s/AAD_TENANT_ID/${AAD_TENANT_ID}/" staticwebapp.config.json
-
       - name: Azure login (OIDC)
         uses: azure/login@v2
         with:
@@ -237,16 +227,16 @@ jobs:
         run: |
           set -euo pipefail
           for attempt in 1 2 3 4 5; do
-            status="$(curl --silent --show-error --location --max-time 30 \
+            status="$(curl --silent --show-error --max-time 30 --max-redirs 0 \
               --output /dev/null --write-out '%{http_code}' "${APPLICATION_URL}" || echo '000')"
             echo "Attempt ${attempt}: HTTP ${status}"
-            if [ "${status}" = "200" ]; then
+            if [ "${status}" = "302" ]; then
               echo "Deployment verified at ${APPLICATION_URL}" >> "$GITHUB_STEP_SUMMARY"
               exit 0
             fi
             sleep 15
           done
-          echo "::error::Deployment verification failed for ${APPLICATION_URL}"
+          echo "::error::Expected ${APPLICATION_URL} to redirect anonymous users to sign-in (302)"
           exit 1
 
       - name: Verify anonymous requests to /api/* are denied
@@ -313,14 +303,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
 
-      - name: Configure Entra ID tenant for authentication
-        env:
-          AAD_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
-        run: |
-          set -euo pipefail
-          test -n "${AAD_TENANT_ID}"
-          sed -i "s/AAD_TENANT_ID/${AAD_TENANT_ID}/" staticwebapp.config.json
-
       - name: Azure login (OIDC)
         uses: azure/login@v2
         with:
@@ -351,7 +333,6 @@ jobs:
           action: upload
           app_location: /
           output_location: dist
-          production_branch: main
 
       - name: Publish preview URL
         env:

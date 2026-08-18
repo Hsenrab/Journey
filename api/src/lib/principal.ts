@@ -80,7 +80,7 @@ function findClaim(principal: ClientPrincipal, claimTypes: string[]): string | u
 /**
  * Validates that a parsed principal is the single, explicitly assigned owner
  * work identity: signed in via Microsoft Entra ID (`aad`), assigned the
- * `authenticated` role by Static Web Apps, and matching both the required
+ * invited `owner` role by Static Web Apps, and matching both the required
  * tenant and the required immutable object id exactly.
  *
  * Throws {@link PrincipalValidationError} with a specific reason on any
@@ -96,8 +96,8 @@ export function assertOwnerPrincipal(
     )
   }
 
-  if (!principal.userRoles.includes('authenticated')) {
-    throw new PrincipalValidationError('Principal is not assigned the authenticated role.')
+  if (!principal.userRoles.includes('owner')) {
+    throw new PrincipalValidationError('Principal is not assigned the owner role.')
   }
 
   const tenantId = findClaim(principal, TENANT_CLAIM_TYPES)

@@ -32,9 +32,9 @@ expected to remain in the free allowance.
 | dev         | `dev`                   | `Standard` | Manual or experimental deployments |
 | prod        | `prod`                  | `Standard` | The site published from `main`     |
 
-The Static Web App is always provisioned on the **Standard** SKU. The Free SKU
-cannot host the Microsoft Entra ID authentication configuration that
-`staticwebapp.config.json` always includes, so Free is not a supported option.
+The Static Web App is always provisioned on the **Standard** SKU because the
+application links a managed Azure Functions backend. Free is not a supported
+deployment option for this architecture.
 
 All resources are tagged with `environment`, `owner`, `application`, and
 `managedBy` so ownership is visible in the Azure portal and in cost reports.
@@ -45,12 +45,8 @@ Production Azure login uses GitHub OIDC from the `main` branch. Define these
 repository-level secrets:
 
 - `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID` — federated
-  (OIDC) credentials; no client secret is stored.
-- `AAD_CLIENT_ID`, `AAD_CLIENT_SECRET` — the Microsoft Entra ID app registration
-  used for Static Web Apps authentication (see "API authentication and
-  authorization" below). `AAD_CLIENT_SECRET` is only ever read by the deploy
-  workflow and passed straight into the Bicep deployment; it is never logged or
-  written to a file.
+  (OIDC) credentials; no client secret is stored. `AZURE_TENANT_ID` is also
+  passed to the Functions API as the only accepted principal tenant.
 - `JOURNEY_OWNER_OBJECT_ID` — the immutable object id (`oid`) of the single work
   account permitted to call `/api/*`.
 
@@ -62,14 +58,12 @@ variables for the deployment target. Optional variables: `AZURE_LOCATION`
 The production Static Web Apps deployment token is never stored as a GitHub secret.
 The deploy job reads it from Azure at run time and masks it in the logs.
 
-The `azure-test` GitHub environment must define `AZURE_STATIC_WEB_APPS_API_TOKEN` for
-pull request previews. This token targets the shared Static Web App preview environment.
-That preview resource must be provisioned on the **Standard** SKU — `staticwebapp.config.json`
-always includes the `auth` block, and Static Web Apps rejects that configuration outright
-on the Free SKU. Upgrade the existing preview resource (`az staticwebapp update --sku
-Standard --name <name> --resource-group <group>`, or via the Azure portal) once; no
-workflow change is required afterwards since previews reuse the same config file as
-production.
+The `azure-test` GitHub environment must define `AZURE_STATIC_WEB_APPS_API_TOKEN`
+for pull request previews. This token targets the shared test Static Web App.
+That resource must be provisioned on the **Standard** SKU because it also hosts
+the linked Functions backend used by manual test deployments. Set the SKU with
+`az staticwebapp update --sku Standard --name <name> --resource-group <group>`,
+or use the Azure portal.
 
 ## API authentication and authorization
 
@@ -86,24 +80,26 @@ Assigned work user
 
 ### Sign-in and role assignment
 
-1. Register a single-tenant Microsoft Entra ID application for Journey (Azure
-   portal: Microsoft Entra ID → App registrations). Record the application
-   (client) id, a client secret, and the tenant id.
-2. On the app registration's **Enterprise application**, set
-   **Assignment required?** to **Yes**, then assign only the owner's work
-   account. No other tenant user, and no personal Microsoft account, can sign
-   in once this is set.
-3. Store the application id and secret as the `AAD_CLIENT_ID` /
-   `AAD_CLIENT_SECRET` GitHub secrets, and the owner's object id (`oid`, found
-   on the user's Entra ID profile) as `JOURNEY_OWNER_OBJECT_ID`.
-4. `staticwebapp.config.json` restricts `/api/*` to the `authenticated` role
-   and configures the Entra ID identity provider. The deploy and preview
-   workflow jobs substitute the `AAD_TENANT_ID` placeholder in that file with
-   the real tenant id at deploy time, since Static Web Apps does not support an
-   app-setting reference for the OpenID issuer URL.
-5. Managing and revoking access — add or remove the enterprise application
-   assignment in the Entra portal. This repository does not build a roles or
-   administration UI; access changes always go through the portal.
+1. Deploy the Static Web App, which uses the platform's built-in Microsoft Entra
+   (`aad`) provider.
+2. In the Static Web App's **Role management** page, generate an invitation for
+   the owner's work account with the custom role `owner` and the Microsoft Entra
+   provider. Open the generated link while signed in as that account.
+3. Store the owner's immutable object id (`oid`, found on the user's Entra ID
+   profile) as `JOURNEY_OWNER_OBJECT_ID`.
+4. `staticwebapp.config.json` restricts all application routes and `/api/*` to
+   the `owner` role while leaving `/.auth/*` reachable for platform login.
+5. Repeat the invitation for each separately provisioned Static Web App resource,
+   including the production and shared test resources. Role assignment in one
+   resource does not grant access to another resource.
+6. Manage and revoke access from the Static Web App's **Role management** page.
+   This repository does not build a roles or administration UI.
+
+Accepting an Entra consent prompt only authenticates the account; it does not
+assign `owner`. After accepting an invitation, sign out through `/.auth/logout`
+and sign in again so Static Web Apps issues a principal with the new role. Check
+`/.auth/me` on the affected application URL and confirm that
+`clientPrincipal.userRoles` contains `owner`.
 
 ### Local development
 
@@ -125,6 +121,21 @@ identity is present, so `az login` with an account that has the required Azure
 Maps roles is required to exercise token issuance locally. Because Static Web
 Apps' proxy is not present locally, `x-ms-client-principal` must be supplied by
 hand (for example with `curl -H`) to test principal validation end to end.
+
+### Application access flow
+
+- Journey is sign-in first. An unauthenticated request to `/`, `/waypoints`,
+  `/activities`, `/map`, `/settings`, or a supported client-side deep link is
+  rejected by Static Web Apps before the React app loads.
+- The 401 response override redirects to
+  `/.auth/login/aad?post_login_redirect_uri=.referrer`, which starts Microsoft
+  Entra sign-in and returns the browser to the originally requested route after a
+  successful sign-in.
+- Only the owner's work account should accept an invitation for the `owner` role.
+  Other authenticated users cannot load the application or call its API.
+- `/api/*` remains protected by Static Web Apps, and the Functions API still
+  validates the Static Web Apps principal's provider (`aad`), tenant id,
+  `owner` role, and immutable owner object id before calling Azure Maps.
 
 ### RBAC (managed identity to Azure Maps)
 
@@ -156,6 +167,8 @@ the caller's tenant and immutable object id.
   permits network access from Azure resources in the deployment subscription;
   Microsoft Entra authentication and the storage data-plane role assignments
   still determine which identities can access storage data.
+- The host storage account name includes a stable resource-group-specific suffix
+  because Azure Storage account names are globally unique.
 - The GitHub OIDC deployment principal has the custom **Journey NSP Subscription
   Join** role at subscription scope. Its only action is
   `Microsoft.Network/networkSecurityPerimeters/joinPerimeterRule/action`, which
@@ -244,8 +257,13 @@ integration needs to be fully removed.
   to `main` and pull request preview deployment for open pull requests. Both paths
   call the CI workflow first. Production provisions infrastructure (including the
   API boundary), deploys the Functions API, then deploys the static content and
-  publishes the application URL to the job summary and deployment record, then
-  verifies the site returns HTTP 200.
+  publishes the application URL to the job summary and deployment record. Because
+  the site is sign-in first, verification sends an anonymous request without
+  following redirects and requires HTTP 302 to the sign-in endpoint.
+
+Both deployment workflows also require anonymous `/api/maps/token` requests to
+return HTTP 302. Their curl checks use `--max-redirs 0` so they inspect the
+application's redirect response without following the interactive sign-in flow.
 
 Failures surface in the GitHub Actions run: the failing job is marked red and
 verification failures are reported with an `::error::` annotation.
@@ -287,10 +305,10 @@ environment's `AZURE_STATIC_WEB_APP_NAME` variable — the same app previews tar
    provisioned Function App.
 4. Deploys the built static content to the test Static Web App's primary environment (not a
    PR preview slot), so the linked Function backend — when deployed — is active.
-5. Publishes the application URL to the job summary and, when the API exists, verifies that
-   anonymous `/api/maps/token` requests redirect to sign-in (302) and that the Function
-   App's default hostname rejects direct requests, mirroring the production workflow's
-   verification steps.
+5. Publishes the application URL to the job summary and verifies that anonymous requests
+   to the application root redirect to sign-in (302). When the API exists, it also checks
+   `/api/maps/token` returns 302 and the Function App's default hostname rejects direct
+   requests, mirroring the production workflow's verification steps.
 
 The workflow uses the same temporary runner `/32` perimeter rule and guaranteed
 cleanup as the production deployment, and reuses the `azure-test` GitHub environment's
@@ -305,8 +323,8 @@ identified by the `azure-test` GitHub environment's `AZURE_STATIC_WEB_APP_NAME` 
 `Deploy test environment` workflow deploys to. The workflow summary reports the preview
 URL and the resolved test SWA name, and the `close_preview` job deletes the preview
 environment when the pull request is closed. That resource must be on the Standard SKU
-(see "Required configuration" above) because `staticwebapp.config.json` always includes
-the `auth` block, which Static Web Apps only supports on Standard.
+(see "Required configuration" above) because it also supports the linked Functions
+backend used by manual test deployments.
 
 Azure Static Web Apps only links a Functions backend to an app's **production**
 environment; preview environments never get a working backend, regardless of which app
@@ -330,7 +348,16 @@ ref other than `refs/heads/main`, instead of silently skipping `infra`, `deploy_
    `Deploy Azure Static Web App` workflow with that ref.
 3. Re-running the workflow republishes the built assets; no infrastructure
    change is required because the Bicep template is idempotent.
-4. Confirm the verification step reports HTTP 200 for the application URL.
+4. Confirm the verification step reports HTTP 302 for the anonymous application
+   request, then sign in and confirm the dashboard loads.
+
+GitHub **Re-run jobs** uses the original run's commit. To deploy a different
+commit, start a new workflow run and select the branch containing that commit.
+
+`infra/main.bicep` is the infrastructure source of truth. When Bicep compilation
+updates the committed `infra/main.json`, run `npx prettier --write infra/main.json`
+before committing because the repository-wide formatting check includes generated
+JSON.
 
 If the site is unavailable and a rollback cannot be completed quickly, redeploy
 the previous artifact from the CI run's `dist` artifact using
@@ -352,12 +379,16 @@ no server-side database to back up.
 | Symptom                                                                                    | Likely cause and action                                                                                                                                                                                                                                                                      |
 | ------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Azure login step fails                                                                     | Federated credential subject does not match the `main` branch. Re-check the app registration.                                                                                                                                                                                                |
-| Bicep deployment fails on SKU                                                              | Free-tier apps are no longer used; Standard allows a limited number of apps per subscription. Delete unused apps or request a subscription quota increase.                                                                                                                                   |
+| Bicep deployment fails on SKU                                                              | Standard allows a limited number of apps per subscription. Delete unused apps or request a subscription quota increase.                                                                                                                                                                      |
 | Deploy step reports an invalid token                                                       | The Static Web App was recreated. Re-run the workflow so the token is read again.                                                                                                                                                                                                            |
-| Verification step fails                                                                    | The CDN may still be propagating. Re-run the job; if it still fails, roll back.                                                                                                                                                                                                              |
+| Verification receives a status other than HTTP 302                                         | Confirm the deployed config protects `/*`, inspect the response `Location` header, and confirm the workflow run uses the intended branch and commit.                                                                                                                                         |
 | Routes return 404 on refresh                                                               | Check `staticwebapp.config.json` navigation fallback is still present.                                                                                                                                                                                                                       |
-| `/api/*` returns 401                                                                       | The signed-in account is not assigned to the Entra enterprise application, or is not signed in. Confirm assignment in the Entra portal.                                                                                                                                                      |
-| `/api/*` returns 403                                                                       | The principal's tenant or object id does not match `JOURNEY_ENTRA_TENANT_ID` / `JOURNEY_OWNER_OBJECT_ID`. Confirm the assigned account is the intended owner.                                                                                                                                |
+| Application routes do not redirect to Entra sign-in                                        | Confirm the catch-all `/*` route in `staticwebapp.config.json` still requires the `owner` role and the 401 override redirects to `/.auth/login/aad?post_login_redirect_uri=.referrer`.                                                                                                       |
+| Sign-in succeeds but returns to the wrong page                                             | Confirm the 401 override still uses `post_login_redirect_uri=.referrer`; without it, Static Web Apps may return to the default post-login page instead of the originally requested deep link.                                                                                                |
+| Sign-in completes and the application returns 403                                          | Authentication succeeded but the Static Web Apps principal lacks `owner`. Check `/.auth/me`, generate and accept an `owner` invitation for that Static Web App resource, then use `/.auth/logout` and sign in again. Entra consent alone does not assign the role.                           |
+| Owner work account cannot sign in                                                          | Confirm Microsoft Entra ID was selected as the invitation provider and accept the generated invitation while signed in as the invited work account.                                                                                                                                          |
+| `/api/*` returns 401                                                                       | The request has no authenticated Static Web Apps principal. Sign in through `/.auth/login/aad`; do not call the Function App's direct hostname.                                                                                                                                              |
+| `/api/*` returns 403 while `/.auth/me` includes `owner`                                    | The principal's tenant or object ID does not match `JOURNEY_ENTRA_TENANT_ID` / `JOURNEY_OWNER_OBJECT_ID`. Confirm the GitHub environment values and redeploy the Functions API.                                                                                                              |
 | `/api/maps/token` returns 500 with a `listSas` error                                       | The Function's managed identity is missing the Azure Maps Contributor role assignment on the Maps account, or the account name/subscription/resource group app settings are wrong.                                                                                                           |
 | Bicep deployment fails with `LinkedAuthorizationFailed` for `joinPerimeterRule/action`     | Assign the GitHub OIDC principal the custom **Journey NSP Subscription Join** role at subscription scope. The role must contain only `Microsoft.Network/networkSecurityPerimeters/joinPerimeterRule/action`; a subscription administrator must create and assign it.                         |
 | Deploy Functions API fails with `This request is not authorized to perform this operation` | The deploying GitHub OIDC principal lacks data-plane access to the Functions storage account it uploads the package to. Re-run the workflow: the Bicep deployment creates the Storage Blob Data Contributor assignment for `deployer().objectId`, which can take a few minutes to propagate. |

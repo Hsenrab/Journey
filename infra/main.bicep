@@ -40,13 +40,6 @@ requires the Standard plan, which skuName always is, so this defaults to on.
 ''')
 param enableApi bool = true
 
-@description('Single-tenant Microsoft Entra ID application (client) id used for Static Web Apps authentication.')
-param aadClientId string = ''
-
-@secure()
-@description('Client secret for the Microsoft Entra ID app registration. Never logged or stored in source control.')
-param aadClientSecret string = ''
-
 @description('Microsoft Entra ID tenant id that the assigned owner work account signs in from.')
 param aadTenantId string = ''
 
@@ -64,7 +57,8 @@ var tags = union(
 )
 
 var functionAppName = '${staticWebAppName}-api'
-var storageAccountName = replace('${take(staticWebAppName, 17)}apist', '-', '')
+var storageAccountPrefix = replace(take(toLower(staticWebAppName), 9), '-', '')
+var storageAccountName = '${storageAccountPrefix}${uniqueString(resourceGroup().id, staticWebAppName)}st'
 var hostingPlanName = '${staticWebAppName}-api-plan'
 var mapsAccountName = '${staticWebAppName}-maps'
 var appInsightsName = '${staticWebAppName}-appi'
@@ -110,20 +104,6 @@ resource staticWebApp 'Microsoft.Web/staticSites@2023-12-01' = {
       outputLocation: 'dist'
       skipGithubActionWorkflowGeneration: true
     }
-  }
-}
-
-// Single-tenant Microsoft Entra ID authentication for the Static Web App.
-// Sign-in itself is further restricted to the assigned owner account by
-// requiring assignment on the Entra enterprise application (configured in
-// the Entra portal, not here); /api/* route authorization is enforced by
-// staticwebapp.config.json.
-resource staticWebAppAuthSettings 'Microsoft.Web/staticSites/config@2023-12-01' = if (enableApi) {
-  parent: staticWebApp
-  name: 'appsettings'
-  properties: {
-    AAD_CLIENT_ID: aadClientId
-    AAD_CLIENT_SECRET: aadClientSecret
   }
 }
 

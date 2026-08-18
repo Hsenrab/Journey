@@ -23,10 +23,7 @@ type SearchResult = {
 }
 
 async function requestApi(path: string, operation: string): Promise<Response> {
-  const response = await fetch(path, { redirect: 'manual' })
-  if (response.type === 'opaqueredirect') {
-    throw new Error(`${operation} requires sign-in. Reload the page to sign in with your work account.`)
-  }
+  const response = await fetch(path)
   if (response.status === 404) {
     throw new Error(
       `${operation} is unavailable in this environment because the Maps API is not deployed. Pull request previews do not include the API; use the production site.`,
