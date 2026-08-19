@@ -33,11 +33,14 @@ vi.mock('azure-maps-control', () => ({
           mapEvents.ready = args[1] as () => void
           if (!mapEvents.deferReady) mapEvents.ready()
         }
-        if (args[0] === 'click' && args.length === 3) mapEvents.click = args[2] as MapClickHandler
+        if (args[0] === 'click' && args.length === 3 && (args[1] as { id?: string })?.id === 'waypoints') {
+          mapEvents.click = args[2] as MapClickHandler
+        }
       },
     }
     sources = { add: vi.fn() }
     layers = { add: vi.fn() }
+    imageSprite = { add: vi.fn() }
     dispose = vi.fn()
   },
   Popup: class {
@@ -50,7 +53,15 @@ vi.mock('azure-maps-control', () => ({
       clear = vi.fn()
     },
   },
-  layer: { BubbleLayer: class {}, SymbolLayer: class {} },
+  layer: {
+    BubbleLayer: class {},
+    SymbolLayer: class {
+      id?: string
+      constructor(_source: unknown, id: string) {
+        this.id = id
+      }
+    },
+  },
   data: {
     Feature: class {
       constructor(..._args: unknown[]) {}
@@ -82,9 +93,10 @@ describe('MapPage', () => {
       </MemoryRouter>,
     )
     expect(screen.getByRole('heading', { name: 'Map' })).toBeInTheDocument()
-    expect(screen.getByLabelText('Show waypoints')).toBeChecked()
-    expect(screen.getByLabelText('Show activities')).toBeChecked()
-    expect(screen.getByLabelText('Waypoint status: Gold')).toBeChecked()
+    expect(screen.getByRole('button', { name: 'Waypoints' })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByRole('button', { name: 'Activities' })).toHaveAttribute('aria-pressed', 'false')
+    await userEvent.setup().click(screen.getByRole('button', { name: 'Award filters' }))
+    expect(screen.getByRole('checkbox', { name: 'Gold' })).toBeChecked()
     expect(screen.getByLabelText('Nearby origin')).toHaveValue('Brockworth, Gloucestershire')
     expect(await screen.findByText('Map access failed: Sign in required')).toBeInTheDocument()
   })
@@ -106,6 +118,23 @@ describe('MapPage', () => {
       </MemoryRouter>,
     )
     expect(await screen.findByText('Map access returned text/html instead of JSON.')).toBeInTheDocument()
+  })
+
+  it('switches exclusively between waypoint and activity modes', async () => {
+    const user = userEvent.setup()
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, text: () => Promise.resolve('Sign in required') }))
+    render(
+      <MemoryRouter>
+        <WaypointsProvider>
+          <MapPage />
+        </WaypointsProvider>
+      </MemoryRouter>,
+    )
+
+    await user.click(screen.getByRole('button', { name: 'Activities' }))
+    expect(screen.getByRole('button', { name: 'Waypoints' })).toHaveAttribute('aria-pressed', 'false')
+    expect(screen.getByRole('button', { name: 'Activities' })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.queryByRole('button', { name: 'Award filters' })).not.toBeInTheDocument()
   })
 
   it('explains that the Maps API is missing when the environment has no linked API', async () => {
@@ -136,12 +165,12 @@ describe('MapPage', () => {
         </WaypointsProvider>
       </MemoryRouter>,
     )
-    await user.click(screen.getByLabelText('Show activities'))
-    await user.click(screen.getByLabelText('Waypoint status: Gold'))
+    await user.click(screen.getByRole('button', { name: 'Award filters' }))
+    await user.click(screen.getByRole('checkbox', { name: 'Gold' }))
     await user.click(screen.getByRole('button', { name: 'Search' }))
     expect(await screen.findByText(/No places matched that search/)).toBeInTheDocument()
-    expect(screen.getByLabelText('Show activities')).not.toBeChecked()
-    expect(screen.getByLabelText('Waypoint status: Gold')).not.toBeChecked()
+    expect(screen.getByRole('button', { name: 'Activities' })).toHaveAttribute('aria-pressed', 'false')
+    expect(screen.getByRole('checkbox', { name: 'Gold' })).not.toBeChecked()
   })
 
   it('requires an explicit selection for ambiguous nearby origins', async () => {
@@ -259,9 +288,9 @@ describe('MapPage', () => {
         </WaypointsProvider>
       </MemoryRouter>,
     )
-    await user.click(screen.getByLabelText('Waypoint status: Gold'))
-    await user.click(screen.getByLabelText('Show activities'))
-    await user.click(screen.getByLabelText('Show activities'))
+    await user.click(screen.getByRole('button', { name: 'Award filters' }))
+    await user.click(screen.getByRole('checkbox', { name: 'Gold' }))
+    await user.click(screen.getByRole('button', { name: 'Activities' }))
     expect(screen.getByRole('link', { name: /Bronze:.*miles/ })).toBeInTheDocument()
   })
 
