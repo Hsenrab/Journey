@@ -56,6 +56,7 @@ export default function MapPage() {
   const [showActivities, setShowActivities] = useState(true)
   const [statuses, setStatuses] = useState<Status[]>([...statusOrder])
   const [token, setToken] = useState<MapsToken | null>(null)
+  const [mapReady, setMapReady] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [selectedWaypointId, setSelectedWaypointId] = useState<string | null>(null)
   const [originQuery, setOriginQuery] = useState('Brockworth, Gloucestershire')
@@ -132,6 +133,7 @@ export default function MapPage() {
       })
       waypointSource.current = waypoints
       activitySource.current = activities
+      setMapReady(true)
     })
     map.current = instance
     return () => {
@@ -139,6 +141,7 @@ export default function MapPage() {
       map.current = null
       waypointSource.current = null
       activitySource.current = null
+      setMapReady(false)
     }
   }, [data.waypoints, origin.latitude, origin.longitude, token])
 
@@ -170,7 +173,7 @@ export default function MapPage() {
         }),
       )
     }
-  }, [showWaypoints, statusFor, visibleWaypoints])
+  }, [mapReady, showWaypoints, statusFor, visibleWaypoints])
 
   useEffect(() => {
     const source = activitySource.current
@@ -191,7 +194,7 @@ export default function MapPage() {
         }),
       )
     }
-  }, [data.activities, data.waypoints, showActivities])
+  }, [data.activities, data.waypoints, mapReady, showActivities])
 
   const findNearby = async () => {
     setError(null)

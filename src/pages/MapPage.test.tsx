@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { act, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -9,7 +9,12 @@ type MapClickHandler = (event: {
   shapes?: Array<{ getProperties?: () => { waypointId?: string }; properties?: { waypointId?: string } }>
 }) => void
 
-const mapEvents = vi.hoisted(() => ({ click: undefined as MapClickHandler | undefined }))
+const mapEvents = vi.hoisted(() => ({
+  click: undefined as MapClickHandler | undefined,
+  ready: undefined as (() => void) | undefined,
+  deferReady: false,
+  sourceAdd: vi.fn(),
+}))
 
 function jsonResponse(body: unknown) {
   return {
@@ -24,7 +29,10 @@ vi.mock('azure-maps-control', () => ({
   Map: class {
     events = {
       add: (...args: unknown[]) => {
-        if (args[0] === 'ready' && args.length === 2) (args[1] as () => void)()
+        if (args[0] === 'ready' && args.length === 2) {
+          mapEvents.ready = args[1] as () => void
+          if (!mapEvents.deferReady) mapEvents.ready()
+        }
         if (args[0] === 'click' && args.length === 3) mapEvents.click = args[2] as MapClickHandler
       },
     }
@@ -38,7 +46,7 @@ vi.mock('azure-maps-control', () => ({
   },
   source: {
     DataSource: class {
-      add = vi.fn()
+      add = mapEvents.sourceAdd
       clear = vi.fn()
     },
   },
@@ -59,6 +67,9 @@ describe('MapPage', () => {
   beforeEach(() => {
     localStorage.clear()
     mapEvents.click = undefined
+    mapEvents.ready = undefined
+    mapEvents.deferReady = false
+    mapEvents.sourceAdd.mockClear()
   })
 
   it('renders accessible layer, status, and nearby controls', async () => {
@@ -252,6 +263,32 @@ describe('MapPage', () => {
     await user.click(screen.getByLabelText('Show activities'))
     await user.click(screen.getByLabelText('Show activities'))
     expect(screen.getByRole('link', { name: /Bronze:.*miles/ })).toBeInTheDocument()
+  })
+
+  it('adds features after the real SDK signals that the map is ready', async () => {
+    const data = createDefaultData()
+    const waypoint = data.waypoints[0]!
+    waypoint.location = { ...waypoint.location, latitude: 51.84, longitude: -2.15 }
+    localStorage.setItem('waypoints-v1', JSON.stringify(data))
+    mapEvents.deferReady = true
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(jsonResponse({ token: 'entra', expiresOn: '2026-01-01', clientId: 'maps-client-id' })),
+    )
+
+    render(
+      <MemoryRouter>
+        <WaypointsProvider>
+          <MapPage />
+        </WaypointsProvider>
+      </MemoryRouter>,
+    )
+    await vi.waitFor(() => expect(mapEvents.ready).toBeDefined())
+    expect(mapEvents.sourceAdd).not.toHaveBeenCalled()
+
+    act(() => mapEvents.ready!())
+
+    await vi.waitFor(() => expect(mapEvents.sourceAdd).toHaveBeenCalled())
   })
 
   it('handles map marker clicks with and without a matching waypoint', async () => {
