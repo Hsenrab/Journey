@@ -1,9 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { InvocationContext } from '@azure/functions'
 
-const issueMapsSasToken = vi.fn()
+const acquireMapsAccessToken = vi.fn()
 vi.mock('@azure/identity', () => ({ DefaultAzureCredential: vi.fn() }))
-vi.mock('../lib/mapsSas.js', () => ({ issueMapsSasToken }))
+vi.mock('../lib/mapsAuth.js', () => ({ acquireMapsAccessToken }))
 
 const originalEnv = { ...process.env }
 const principal = Buffer.from(
@@ -24,12 +24,9 @@ function request(query: string, header = principal) {
 
 beforeEach(() => {
   Object.assign(process.env, {
-    AZURE_SUBSCRIPTION_ID: 'sub',
-    AZURE_RESOURCE_GROUP: 'group',
-    AZURE_MAPS_ACCOUNT_NAME: 'maps',
-    AZURE_MAPS_PRINCIPAL_ID: 'principal',
+    AZURE_MAPS_CLIENT_ID: 'maps-client-id',
   })
-  issueMapsSasToken.mockResolvedValue({ token: 'sas', expiresOn: '2026-01-01T00:00:00.000Z' })
+  acquireMapsAccessToken.mockResolvedValue({ token: 'entra-token', expiresOn: '2026-01-01T00:00:00.000Z' })
 })
 afterEach(() => {
   process.env = { ...originalEnv }
@@ -44,11 +41,14 @@ describe('mapsSearch', () => {
     expect(result).toMatchObject({ status: 400, jsonBody: { error: 'Enter at least two characters.' } })
   })
 
-  it('returns Azure Maps search results without exposing the SAS token', async () => {
+  it('returns Azure Maps search results using the Function identity token', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: () => ({ results: [{ id: 'result' }] }) }))
     const { mapsSearch } = await import('./mapsSearch.js')
     const result = await mapsSearch(request('query=Oxford'), { error: vi.fn() } as unknown as InvocationContext)
     expect(result).toEqual({ status: 200, jsonBody: { results: [{ id: 'result' }] } })
-    expect(issueMapsSasToken).toHaveBeenCalledOnce()
+    expect(acquireMapsAccessToken).toHaveBeenCalledOnce()
+    expect(fetch).toHaveBeenCalledWith('https://atlas.microsoft.com/search/address/json?api-version=1.0&query=Oxford', {
+      headers: { Authorization: 'Bearer entra-token', 'x-ms-client-id': 'maps-client-id' },
+    })
   })
 })

@@ -20,7 +20,7 @@ function jsonResponse(body: unknown) {
 }
 
 vi.mock('azure-maps-control', () => ({
-  AuthenticationType: { sas: 'sas' },
+  AuthenticationType: { anonymous: 'anonymous' },
   Map: class {
     events = {
       add: (...args: unknown[]) => {
@@ -115,7 +115,7 @@ describe('MapPage', () => {
       'fetch',
       vi
         .fn()
-        .mockResolvedValueOnce(jsonResponse({ token: 'sas', expiresOn: '2026-01-01' }))
+        .mockResolvedValueOnce(jsonResponse({ token: 'entra', expiresOn: '2026-01-01', clientId: 'maps-client-id' }))
         .mockResolvedValueOnce(jsonResponse({ results: [] })),
     )
     render(
@@ -139,7 +139,7 @@ describe('MapPage', () => {
       'fetch',
       vi
         .fn()
-        .mockResolvedValueOnce(jsonResponse({ token: 'sas', expiresOn: '2026-01-01' }))
+        .mockResolvedValueOnce(jsonResponse({ token: 'entra', expiresOn: '2026-01-01', clientId: 'maps-client-id' }))
         .mockResolvedValueOnce(
           jsonResponse({
             results: [
@@ -168,7 +168,7 @@ describe('MapPage', () => {
       'fetch',
       vi
         .fn()
-        .mockResolvedValueOnce(jsonResponse({ token: 'sas', expiresOn: '2026-01-01' }))
+        .mockResolvedValueOnce(jsonResponse({ token: 'entra', expiresOn: '2026-01-01', clientId: 'maps-client-id' }))
         .mockResolvedValueOnce(
           jsonResponse({
             results: [{ address: { freeformAddress: 'Oxford' }, position: { lat: 51.752, lon: -1.258 } }],
@@ -193,7 +193,7 @@ describe('MapPage', () => {
       'fetch',
       vi
         .fn()
-        .mockResolvedValueOnce(jsonResponse({ token: 'sas', expiresOn: '2026-01-01' }))
+        .mockResolvedValueOnce(jsonResponse({ token: 'entra', expiresOn: '2026-01-01', clientId: 'maps-client-id' }))
         .mockResolvedValueOnce({ ok: false, text: () => Promise.resolve('Search requires authentication') }),
     )
     render(
@@ -237,7 +237,10 @@ describe('MapPage', () => {
     })
     localStorage.setItem('waypoints-v1', JSON.stringify(data))
     const user = userEvent.setup()
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(jsonResponse({ token: 'sas', expiresOn: '2026-01-01' })))
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(jsonResponse({ token: 'entra', expiresOn: '2026-01-01', clientId: 'maps-client-id' })),
+    )
     render(
       <MemoryRouter>
         <WaypointsProvider>
@@ -256,7 +259,10 @@ describe('MapPage', () => {
     const waypoint = data.waypoints[0]!
     waypoint.location = { ...waypoint.location, latitude: 51.84, longitude: -2.15 }
     localStorage.setItem('waypoints-v1', JSON.stringify(data))
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(jsonResponse({ token: 'sas', expiresOn: '2026-01-01' })))
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(jsonResponse({ token: 'entra', expiresOn: '2026-01-01', clientId: 'maps-client-id' })),
+    )
     render(
       <MemoryRouter>
         <WaypointsProvider>

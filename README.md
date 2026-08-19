@@ -83,8 +83,10 @@ npm run dev
 
 The hosted application uses Azure Static Web Apps' built-in Microsoft Entra ID
 provider. Application and API routes require the custom `owner` role, assigned
-through a Static Web Apps invitation. The linked Functions API also validates the
-signed-in account's tenant and immutable object ID before accessing Azure Maps.
+through a Static Web Apps invitation. The linked Functions API validates the
+Static Web Apps principal before accessing Azure Maps. Azure Maps must retain
+`disableLocalAuth: true`; its browser and API access must use Microsoft Entra tokens
+acquired with the Function App's managed identity, never shared keys or SAS tokens.
 
 See [docs/operations.md](docs/operations.md) for environment configuration,
 invitations, deployment verification, and sign-in troubleshooting.

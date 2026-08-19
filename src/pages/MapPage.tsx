@@ -15,7 +15,7 @@ const statusColors: Record<Status, string> = {
   gold: '#a66f00',
 }
 
-type MapsToken = { token: string; expiresOn: string }
+type MapsToken = { token: string; expiresOn: string; clientId: string }
 type SearchResult = {
   position?: { lat: number; lon: number }
   address?: { freeformAddress?: string }
@@ -70,10 +70,22 @@ export default function MapPage() {
 
   useEffect(() => {
     if (!token || !container.current || map.current) return
+    let initialToken: string | undefined = token.token
     const instance = new atlas.Map(container.current, {
       center: [origin.longitude, origin.latitude],
       zoom: 8,
-      authOptions: { authType: atlas.AuthenticationType.sas, sasToken: token.token },
+      authOptions: {
+        authType: atlas.AuthenticationType.anonymous,
+        clientId: token.clientId,
+        getToken: (resolve, reject) => {
+          if (initialToken) {
+            resolve(initialToken)
+            initialToken = undefined
+            return
+          }
+          void getMapsToken().then((refreshed) => resolve(refreshed.token), reject)
+        },
+      },
     })
     instance.events.add('ready', () => {
       const popup = new atlas.Popup()
