@@ -13,6 +13,7 @@
     "start": "npm run build && func start"
   },
   "dependencies": {
+    "@azure/cosmos": "^4.10.0",
     "@azure/functions": "^4.16.2",
     "@azure/identity": "^4.13.1",
     "zod": "^4.4.3"

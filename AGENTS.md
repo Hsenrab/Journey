@@ -11,9 +11,9 @@ productively in this repository.
 - Zod for runtime validation of persisted/imported data
 - Vitest + Testing Library for tests
 - Oxlint for linting, Prettier for formatting
-- Azure Static Web Apps with Microsoft Entra ID authentication, and a minimal
-  linked Azure Functions API (`api/`), for the explicitly approved
-  managed-identity API boundary described in "Conventions" below
+- Azure Static Web Apps with Microsoft Entra ID authentication, a minimal linked
+  Azure Functions API (`api/`), and Azure Cosmos DB for NoSQL for the explicitly
+  approved managed-identity persistence boundary described in "Conventions" below
 - Azure Maps Web SDK for the explicitly approved waypoint and activity map
 
 ## Project philosophy
@@ -90,14 +90,14 @@ src/
   components/ Shared, reusable presentation components (e.g. Layout)
   pages/      Route-level components (Dashboard, Locations, LocationDetails, Settings)
   features/   Feature-specific logic and state (e.g. journey/ tracking context)
-  services/   Cross-cutting infrastructure (e.g. storage persistence)
+  services/   Cross-cutting infrastructure (e.g. the authenticated Journey API)
   domain/     Core types and business rules, framework-agnostic
   data/       Static/reference data (e.g. the list of locations)
   styles/     Global stylesheets
   domain/     Map filtering and nearby-ordering rules
 api/
-  src/functions/  HTTP-triggered Azure Functions, one purpose-specific endpoint per file (including Maps token/search)
-  src/lib/        Principal validation and downstream-service credential logic
+  src/functions/  HTTP-triggered Azure Functions, one purpose-specific endpoint per file (including Maps and Journey data)
+  src/lib/        Principal validation, Cosmos document validation, and downstream-service credential logic
 ```
 
 Tests live alongside the file they cover (`*.test.ts`/`*.test.tsx`).
@@ -111,7 +111,7 @@ Tests live alongside the file they cover (`*.test.ts`/`*.test.tsx`).
   where possible.
 - New routes should be added under `src/pages/` and registered in `src/app/App.tsx`,
   with a corresponding entry in the navigation (`src/components/Layout.tsx`).
-- Do not add Next.js, Redux, a database, arbitrary map UI, or photo upload storage. Azure Maps is approved only for the waypoint and activity map through the protected boundary below. Microsoft
+- Do not add Next.js, Redux, arbitrary map UI, or photo upload storage. Azure Cosmos DB for NoSQL is approved only for Journey persistence through the protected boundary below; no other database is approved. Azure Maps is approved only for the waypoint and activity map through the protected boundary below. Microsoft
   Entra authentication through Azure Static Web Apps and a minimal linked Azure
   Functions API are permitted for explicitly approved features. Browser access to
   `/api/*` must be restricted to the explicitly assigned work identity; Function
@@ -134,6 +134,18 @@ Tests live alongside the file they cover (`*.test.ts`/`*.test.tsx`).
   render/search data actions. Do not add a second map provider, shared-key or SAS
   fallback, client secret, Function key, retry layer, or bulk-geocoding migration
   without an explicit requirement.
+- Real Journey data is Cosmos-only. Browser code accesses it through authenticated,
+  purpose-specific same-origin Function APIs using the Function managed identity and
+  Cosmos data-plane RBAC; it never accesses Cosmos directly, uses account keys or
+  connection strings, caches data locally, synchronizes offline edits, or falls back
+  to stale data. The account uses Session consistency, periodic backup, and one typed
+  document per entity with `id`, `datasetId`, `type`, and `schemaVersion`, partitioned
+  by `/datasetId`.
+- The `production`, `test`, and `demo` containers are separate. Production starts
+  empty and is the only mutable real-data container. Test runs use a unique
+  `datasetId`, clean it unconditionally, verify it is empty, and never access
+  production. Demo records are deterministic and read-only. Production exports
+  exclude test and demo records; import is allowed only into empty production.
 - Do not commit secrets or personal data. Visit data lives only in the browser's
   local storage.
 - Tests should assert explicit success or explicit failure. Do not encode silent

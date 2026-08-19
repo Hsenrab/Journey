@@ -4,8 +4,8 @@
   "metadata": {
     "_generator": {
       "name": "bicep",
-      "version": "0.45.15.27210",
-      "templateHash": "12579723564533747410"
+      "version": "0.46.1.21595",
+      "templateHash": "5899032511951820725"
     }
   },
   "parameters": {
@@ -70,6 +70,21 @@
       "metadata": {
         "description": "Provisions the managed-identity API boundary (linked Functions app and Azure\nMaps account) alongside the Static Web App. Linking a Functions backend\nrequires the Standard plan, which skuName always is, so this defaults to on.\n"
       }
+    },
+    "cosmosMode": {
+      "type": "string",
+      "defaultValue": "serverless",
+      "allowedValues": ["freeTier", "serverless"],
+      "metadata": {
+        "description": "Cosmos DB account mode. Select freeTier only after confirming the subscription allowance; serverless is the explicit low-cost alternative."
+      }
+    },
+    "monthlyBudgetAmount": {
+      "type": "int",
+      "defaultValue": 5,
+      "metadata": {
+        "description": "Monthly budget amount in the subscription billing currency."
+      }
     }
   },
   "variables": {
@@ -82,11 +97,18 @@
     "appInsightsName": "[format('{0}-appi', parameters('staticWebAppName'))]",
     "networkSecurityPerimeterName": "[format('{0}-nsp', parameters('staticWebAppName'))]",
     "networkSecurityPerimeterProfileName": "function-storage",
+    "cosmosAccountName": "[format('{0}-data', parameters('staticWebAppName'))]",
+    "cosmosDatabaseName": "journey",
+    "cosmosProductionContainerName": "production",
+    "cosmosTestContainerName": "test",
+    "cosmosDemoContainerName": "demo",
     "azureMapsSearchAndRenderDataReaderRoleId": "6be48352-4f82-47c9-ad5e-0acacefdb005",
     "storageBlobDataOwnerRoleId": "b7e6dc6d-f1e8-4753-8033-0f276bb0955b",
     "storageBlobDataContributorRoleId": "ba92f5b4-2d11-453d-a403-e96b0029c9fe",
     "storageQueueDataContributorRoleId": "974c5e8b-45b9-4653-ba55-5f855dd0fb88",
-    "storageTableDataContributorRoleId": "0a9a7e1f-b9d0-4cc4-a60d-0319b160aaa3"
+    "storageTableDataContributorRoleId": "0a9a7e1f-b9d0-4cc4-a60d-0319b160aaa3",
+    "cosmosDataContributorRoleId": "5bd9cd88-fe45-4216-938b-f25a594e1e86",
+    "cosmosDataReaderRoleId": "00000000-0000-0000-0000-000000000001"
   },
   "resources": [
     {
@@ -111,6 +133,130 @@
           "skipGithubActionWorkflowGeneration": true
         }
       }
+    },
+    {
+      "condition": "[parameters('enableApi')]",
+      "type": "Microsoft.DocumentDB/databaseAccounts",
+      "apiVersion": "2024-05-15",
+      "name": "[variables('cosmosAccountName')]",
+      "location": "[parameters('location')]",
+      "tags": "[variables('tags')]",
+      "kind": "GlobalDocumentDB",
+      "properties": {
+        "databaseAccountOfferType": "Standard",
+        "enableFreeTier": "[equals(parameters('cosmosMode'), 'freeTier')]",
+        "consistencyPolicy": {
+          "defaultConsistencyLevel": "Session"
+        },
+        "disableLocalAuth": true,
+        "backupPolicy": {
+          "type": "Periodic",
+          "periodicModeProperties": {
+            "backupIntervalInMinutes": 240,
+            "backupRetentionIntervalInHours": 8,
+            "backupStorageRedundancy": "Local"
+          }
+        },
+        "capabilities": "[if(equals(parameters('cosmosMode'), 'serverless'), createArray(createObject('name', 'EnableServerless')), createArray())]",
+        "locations": [
+          {
+            "locationName": "[parameters('location')]",
+            "failoverPriority": 0,
+            "isZoneRedundant": false
+          }
+        ]
+      }
+    },
+    {
+      "condition": "[parameters('enableApi')]",
+      "type": "Microsoft.DocumentDB/databaseAccounts/sqlDatabases",
+      "apiVersion": "2024-05-15",
+      "name": "[format('{0}/{1}', variables('cosmosAccountName'), variables('cosmosDatabaseName'))]",
+      "properties": {
+        "resource": {
+          "id": "[variables('cosmosDatabaseName')]"
+        }
+      }
+    },
+    {
+      "condition": "[parameters('enableApi')]",
+      "type": "Microsoft.DocumentDB/databaseAccounts/sqlDatabases/containers",
+      "apiVersion": "2024-05-15",
+      "name": "[format('{0}/{1}/{2}', variables('cosmosAccountName'), variables('cosmosDatabaseName'), variables('cosmosProductionContainerName'))]",
+      "properties": {
+        "resource": {
+          "id": "[variables('cosmosProductionContainerName')]",
+          "partitionKey": {
+            "paths": ["/datasetId"],
+            "kind": "Hash"
+          }
+        },
+        "options": "[if(equals(parameters('cosmosMode'), 'freeTier'), createObject('throughput', 400), createObject())]"
+      }
+    },
+    {
+      "condition": "[parameters('enableApi')]",
+      "type": "Microsoft.DocumentDB/databaseAccounts/sqlDatabases/containers",
+      "apiVersion": "2024-05-15",
+      "name": "[format('{0}/{1}/{2}', variables('cosmosAccountName'), variables('cosmosDatabaseName'), variables('cosmosTestContainerName'))]",
+      "properties": {
+        "resource": {
+          "id": "[variables('cosmosTestContainerName')]",
+          "partitionKey": {
+            "paths": ["/datasetId"],
+            "kind": "Hash"
+          }
+        },
+        "options": "[if(equals(parameters('cosmosMode'), 'freeTier'), createObject('throughput', 400), createObject())]"
+      }
+    },
+    {
+      "condition": "[parameters('enableApi')]",
+      "type": "Microsoft.DocumentDB/databaseAccounts/sqlDatabases/containers",
+      "apiVersion": "2024-05-15",
+      "name": "[format('{0}/{1}/{2}', variables('cosmosAccountName'), variables('cosmosDatabaseName'), variables('cosmosDemoContainerName'))]",
+      "properties": {
+        "resource": {
+          "id": "[variables('cosmosDemoContainerName')]",
+          "partitionKey": {
+            "paths": ["/datasetId"],
+            "kind": "Hash"
+          }
+        },
+        "options": "[if(equals(parameters('cosmosMode'), 'freeTier'), createObject('throughput', 400), createObject())]"
+      }
+    },
+    {
+      "condition": "[parameters('enableApi')]",
+      "type": "Microsoft.Authorization/roleAssignments",
+      "apiVersion": "2022-04-01",
+      "scope": "[resourceId('Microsoft.DocumentDB/databaseAccounts/sqlDatabases/containers', split(format('{0}/{1}/{2}', variables('cosmosAccountName'), variables('cosmosDatabaseName'), variables('cosmosProductionContainerName')), '/')[0], split(format('{0}/{1}/{2}', variables('cosmosAccountName'), variables('cosmosDatabaseName'), variables('cosmosProductionContainerName')), '/')[1], split(format('{0}/{1}/{2}', variables('cosmosAccountName'), variables('cosmosDatabaseName'), variables('cosmosProductionContainerName')), '/')[2])]",
+      "name": "[guid(resourceId('Microsoft.DocumentDB/databaseAccounts/sqlDatabases/containers', split(format('{0}/{1}/{2}', variables('cosmosAccountName'), variables('cosmosDatabaseName'), variables('cosmosProductionContainerName')), '/')[0], split(format('{0}/{1}/{2}', variables('cosmosAccountName'), variables('cosmosDatabaseName'), variables('cosmosProductionContainerName')), '/')[1], split(format('{0}/{1}/{2}', variables('cosmosAccountName'), variables('cosmosDatabaseName'), variables('cosmosProductionContainerName')), '/')[2]), variables('functionAppName'), variables('cosmosDataContributorRoleId'))]",
+      "properties": {
+        "roleDefinitionId": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', variables('cosmosDataContributorRoleId'))]",
+        "principalId": "[reference(resourceId('Microsoft.Web/sites', variables('functionAppName')), '2023-12-01', 'full').identity.principalId]",
+        "principalType": "ServicePrincipal"
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.DocumentDB/databaseAccounts/sqlDatabases/containers', split(format('{0}/{1}/{2}', variables('cosmosAccountName'), variables('cosmosDatabaseName'), variables('cosmosProductionContainerName')), '/')[0], split(format('{0}/{1}/{2}', variables('cosmosAccountName'), variables('cosmosDatabaseName'), variables('cosmosProductionContainerName')), '/')[1], split(format('{0}/{1}/{2}', variables('cosmosAccountName'), variables('cosmosDatabaseName'), variables('cosmosProductionContainerName')), '/')[2])]",
+        "[resourceId('Microsoft.Web/sites', variables('functionAppName'))]"
+      ]
+    },
+    {
+      "condition": "[parameters('enableApi')]",
+      "type": "Microsoft.Authorization/roleAssignments",
+      "apiVersion": "2022-04-01",
+      "scope": "[resourceId('Microsoft.DocumentDB/databaseAccounts/sqlDatabases/containers', split(format('{0}/{1}/{2}', variables('cosmosAccountName'), variables('cosmosDatabaseName'), variables('cosmosDemoContainerName')), '/')[0], split(format('{0}/{1}/{2}', variables('cosmosAccountName'), variables('cosmosDatabaseName'), variables('cosmosDemoContainerName')), '/')[1], split(format('{0}/{1}/{2}', variables('cosmosAccountName'), variables('cosmosDatabaseName'), variables('cosmosDemoContainerName')), '/')[2])]",
+      "name": "[guid(resourceId('Microsoft.DocumentDB/databaseAccounts/sqlDatabases/containers', split(format('{0}/{1}/{2}', variables('cosmosAccountName'), variables('cosmosDatabaseName'), variables('cosmosDemoContainerName')), '/')[0], split(format('{0}/{1}/{2}', variables('cosmosAccountName'), variables('cosmosDatabaseName'), variables('cosmosDemoContainerName')), '/')[1], split(format('{0}/{1}/{2}', variables('cosmosAccountName'), variables('cosmosDatabaseName'), variables('cosmosDemoContainerName')), '/')[2]), variables('functionAppName'), variables('cosmosDataReaderRoleId'))]",
+      "properties": {
+        "roleDefinitionId": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', variables('cosmosDataReaderRoleId'))]",
+        "principalId": "[reference(resourceId('Microsoft.Web/sites', variables('functionAppName')), '2023-12-01', 'full').identity.principalId]",
+        "principalType": "ServicePrincipal"
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.DocumentDB/databaseAccounts/sqlDatabases/containers', split(format('{0}/{1}/{2}', variables('cosmosAccountName'), variables('cosmosDatabaseName'), variables('cosmosDemoContainerName')), '/')[0], split(format('{0}/{1}/{2}', variables('cosmosAccountName'), variables('cosmosDatabaseName'), variables('cosmosDemoContainerName')), '/')[1], split(format('{0}/{1}/{2}', variables('cosmosAccountName'), variables('cosmosDatabaseName'), variables('cosmosDemoContainerName')), '/')[2])]",
+        "[resourceId('Microsoft.Web/sites', variables('functionAppName'))]"
+      ]
     },
     {
       "condition": "[parameters('enableApi')]",
@@ -248,10 +394,16 @@
         "AzureWebJobsStorage__accountName": "[variables('storageAccountName')]",
         "AzureWebJobsStorage__credential": "managedidentity",
         "AZURE_MAPS_CLIENT_ID": "[reference(resourceId('Microsoft.Maps/accounts', variables('mapsAccountName')), '2023-06-01').uniqueId]",
-        "APPLICATIONINSIGHTS_CONNECTION_STRING": "[reference(resourceId('Microsoft.Insights/components', variables('appInsightsName')), '2020-02-02').ConnectionString]"
+        "APPLICATIONINSIGHTS_CONNECTION_STRING": "[reference(resourceId('Microsoft.Insights/components', variables('appInsightsName')), '2020-02-02').ConnectionString]",
+        "COSMOS_ENDPOINT": "[reference(resourceId('Microsoft.DocumentDB/databaseAccounts', variables('cosmosAccountName')), '2024-05-15').documentEndpoint]",
+        "COSMOS_DATABASE_NAME": "[variables('cosmosDatabaseName')]",
+        "COSMOS_PRODUCTION_DATASET_ID": "production",
+        "COSMOS_TEST_DATASET_ID": "test",
+        "COSMOS_DEMO_DATASET_ID": "demo"
       },
       "dependsOn": [
         "[resourceId('Microsoft.Insights/components', variables('appInsightsName'))]",
+        "[resourceId('Microsoft.DocumentDB/databaseAccounts', variables('cosmosAccountName'))]",
         "[resourceId('Microsoft.Web/sites', variables('functionAppName'))]",
         "[resourceId('Microsoft.Maps/accounts', variables('mapsAccountName'))]",
         "[resourceId('Microsoft.Storage/storageAccounts', variables('storageAccountName'))]"
@@ -362,6 +514,91 @@
         "[resourceId('Microsoft.Web/sites', variables('functionAppName'))]",
         "[resourceId('Microsoft.Storage/storageAccounts', variables('storageAccountName'))]"
       ]
+    },
+    {
+      "condition": "[parameters('enableApi')]",
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2025-04-01",
+      "name": "[format('{0}-monthly-budget', parameters('staticWebAppName'))]",
+      "subscriptionId": "[subscription().subscriptionId]",
+      "location": "[resourceGroup().location]",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "amount": {
+            "value": "[parameters('monthlyBudgetAmount')]"
+          },
+          "budgetName": {
+            "value": "[format('{0}-monthly', parameters('staticWebAppName'))]"
+          },
+          "resourceGroupName": {
+            "value": "[resourceGroup().name]"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2018-05-01/subscriptionDeploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.46.1.21595",
+              "templateHash": "13504248033725910987"
+            }
+          },
+          "parameters": {
+            "budgetName": {
+              "type": "string"
+            },
+            "amount": {
+              "type": "int",
+              "defaultValue": 5
+            },
+            "resourceGroupName": {
+              "type": "string"
+            }
+          },
+          "resources": [
+            {
+              "type": "Microsoft.Consumption/budgets",
+              "apiVersion": "2023-11-01",
+              "name": "[parameters('budgetName')]",
+              "properties": {
+                "amount": "[parameters('amount')]",
+                "category": "Cost",
+                "timeGrain": "Monthly",
+                "timePeriod": {
+                  "startDate": "2026-01-01",
+                  "endDate": "2036-12-31"
+                },
+                "filter": {
+                  "dimensions": {
+                    "name": "ResourceGroupName",
+                    "operator": "In",
+                    "values": ["[parameters('resourceGroupName')]"]
+                  }
+                },
+                "notifications": {
+                  "eightyPercent": {
+                    "enabled": true,
+                    "operator": "GreaterThan",
+                    "threshold": 80,
+                    "contactRoles": ["Owner"]
+                  },
+                  "hundredPercent": {
+                    "enabled": true,
+                    "operator": "GreaterThan",
+                    "threshold": 100,
+                    "contactRoles": ["Owner"]
+                  }
+                }
+              }
+            }
+          ]
+        }
+      }
     }
   ],
   "outputs": {

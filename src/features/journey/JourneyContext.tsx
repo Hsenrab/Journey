@@ -1,5 +1,7 @@
-import { createContext, useContext, useEffect, useMemo, useReducer, type ReactNode } from 'react'
+import { createContext, useCallback, useContext, useEffect, useMemo, useReducer, useState, type ReactNode } from 'react'
 import { load, save } from '../../services/storage'
+import { createJourneyEntity, deleteJourneyEntity, loadJourney, updateJourneyEntity } from '../../services/journeyApi'
+import { isDemoModeEnabled } from '../../services/storage'
 import {
   activitiesForWaypoint,
   createActivity,
@@ -39,6 +41,7 @@ type WaypointsValue = {
   updateActivity: (activityId: string, input: ActivityDraft) => void
   deleteActivity: (activityId: string) => void
   restore: (data: WaypointsData) => void
+  reload: () => void
   activitiesFor: (waypointId: string) => Activity[]
   statusFor: (waypointId: string) => Status
 }
@@ -190,19 +193,78 @@ function reducer(data: WaypointsData, action: Action): WaypointsData {
 }
 
 export function WaypointsProvider({ children }: { children: ReactNode }) {
-  const [data, dispatch] = useReducer(reducer, undefined, load)
-  useEffect(() => save(data), [data])
+  const localTestMode = import.meta.env.MODE === 'test'
+  const emptyData = (): WaypointsData => ({
+    waypoints: [],
+    challenges: [],
+    ideas: [],
+    activities: [],
+    references: [],
+    photoReferences: [],
+  })
+  const [data, dispatch] = useReducer(reducer, undefined, localTestMode ? load : emptyData)
+  const [etags, setEtags] = useState<Record<string, string>>({})
+  const reload = useCallback(() => {
+    if (localTestMode) {
+      dispatch({ type: 'restore', data: load() })
+      return
+    }
+    void loadJourney(isDemoModeEnabled() ? 'demo' : 'production').then(
+      (loaded) => (dispatch({ type: 'restore', data: loaded.data }), setEtags(loaded.etags)),
+    )
+  }, [localTestMode])
+  useEffect(() => {
+    if (localTestMode) save(data)
+  }, [data, localTestMode])
+  useEffect(() => {
+    if (!localTestMode) reload()
+  }, [localTestMode, reload])
   const value = useMemo<WaypointsValue>(
     () => ({
       data,
-      addActivity: (input) => dispatch({ type: 'add-activity', input }),
-      updateActivity: (activityId, input) => dispatch({ type: 'update-activity', activityId, input }),
-      deleteActivity: (activityId) => dispatch({ type: 'delete-activity', activityId }),
+      addActivity: (input) => {
+        if (isDemoModeEnabled() && !localTestMode) throw new Error('Demo data is read-only.')
+        const action = { type: 'add-activity' as const, input }
+        const next = reducer(data, action)
+        dispatch(action)
+        if (!localTestMode) {
+          const activity = next.activities.at(-1)
+          if (activity)
+            void createJourneyEntity('production', 'activity', activity).then(
+              (result) => result.etag && setEtags((current) => ({ ...current, [activity.activityId]: result.etag! })),
+            )
+        }
+      },
+      updateActivity: (activityId, input) => {
+        if (isDemoModeEnabled() && !localTestMode) throw new Error('Demo data is read-only.')
+        const action = { type: 'update-activity' as const, activityId, input }
+        const next = reducer(data, action)
+        dispatch(action)
+        if (!localTestMode) {
+          const activity = next.activities.find((item) => item.activityId === activityId)
+          const etag = etags[activityId]
+          if (!activity || !etag) throw new Error('Missing server version for activity update.')
+          void updateJourneyEntity('production', 'activity', activity, activityId, etag).then(
+            (result) => result.etag && setEtags((current) => ({ ...current, [activityId]: result.etag! })),
+          )
+        }
+      },
+      deleteActivity: (activityId) => {
+        if (isDemoModeEnabled() && !localTestMode) throw new Error('Demo data is read-only.')
+        const action = { type: 'delete-activity' as const, activityId }
+        dispatch(action)
+        if (!localTestMode) {
+          const etag = etags[activityId]
+          if (!etag) throw new Error('Missing server version for activity delete.')
+          void deleteJourneyEntity('production', 'activity', activityId, etag)
+        }
+      },
       restore: (newData) => dispatch({ type: 'restore', data: newData }),
+      reload,
       activitiesFor: (waypointId) => activitiesForWaypoint(data.activities, waypointId),
       statusFor: (waypointId) => statusForWaypoint(data.activities, waypointId),
     }),
-    [data],
+    [data, etags, localTestMode, reload],
   )
   return <Context.Provider value={value}>{children}</Context.Provider>
 }

@@ -3,6 +3,40 @@
 This guide covers deploying, verifying, rolling back, and backing up the Waypoints
 application, which runs as an Azure Static Web App.
 
+## Cosmos DB persistence
+
+The linked Function App is the only data boundary. It uses its system-assigned
+managed identity and container-scoped Cosmos DB RBAC; browser assets never receive
+an account key, connection string, or direct Cosmos endpoint. The account uses
+Session consistency, the default consistent indexing policy, local key
+authentication disabled, and periodic backup.
+
+`infra/main.bicep` provisions the `journey` database with `production`, `test`, and
+`demo` containers, all partitioned by `/datasetId`. `production` starts empty and
+contains the only mutable real data. `demo` is deterministic and read-only.
+Provisioning requires an explicit `cosmosMode`: choose `freeTier` only after
+checking the subscription's Cosmos free-tier eligibility with Azure, otherwise
+choose `serverless`. No paid provisioned-throughput fallback is configured. The
+subscription budget module alerts at GBP 5 (or the subscription billing
+currency's equivalent); confirm the billing currency before deployment.
+
+Review Cosmos request units, throttled requests, storage, latency, availability,
+and authorization failures in the Cosmos account metrics and Application
+Insights. Do not log document bodies, credentials, or precise location data.
+The current periodic backup is every 240 minutes with 8 hours retention and local
+redundancy. Restore requests create a new account/container; validate the restored
+dataset and redirect configuration only after verification. JSON export remains
+the user-controlled backup.
+
+### Test data
+
+Live integration and preview tests must use the `test` container with a unique
+partition such as `ci-<run-id>`. Seed the immutable fixture before the run, allow
+mutations, then delete every item in that partition in unconditional cleanup and
+verify it is empty. Cleanup failure fails the workflow. Test identities have no
+production-container data-plane role. Local development should use the Cosmos DB
+Emulator where practical; deployed validation uses only the live `test` container.
+
 ## Azure Maps
 
 The Azure Maps account must keep `disableLocalAuth: true` to satisfy policy. This
