@@ -6,11 +6,17 @@ import { createDefaultData } from '../services/storage'
 import { WaypointsProvider } from '../features/journey/JourneyContext'
 
 type MapClickHandler = (event: {
-  shapes?: Array<{ getProperties?: () => { waypointId?: string }; properties?: { waypointId?: string } }>
+  shapes?: Array<{
+    getProperties?: () => { waypointId?: string; activityId?: string }
+    getCoordinates?: () => number[]
+    properties?: { waypointId?: string; activityId?: string }
+  }>
 }) => void
 
 const mapEvents = vi.hoisted(() => ({
   click: undefined as MapClickHandler | undefined,
+  activityClick: undefined as MapClickHandler | undefined,
+  clusterClick: undefined as MapClickHandler | undefined,
   ready: undefined as (() => void) | undefined,
   deferReady: false,
   sourceAdd: vi.fn(),
@@ -36,11 +42,23 @@ vi.mock('azure-maps-control', () => ({
         if (args[0] === 'click' && args.length === 3 && (args[1] as { id?: string })?.id === 'waypoints') {
           mapEvents.click = args[2] as MapClickHandler
         }
+        if (args[0] === 'click' && args.length === 3 && (args[1] as { id?: string })?.id === 'activities') {
+          mapEvents.activityClick = args[2] as MapClickHandler
+        }
+        if (
+          args[0] === 'click' &&
+          args.length === 3 &&
+          (args[1] as { id?: string })?.id === 'waypoint-cluster-labels'
+        ) {
+          mapEvents.clusterClick = args[2] as MapClickHandler
+        }
       },
     }
     sources = { add: vi.fn() }
     layers = { add: vi.fn() }
     imageSprite = { add: vi.fn() }
+    getCamera = vi.fn(() => ({ zoom: 8 }))
+    setCamera = vi.fn()
     dispose = vi.fn()
   },
   Popup: class {
@@ -78,6 +96,8 @@ describe('MapPage', () => {
   beforeEach(() => {
     localStorage.clear()
     mapEvents.click = undefined
+    mapEvents.activityClick = undefined
+    mapEvents.clusterClick = undefined
     mapEvents.ready = undefined
     mapEvents.deferReady = false
     mapEvents.sourceAdd.mockClear()
@@ -344,5 +364,61 @@ describe('MapPage', () => {
       mapEvents.click!({ shapes: [{ getProperties: () => ({ waypointId: waypoint.waypointId }) }] })
     }).not.toThrow()
     expect(await screen.findByRole('status')).toHaveTextContent('Opening waypoint details.')
+  })
+
+  it('shows activity marker details for linked and unlinked activities', async () => {
+    const data = createDefaultData()
+    const activity = {
+      activityId: 'linked',
+      waypointId: data.waypoints[0]!.waypointId,
+      date: '2026-08-10',
+      category: 'bronze' as const,
+      location: { kind: 'coordinates' as const, latitude: 51.86, longitude: -2.22 },
+      notes: '',
+      referenceIds: [],
+      photoReferenceIds: [],
+      createdAt: '2026-08-10T00:00:00.000Z',
+      updatedAt: '2026-08-10T00:00:00.000Z',
+    }
+    const unlinked = { ...activity, activityId: 'unlinked', waypointId: undefined, category: undefined }
+    data.activities = [activity, unlinked]
+    localStorage.setItem('waypoints-v1', JSON.stringify(data))
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(jsonResponse({ token: 'entra', expiresOn: '2026-01-01', clientId: 'maps-client-id' })),
+    )
+    render(
+      <MemoryRouter>
+        <WaypointsProvider>
+          <MapPage />
+        </WaypointsProvider>
+      </MemoryRouter>,
+    )
+    await vi.waitFor(() => expect(mapEvents.activityClick).toBeDefined())
+    expect(() => {
+      mapEvents.activityClick!({})
+      mapEvents.activityClick!({ shapes: [{ properties: { activityId: 'unknown' } }] })
+      mapEvents.activityClick!({ shapes: [{ properties: { activityId: activity.activityId } }] })
+      mapEvents.activityClick!({ shapes: [{ properties: { activityId: unlinked.activityId } }] })
+    }).not.toThrow()
+  })
+
+  it('zooms into an activated cluster', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(jsonResponse({ token: 'entra', expiresOn: '2026-01-01', clientId: 'maps-client-id' })),
+    )
+    render(
+      <MemoryRouter>
+        <WaypointsProvider>
+          <MapPage />
+        </WaypointsProvider>
+      </MemoryRouter>,
+    )
+    await vi.waitFor(() => expect(mapEvents.clusterClick).toBeDefined())
+    expect(() => {
+      mapEvents.clusterClick!({})
+      mapEvents.clusterClick!({ shapes: [{ getCoordinates: () => [-2.2, 51.8] }] })
+    }).not.toThrow()
   })
 })

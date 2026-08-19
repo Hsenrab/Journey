@@ -139,6 +139,11 @@ export default function MapPage() {
         iconOptions: { image: ['get', 'icon'], allowOverlap: true, size: 1 },
         textOptions: { textField: ['get', 'label'], offset: [0, 1.2], allowOverlap: false, minZoom: 11 },
       })
+      const activityClusterLayer = new atlas.layer.SymbolLayer(activities, 'activity-cluster-labels', {
+        filter: ['has', 'point_count'],
+        textOptions: { textField: ['get', 'point_count_abbreviated'], color: '#fff', size: 14 },
+        iconOptions: { image: 'marker-blue', color: markerColors.activity, size: 0.9 },
+      })
       instance.layers.add([
         new atlas.layer.BubbleLayer(waypoints, 'waypoint-clusters', {
           filter: ['has', 'point_count'],
@@ -148,11 +153,7 @@ export default function MapPage() {
         waypointLayer,
         waypointClusterLayer,
         activityLayer,
-        new atlas.layer.SymbolLayer(activities, 'activity-cluster-labels', {
-          filter: ['has', 'point_count'],
-          textOptions: { textField: ['get', 'point_count_abbreviated'], color: '#fff', size: 14 },
-          iconOptions: { image: 'marker-blue', color: markerColors.activity, size: 0.9 },
-        }),
+        activityClusterLayer,
       ])
       const zoomIntoCluster = (event: atlas.MapMouseEvent) => {
         const shape = event.shapes?.[0]
@@ -164,7 +165,7 @@ export default function MapPage() {
         })
       }
       instance.events.add('click', waypointClusterLayer, zoomIntoCluster)
-      instance.events.add('click', activityLayer, zoomIntoCluster)
+      instance.events.add('click', activityClusterLayer, zoomIntoCluster)
       instance.events.add('click', waypointLayer, (event) => {
         const shape = event.shapes?.[0]
         const properties = shape && 'getProperties' in shape ? shape.getProperties() : shape?.properties
