@@ -1,0 +1,310 @@
+{
+  "waypoints": [
+    {
+      "waypointId": "demo-foxglove-manor",
+      "title": "Foxglove Manor (Demo)",
+      "description": "A fictional hilltop manor with a clockwork orangery and views across an invented Severn valley.",
+      "category": "House and garden",
+      "tags": ["Fictional", "Gloucestershire-inspired", "National Trust-style", "Weekend"],
+      "challengeIds": ["national-trust", "heritage-weekend"],
+      "completion": { "mode": "once" },
+      "location": {
+        "placeName": "Foxglove Manor (Demo)",
+        "addressOrRegion": "Fictional Gloucestershire",
+        "latitude": 51.86,
+        "longitude": -2.22,
+        "source": "Fabricated demo data",
+        "approximate": true
+      },
+      "referenceIds": ["reference-demo-foxglove-manor"],
+      "photoReferenceIds": []
+    },
+    {
+      "waypointId": "demo-bramblewick-gardens",
+      "title": "Bramblewick Gardens (Demo)",
+      "description": "A fictional Arts and Crafts garden known for enormous topiary teapots.",
+      "category": "Garden",
+      "tags": ["Fictional", "Gloucestershire-inspired", "National Trust-style", "Garden"],
+      "challengeIds": ["national-trust", "heritage-weekend"],
+      "completion": { "mode": "once" },
+      "location": {
+        "placeName": "Bramblewick Gardens (Demo)",
+        "addressOrRegion": "Fictional Cotswolds",
+        "latitude": 51.79,
+        "longitude": -2.08,
+        "source": "Fabricated demo data",
+        "approximate": true
+      },
+      "referenceIds": ["reference-demo-bramblewick-gardens"],
+      "photoReferenceIds": []
+    },
+    {
+      "waypointId": "demo-cindercombe-mill",
+      "title": "Cindercombe Mill (Demo)",
+      "description": "A fictional watermill with working wooden gears and a riverside picnic meadow.",
+      "category": "Mill",
+      "tags": ["Fictional", "Gloucestershire-inspired", "National Trust-style", "Industrial heritage"],
+      "challengeIds": ["national-trust", "heritage-weekend"],
+      "completion": { "mode": "once" },
+      "location": {
+        "placeName": "Cindercombe Mill (Demo)",
+        "addressOrRegion": "Fictional Stroud Valleys",
+        "latitude": 51.74,
+        "longitude": -2.27,
+        "source": "Fabricated demo data",
+        "approximate": true
+      },
+      "referenceIds": ["reference-demo-cindercombe-mill"],
+      "photoReferenceIds": []
+    },
+    {
+      "waypointId": "demo-lantern-hill-fort",
+      "title": "Lantern Hill Fort (Demo)",
+      "description": "A fictional Iron Age hillfort where an annual lantern trail circles the ramparts.",
+      "category": "Archaeological site",
+      "tags": ["Fictional", "Gloucestershire-inspired", "National Trust-style", "Views"],
+      "challengeIds": ["national-trust", "heritage-weekend"],
+      "completion": { "mode": "once" },
+      "location": {
+        "placeName": "Lantern Hill Fort (Demo)",
+        "addressOrRegion": "Fictional Cotswold Escarpment",
+        "latitude": 51.83,
+        "longitude": -2.13,
+        "source": "Fabricated demo data",
+        "approximate": true
+      },
+      "referenceIds": ["reference-demo-lantern-hill-fort"],
+      "photoReferenceIds": []
+    },
+    {
+      "waypointId": "demo-wychwood-night-walk",
+      "title": "Wychwood Night Walk (Demo)",
+      "description": "A fictional guided woodland walk ending with hot chocolate beneath the old observatory.",
+      "category": "Countryside",
+      "tags": ["Fictional", "Gloucestershire-inspired", "Walking", "Evening"],
+      "challengeIds": ["local-adventures"],
+      "completion": { "mode": "once" },
+      "location": {
+        "placeName": "Wychwood Night Walk (Demo)",
+        "addressOrRegion": "Fictional Forest of Dean",
+        "latitude": 51.82,
+        "longitude": -2.52,
+        "source": "Fabricated demo data",
+        "approximate": true
+      },
+      "referenceIds": ["reference-demo-wychwood-night-walk"],
+      "photoReferenceIds": []
+    },
+    {
+      "waypointId": "demo-puddlebrook-paddle",
+      "title": "Puddlebrook Paddle Club (Demo)",
+      "description": "A fictional beginner paddleboarding session on a sheltered quarry lake.",
+      "category": "Countryside",
+      "tags": ["Fictional", "Gloucestershire-inspired", "Watersports", "Family"],
+      "challengeIds": ["local-adventures", "family-days"],
+      "completion": { "mode": "once" },
+      "location": {
+        "placeName": "Puddlebrook Paddle Club (Demo)",
+        "addressOrRegion": "Fictional Cotswold Water Park",
+        "latitude": 51.66,
+        "longitude": -1.91,
+        "source": "Fabricated demo data",
+        "approximate": true
+      },
+      "referenceIds": ["reference-demo-puddlebrook-paddle"],
+      "photoReferenceIds": []
+    },
+    {
+      "waypointId": "demo-copper-kettle-trail",
+      "title": "Copper Kettle Trail (Demo)",
+      "description": "A fictional self-guided trail linking a bakery, a tiny roastery and a hilltop picnic stop.",
+      "category": "Village",
+      "tags": ["Fictional", "Gloucestershire-inspired", "Food", "Day trip"],
+      "challengeIds": ["local-adventures", "food-and-craft"],
+      "completion": { "mode": "once" },
+      "location": {
+        "placeName": "Copper Kettle Trail (Demo)",
+        "addressOrRegion": "Fictional Market Town",
+        "latitude": 51.88,
+        "longitude": -2.35,
+        "source": "Fabricated demo data",
+        "approximate": true
+      },
+      "referenceIds": ["reference-demo-copper-kettle-trail"],
+      "photoReferenceIds": []
+    },
+    {
+      "waypointId": "demo-glasshouse-workshop",
+      "title": "Old Glasshouse Workshop (Demo)",
+      "description": "A fictional stained-glass workshop in a converted railway goods shed.",
+      "category": "Industrial heritage",
+      "tags": ["Fictional", "Gloucestershire-inspired", "Arts", "Workshop"],
+      "challengeIds": ["food-and-craft"],
+      "completion": { "mode": "once" },
+      "location": {
+        "placeName": "Old Glasshouse Workshop (Demo)",
+        "addressOrRegion": "Fictional Gloucester Docks",
+        "latitude": 51.86,
+        "longitude": -2.25,
+        "source": "Fabricated demo data",
+        "approximate": true
+      },
+      "referenceIds": ["reference-demo-glasshouse-workshop"],
+      "photoReferenceIds": []
+    }
+  ],
+  "challenges": [
+    {
+      "challengeId": "national-trust",
+      "title": "National Trust Demo Collection (Fictional)",
+      "description": "Four wholly fabricated heritage places used to demonstrate Bronze, Silver and Gold progress.",
+      "waypointIds": [
+        "demo-foxglove-manor",
+        "demo-bramblewick-gardens",
+        "demo-cindercombe-mill",
+        "demo-lantern-hill-fort"
+      ],
+      "supportsActivityCategories": true
+    },
+    {
+      "challengeId": "heritage-weekend",
+      "title": "Heritage Weekend (Demo)",
+      "description": "Visit the fictional manor, garden, mill and hillfort without category scoring.",
+      "waypointIds": [
+        "demo-foxglove-manor",
+        "demo-bramblewick-gardens",
+        "demo-cindercombe-mill",
+        "demo-lantern-hill-fort"
+      ],
+      "supportsActivityCategories": false
+    },
+    {
+      "challengeId": "local-adventures",
+      "title": "Local Adventures (Demo)",
+      "description": "A fictional mix of walking, paddling and food stops around Gloucestershire.",
+      "waypointIds": ["demo-wychwood-night-walk", "demo-puddlebrook-paddle", "demo-copper-kettle-trail"],
+      "supportsActivityCategories": false
+    },
+    {
+      "challengeId": "family-days",
+      "title": "Family Days (Demo)",
+      "description": "A small fictional family activity collection.",
+      "waypointIds": ["demo-puddlebrook-paddle"],
+      "supportsActivityCategories": false
+    },
+    {
+      "challengeId": "food-and-craft",
+      "title": "Food and Craft (Demo)",
+      "description": "Two fictional creative day trips with no medal categories.",
+      "waypointIds": ["demo-copper-kettle-trail", "demo-glasshouse-workshop"],
+      "supportsActivityCategories": false
+    },
+    {
+      "challengeId": "future-shortlist",
+      "title": "Future Shortlist (Demo)",
+      "description": "An empty challenge for previewing the no-waypoints state.",
+      "waypointIds": [],
+      "supportsActivityCategories": false
+    }
+  ],
+  "ideas": [
+    {
+      "ideaId": "demo-idea-railway-picnic",
+      "title": "Steam railway picnic (Demo idea)",
+      "description": "A fabricated idea saved for a later weekend.",
+      "waypointIds": [],
+      "challengeIds": ["local-adventures"],
+      "location": { "addressOrRegion": "Fictional Gloucestershire", "source": "Fabricated demo data" }
+    }
+  ],
+  "activities": [
+    {
+      "activityId": "activity-demo-foxglove",
+      "waypointId": "demo-foxglove-manor",
+      "challengeId": "national-trust",
+      "date": "2026-07-01",
+      "category": "silver",
+      "location": { "kind": "coordinates", "latitude": 51.86, "longitude": -2.22 },
+      "notes": "Demo visit to the fictional manor and orangery.",
+      "referenceIds": ["reference-demo-foxglove-manor"],
+      "photoReferenceIds": [],
+      "createdAt": "2026-07-01T08:00:00.000Z",
+      "updatedAt": "2026-07-01T08:00:00.000Z"
+    },
+    {
+      "activityId": "activity-demo-wychwood",
+      "waypointId": "demo-wychwood-night-walk",
+      "challengeId": "local-adventures",
+      "date": "2026-07-08",
+      "location": { "kind": "coordinates", "latitude": 51.82, "longitude": -2.52 },
+      "notes": "Demo evening walk; this challenge intentionally has no Bronze, Silver or Gold category.",
+      "referenceIds": ["reference-demo-wychwood-night-walk"],
+      "photoReferenceIds": [],
+      "createdAt": "2026-07-08T18:15:00.000Z",
+      "updatedAt": "2026-07-08T18:15:00.000Z"
+    },
+    {
+      "activityId": "activity-demo-glasshouse",
+      "waypointId": "demo-glasshouse-workshop",
+      "challengeId": "food-and-craft",
+      "date": "2026-07-16",
+      "location": { "kind": "coordinates", "latitude": 51.86, "longitude": -2.25 },
+      "notes": "Demo stained-glass workshop with no medal category.",
+      "referenceIds": ["reference-demo-glasshouse-workshop"],
+      "photoReferenceIds": [],
+      "createdAt": "2026-07-16T13:00:00.000Z",
+      "updatedAt": "2026-07-16T13:00:00.000Z"
+    }
+  ],
+  "references": [
+    {
+      "referenceId": "reference-demo-foxglove-manor",
+      "title": "Foxglove Manor demo listing",
+      "description": "Fabricated reference for demonstration only.",
+      "url": "https://example.com/demo/foxglove-manor"
+    },
+    {
+      "referenceId": "reference-demo-bramblewick-gardens",
+      "title": "Bramblewick Gardens demo listing",
+      "description": "Fabricated reference for demonstration only.",
+      "url": "https://example.com/demo/bramblewick-gardens"
+    },
+    {
+      "referenceId": "reference-demo-cindercombe-mill",
+      "title": "Cindercombe Mill demo listing",
+      "description": "Fabricated reference for demonstration only.",
+      "url": "https://example.com/demo/cindercombe-mill"
+    },
+    {
+      "referenceId": "reference-demo-lantern-hill-fort",
+      "title": "Lantern Hill Fort demo listing",
+      "description": "Fabricated reference for demonstration only.",
+      "url": "https://example.com/demo/lantern-hill-fort"
+    },
+    {
+      "referenceId": "reference-demo-wychwood-night-walk",
+      "title": "Wychwood Night Walk demo listing",
+      "description": "Fabricated reference for demonstration only.",
+      "url": "https://example.com/demo/wychwood-night-walk"
+    },
+    {
+      "referenceId": "reference-demo-puddlebrook-paddle",
+      "title": "Puddlebrook Paddle Club demo listing",
+      "description": "Fabricated reference for demonstration only.",
+      "url": "https://example.com/demo/puddlebrook-paddle"
+    },
+    {
+      "referenceId": "reference-demo-copper-kettle-trail",
+      "title": "Copper Kettle Trail demo listing",
+      "description": "Fabricated reference for demonstration only.",
+      "url": "https://example.com/demo/copper-kettle-trail"
+    },
+    {
+      "referenceId": "reference-demo-glasshouse-workshop",
+      "title": "Old Glasshouse Workshop demo listing",
+      "description": "Fabricated reference for demonstration only.",
+      "url": "https://example.com/demo/glasshouse-workshop"
+    }
+  ],
+  "photoReferences": []
+}

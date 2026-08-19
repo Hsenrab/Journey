@@ -23,7 +23,7 @@ export function createDefaultData(): WaypointsData {
 }
 
 export function createDemoModeData(): WaypointsData {
-  return createDemoData(locations)
+  return createDemoData()
 }
 
 export function isDemoModeEnabled(): boolean {

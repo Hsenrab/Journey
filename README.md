@@ -47,8 +47,9 @@ Shared domain validation lives in `src/domain/visit.ts` and is reused by UI + st
 - Activities require a non-empty location record before save/import.
 - Waypoint/challenge/idea location data remains optional.
 - Export/import uses a versioned portable JSON format.
-- The app header includes a **Demo data** switch on every route. It loads a linked sample
-  data set in a separate local storage partition, clearly marks when demo data is active,
+- The app header includes a **Demo data** switch on every route. It loads a clearly
+  fabricated sample data set from `src/data/demo.json` into a separate local storage
+  partition, clearly marks when demo data is active,
   and restores the personal partition when switched off.
 - Export, restore, and clear actions operate on whichever partition is active; switching
   demo mode on or off does not overwrite the inactive partition.
