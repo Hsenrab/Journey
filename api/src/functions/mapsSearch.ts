@@ -14,10 +14,7 @@ function requireEnv(name: string): string {
 
 export async function mapsSearch(request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> {
   try {
-    assertOwnerPrincipal(parseClientPrincipalHeader(request.headers.get('x-ms-client-principal')), {
-      tenantId: requireEnv('JOURNEY_ENTRA_TENANT_ID'),
-      objectId: requireEnv('JOURNEY_OWNER_OBJECT_ID'),
-    })
+    assertOwnerPrincipal(parseClientPrincipalHeader(request.headers.get('x-ms-client-principal')))
   } catch (error) {
     if (error instanceof PrincipalValidationError) return { status: 403, jsonBody: { error: 'forbidden' } }
     throw error

@@ -45,10 +45,7 @@ Production Azure login uses GitHub OIDC from the `main` branch. Define these
 repository-level secrets:
 
 - `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID` — federated
-  (OIDC) credentials; no client secret is stored. `AZURE_TENANT_ID` is also
-  passed to the Functions API as the only accepted principal tenant.
-- `JOURNEY_OWNER_OBJECT_ID` — the immutable object id (`oid`) of the single work
-  account permitted to call `/api/*`.
+  (OIDC) credentials; no client secret is stored.
 
 Define `AZURE_RESOURCE_GROUP` and `AZURE_STATIC_WEB_APP_NAME` as environment
 variables for the deployment target. Optional variables: `AZURE_LOCATION`
@@ -85,14 +82,12 @@ Assigned work user
 2. In the Static Web App's **Role management** page, generate an invitation for
    the owner's work account with the custom role `owner` and the Microsoft Entra
    provider. Open the generated link while signed in as that account.
-3. Store the owner's immutable object id (`oid`, found on the user's Entra ID
-   profile) as `JOURNEY_OWNER_OBJECT_ID`.
-4. `staticwebapp.config.json` restricts all application routes and `/api/*` to
+3. `staticwebapp.config.json` restricts all application routes and `/api/*` to
    the `owner` role while leaving `/.auth/*` reachable for platform login.
-5. Repeat the invitation for each separately provisioned Static Web App resource,
+4. Repeat the invitation for each separately provisioned Static Web App resource,
    including the production and shared test resources. Role assignment in one
    resource does not grant access to another resource.
-6. Manage and revoke access from the Static Web App's **Role management** page.
+5. Manage and revoke access from the Static Web App's **Role management** page.
    This repository does not build a roles or administration UI.
 
 Accepting an Entra consent prompt only authenticates the account; it does not
@@ -134,8 +129,8 @@ hand (for example with `curl -H`) to test principal validation end to end.
 - Only the owner's work account should accept an invitation for the `owner` role.
   Other authenticated users cannot load the application or call its API.
 - `/api/*` remains protected by Static Web Apps, and the Functions API still
-  validates the Static Web Apps principal's provider (`aad`), tenant id,
-  `owner` role, and immutable owner object id before calling Azure Maps.
+  validates the Static Web Apps principal's provider (`aad`) and assigned
+  `owner` role before calling Azure Maps.
 
 ### RBAC (managed identity to Azure Maps)
 
@@ -150,7 +145,7 @@ Azure Maps account only:
 
 The signed-in user receives no Azure Maps role assignment; only the Function's
 identity can request tokens, and only after the application boundary validates
-the caller's tenant and immutable object id.
+the caller's Entra provider and assigned `owner` role.
 
 ### Deployment
 
@@ -388,7 +383,7 @@ no server-side database to back up.
 | Sign-in completes and the application returns 403                                          | Authentication succeeded but the Static Web Apps principal lacks `owner`. Check `/.auth/me`, generate and accept an `owner` invitation for that Static Web App resource, then use `/.auth/logout` and sign in again. Entra consent alone does not assign the role.                           |
 | Owner work account cannot sign in                                                          | Confirm Microsoft Entra ID was selected as the invitation provider and accept the generated invitation while signed in as the invited work account.                                                                                                                                          |
 | `/api/*` returns 401                                                                       | The request has no authenticated Static Web Apps principal. Sign in through `/.auth/login/aad`; do not call the Function App's direct hostname.                                                                                                                                              |
-| `/api/*` returns 403 while `/.auth/me` includes `owner`                                    | The principal's tenant or object ID does not match `JOURNEY_ENTRA_TENANT_ID` / `JOURNEY_OWNER_OBJECT_ID`. Confirm the GitHub environment values and redeploy the Functions API.                                                                                                              |
+| `/api/*` returns 403 while `/.auth/me` includes `owner`                                    | Confirm `clientPrincipal.identityProvider` is `aad`, sign out through `/.auth/logout`, and sign in again. If it persists, inspect the linked Function's rejection warning in Application Insights.                                                                                           |
 | `/api/maps/token` returns 500 with a `listSas` error                                       | The Function's managed identity is missing the Azure Maps Contributor role assignment on the Maps account, or the account name/subscription/resource group app settings are wrong.                                                                                                           |
 | Bicep deployment fails with `LinkedAuthorizationFailed` for `joinPerimeterRule/action`     | Assign the GitHub OIDC principal the custom **Journey NSP Subscription Join** role at subscription scope. The role must contain only `Microsoft.Network/networkSecurityPerimeters/joinPerimeterRule/action`; a subscription administrator must create and assign it.                         |
 | Deploy Functions API fails with `This request is not authorized to perform this operation` | The deploying GitHub OIDC principal lacks data-plane access to the Functions storage account it uploads the package to. Re-run the workflow: the Bicep deployment creates the Storage Blob Data Contributor assignment for `deployer().objectId`, which can take a few minutes to propagate. |

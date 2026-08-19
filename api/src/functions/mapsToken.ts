@@ -4,9 +4,7 @@
  * Returns a short-lived, constrained Azure Maps SAS token for browser
  * rendering/search. Callers reach this endpoint only through Static Web
  * Apps' authenticated `/api/*` proxy; the function additionally validates
- * the forwarded principal's tenant and immutable user id so a
- * direct-hostname request (or a request from any other assigned tenant
- * user) is rejected even if network isolation is bypassed.
+ * the forwarded principal's Entra provider and assigned owner role.
  */
 import { app, type HttpRequest, type HttpResponseInit, type InvocationContext } from '@azure/functions'
 import { DefaultAzureCredential } from '@azure/identity'
@@ -28,10 +26,7 @@ export async function mapsToken(request: HttpRequest, context: InvocationContext
   let principal
   try {
     principal = parseClientPrincipalHeader(request.headers.get('x-ms-client-principal'))
-    assertOwnerPrincipal(principal, {
-      tenantId: requireEnv('JOURNEY_ENTRA_TENANT_ID'),
-      objectId: requireEnv('JOURNEY_OWNER_OBJECT_ID'),
-    })
+    assertOwnerPrincipal(principal)
   } catch (error) {
     if (error instanceof PrincipalValidationError) {
       context.warn(`Rejected maps token request: ${error.message}`)

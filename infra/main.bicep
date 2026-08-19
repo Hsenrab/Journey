@@ -40,12 +40,6 @@ requires the Standard plan, which skuName always is, so this defaults to on.
 ''')
 param enableApi bool = true
 
-@description('Microsoft Entra ID tenant id that the assigned owner work account signs in from.')
-param aadTenantId string = ''
-
-@description('Immutable object id (oid) of the single work account permitted to call the API.')
-param ownerObjectId string = ''
-
 var tags = union(
   {
     environment: environmentName
@@ -220,8 +214,6 @@ resource functionAppSettings 'Microsoft.Web/sites/config@2023-12-01' = if (enabl
       FUNCTIONS_WORKER_RUNTIME: 'node'
       AzureWebJobsStorage__accountName: storageAccount.name
       AzureWebJobsStorage__credential: 'managedidentity'
-      JOURNEY_ENTRA_TENANT_ID: aadTenantId
-      JOURNEY_OWNER_OBJECT_ID: ownerObjectId
       AZURE_SUBSCRIPTION_ID: subscription().subscriptionId
       AZURE_RESOURCE_GROUP: resourceGroup().name
       AZURE_MAPS_ACCOUNT_NAME: mapsAccountName

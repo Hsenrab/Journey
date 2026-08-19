@@ -15,19 +15,12 @@ vi.mock('../lib/mapsSas.js', async () => {
 const encodePrincipal = (principal: Record<string, unknown>): string =>
   Buffer.from(JSON.stringify(principal)).toString('base64')
 
-const OWNER_TENANT = 'tenant-1'
-const OWNER_OBJECT_ID = 'owner-object-id'
-
 function ownerHeader(overrides: Record<string, unknown> = {}): string {
   return encodePrincipal({
     identityProvider: 'aad',
     userId: 'user-1',
     userDetails: 'owner@example.com',
     userRoles: ['anonymous', 'authenticated', 'owner'],
-    claims: [
-      { typ: 'tid', val: OWNER_TENANT },
-      { typ: 'oid', val: OWNER_OBJECT_ID },
-    ],
     ...overrides,
   })
 }
@@ -48,8 +41,6 @@ const ORIGINAL_ENV = { ...process.env }
 
 beforeEach(() => {
   issueMapsSasToken.mockReset()
-  process.env.JOURNEY_ENTRA_TENANT_ID = OWNER_TENANT
-  process.env.JOURNEY_OWNER_OBJECT_ID = OWNER_OBJECT_ID
   process.env.AZURE_SUBSCRIPTION_ID = 'sub-1'
   process.env.AZURE_RESOURCE_GROUP = 'rg-1'
   process.env.AZURE_MAPS_ACCOUNT_NAME = 'maps-1'
@@ -68,14 +59,9 @@ describe('mapsToken', () => {
     expect(result.status).toBe(403)
   })
 
-  it('returns 403 for a principal from a different tenant', async () => {
+  it('returns 403 for a principal from a different identity provider', async () => {
     const { mapsToken } = await import('./mapsToken.js')
-    const header = ownerHeader({
-      claims: [
-        { typ: 'tid', val: 'other-tenant' },
-        { typ: 'oid', val: OWNER_OBJECT_ID },
-      ],
-    })
+    const header = ownerHeader({ identityProvider: 'github' })
     const result = await mapsToken(requestWithPrincipal(header), fakeContext())
     expect(result.status).toBe(403)
   })
@@ -83,18 +69,6 @@ describe('mapsToken', () => {
   it('returns 403 for a principal missing the owner role', async () => {
     const { mapsToken } = await import('./mapsToken.js')
     const header = ownerHeader({ userRoles: ['anonymous', 'authenticated'] })
-    const result = await mapsToken(requestWithPrincipal(header), fakeContext())
-    expect(result.status).toBe(403)
-  })
-
-  it('rejects other assigned users, only the configured owner object id passes', async () => {
-    const { mapsToken } = await import('./mapsToken.js')
-    const header = ownerHeader({
-      claims: [
-        { typ: 'tid', val: OWNER_TENANT },
-        { typ: 'oid', val: 'a-different-user' },
-      ],
-    })
     const result = await mapsToken(requestWithPrincipal(header), fakeContext())
     expect(result.status).toBe(403)
   })

@@ -3,8 +3,6 @@
   "Values": {
     "AzureWebJobsStorage": "UseDevelopmentStorage=true",
     "FUNCTIONS_WORKER_RUNTIME": "node",
-    "JOURNEY_ENTRA_TENANT_ID": "<entra-tenant-id>",
-    "JOURNEY_OWNER_OBJECT_ID": "<owner-object-id>",
     "AZURE_SUBSCRIPTION_ID": "<subscription-id>",
     "AZURE_RESOURCE_GROUP": "<resource-group>",
     "AZURE_MAPS_ACCOUNT_NAME": "<maps-account-name>",

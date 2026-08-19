@@ -12,10 +12,6 @@ const principal = Buffer.from(
     userId: 'user',
     userDetails: 'owner@example.com',
     userRoles: ['authenticated', 'owner'],
-    claims: [
-      { typ: 'tid', val: 'tenant' },
-      { typ: 'oid', val: 'owner' },
-    ],
   }),
 ).toString('base64')
 
@@ -28,8 +24,6 @@ function request(query: string, header = principal) {
 
 beforeEach(() => {
   Object.assign(process.env, {
-    JOURNEY_ENTRA_TENANT_ID: 'tenant',
-    JOURNEY_OWNER_OBJECT_ID: 'owner',
     AZURE_SUBSCRIPTION_ID: 'sub',
     AZURE_RESOURCE_GROUP: 'group',
     AZURE_MAPS_ACCOUNT_NAME: 'maps',
