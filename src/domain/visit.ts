@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import type { Location } from './location'
+import rawDemoData from '../data/demo.json'
 
 export const statusOrder = ['not-started', 'bronze', 'silver', 'gold'] as const
 export type Status = (typeof statusOrder)[number]
@@ -180,114 +181,8 @@ export function createSeedData(locations: readonly Location[]): WaypointsData {
   }
 }
 
-export function createDemoData(locations: readonly Location[]): WaypointsData {
-  const selected = locations.slice(0, 8)
-  const waypointIds = selected.map((location) => location.locationId)
-  const waypoints: Waypoint[] = selected.map((location, index) => ({
-    waypointId: location.locationId,
-    title: location.name,
-    description: `${location.notes} Demo waypoint ${index + 1}.`,
-    category: location.category,
-    tags: [location.area, location.category, index % 2 === 0 ? 'weekend' : 'day-trip'],
-    challengeIds: ['national-trust', 'autumn-explorers'],
-    completion: { mode: 'once' },
-    location: { placeName: location.name, addressOrRegion: location.area },
-    referenceIds: [`reference-${location.locationId}`],
-    photoReferenceIds: [`photo-reference-${location.locationId}`],
-  }))
-
-  return {
-    waypoints,
-    challenges: [
-      {
-        challengeId: 'national-trust',
-        title: 'National Trust',
-        description: 'Demo challenge: complete waypoint activities across National Trust places.',
-        waypointIds,
-        supportsActivityCategories: true,
-      },
-      {
-        challengeId: 'autumn-explorers',
-        title: 'Autumn Explorers',
-        description: 'Collect five varied waypoints before winter.',
-        waypointIds: waypointIds.slice(0, 5),
-        supportsActivityCategories: false,
-      },
-      {
-        challengeId: 'completed-highlights',
-        title: 'Completed Highlights',
-        description: 'A finished demo challenge for checking the Gold challenge milestone.',
-        waypointIds: [waypointIds[2], waypointIds[7]].filter(Boolean),
-        supportsActivityCategories: false,
-      },
-      {
-        challengeId: 'historic-weekend',
-        title: 'Historic Weekend',
-        description: 'Focus on the most heritage-rich waypoints.',
-        waypointIds: waypointIds.slice(0, 4),
-        supportsActivityCategories: false,
-      },
-      {
-        challengeId: 'garden-route',
-        title: 'Garden Route',
-        description: 'A challenge with mostly gardens and house-and-garden stops.',
-        waypointIds: waypointIds.slice(2, 7),
-        supportsActivityCategories: false,
-      },
-      {
-        challengeId: 'nearby-day-trips',
-        title: 'Nearby Day Trips',
-        description: 'Shorter trips to fit into one day.',
-        waypointIds: waypointIds.slice(1, 6),
-        supportsActivityCategories: false,
-      },
-      {
-        challengeId: 'future-shortlist',
-        title: 'Future Shortlist',
-        description: 'An empty demo challenge for checking empty challenge states.',
-        waypointIds: [],
-        supportsActivityCategories: false,
-      },
-    ],
-    ideas: [],
-    activities: [
-      {
-        activityId: 'activity-demo-1',
-        waypointId: waypointIds[0],
-        date: '2026-07-01',
-        category: 'bronze',
-        location: { kind: 'postcode', postcode: 'BA1 1AA' },
-        notes: 'Arrived at opening time and walked the full grounds.',
-        referenceIds: [`reference-${waypointIds[0]}`],
-        photoReferenceIds: [`photo-reference-${waypointIds[0]}`],
-        createdAt: '2026-07-01T08:00:00.000Z',
-        updatedAt: '2026-07-01T08:00:00.000Z',
-      },
-      {
-        activityId: 'activity-demo-2',
-        waypointId: waypointIds[1],
-        date: '2026-07-08',
-        location: { kind: 'coordinates', latitude: 51.4209, longitude: -2.0998 },
-        notes: 'Completed the longer trail route without category.',
-        referenceIds: [`reference-${waypointIds[1]}`],
-        photoReferenceIds: [`photo-reference-${waypointIds[1]}`],
-        createdAt: '2026-07-08T18:15:00.000Z',
-        updatedAt: '2026-07-08T18:15:00.000Z',
-      },
-    ],
-    references: selected.map((location) => ({
-      referenceId: `reference-${location.locationId}`,
-      title: `${location.name} visitor information`,
-      description: 'Official visitor details and opening times.',
-      url: location.url,
-    })),
-    photoReferences: selected.map((location) => ({
-      photoReferenceId: `photo-reference-${location.locationId}`,
-      title: `${location.name} sample photo`,
-      altText: `${location.name} sample external photo`,
-      url: `https://example.com/photos/${location.locationId}.jpg`,
-    })),
-  }
+export function createDemoData(): WaypointsData {
+  return DataSchema.parse(rawDemoData)
 }
 
 export function waypointSupportsActivityCategory(data: WaypointsData, waypointId: string | undefined): boolean {

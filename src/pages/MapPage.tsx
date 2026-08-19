@@ -15,7 +15,7 @@ const statusColors: Record<Status, string> = {
   gold: '#a66f00',
 }
 
-type MapsToken = { token: string; expiresOn: string }
+type MapsToken = { token: string; expiresOn: string; clientId: string }
 type SearchResult = {
   position?: { lat: number; lon: number }
   address?: { freeformAddress?: string }
@@ -56,6 +56,7 @@ export default function MapPage() {
   const [showActivities, setShowActivities] = useState(true)
   const [statuses, setStatuses] = useState<Status[]>([...statusOrder])
   const [token, setToken] = useState<MapsToken | null>(null)
+  const [mapReady, setMapReady] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [selectedWaypointId, setSelectedWaypointId] = useState<string | null>(null)
   const [originQuery, setOriginQuery] = useState('Brockworth, Gloucestershire')
@@ -70,10 +71,22 @@ export default function MapPage() {
 
   useEffect(() => {
     if (!token || !container.current || map.current) return
+    let initialToken: string | undefined = token.token
     const instance = new atlas.Map(container.current, {
       center: [origin.longitude, origin.latitude],
       zoom: 8,
-      authOptions: { authType: atlas.AuthenticationType.sas, sasToken: token.token },
+      authOptions: {
+        authType: atlas.AuthenticationType.anonymous,
+        clientId: token.clientId,
+        getToken: (resolve, reject) => {
+          if (initialToken) {
+            resolve(initialToken)
+            initialToken = undefined
+            return
+          }
+          void getMapsToken().then((refreshed) => resolve(refreshed.token), reject)
+        },
+      },
     })
     instance.events.add('ready', () => {
       const popup = new atlas.Popup()
@@ -120,6 +133,7 @@ export default function MapPage() {
       })
       waypointSource.current = waypoints
       activitySource.current = activities
+      setMapReady(true)
     })
     map.current = instance
     return () => {
@@ -127,6 +141,7 @@ export default function MapPage() {
       map.current = null
       waypointSource.current = null
       activitySource.current = null
+      setMapReady(false)
     }
   }, [data.waypoints, origin.latitude, origin.longitude, token])
 
@@ -158,7 +173,7 @@ export default function MapPage() {
         }),
       )
     }
-  }, [showWaypoints, statusFor, visibleWaypoints])
+  }, [mapReady, showWaypoints, statusFor, visibleWaypoints])
 
   useEffect(() => {
     const source = activitySource.current
@@ -179,7 +194,7 @@ export default function MapPage() {
         }),
       )
     }
-  }, [data.activities, data.waypoints, showActivities])
+  }, [data.activities, data.waypoints, mapReady, showActivities])
 
   const findNearby = async () => {
     setError(null)

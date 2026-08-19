@@ -123,10 +123,17 @@ Tests live alongside the file they cover (`*.test.ts`/`*.test.tsx`).
   `docs/operations.md` updates. This exception does not approve Cosmos DB,
   multi-user roles, personal-account access, generic backend/data-access
   infrastructure, or arbitrary map UI; each requires its own issue and convention update.
-- Azure Maps browser rendering must use the short-lived authenticated SAS mechanism
-  from issue #32. Geocoding must use the purpose-specific protected Maps search API.
-  Do not add a second map provider, shared-key fallback, client-side service
-  credential, retry layer, or bulk-geocoding migration without an explicit requirement.
+- The Azure Maps account must keep `disableLocalAuth: true` to satisfy policy. Shared
+  keys and SAS tokens are local authentication and are prohibited. Browser rendering
+  must use a Microsoft Entra access token acquired by the linked Function App's
+  system-assigned managed identity and returned only through the authenticated,
+  purpose-specific token endpoint. The browser must provide that token and the
+  non-secret Maps account client ID to the Web SDK. Geocoding must use the
+  purpose-specific protected Maps search API, which also authenticates downstream
+  with the Function managed identity. Scope Maps RBAC to the account and the minimum
+  render/search data actions. Do not add a second map provider, shared-key or SAS
+  fallback, client secret, Function key, retry layer, or bulk-geocoding migration
+  without an explicit requirement.
 - Do not commit secrets or personal data. Visit data lives only in the browser's
   local storage.
 - Tests should assert explicit success or explicit failure. Do not encode silent

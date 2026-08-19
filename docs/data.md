@@ -5,6 +5,12 @@
 All app data is stored in browser local storage (`waypoints-v1` for personal data, `waypoints-demo-v1` for demo data).
 There is no server persistence.
 
+The initial demo partition is loaded from `src/data/demo.json`. Every place, activity,
+idea and reference in that fixture is fabricated and visibly labelled as demo content.
+The fixture mixes fictional National Trust-style places with unrelated local activities.
+It is parsed with `DataSchema` before use; only challenges that explicitly set
+`supportsActivityCategories` can use Bronze, Silver or Gold activity categories.
+
 ## Stored shape
 
 The persisted root object is:

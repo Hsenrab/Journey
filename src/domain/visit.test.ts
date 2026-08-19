@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   completedWaypointCount,
   createActivity,
+  createDemoData,
   createSeedData,
   statusForWaypoint,
   validateActivityCategory,
@@ -86,5 +87,40 @@ describe('activity rules', () => {
 
     expect(completedWaypointCount(waypoints, [uncategorized])).toBe(1)
     expect(statusForWaypoint([uncategorized], 'a')).toBe('not-started')
+  })
+})
+
+describe('demo data', () => {
+  it('uses clearly fabricated, coordinate-bearing Gloucestershire places', () => {
+    const data = createDemoData()
+
+    expect(data.waypoints.map((waypoint) => waypoint.waypointId)).toEqual([
+      'demo-foxglove-manor',
+      'demo-bramblewick-gardens',
+      'demo-cindercombe-mill',
+      'demo-lantern-hill-fort',
+      'demo-wychwood-night-walk',
+      'demo-puddlebrook-paddle',
+      'demo-copper-kettle-trail',
+      'demo-glasshouse-workshop',
+    ])
+    expect(data.waypoints.every((waypoint) => waypoint.tags.includes('Fictional'))).toBe(true)
+    expect(
+      data.waypoints.every(
+        (waypoint) => waypoint.location?.latitude !== undefined && waypoint.location.longitude !== undefined,
+      ),
+    ).toBe(true)
+  })
+
+  it('limits Bronze, Silver and Gold categories to the National Trust-style challenge', () => {
+    const data = createDemoData()
+
+    expect(data.challenges.filter((challenge) => challenge.supportsActivityCategories)).toEqual([
+      expect.objectContaining({ challengeId: 'national-trust' }),
+    ])
+    expect(data.activities.find((activity) => activity.waypointId === 'demo-foxglove-manor')?.category).toBe('silver')
+    expect(
+      data.activities.find((activity) => activity.waypointId === 'demo-wychwood-night-walk')?.category,
+    ).toBeUndefined()
   })
 })

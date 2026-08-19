@@ -3,7 +3,7 @@ import { cleanup } from '@testing-library/react'
 import { afterEach, vi } from 'vitest'
 
 vi.mock('azure-maps-control', () => ({
-  AuthenticationType: { sas: 'sas' },
+  AuthenticationType: { anonymous: 'anonymous' },
   Map: class {
     events = { add: (_name: string, callback: () => void) => callback() }
     sources = { add: vi.fn() }

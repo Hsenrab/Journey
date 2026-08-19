@@ -1,7 +1,7 @@
 import { app, type HttpRequest, type HttpResponseInit, type InvocationContext } from '@azure/functions'
 import { DefaultAzureCredential } from '@azure/identity'
 import { z } from 'zod'
-import { issueMapsSasToken } from '../lib/mapsSas.js'
+import { acquireMapsAccessToken } from '../lib/mapsAuth.js'
 import { assertOwnerPrincipal, parseClientPrincipalHeader, PrincipalValidationError } from '../lib/principal.js'
 
 const SearchQuerySchema = z.object({ query: z.string().trim().min(2, 'Enter at least two characters.').max(200) })
@@ -14,10 +14,7 @@ function requireEnv(name: string): string {
 
 export async function mapsSearch(request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> {
   try {
-    assertOwnerPrincipal(parseClientPrincipalHeader(request.headers.get('x-ms-client-principal')), {
-      tenantId: requireEnv('JOURNEY_ENTRA_TENANT_ID'),
-      objectId: requireEnv('JOURNEY_OWNER_OBJECT_ID'),
-    })
+    assertOwnerPrincipal(parseClientPrincipalHeader(request.headers.get('x-ms-client-principal')))
   } catch (error) {
     if (error instanceof PrincipalValidationError) return { status: 403, jsonBody: { error: 'forbidden' } }
     throw error
@@ -26,16 +23,14 @@ export async function mapsSearch(request: HttpRequest, context: InvocationContex
   const parsed = SearchQuerySchema.safeParse(Object.fromEntries(request.query.entries()))
   if (!parsed.success) return { status: 400, jsonBody: { error: parsed.error.issues[0]?.message } }
 
-  const token = await issueMapsSasToken(new DefaultAzureCredential(), {
-    subscriptionId: requireEnv('AZURE_SUBSCRIPTION_ID'),
-    resourceGroupName: requireEnv('AZURE_RESOURCE_GROUP'),
-    accountName: requireEnv('AZURE_MAPS_ACCOUNT_NAME'),
-    principalId: requireEnv('AZURE_MAPS_PRINCIPAL_ID'),
-    lifetimeMinutes: 1,
-    maxRatePerSecond: 5,
+  const token = await acquireMapsAccessToken(new DefaultAzureCredential())
+  const parameters = new URLSearchParams({ 'api-version': '1.0', query: parsed.data.query })
+  const response = await fetch(`https://atlas.microsoft.com/search/address/json?${parameters}`, {
+    headers: {
+      Authorization: `Bearer ${token.token}`,
+      'x-ms-client-id': requireEnv('AZURE_MAPS_CLIENT_ID'),
+    },
   })
-  const parameters = new URLSearchParams({ 'api-version': '1.0', query: parsed.data.query, sas: token.token })
-  const response = await fetch(`https://atlas.microsoft.com/search/address/json?${parameters}`)
   if (!response.ok) {
     const message = await response.text()
     context.error(`Azure Maps search failed with status ${response.status}`)

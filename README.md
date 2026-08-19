@@ -47,8 +47,9 @@ Shared domain validation lives in `src/domain/visit.ts` and is reused by UI + st
 - Activities require a non-empty location record before save/import.
 - Waypoint/challenge/idea location data remains optional.
 - Export/import uses a versioned portable JSON format.
-- The app header includes a **Demo data** switch on every route. It loads a linked sample
-  data set in a separate local storage partition, clearly marks when demo data is active,
+- The app header includes a **Demo data** switch on every route. It loads a clearly
+  fabricated sample data set from `src/data/demo.json` into a separate local storage
+  partition, clearly marks when demo data is active,
   and restores the personal partition when switched off.
 - Export, restore, and clear actions operate on whichever partition is active; switching
   demo mode on or off does not overwrite the inactive partition.
@@ -83,8 +84,10 @@ npm run dev
 
 The hosted application uses Azure Static Web Apps' built-in Microsoft Entra ID
 provider. Application and API routes require the custom `owner` role, assigned
-through a Static Web Apps invitation. The linked Functions API also validates the
-signed-in account's tenant and immutable object ID before accessing Azure Maps.
+through a Static Web Apps invitation. The linked Functions API validates the
+Static Web Apps principal before accessing Azure Maps. Azure Maps must retain
+`disableLocalAuth: true`; its browser and API access must use Microsoft Entra tokens
+acquired with the Function App's managed identity, never shared keys or SAS tokens.
 
 See [docs/operations.md](docs/operations.md) for environment configuration,
 invitations, deployment verification, and sign-in troubleshooting.

@@ -72,8 +72,6 @@ jobs:
             owner=${{ vars.AZURE_RESOURCE_OWNER || 'journey-maintainers' }}
             repositoryUrl=${{ github.server_url }}/${{ github.repository }}
             repositoryBranch=${{ github.ref_name }}
-            aadTenantId=${{ secrets.AZURE_TENANT_ID }}
-            ownerObjectId=${{ secrets.JOURNEY_OWNER_OBJECT_ID }}
 
       - name: Publish application URL to the job summary
         env:

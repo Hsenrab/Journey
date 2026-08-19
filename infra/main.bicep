@@ -40,12 +40,6 @@ requires the Standard plan, which skuName always is, so this defaults to on.
 ''')
 param enableApi bool = true
 
-@description('Microsoft Entra ID tenant id that the assigned owner work account signs in from.')
-param aadTenantId string = ''
-
-@description('Immutable object id (oid) of the single work account permitted to call the API.')
-param ownerObjectId string = ''
-
 var tags = union(
   {
     environment: environmentName
@@ -65,11 +59,8 @@ var appInsightsName = '${staticWebAppName}-appi'
 var networkSecurityPerimeterName = '${staticWebAppName}-nsp'
 var networkSecurityPerimeterProfileName = 'function-storage'
 
-@description('Built-in role: Azure Maps Contributor. Required to call the listSas control-plane action.')
-var azureMapsContributorRoleId = 'dba33070-676a-4fb0-87fa-064dc56ff7fb'
-
-@description('Built-in role: Azure Maps Data Reader. Required for the render/search data-plane operations the issued SAS token authorizes.')
-var azureMapsDataReaderRoleId = '423170ca-a8f6-4b0f-8487-9e4eb8f49bfa'
+@description('Built-in role: Azure Maps Search and Render Data Reader.')
+var azureMapsSearchAndRenderDataReaderRoleId = '6be48352-4f82-47c9-ad5e-0acacefdb005'
 
 @description('Built-in role: Storage Blob Data Owner. Required for the Functions host to use an identity-based AzureWebJobsStorage connection.')
 var storageBlobDataOwnerRoleId = 'b7e6dc6d-f1e8-4753-8033-0f276bb0955b'
@@ -207,28 +198,17 @@ resource functionApp 'Microsoft.Web/sites@2023-12-01' = if (enableApi) {
   }
 }
 
-// Application settings for the Function App, set as a separate child
-// resource because AZURE_MAPS_PRINCIPAL_ID must reference the app's own
-// system-assigned identity, which only exists once the Microsoft.Web/sites
-// resource above has been created.
 resource functionAppSettings 'Microsoft.Web/sites/config@2023-12-01' = if (enableApi) {
   parent: functionApp
   name: 'appsettings'
-  properties: union(
-    {
-      FUNCTIONS_EXTENSION_VERSION: '~4'
-      FUNCTIONS_WORKER_RUNTIME: 'node'
-      AzureWebJobsStorage__accountName: storageAccount.name
-      AzureWebJobsStorage__credential: 'managedidentity'
-      JOURNEY_ENTRA_TENANT_ID: aadTenantId
-      JOURNEY_OWNER_OBJECT_ID: ownerObjectId
-      AZURE_SUBSCRIPTION_ID: subscription().subscriptionId
-      AZURE_RESOURCE_GROUP: resourceGroup().name
-      AZURE_MAPS_ACCOUNT_NAME: mapsAccountName
-      APPLICATIONINSIGHTS_CONNECTION_STRING: appInsights!.properties.ConnectionString
-    },
-    { AZURE_MAPS_PRINCIPAL_ID: functionApp!.identity.principalId }
-  )
+  properties: {
+    FUNCTIONS_EXTENSION_VERSION: '~4'
+    FUNCTIONS_WORKER_RUNTIME: 'node'
+    AzureWebJobsStorage__accountName: storageAccount.name
+    AzureWebJobsStorage__credential: 'managedidentity'
+    AZURE_MAPS_CLIENT_ID: mapsAccount!.properties.uniqueId
+    APPLICATIONINSIGHTS_CONNECTION_STRING: appInsights!.properties.ConnectionString
+  }
 }
 
 // Links the Functions app as the exclusive backend for /api/* so it is
@@ -259,21 +239,14 @@ resource mapsAccount 'Microsoft.Maps/accounts@2023-06-01' = if (enableApi) {
   }
 }
 
-resource mapsContributorAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = if (enableApi) {
-  name: guid(mapsAccount.id, functionAppName, azureMapsContributorRoleId)
+resource mapsSearchAndRenderDataReaderAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = if (enableApi) {
+  name: guid(mapsAccount.id, functionAppName, azureMapsSearchAndRenderDataReaderRoleId)
   scope: mapsAccount
   properties: {
-    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', azureMapsContributorRoleId)
-    principalId: functionApp!.identity.principalId
-    principalType: 'ServicePrincipal'
-  }
-}
-
-resource mapsDataReaderAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = if (enableApi) {
-  name: guid(mapsAccount.id, functionAppName, azureMapsDataReaderRoleId)
-  scope: mapsAccount
-  properties: {
-    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', azureMapsDataReaderRoleId)
+    roleDefinitionId: subscriptionResourceId(
+      'Microsoft.Authorization/roleDefinitions',
+      azureMapsSearchAndRenderDataReaderRoleId
+    )
     principalId: functionApp!.identity.principalId
     principalType: 'ServicePrincipal'
   }

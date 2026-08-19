@@ -5,12 +5,21 @@ application, which runs as an Azure Static Web App.
 
 ## Azure Maps
 
-The map obtains a short-lived SAS token only from the authenticated same-origin
-`/api/maps/token` endpoint. The browser never receives a shared key, Function key,
-or long-lived credential. Place and postcode searches use `/api/maps/search`; the
-Function validates the assigned principal and queries Azure Maps with its managed
-identity-issued SAS. Do not add another provider, client credential, retry layer, or
-bulk geocoding.
+The Azure Maps account must keep `disableLocalAuth: true` to satisfy policy. This
+disables both shared-key and SAS authentication. Do not weaken this setting or add
+a shared-key or SAS fallback.
+
+The required design uses Microsoft Entra authentication. The authenticated
+same-origin `/api/maps/token` endpoint obtains an Azure Maps access token with the
+Function App's system-assigned managed identity and returns it with the non-secret
+Maps account client ID for the Web SDK token callback. Place and postcode searches
+use `/api/maps/search`; the Function validates the assigned Static Web Apps
+principal and calls Azure Maps with its managed identity. The browser never receives
+a shared key, Function key, client secret, or SAS token.
+
+Treat `LocalAuthDisabled` as an architecture defect indicating that a prohibited
+local-authentication path has been introduced, not as an Azure configuration problem.
+Do not add another provider, retry layer, or bulk geocoding.
 
 Coordinates are saved only when a location is deliberately geocoded or changed.
 Records without coordinates remain valid and are reported as omitted by the map.
@@ -45,10 +54,7 @@ Production Azure login uses GitHub OIDC from the `main` branch. Define these
 repository-level secrets:
 
 - `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID` — federated
-  (OIDC) credentials; no client secret is stored. `AZURE_TENANT_ID` is also
-  passed to the Functions API as the only accepted principal tenant.
-- `JOURNEY_OWNER_OBJECT_ID` — the immutable object id (`oid`) of the single work
-  account permitted to call `/api/*`.
+  (OIDC) credentials; no client secret is stored.
 
 Define `AZURE_RESOURCE_GROUP` and `AZURE_STATIC_WEB_APP_NAME` as environment
 variables for the deployment target. Optional variables: `AZURE_LOCATION`
@@ -85,14 +91,12 @@ Assigned work user
 2. In the Static Web App's **Role management** page, generate an invitation for
    the owner's work account with the custom role `owner` and the Microsoft Entra
    provider. Open the generated link while signed in as that account.
-3. Store the owner's immutable object id (`oid`, found on the user's Entra ID
-   profile) as `JOURNEY_OWNER_OBJECT_ID`.
-4. `staticwebapp.config.json` restricts all application routes and `/api/*` to
+3. `staticwebapp.config.json` restricts all application routes and `/api/*` to
    the `owner` role while leaving `/.auth/*` reachable for platform login.
-5. Repeat the invitation for each separately provisioned Static Web App resource,
+4. Repeat the invitation for each separately provisioned Static Web App resource,
    including the production and shared test resources. Role assignment in one
    resource does not grant access to another resource.
-6. Manage and revoke access from the Static Web App's **Role management** page.
+5. Manage and revoke access from the Static Web App's **Role management** page.
    This repository does not build a roles or administration UI.
 
 Accepting an Entra consent prompt only authenticates the account; it does not
@@ -115,7 +119,7 @@ npm run build
 func start
 ```
 
-`DefaultAzureCredential` (used by `api/src/lib/mapsSas.ts`) falls back to the
+`DefaultAzureCredential` (used by `api/src/lib/mapsAuth.ts`) falls back to the
 signed-in developer identity (Azure CLI or Visual Studio Code) when no managed
 identity is present, so `az login` with an account that has the required Azure
 Maps roles is required to exercise token issuance locally. Because Static Web
@@ -134,23 +138,22 @@ hand (for example with `curl -H`) to test principal validation end to end.
 - Only the owner's work account should accept an invitation for the `owner` role.
   Other authenticated users cannot load the application or call its API.
 - `/api/*` remains protected by Static Web Apps, and the Functions API still
-  validates the Static Web Apps principal's provider (`aad`), tenant id,
-  `owner` role, and immutable owner object id before calling Azure Maps.
+  validates the Static Web Apps principal's provider (`aad`) and assigned
+  `owner` role before calling Azure Maps.
 
 ### RBAC (managed identity to Azure Maps)
 
 The Function App's system-assigned managed identity is granted, scoped to the
 Azure Maps account only:
 
-- **Azure Maps Contributor** — required to call the
-  `Microsoft.Maps/accounts/listSas/action` control-plane operation that issues
-  short-lived SAS tokens. A data-plane reader role does not grant this action.
-- **Azure Maps Data Reader** — required for the render/search data-plane
-  operations the issued SAS token authorizes.
+- **Azure Maps Search and Render Data Reader**, or an equivalent custom role with
+  only the required render/search data actions.
 
-The signed-in user receives no Azure Maps role assignment; only the Function's
-identity can request tokens, and only after the application boundary validates
-the caller's tenant and immutable object id.
+The Function identity does not need **Azure Maps Contributor** or
+`Microsoft.Maps/accounts/listSas/action`. The signed-in user receives no Azure Maps
+role assignment; only the Function identity authenticates to Azure Maps, and only
+after the application boundary validates the caller's Entra provider and assigned
+`owner` role.
 
 ### Deployment
 
@@ -161,6 +164,9 @@ the caller's tenant and immutable object id.
   Function App via `APPLICATIONINSIGHTS_CONNECTION_STRING`, the role
   assignments above, and the `userProvidedFunctionApps` link that makes the
   Function App the exclusive backend for `/api/*`.
+- The Maps account sets `disableLocalAuth: true`. The Function requests Microsoft
+  Entra tokens for `https://atlas.microsoft.com/.default`; no Maps account key or
+  SAS token is read, generated, stored, or deployed.
 - The host storage account disables shared-key access and sets public network
   access to `SecuredByPerimeter`. It is associated in enforced mode with a
   Network Security Perimeter profile. A permanent inbound subscription rule
@@ -206,27 +212,31 @@ the caller's tenant and immutable object id.
   (`<staticWebAppName>-appi`) and connects it to the Function App through the
   `APPLICATIONINSIGHTS_CONNECTION_STRING` application setting; function-level
   `context.warn` / `context.error` calls record the specific rejection reason
-  (for example "wrong tenant" or "listSas request failed") without logging the
-  caller's identity beyond what Static Web Apps already includes in the
-  principal.
+  (for example an invalid principal or Entra token acquisition failure) without
+  logging the caller's identity beyond what Static Web Apps already includes in
+  the principal.
 - Use **Function App → Monitor** in the portal, or Application Insights **Logs**,
   filtered by `operation_Name == "mapsToken"`, to inspect recent calls.
 
 ### Token behavior
 
-- `/api/maps/token` issues a SAS token with a 15-minute lifetime and a request
-  rate limit (5 requests/second), matching the least-privilege, short-lived
-  requirement. Callers must request a new token before it expires; there is no
-  refresh endpoint.
-- A request without a valid, tenant- and identity-matched principal receives
+- `/api/maps/token` acquires a Microsoft Entra access token through
+  `DefaultAzureCredential` using the Function App's managed identity and the
+  `https://atlas.microsoft.com/.default` scope. It returns the access token, its
+  expiry, and the non-secret Maps account client ID. The Web SDK obtains and renews
+  tokens through this authenticated endpoint.
+- A request without a valid assigned principal receives
   `403` and is rejected before any Azure Maps or Resource Manager call is made.
+- Entra tokens do not provide SAS per-token rate caps. Control exposure with the
+  protected endpoint, least-privilege Maps RBAC, Azure Maps service quotas, monitoring,
+  and cost alerts; do not recreate rate limiting with retries or a shared credential.
 
 ### Costs
 
 - Azure Functions on the Consumption (`Y1`) plan bills per execution; token
   issuance for a single user is negligible.
-- Azure Maps Gen2 (`G2`) SKU bills per transaction; render/search calls made
-  with the issued SAS token by the browser also count.
+- Azure Maps Gen2 (`G2`) SKU bills per transaction; browser render and protected
+  search calls authenticated with Microsoft Entra also count.
 - The additional storage account uses the `Standard_LRS` tier at minimal cost.
 - Network Security Perimeter has no separate hourly charge. Normal charges for
   the associated resources and diagnostic log ingestion still apply.
@@ -388,8 +398,9 @@ no server-side database to back up.
 | Sign-in completes and the application returns 403                                          | Authentication succeeded but the Static Web Apps principal lacks `owner`. Check `/.auth/me`, generate and accept an `owner` invitation for that Static Web App resource, then use `/.auth/logout` and sign in again. Entra consent alone does not assign the role.                           |
 | Owner work account cannot sign in                                                          | Confirm Microsoft Entra ID was selected as the invitation provider and accept the generated invitation while signed in as the invited work account.                                                                                                                                          |
 | `/api/*` returns 401                                                                       | The request has no authenticated Static Web Apps principal. Sign in through `/.auth/login/aad`; do not call the Function App's direct hostname.                                                                                                                                              |
-| `/api/*` returns 403 while `/.auth/me` includes `owner`                                    | The principal's tenant or object ID does not match `JOURNEY_ENTRA_TENANT_ID` / `JOURNEY_OWNER_OBJECT_ID`. Confirm the GitHub environment values and redeploy the Functions API.                                                                                                              |
-| `/api/maps/token` returns 500 with a `listSas` error                                       | The Function's managed identity is missing the Azure Maps Contributor role assignment on the Maps account, or the account name/subscription/resource group app settings are wrong.                                                                                                           |
+| `/api/*` returns 403 while `/.auth/me` includes `owner`                                    | Confirm `clientPrincipal.identityProvider` is `aad`, sign out through `/.auth/logout`, and sign in again. If it persists, inspect the linked Function's rejection warning in Application Insights.                                                                                           |
+| Azure Maps returns `LocalAuthDisabled`                                                     | A shared-key or SAS path is still deployed. Keep `disableLocalAuth: true` and replace that path with Microsoft Entra token acquisition through the Function managed identity.                                                                                                                |
+| `/api/maps/token` fails to acquire an Entra token                                          | Confirm the Function has a system-assigned identity, the token scope is `https://atlas.microsoft.com/.default`, and the identity has the minimum render/search data role scoped to the Maps account.                                                                                         |
 | Bicep deployment fails with `LinkedAuthorizationFailed` for `joinPerimeterRule/action`     | Assign the GitHub OIDC principal the custom **Journey NSP Subscription Join** role at subscription scope. The role must contain only `Microsoft.Network/networkSecurityPerimeters/joinPerimeterRule/action`; a subscription administrator must create and assign it.                         |
 | Deploy Functions API fails with `This request is not authorized to perform this operation` | The deploying GitHub OIDC principal lacks data-plane access to the Functions storage account it uploads the package to. Re-run the workflow: the Bicep deployment creates the Storage Blob Data Contributor assignment for `deployer().objectId`, which can take a few minutes to propagate. |
 | Function package upload reports a storage authorization error                              | Check that the workflow created its `github-<run-id>-<attempt>` inbound rule in the Network Security Perimeter profile and that the deploy identity still has Storage Blob Data Contributor on the host storage account.                                                                     |
