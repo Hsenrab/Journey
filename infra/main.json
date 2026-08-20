@@ -78,13 +78,6 @@
       "metadata": {
         "description": "Cosmos DB account mode. Select freeTier only after confirming the subscription allowance; serverless is the explicit low-cost alternative."
       }
-    },
-    "monthlyBudgetAmount": {
-      "type": "int",
-      "defaultValue": 5,
-      "metadata": {
-        "description": "Monthly budget amount in the subscription billing currency."
-      }
     }
   },
   "variables": {
@@ -514,91 +507,6 @@
         "[resourceId('Microsoft.Web/sites', variables('functionAppName'))]",
         "[resourceId('Microsoft.Storage/storageAccounts', variables('storageAccountName'))]"
       ]
-    },
-    {
-      "condition": "[parameters('enableApi')]",
-      "type": "Microsoft.Resources/deployments",
-      "apiVersion": "2025-04-01",
-      "name": "[format('{0}-monthly-budget', parameters('staticWebAppName'))]",
-      "subscriptionId": "[subscription().subscriptionId]",
-      "location": "[resourceGroup().location]",
-      "properties": {
-        "expressionEvaluationOptions": {
-          "scope": "inner"
-        },
-        "mode": "Incremental",
-        "parameters": {
-          "amount": {
-            "value": "[parameters('monthlyBudgetAmount')]"
-          },
-          "budgetName": {
-            "value": "[format('{0}-monthly', parameters('staticWebAppName'))]"
-          },
-          "resourceGroupName": {
-            "value": "[resourceGroup().name]"
-          }
-        },
-        "template": {
-          "$schema": "https://schema.management.azure.com/schemas/2018-05-01/subscriptionDeploymentTemplate.json#",
-          "contentVersion": "1.0.0.0",
-          "metadata": {
-            "_generator": {
-              "name": "bicep",
-              "version": "0.46.1.21595",
-              "templateHash": "13504248033725910987"
-            }
-          },
-          "parameters": {
-            "budgetName": {
-              "type": "string"
-            },
-            "amount": {
-              "type": "int",
-              "defaultValue": 5
-            },
-            "resourceGroupName": {
-              "type": "string"
-            }
-          },
-          "resources": [
-            {
-              "type": "Microsoft.Consumption/budgets",
-              "apiVersion": "2023-11-01",
-              "name": "[parameters('budgetName')]",
-              "properties": {
-                "amount": "[parameters('amount')]",
-                "category": "Cost",
-                "timeGrain": "Monthly",
-                "timePeriod": {
-                  "startDate": "2026-01-01",
-                  "endDate": "2036-12-31"
-                },
-                "filter": {
-                  "dimensions": {
-                    "name": "ResourceGroupName",
-                    "operator": "In",
-                    "values": ["[parameters('resourceGroupName')]"]
-                  }
-                },
-                "notifications": {
-                  "eightyPercent": {
-                    "enabled": true,
-                    "operator": "GreaterThan",
-                    "threshold": 80,
-                    "contactRoles": ["Owner"]
-                  },
-                  "hundredPercent": {
-                    "enabled": true,
-                    "operator": "GreaterThan",
-                    "threshold": 100,
-                    "contactRoles": ["Owner"]
-                  }
-                }
-              }
-            }
-          ]
-        }
-      }
     }
   ],
   "outputs": {

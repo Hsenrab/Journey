@@ -47,9 +47,6 @@ param enableApi bool = true
 ])
 param cosmosMode string = 'serverless'
 
-@description('Monthly budget amount in the subscription billing currency.')
-param monthlyBudgetAmount int = 5
-
 var tags = union(
   {
     environment: environmentName
@@ -220,16 +217,6 @@ resource cosmosDemoDataReaderAssignment 'Microsoft.Authorization/roleAssignments
     roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', cosmosDataReaderRoleId)
     principalId: functionApp!.identity.principalId
     principalType: 'ServicePrincipal'
-  }
-}
-
-module monthlyBudget './budget.bicep' = if (enableApi) {
-  name: '${staticWebAppName}-monthly-budget'
-  scope: subscription()
-  params: {
-    amount: monthlyBudgetAmount
-    budgetName: '${staticWebAppName}-monthly'
-    resourceGroupName: resourceGroup().name
   }
 }
 

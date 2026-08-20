@@ -16,9 +16,7 @@ authentication disabled, and periodic backup.
 contains the only mutable real data. `demo` is deterministic and read-only.
 Provisioning requires an explicit `cosmosMode`: choose `freeTier` only after
 checking the subscription's Cosmos free-tier eligibility with Azure, otherwise
-choose `serverless`. No paid provisioned-throughput fallback is configured. The
-subscription budget module alerts at GBP 5 (or the subscription billing
-currency's equivalent); confirm the billing currency before deployment.
+choose `serverless`. No paid provisioned-throughput fallback is configured.
 
 Review Cosmos request units, throttled requests, storage, latency, availability,
 and authorization failures in the Cosmos account metrics and Application
