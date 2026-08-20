@@ -143,11 +143,12 @@ describe('ActivityEditor', () => {
     await user.click(screen.getByRole('button', { name: 'Move reference 1 up' }))
     await user.click(screen.getByRole('button', { name: 'Move reference 1 down' }))
     await user.click(screen.getByRole('button', { name: 'Add photo reference' }))
+    await user.click(screen.getByRole('button', { name: 'Add photo reference' }))
     await user.click(screen.getByRole('button', { name: 'Move photo 1 up' }))
     await user.click(screen.getByRole('button', { name: 'Move photo 1 down' }))
 
     expect(screen.getAllByLabelText('Reference title')).toHaveLength(1)
-    expect(screen.getAllByLabelText('Photo title')).toHaveLength(1)
+    expect(screen.getAllByLabelText('Photo title')).toHaveLength(2)
   })
 
   it('submits trimmed reference and photo metadata', async () => {
