@@ -57,6 +57,32 @@ describe('ActivityDetails', () => {
     expect(screen.getByRole('img', { name: 'View' })).toBeInTheDocument()
   })
 
+  it('renders empty optional fields and invalid reference hostnames', () => {
+    const seed = createDefaultData()
+    save({
+      ...seed,
+      references: [{ referenceId: 'r1', title: 'Link', url: 'https://example.com' }],
+      activities: [
+        {
+          activityId: 'a1',
+          date: '2026-08-01',
+          location: { kind: 'postcode', postcode: 'BA12 6QF' },
+          notes: '',
+          referenceIds: ['r1'],
+          photoReferenceIds: [],
+          createdAt: '2026-08-01T10:00:00.000Z',
+          updatedAt: '2026-08-01T10:00:00.000Z',
+        },
+      ],
+    })
+
+    renderDetails()
+
+    expect(screen.getByText('No description recorded.')).toBeInTheDocument()
+    expect(screen.getByText('No photos linked to this activity.')).toBeInTheDocument()
+    expect(screen.getByText('example.com')).toBeInTheDocument()
+  })
+
   it('deletes an activity after confirmation', async () => {
     const user = userEvent.setup()
     const seed = createDefaultData()
