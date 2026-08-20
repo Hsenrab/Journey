@@ -303,9 +303,9 @@ describe('MapPage', () => {
       'fetch',
       vi
         .fn()
-        .mockResolvedValueOnce(jsonResponse({ token: 'initial', expiresOn: '2026-01-01', clientId: 'maps-client-id' }))
+        .mockResolvedValueOnce(jsonResponse({ token: 'initial', expiresOn: '2027-01-01', clientId: 'maps-client-id' }))
         .mockResolvedValueOnce(
-          jsonResponse({ token: 'refreshed', expiresOn: '2026-01-01', clientId: 'maps-client-id' }),
+          jsonResponse({ token: 'refreshed', expiresOn: '2027-01-01', clientId: 'maps-client-id' }),
         ),
     )
 
