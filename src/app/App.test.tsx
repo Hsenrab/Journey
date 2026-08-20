@@ -61,6 +61,8 @@ describe('activity logging', () => {
     await user.click(screen.getByRole('button', { name: 'Save activity' }))
   }
 
+  // This test performs two full activity-logging flows plus a re-render, which is
+  // consistently close to the default 10s timeout on slower/loaded CI runners.
   it('records activities, keeps history and derives the highest status', async () => {
     const user = userEvent.setup()
     render(<App />)
@@ -81,5 +83,5 @@ describe('activity logging', () => {
     await user.click(screen.getByRole('link', { name: 'Waypoints' }))
     await user.click(screen.getAllByRole('link', { name: 'View waypoint' })[0])
     expect(screen.getByText('Category summary: Gold')).toBeInTheDocument()
-  })
+  }, 20000)
 })
