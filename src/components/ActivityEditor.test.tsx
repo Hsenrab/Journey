@@ -50,6 +50,15 @@ describe('ActivityEditor', () => {
     )
   })
 
+  it('validates a missing postcode', async () => {
+    const user = userEvent.setup()
+    renderEditor()
+
+    await user.click(screen.getByRole('button', { name: 'Save' }))
+
+    expect(screen.getByText('Postcode is required.')).toBeInTheDocument()
+  })
+
   it('validates coordinate pairs', async () => {
     const user = userEvent.setup()
     renderEditor()
@@ -124,6 +133,63 @@ describe('ActivityEditor', () => {
 
     expect(screen.getAllByLabelText('Reference title')).toHaveLength(1)
     expect(screen.getAllByLabelText('Photo title')).toHaveLength(1)
+  })
+
+  it('keeps the first reference and photo in place when moving up or down', async () => {
+    const user = userEvent.setup()
+    renderEditor()
+
+    await user.click(screen.getByRole('button', { name: 'Add reference' }))
+    await user.click(screen.getByRole('button', { name: 'Move reference 1 up' }))
+    await user.click(screen.getByRole('button', { name: 'Move reference 1 down' }))
+    await user.click(screen.getByRole('button', { name: 'Add photo reference' }))
+    await user.click(screen.getByRole('button', { name: 'Add photo reference' }))
+    await user.click(screen.getByRole('button', { name: 'Move photo 1 up' }))
+    await user.click(screen.getByRole('button', { name: 'Move photo 1 down' }))
+
+    expect(screen.getAllByLabelText('Reference title')).toHaveLength(1)
+    expect(screen.getAllByLabelText('Photo title')).toHaveLength(2)
+  })
+
+  it('submits trimmed reference and photo metadata', async () => {
+    const user = userEvent.setup()
+    const { onSubmit } = renderEditor({
+      initialReferences: [
+        {
+          referenceId: 'r1',
+          title: ' Guide ',
+          url: 'https://example.com/guide ',
+          description: ' Details ',
+          previewImageUrl: 'https://example.com/preview.jpg ',
+        },
+      ],
+      initialPhotoReferences: [
+        { photoReferenceId: 'p1', title: ' View ', url: 'https://example.com/view.jpg ', altText: ' Alt ' },
+      ],
+    })
+
+    await user.type(screen.getByLabelText('Postcode'), 'GL1 1AA')
+    await user.click(screen.getByRole('button', { name: 'Save' }))
+
+    expect(onSubmit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        references: [
+          expect.objectContaining({
+            title: 'Guide',
+            url: 'https://example.com/guide',
+            description: 'Details',
+            previewImageUrl: 'https://example.com/preview.jpg',
+          }),
+        ],
+        photoReferences: [
+          expect.objectContaining({
+            title: 'View',
+            url: 'https://example.com/view.jpg',
+            altText: 'Alt',
+          }),
+        ],
+      }),
+    )
   })
 
   it('validates reference and photo metadata rules', async () => {

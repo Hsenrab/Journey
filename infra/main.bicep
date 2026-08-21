@@ -40,6 +40,13 @@ requires the Standard plan, which skuName always is, so this defaults to on.
 ''')
 param enableApi bool = true
 
+@description('Cosmos DB account mode. Select freeTier only after confirming the subscription allowance; serverless is the explicit low-cost alternative.')
+@allowed([
+  'freeTier'
+  'serverless'
+])
+param cosmosMode string = 'serverless'
+
 var tags = union(
   {
     environment: environmentName
@@ -58,6 +65,11 @@ var mapsAccountName = '${staticWebAppName}-maps'
 var appInsightsName = '${staticWebAppName}-appi'
 var networkSecurityPerimeterName = '${staticWebAppName}-nsp'
 var networkSecurityPerimeterProfileName = 'function-storage'
+var cosmosAccountName = '${staticWebAppName}-data'
+var cosmosDatabaseName = 'journey'
+var cosmosProductionContainerName = 'production'
+var cosmosTestContainerName = 'test'
+var cosmosDemoContainerName = 'demo'
 
 @description('Built-in role: Azure Maps Search and Render Data Reader.')
 var azureMapsSearchAndRenderDataReaderRoleId = '6be48352-4f82-47c9-ad5e-0acacefdb005'
@@ -74,6 +86,12 @@ var storageQueueDataContributorRoleId = '974c5e8b-45b9-4653-ba55-5f855dd0fb88'
 @description('Built-in role: Storage Table Data Contributor. Required for the Functions host lock/lease tables with an identity-based connection.')
 var storageTableDataContributorRoleId = '0a9a7e1f-b9d0-4cc4-a60d-0319b160aaa3'
 
+@description('Built-in role: Cosmos DB Built-in Data Contributor.')
+var cosmosDataContributorRoleId = '5bd9cd88-fe45-4216-938b-f25a594e1e86'
+
+@description('Built-in role: Cosmos DB Built-in Data Reader.')
+var cosmosDataReaderRoleId = '00000000-0000-0000-0000-000000000001'
+
 resource staticWebApp 'Microsoft.Web/staticSites@2023-12-01' = {
   name: staticWebAppName
   location: location
@@ -82,6 +100,7 @@ resource staticWebApp 'Microsoft.Web/staticSites@2023-12-01' = {
     name: skuName
     tier: skuName
   }
+
   properties: {
     repositoryUrl: repositoryUrl
     branch: repositoryBranch
@@ -95,6 +114,108 @@ resource staticWebApp 'Microsoft.Web/staticSites@2023-12-01' = {
       outputLocation: 'dist'
       skipGithubActionWorkflowGeneration: true
     }
+
+  }
+}
+
+resource cosmosAccount 'Microsoft.DocumentDB/databaseAccounts@2024-05-15' = if (enableApi) {
+  name: cosmosAccountName
+  location: location
+  tags: tags
+  kind: 'GlobalDocumentDB'
+  properties: {
+    databaseAccountOfferType: 'Standard'
+    enableFreeTier: cosmosMode == 'freeTier'
+    consistencyPolicy: {
+      defaultConsistencyLevel: 'Session'
+    }
+    disableLocalAuth: true
+    backupPolicy: {
+      type: 'Periodic'
+      periodicModeProperties: {
+        backupIntervalInMinutes: 240
+        backupRetentionIntervalInHours: 8
+        backupStorageRedundancy: 'Local'
+      }
+    }
+    capabilities: cosmosMode == 'serverless' ? [{ name: 'EnableServerless' }] : []
+    locations: [
+      {
+        locationName: location
+        failoverPriority: 0
+      }
+    ]
+  }
+}
+
+resource cosmosDatabase 'Microsoft.DocumentDB/databaseAccounts/sqlDatabases@2024-05-15' = if (enableApi) {
+  name: '${cosmosAccountName}/${cosmosDatabaseName}'
+  properties: {
+    resource: {
+      id: cosmosDatabaseName
+    }
+  }
+}
+
+resource cosmosProductionContainer 'Microsoft.DocumentDB/databaseAccounts/sqlDatabases/containers@2024-05-15' = if (enableApi) {
+  name: '${cosmosAccountName}/${cosmosDatabaseName}/${cosmosProductionContainerName}'
+  properties: {
+    resource: {
+      id: cosmosProductionContainerName
+      partitionKey: {
+        paths: ['/datasetId']
+        kind: 'Hash'
+      }
+    }
+    options: cosmosMode == 'freeTier' ? { throughput: 400 } : {}
+  }
+}
+
+resource cosmosTestContainer 'Microsoft.DocumentDB/databaseAccounts/sqlDatabases/containers@2024-05-15' = if (enableApi) {
+  name: '${cosmosAccountName}/${cosmosDatabaseName}/${cosmosTestContainerName}'
+  properties: {
+    resource: {
+      id: cosmosTestContainerName
+      partitionKey: {
+        paths: ['/datasetId']
+        kind: 'Hash'
+      }
+    }
+    options: cosmosMode == 'freeTier' ? { throughput: 400 } : {}
+  }
+}
+
+resource cosmosDemoContainer 'Microsoft.DocumentDB/databaseAccounts/sqlDatabases/containers@2024-05-15' = if (enableApi) {
+  name: '${cosmosAccountName}/${cosmosDatabaseName}/${cosmosDemoContainerName}'
+  properties: {
+    resource: {
+      id: cosmosDemoContainerName
+      partitionKey: {
+        paths: ['/datasetId']
+        kind: 'Hash'
+      }
+    }
+    options: cosmosMode == 'freeTier' ? { throughput: 400 } : {}
+  }
+}
+
+resource cosmosProductionDataContributorAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = if (enableApi) {
+  name: guid(cosmosProductionContainer.id, functionAppName, cosmosDataContributorRoleId)
+  scope: cosmosProductionContainer
+  properties: {
+    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', cosmosDataContributorRoleId)
+    principalId: functionApp!.identity.principalId
+    principalType: 'ServicePrincipal'
+  }
+}
+
+resource cosmosDemoDataReaderAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = if (enableApi) {
+  name: guid(cosmosDemoContainer.id, functionAppName, cosmosDataReaderRoleId)
+  scope: cosmosDemoContainer
+  properties: {
+    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', cosmosDataReaderRoleId)
+    principalId: functionApp!.identity.principalId
+    principalType: 'ServicePrincipal'
   }
 }
 
@@ -208,6 +329,11 @@ resource functionAppSettings 'Microsoft.Web/sites/config@2023-12-01' = if (enabl
     AzureWebJobsStorage__credential: 'managedidentity'
     AZURE_MAPS_CLIENT_ID: mapsAccount!.properties.uniqueId
     APPLICATIONINSIGHTS_CONNECTION_STRING: appInsights!.properties.ConnectionString
+    COSMOS_ENDPOINT: cosmosAccount!.properties.documentEndpoint
+    COSMOS_DATABASE_NAME: cosmosDatabaseName
+    COSMOS_PRODUCTION_DATASET_ID: 'production'
+    COSMOS_TEST_DATASET_ID: 'test'
+    COSMOS_DEMO_DATASET_ID: 'demo'
   }
 }
 

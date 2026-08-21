@@ -1,6 +1,7 @@
 # Waypoints
 
-Waypoints is a private, browser-only planner for destinations, experiences, and activities.
+Waypoints is a private planner for destinations, experiences, and activities. Real
+data is persisted in Azure Cosmos DB through the authenticated Functions API.
 The first built-in challenge is **National Trust**, represented directly as a challenge made
 up of waypoints.
 
@@ -47,12 +48,10 @@ Shared domain validation lives in `src/domain/visit.ts` and is reused by UI + st
 - Activities require a non-empty location record before save/import.
 - Waypoint/challenge/idea location data remains optional.
 - Export/import uses a versioned portable JSON format.
-- The app header includes a **Demo data** switch on every route. It loads a clearly
-  fabricated sample data set from `src/data/demo.json` into a separate local storage
-  partition, clearly marks when demo data is active,
-  and restores the personal partition when switched off.
-- Export, restore, and clear actions operate on whichever partition is active; switching
-  demo mode on or off does not overwrite the inactive partition.
+- The app header includes a **Demo data** switch on every route. Demo records are
+  deterministic, Cosmos-backed, and read-only; switching modes never changes production.
+- Export is generated from authoritative production data. Import is allowed only into
+  empty production data and is fully validated before writing.
 
 ### Backup format
 
