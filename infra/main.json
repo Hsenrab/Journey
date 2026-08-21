@@ -154,8 +154,7 @@
         "locations": [
           {
             "locationName": "[parameters('location')]",
-            "failoverPriority": 0,
-            "isZoneRedundant": false
+            "failoverPriority": 0
           }
         ]
       }
