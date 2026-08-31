@@ -64,12 +64,12 @@ variables for the deployment target. Optional variables: `AZURE_LOCATION`
 The production Static Web Apps deployment token is never stored as a GitHub secret.
 The deploy job reads it from Azure at run time and masks it in the logs.
 
-The `azure-test` GitHub environment must define `AZURE_STATIC_WEB_APPS_API_TOKEN`
-for pull request previews. This token targets the shared test Static Web App.
-That resource must be provisioned on the **Standard** SKU because it also hosts
-the linked Functions backend used by manual test deployments. Set the SKU with
-`az staticwebapp update --sku Standard --name <name> --resource-group <group>`,
-or use the Azure portal.
+The `hh-env` GitHub environment supplies the production deployment variables and
+OIDC secrets, while `hh-env-test` supplies the corresponding test deployment values.
+The test Static Web App must be provisioned on the **Standard** SKU because it also
+hosts the linked Functions backend used by test deployments. Set the SKU with
+`az staticwebapp update --sku Standard --name <name> --resource-group <group>`, or
+use the Azure portal.
 
 ## API authentication and authorization
 
@@ -184,9 +184,11 @@ after the application boundary validates the caller's Entra provider and assigne
 - The API boundary (`enableApi`) defaults to `true` and can be disabled per
   deployment; linking a Functions backend requires the Standard plan, which
   `skuName` always is.
-- `.github/workflows/azure-static-web-apps.yml` adds a `deploy_api` job that
-  builds `api/` and deploys it with `Azure/functions-action@v1` after Bicep
-  provisioning, before the Static Web App content deploy. The job discovers
+- `.github/workflows/deploy-environment.yml` provides the shared infrastructure,
+  Functions API, static content, and verification jobs used by both production
+  and test deployments. Its API job builds `api/` and deploys it with
+  `Azure/functions-action@v1` after Bicep provisioning and before the Static Web
+  App content deploy. The job discovers
   the GitHub-hosted runner's public IPv4 address, creates a uniquely named
   inbound `/32` rule on the storage perimeter, confirms authenticated Blob
   access, deploys the package, and removes the rule even when deployment fails.
@@ -263,16 +265,19 @@ integration needs to be fully removed.
   (`npm ci`), lint, type check, formatting, tests with coverage, a production build,
   and end-to-end smoke tests for the React app; a separate `validate-api` job runs
   the equivalent lint, type check, test, and build steps for `api/`.
-- `.github/workflows/azure-static-web-apps.yml` runs production deployment on pushes
-  to `main` and pull request preview deployment for open pull requests. Both paths
-  call the CI workflow first. Production provisions infrastructure (including the
-  API boundary), deploys the Functions API, then deploys the static content and
-  publishes the application URL to the job summary and deployment record. Because
-  the site is sign-in first, verification sends an anonymous request without
-  following redirects and requires HTTP 302 to the sign-in endpoint.
+- `.github/workflows/deploy-environment.yml` is the reusable full-stack deployment
+  implementation. It runs CI, provisions infrastructure, optionally deploys the
+  Functions API, deploys static content, and verifies the result.
+- `.github/workflows/azure-static-web-apps.yml` is the production and pull-request
+  wrapper. Pushes to `main` call the reusable workflow with `hh-env` and `prod`;
+  pull requests retain their separate preview lifecycle on `hh-env-test` because
+  Azure preview environments cannot host the linked Functions backend.
+- `.github/workflows/deploy-test.yml` is the non-production wrapper. Pushes to any
+  non-`main` branch call the reusable workflow with `hh-env-test` and `dev` after
+  deciding whether the Functions API needs to be redeployed.
 
-Both deployment workflows also require anonymous `/api/maps/token` requests to
-return HTTP 302. Their curl checks use `--max-redirs 0` so they inspect the
+The reusable deployment workflow requires anonymous `/api/maps/token` requests to
+return HTTP 302. Its curl checks use `--max-redirs 0` so they inspect the
 application's redirect response without following the interactive sign-in flow.
 
 Failures surface in the GitHub Actions run: the failing job is marked red and
@@ -291,13 +296,13 @@ az deployment group create \
 The template is idempotent: repeated runs converge on the same resource and are
 safe to re-run. Use `--what-if` first to preview changes.
 
-## Manual test deployment
+## Test deployment
 
 The `Deploy test environment` GitHub Actions workflow (`.github/workflows/deploy-test.yml`)
-is triggered only via **Run workflow** (`workflow_dispatch`), from any branch. It provisions
-and deploys a full stack to the Static Web App identified by the `azure-test` GitHub
-environment's `AZURE_STATIC_WEB_APP_NAME` variable — the same app previews target (see
-"Preview environments" below):
+runs automatically on pushes to any branch other than `main` and can be started manually
+from any non-`main` branch. It provisions and deploys a full stack to the Static Web App
+identified by the `hh-env-test` GitHub environment's `AZURE_STATIC_WEB_APP_NAME` variable
+— the same app previews target (see "Preview environments" below):
 
 1. A `plan` job resolves the `deploy_api` input (`auto`, `true`, or `false`):
    - `true` always builds and deploys the Functions API.
@@ -321,34 +326,34 @@ environment's `AZURE_STATIC_WEB_APP_NAME` variable — the same app previews tar
    requests, mirroring the production workflow's verification steps.
 
 The workflow uses the same temporary runner `/32` perimeter rule and guaranteed
-cleanup as the production deployment, and reuses the `azure-test` GitHub environment's
+cleanup as the production deployment, and reuses the `hh-env-test` GitHub environment's
 OIDC login and resource group variable, so the test Static Web App must live in the same
 resource group as the shared preview resource.
 
 ## Preview environments
 
 Pull requests targeting `main` are published to a Static Web App preview resource,
-identified by the `azure-test` GitHub environment's `AZURE_STATIC_WEB_APP_NAME` /
-`AZURE_RESOURCE_GROUP` variables — the same test Static Web App the manual
+identified by the `hh-env-test` GitHub environment's `AZURE_STATIC_WEB_APP_NAME` /
+`AZURE_RESOURCE_GROUP` variables — the same test Static Web App the non-production
 `Deploy test environment` workflow deploys to. The workflow summary reports the preview
 URL and the resolved test SWA name, and the `close_preview` job deletes the preview
 environment when the pull request is closed. That resource must be on the Standard SKU
 (see "Required configuration" above) because it also supports the linked Functions
-backend used by manual test deployments.
+backend used by test deployments.
 
 Azure Static Web Apps only links a Functions backend to an app's **production**
 environment; preview environments never get a working backend, regardless of which app
 they hang off. So PR previews never have a working `/api/*` endpoint — validate anything
-that needs the Functions API (Azure Maps token issuance, search) with a manual
-`Deploy test environment` run instead.
+that needs the Functions API (Azure Maps token issuance, search) with a non-`main`
+branch deployment instead.
 
 ## Production dispatch guard
 
 `.github/workflows/azure-static-web-apps.yml` keeps `workflow_dispatch` as a trigger, but
 a `guard` job fails immediately with an `::error::` annotation if it is dispatched from any
-ref other than `refs/heads/main`, instead of silently skipping `infra`, `deploy_api`, and
-`deploy`. `validate`, `infra`, `deploy_api`, and `deploy` all depend on `guard`. Use the
-`Deploy test environment` workflow to test changes from a branch.
+ref other than `refs/heads/main`, instead of silently skipping the reusable production
+deployment. Use the `Deploy test environment` workflow on any non-`main` branch to test
+changes.
 
 ## Rollback
 
