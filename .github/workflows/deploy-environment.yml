@@ -57,6 +57,31 @@ jobs:
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
+      - name: Verify Azure deployment target
+        env:
+          EXPECTED_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
+        run: |
+          set -euo pipefail
+          active_subscription_id="$(az account show --query id --output tsv)"
+          active_subscription_name="$(az account show --query name --output tsv)"
+
+          {
+            echo "### Azure deployment target"
+            echo "Subscription: ${active_subscription_name} (\`${active_subscription_id}\`)"
+            echo "Resource group: \`${RESOURCE_GROUP}\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          if [ "${active_subscription_id}" != "${EXPECTED_SUBSCRIPTION_ID}" ]; then
+            echo "::error::Azure CLI selected subscription '${active_subscription_id}', but AZURE_SUBSCRIPTION_ID is '${EXPECTED_SUBSCRIPTION_ID}'."
+            exit 1
+          fi
+
+          if ! az group show --name "${RESOURCE_GROUP}" --output none; then
+            echo "::error::Resource group '${RESOURCE_GROUP}' does not exist in subscription '${active_subscription_name}' (${active_subscription_id}), or the OIDC principal cannot read it. Check the target GitHub environment's AZURE_RESOURCE_GROUP value and the principal's resource-group RBAC assignment."
+            exit 1
+          fi
+
       - name: Deploy Bicep (provision Static Web App and API boundary)
         id: deploy_bicep
         uses: azure/arm-deploy@v2

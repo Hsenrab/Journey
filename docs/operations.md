@@ -264,7 +264,9 @@ integration needs to be fully removed.
 - `.github/workflows/deploy-environment.yml` is the reusable full-stack deployment
   implementation. It runs CI, provisions infrastructure, optionally deploys the
   Functions API, and optionally deploys and verifies the primary Static Web App
-  environment.
+  environment. Immediately after OIDC login, it reports the selected subscription and
+  resource group in the job summary and verifies that the resource group is readable
+  before starting Bicep deployment.
 - `.github/workflows/azure-static-web-apps.yml` is the manually dispatched production
   wrapper. Runs selected from `main` call the reusable workflow with `hh-env` and
   `prod`.
@@ -388,6 +390,7 @@ no server-side database to back up.
 | Azure Maps returns `LocalAuthDisabled`                                                     | A shared-key or SAS path is still deployed. Keep `disableLocalAuth: true` and replace that path with Microsoft Entra token acquisition through the Function managed identity.                                                                                                                |
 | `/api/maps/token` fails to acquire an Entra token                                          | Confirm the Function has a system-assigned identity, the token scope is `https://atlas.microsoft.com/.default`, and the identity has the minimum render/search data role scoped to the Maps account.                                                                                         |
 | Bicep deployment fails with `LinkedAuthorizationFailed` for `joinPerimeterRule/action`     | Assign the GitHub OIDC principal the custom **Journey NSP Subscription Join** role at subscription scope. The role must contain only `Microsoft.Network/networkSecurityPerimeters/joinPerimeterRule/action`; a subscription administrator must create and assign it.                         |
+| Azure target preflight reports that the resource group is missing or unreadable            | Check the subscription and resource group printed in the job summary. Correct the target environment's `AZURE_RESOURCE_GROUP` or `AZURE_SUBSCRIPTION_ID`, or grant the GitHub OIDC principal permission to read and deploy to that resource group.                                             |
 | Deploy Functions API fails with `This request is not authorized to perform this operation` | The deploying GitHub OIDC principal lacks data-plane access to the Functions storage account it uploads the package to. Re-run the workflow: the Bicep deployment creates the Storage Blob Data Contributor assignment for `deployer().objectId`, which can take a few minutes to propagate. |
 | Function package upload reports a storage authorization error                              | Check that the workflow created its `github-<run-id>-<attempt>` inbound rule in the Network Security Perimeter profile and that the deploy identity still has Storage Blob Data Contributor on the host storage account.                                                                     |
 | A temporary `github-*` perimeter rule remains after a cancelled workflow                   | Delete that exact rule with `az network perimeter profile access-rule delete --name <rule> --perimeter-name <perimeter> --profile-name function-storage --resource-group <resource-group> --yes`.                                                                                            |
