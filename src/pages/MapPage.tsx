@@ -1,18 +1,48 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Alert, Box, Button, Card, CardContent, Checkbox, FormControlLabel, Stack, Typography } from '@mui/material'
+import {
+  Accordion,
+  AccordionDetails,
+  AccordionSummary,
+  Alert,
+  Box,
+  Button,
+  Card,
+  CardContent,
+  Checkbox,
+  Chip,
+  FormControlLabel,
+  Stack,
+  ToggleButton,
+  ToggleButtonGroup,
+  Typography,
+} from '@mui/material'
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
 import * as atlas from 'azure-maps-control'
 import 'azure-maps-control/dist/atlas.min.css'
-import { activityCoordinates, filterWaypointsByStatus, orderNearbyWaypoints, waypointCoordinates } from '../domain/map'
-import { statusLabels, statusOrder, type Status } from '../domain/visit'
+import {
+  activityCoordinates,
+  completionStateForWaypoint,
+  filterWaypointsByStatus,
+  orderNearbyWaypoints,
+  waypointCoordinates,
+} from '../domain/map'
+import { statusForWaypoint, statusLabels, statusOrder, type Status } from '../domain/visit'
 import { useWaypoints } from '../features/journey/JourneyContext'
 
 const brockworth = { latitude: 51.844, longitude: -2.153 }
-const statusColors: Record<Status, string> = {
-  'not-started': '#455a64',
-  bronze: '#8d5a2b',
-  silver: '#607d8b',
-  gold: '#a66f00',
+type MapMode = 'waypoints' | 'activities'
+const markerColors = { notStarted: '#455a64', complete: '#2e7d32', activity: '#00838f', selected: '#111827' }
+const markerIcon = (border: string, symbol: string, selected = false) =>
+  `data:image/svg+xml,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="44" height="52" viewBox="0 0 24 28"><path d="M12 1.5C7.3 1.5 3.5 5.3 3.5 10c0 6.2 8.5 15.2 8.5 15.2S20.5 16.2 20.5 10C20.5 5.3 16.7 1.5 12 1.5Z" fill="#fff" stroke="${selected ? markerColors.selected : '#263238'}" stroke-width="${selected ? 2.5 : 1.2}"/><circle cx="12" cy="10" r="6.2" fill="#fff" stroke="${border}" stroke-width="2.4"/>${symbol}</svg>`)}`
+const markerIcons = {
+  'waypoint-not-started': markerIcon(markerColors.notStarted, '<circle cx="12" cy="10" r="2" fill="#455a64"/>'),
+  'waypoint-complete': markerIcon(
+    markerColors.complete,
+    '<path d="m8.5 10 2.2 2.2 4.8-5" fill="none" stroke="#2e7d32" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>',
+  ),
+  activity: markerIcon(markerColors.activity, '<circle cx="12" cy="10" r="2.6" fill="#00838f"/>'),
+  selected: markerIcon(markerColors.selected, '<circle cx="12" cy="10" r="2" fill="#111827"/>', true),
 }
 
 type MapsToken = { token: string; expiresOn: string; clientId: string }
@@ -52,13 +82,13 @@ export default function MapPage() {
   const map = useRef<atlas.Map | null>(null)
   const waypointSource = useRef<atlas.source.DataSource | null>(null)
   const activitySource = useRef<atlas.source.DataSource | null>(null)
-  const [showWaypoints, setShowWaypoints] = useState(true)
-  const [showActivities, setShowActivities] = useState(true)
+  const [mode, setMode] = useState<MapMode>('waypoints')
   const [statuses, setStatuses] = useState<Status[]>([...statusOrder])
   const [token, setToken] = useState<MapsToken | null>(null)
   const [mapReady, setMapReady] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [selectedWaypointId, setSelectedWaypointId] = useState<string | null>(null)
+  const [selectedActivityId, setSelectedActivityId] = useState<string | null>(null)
   const [originQuery, setOriginQuery] = useState('Brockworth, Gloucestershire')
   const [origin, setOrigin] = useState(brockworth)
   const [originResults, setOriginResults] = useState<SearchResult[]>([])
@@ -89,14 +119,30 @@ export default function MapPage() {
       },
     })
     instance.events.add('ready', () => {
+      for (const [id, icon] of Object.entries(markerIcons)) void instance.imageSprite.add(id, icon)
       const popup = new atlas.Popup()
       const waypoints = new atlas.source.DataSource('waypoints', { cluster: true, clusterRadius: 45 })
       const activities = new atlas.source.DataSource('activities', { cluster: true, clusterRadius: 45 })
       instance.sources.add([waypoints, activities])
       const waypointLayer = new atlas.layer.SymbolLayer(waypoints, 'waypoints', {
         filter: ['!', ['has', 'point_count']],
-        iconOptions: { image: 'marker-blue', color: ['get', 'color'], allowOverlap: true },
-        textOptions: { textField: ['get', 'label'], offset: [0, 1.2], allowOverlap: false },
+        iconOptions: { image: ['get', 'icon'], allowOverlap: true, size: 1 },
+        textOptions: { textField: ['get', 'label'], offset: [0, 1.2], allowOverlap: false, minZoom: 11 },
+      })
+      const waypointClusterLayer = new atlas.layer.SymbolLayer(waypoints, 'waypoint-cluster-labels', {
+        filter: ['has', 'point_count'],
+        textOptions: { textField: ['get', 'point_count_abbreviated'], color: '#fff', size: 14 },
+        iconOptions: { image: 'marker-blue', color: '#263238', size: 0.9 },
+      })
+      const activityLayer = new atlas.layer.SymbolLayer(activities, 'activities', {
+        filter: ['!', ['has', 'point_count']],
+        iconOptions: { image: ['get', 'icon'], allowOverlap: true, size: 1 },
+        textOptions: { textField: ['get', 'label'], offset: [0, 1.2], allowOverlap: false, minZoom: 11 },
+      })
+      const activityClusterLayer = new atlas.layer.SymbolLayer(activities, 'activity-cluster-labels', {
+        filter: ['has', 'point_count'],
+        textOptions: { textField: ['get', 'point_count_abbreviated'], color: '#fff', size: 14 },
+        iconOptions: { image: 'marker-blue', color: markerColors.activity, size: 0.9 },
       })
       instance.layers.add([
         new atlas.layer.BubbleLayer(waypoints, 'waypoint-clusters', {
@@ -105,12 +151,21 @@ export default function MapPage() {
           color: '#263238',
         }),
         waypointLayer,
-        new atlas.layer.SymbolLayer(activities, 'activities', {
-          filter: ['!', ['has', 'point_count']],
-          iconOptions: { image: 'marker-red', allowOverlap: true },
-          textOptions: { textField: ['get', 'label'], offset: [0, 1.2], allowOverlap: false },
-        }),
+        waypointClusterLayer,
+        activityLayer,
+        activityClusterLayer,
       ])
+      const zoomIntoCluster = (event: atlas.MapMouseEvent) => {
+        const shape = event.shapes?.[0]
+        if (!shape || !('getCoordinates' in shape)) return
+        const camera = instance.getCamera()
+        instance.setCamera({
+          center: shape.getCoordinates(),
+          zoom: Math.min((camera.zoom ?? 8) + 2, 18),
+        })
+      }
+      instance.events.add('click', waypointClusterLayer, zoomIntoCluster)
+      instance.events.add('click', activityClusterLayer, zoomIntoCluster)
       instance.events.add('click', waypointLayer, (event) => {
         const shape = event.shapes?.[0]
         const properties = shape && 'getProperties' in shape ? shape.getProperties() : shape?.properties
@@ -121,15 +176,44 @@ export default function MapPage() {
         const content = document.createElement('div')
         const title = document.createElement('strong')
         title.textContent = waypoint.title
+        const state = document.createElement('p')
+        const completed = completionStateForWaypoint(waypoint, data.activities) === 'complete'
+        state.textContent = `Completion: ${completed ? 'Complete' : 'Not started'} · Award: ${statusLabels[statusForWaypoint(data.activities, waypoint.waypointId)]}`
+        const summary = document.createElement('p')
+        summary.textContent = `${data.activities.filter((activity) => activity.waypointId === waypoint.waypointId).length} recorded activities`
         const link = document.createElement('a')
         link.href = `/waypoints/${waypoint.waypointId}`
         link.textContent = 'Open waypoint details'
-        content.append(title, document.createElement('br'), link)
+        content.append(title, state, summary, link)
         const coordinates = waypointCoordinates(waypoint)
         if (!coordinates) return
         popup.setOptions({ content, position: [coordinates.longitude, coordinates.latitude] })
         popup.open(instance)
         setSelectedWaypointId(waypointId)
+      })
+      instance.events.add('click', activityLayer, (event) => {
+        const shape = event.shapes?.[0]
+        const properties = shape && 'getProperties' in shape ? shape.getProperties() : shape?.properties
+        const activityId = properties?.activityId as string | undefined
+        const activity = data.activities.find((item) => item.activityId === activityId)
+        if (!activity) return
+        const coordinates = activityCoordinates(activity)
+        if (!coordinates) return
+        const content = document.createElement('div')
+        const title = document.createElement('strong')
+        title.textContent = activity.date
+        const details = document.createElement('p')
+        const waypoint = activity.waypointId
+          ? data.waypoints.find((item) => item.waypointId === activity.waypointId)
+          : undefined
+        details.textContent = `${waypoint?.title ?? 'No linked waypoint'} · ${activity.category ? statusLabels[activity.category] : 'Uncategorised'}`
+        const link = document.createElement('a')
+        link.href = `/activities/${activity.activityId}`
+        link.textContent = 'Open activity details'
+        content.append(title, details, link)
+        popup.setOptions({ content, position: [coordinates.longitude, coordinates.latitude] })
+        popup.open(instance)
+        setSelectedActivityId(activity.activityId)
       })
       waypointSource.current = waypoints
       activitySource.current = activities
@@ -143,7 +227,7 @@ export default function MapPage() {
       activitySource.current = null
       setMapReady(false)
     }
-  }, [data.waypoints, origin.latitude, origin.longitude, token])
+  }, [data.activities, data.waypoints, origin.latitude, origin.longitude, token])
 
   const visibleWaypoints = useMemo(
     () => filterWaypointsByStatus(data.waypoints, statuses, statusFor),
@@ -157,7 +241,7 @@ export default function MapPage() {
     const source = waypointSource.current
     if (!source) return
     source.clear()
-    if (showWaypoints) {
+    if (mode === 'waypoints') {
       source.add(
         visibleWaypoints.flatMap((waypoint) => {
           const coordinates = waypointCoordinates(waypoint)
@@ -165,21 +249,27 @@ export default function MapPage() {
           const status = statusFor(waypoint.waypointId)
           return [
             new atlas.data.Feature(new atlas.data.Point([coordinates.longitude, coordinates.latitude]), {
-              label: `${statusLabels[status]}: ${waypoint.title}`,
-              color: statusColors[status],
+              label: waypoint.title,
+              icon:
+                selectedWaypointId === waypoint.waypointId
+                  ? 'selected'
+                  : completionStateForWaypoint(waypoint, data.activities) === 'complete'
+                    ? 'waypoint-complete'
+                    : 'waypoint-not-started',
+              award: statusLabels[status],
               waypointId: waypoint.waypointId,
             }),
           ]
         }),
       )
     }
-  }, [mapReady, showWaypoints, statusFor, visibleWaypoints])
+  }, [data.activities, mapReady, mode, selectedWaypointId, statusFor, visibleWaypoints])
 
   useEffect(() => {
     const source = activitySource.current
     if (!source) return
     source.clear()
-    if (showActivities) {
+    if (mode === 'activities') {
       source.add(
         data.activities.flatMap((activity) => {
           const coordinates = activityCoordinates(activity)
@@ -187,14 +277,16 @@ export default function MapPage() {
           const waypoint = data.waypoints.find((item) => item.waypointId === activity.waypointId)
           return [
             new atlas.data.Feature(new atlas.data.Point([coordinates.longitude, coordinates.latitude]), {
-              label: `Activity: ${activity.date}`,
+              label: activity.date,
+              icon: selectedActivityId === activity.activityId ? 'selected' : 'activity',
+              activityId: activity.activityId,
               description: `${waypoint?.title ?? 'No linked waypoint'} · ${activity.category ? statusLabels[activity.category] : 'Uncategorised'}`,
             }),
           ]
         }),
       )
     }
-  }, [data.activities, data.waypoints, mapReady, showActivities])
+  }, [data.activities, data.waypoints, mapReady, mode, selectedActivityId])
 
   const findNearby = async () => {
     setError(null)
@@ -260,32 +352,62 @@ export default function MapPage() {
           </Stack>
         </CardContent>
       </Card>
-      <Stack direction={{ xs: 'column', sm: 'row' }} useFlexGap sx={{ flexWrap: 'wrap' }}>
-        <FormControlLabel
-          control={<Checkbox checked={showWaypoints} onChange={(event) => setShowWaypoints(event.target.checked)} />}
-          label="Show waypoints"
-        />
-        <FormControlLabel
-          control={<Checkbox checked={showActivities} onChange={(event) => setShowActivities(event.target.checked)} />}
-          label="Show activities"
-        />
-        {statusOrder.map((status) => (
-          <FormControlLabel
-            key={status}
-            control={
-              <Checkbox
-                checked={statuses.includes(status)}
-                onChange={(event) =>
-                  setStatuses((current) =>
-                    event.target.checked ? [...current, status] : current.filter((item) => item !== status),
-                  )
-                }
-              />
-            }
-            label={`Waypoint status: ${statusLabels[status]}`}
-          />
-        ))}
-      </Stack>
+      <Card>
+        <CardContent>
+          <Stack spacing={1.5}>
+            <ToggleButtonGroup
+              exclusive
+              value={mode}
+              onChange={(_, nextMode: MapMode | null) => {
+                if (nextMode) setMode(nextMode)
+              }}
+              aria-label="Map mode"
+              fullWidth
+            >
+              <ToggleButton value="waypoints">Waypoints</ToggleButton>
+              <ToggleButton value="activities">Activities</ToggleButton>
+            </ToggleButtonGroup>
+            {mode === 'waypoints' && (
+              <Accordion disableGutters>
+                <AccordionSummary expandIcon={<ExpandMoreIcon />}>Award filters</AccordionSummary>
+                <AccordionDetails>
+                  <Stack direction="row" useFlexGap sx={{ flexWrap: 'wrap' }}>
+                    {statusOrder.map((status) => (
+                      <FormControlLabel
+                        key={status}
+                        control={
+                          <Checkbox
+                            checked={statuses.includes(status)}
+                            onChange={(event) =>
+                              setStatuses((current) =>
+                                event.target.checked ? [...current, status] : current.filter((item) => item !== status),
+                              )
+                            }
+                          />
+                        }
+                        label={statusLabels[status]}
+                      />
+                    ))}
+                  </Stack>
+                </AccordionDetails>
+              </Accordion>
+            )}
+            <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: 'wrap' }} aria-label="Map legend">
+              {mode === 'waypoints' ? (
+                <>
+                  <Chip size="small" label="Not started" sx={{ border: `2px solid ${markerColors.notStarted}` }} />
+                  <Chip size="small" label="Complete" sx={{ border: `2px solid ${markerColors.complete}` }} />
+                </>
+              ) : (
+                <Chip size="small" label="Activity" sx={{ border: `2px solid ${markerColors.activity}` }} />
+              )}
+              <Typography variant="caption" color="text.secondary" sx={{ alignSelf: 'center' }}>
+                Select a marker for details
+              </Typography>
+            </Stack>
+          </Stack>
+        </CardContent>
+      </Card>
       {error && <Alert severity="error">{error}</Alert>}
       {originResults.length > 0 && (
         <Card>
