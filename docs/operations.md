@@ -267,11 +267,13 @@ integration needs to be fully removed.
   the equivalent lint, type check, test, and build steps for `api/`.
 - `.github/workflows/deploy-environment.yml` is the reusable full-stack deployment
   implementation. It runs CI, provisions infrastructure, optionally deploys the
-  Functions API, deploys static content, and verifies the result.
+  Functions API, and optionally deploys and verifies the primary Static Web App
+  environment.
 - `.github/workflows/azure-static-web-apps.yml` is the production and pull-request
   wrapper. Pushes to `main` call the reusable workflow with `hh-env` and `prod`;
-  pull requests retain their separate preview lifecycle on `hh-env-test` because
-  Azure preview environments cannot host the linked Functions backend.
+  pull requests use it to ensure the `hh-env-test` infrastructure exists before
+  starting their separate preview lifecycle. Azure preview environments cannot host
+  the linked Functions backend.
 - `.github/workflows/deploy-test.yml` is the non-production wrapper. Pushes to any
   non-`main` branch call the reusable workflow with `hh-env-test` and `dev` after
   deciding whether the Functions API needs to be redeployed.

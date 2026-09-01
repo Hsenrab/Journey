@@ -37,13 +37,21 @@ jobs:
       bicep_environment_name: prod
       deployment_heading: Azure Static Web App
       deploy_api: true
+      deploy_application: true
     secrets: inherit
 
-  validate_preview:
-    name: Validate pull request preview
+  provision_preview:
+    name: Provision pull request preview infrastructure
     needs: guard
     if: github.event_name == 'pull_request' && github.event.action != 'closed'
-    uses: ./.github/workflows/ci.yml
+    uses: ./.github/workflows/deploy-environment.yml
+    with:
+      github_environment: hh-env-test
+      bicep_environment_name: dev
+      deployment_heading: Pull request preview infrastructure
+      deploy_api: false
+      deploy_application: false
+    secrets: inherit
 
   # PR previews hang off the test Static Web App. Azure Static Web Apps only serves
   # a linked Functions backend on an app's production environment, never on preview
@@ -51,7 +59,7 @@ jobs:
   # branch deployment when the Functions API must be validated.
   preview:
     name: Deploy PR preview (test SWA)
-    needs: validate_preview
+    needs: provision_preview
     if: github.event_name == 'pull_request' && github.event.action != 'closed'
     runs-on: ubuntu-latest
     environment: hh-env-test

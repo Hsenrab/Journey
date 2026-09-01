@@ -98,4 +98,5 @@ jobs:
       bicep_environment_name: dev
       deployment_heading: Journey test environment
       deploy_api: ${{ needs.plan.outputs.deploy_api == 'true' }}
+      deploy_application: true
     secrets: inherit

@@ -19,6 +19,10 @@ on:
         description: Whether to build and deploy the Functions API
         required: true
         type: boolean
+      deploy_application:
+        description: Whether to deploy and verify the primary Static Web App environment
+        required: true
+        type: boolean
 
 permissions:
   contents: read
@@ -179,7 +183,7 @@ jobs:
   deploy:
     name: Deploy application
     needs: [infra, deploy_api]
-    if: always() && needs.infra.result == 'success' && (needs.deploy_api.result == 'success' || needs.deploy_api.result == 'skipped')
+    if: inputs.deploy_application && always() && needs.infra.result == 'success' && (needs.deploy_api.result == 'success' || needs.deploy_api.result == 'skipped')
     runs-on: ubuntu-latest
     environment: ${{ inputs.github_environment }}
     steps:
