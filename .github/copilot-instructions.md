@@ -24,6 +24,12 @@ commands. Use the GitHub CLI (`gh`) or raw shell commands only when no built-in 
 tool supports the task, such as dispatching or monitoring a workflow run per the agent
 execution rules below.
 
+## Chat mode
+
+When working in chat mode, explain changes as you go. If the user asks whether
+something is possible or asks for options, answer first and do not make changes unless
+they ask you to proceed.
+
 Act autonomously during implementation: edit, run the narrowest relevant test after the
 first substantive change, fix failures caused by the change, and continue through
 validation without asking the user to run commands. Before completing any repository
