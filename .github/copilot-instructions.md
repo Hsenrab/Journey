@@ -16,6 +16,14 @@ the limitation clearly. Do not implement a workaround or add infrastructure mere
 approximate unsupported behavior. Prefer the simplest implementation that meets the
 current requirement without speculative abstractions or future-proofing.
 
+## Tool usage
+
+Prefer built-in editor/agent tools and any connected MCP tools for reading files,
+searching code, inspecting GitHub issues/PRs/workflows, and running local project
+commands. Use the GitHub CLI (`gh`) or raw shell commands only when no built-in or MCP
+tool supports the task, such as dispatching or monitoring a workflow run per the agent
+execution rules below.
+
 Act autonomously during implementation: edit, run the narrowest relevant test after the
 first substantive change, fix failures caused by the change, and continue through
 validation without asking the user to run commands. Before completing any repository
