@@ -158,7 +158,7 @@ after the application boundary validates the caller's Entra provider and assigne
 ### Deployment
 
 - `infra/main.bicep` provisions the Function App (system-assigned identity,
-  Linux Consumption plan), a storage account for the Functions host (using an
+  Linux Consumption plan, Node 24 LTS runtime), a storage account for the Functions host (using an
   identity-based `AzureWebJobsStorage` connection, not a shared key), the
   Azure Maps Gen2 account, an Application Insights component wired to the
   Function App via `APPLICATIONINSIGHTS_CONNECTION_STRING`, the role
