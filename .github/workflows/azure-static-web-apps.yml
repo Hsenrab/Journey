@@ -1,20 +1,15 @@
 name: Deploy Azure Static Web App
 
 on:
-  push:
-    branches: [main]
-  pull_request:
-    types: [opened, synchronize, reopened, closed]
   workflow_dispatch:
 
 permissions:
   contents: read
-  pull-requests: write
   id-token: write
 
 concurrency:
-  group: azure-static-web-apps-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: true
+  group: journey-production-environment
+  cancel-in-progress: false
 
 jobs:
   guard:
@@ -30,7 +25,6 @@ jobs:
   deploy:
     name: Deploy production environment
     needs: guard
-    if: github.event_name != 'pull_request'
     uses: ./.github/workflows/deploy-environment.yml
     with:
       github_environment: hh-env
@@ -39,116 +33,3 @@ jobs:
       deploy_api: true
       deploy_application: true
     secrets: inherit
-
-  provision_preview:
-    name: Provision pull request preview infrastructure
-    needs: guard
-    if: github.event_name == 'pull_request' && github.event.action != 'closed'
-    uses: ./.github/workflows/deploy-environment.yml
-    with:
-      github_environment: hh-env-test
-      bicep_environment_name: dev
-      deployment_heading: Pull request preview infrastructure
-      deploy_api: false
-      deploy_application: false
-    secrets: inherit
-
-  # PR previews hang off the test Static Web App. Azure Static Web Apps only serves
-  # a linked Functions backend on an app's production environment, never on preview
-  # environments, so previews never have a working /api/* endpoint. Use a non-main
-  # branch deployment when the Functions API must be validated.
-  preview:
-    name: Deploy PR preview (test SWA)
-    needs: provision_preview
-    if: github.event_name == 'pull_request' && github.event.action != 'closed'
-    runs-on: ubuntu-latest
-    environment: hh-env-test
-    permissions:
-      contents: read
-      pull-requests: write
-      id-token: write
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v6
-
-      - name: Azure login (OIDC)
-        uses: azure/login@v2
-        with:
-          client-id: ${{ secrets.AZURE_CLIENT_ID }}
-          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
-          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-
-      - name: Read deployment token
-        id: swa_token
-        env:
-          RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
-          STATIC_WEB_APP_NAME: ${{ vars.AZURE_STATIC_WEB_APP_NAME }}
-        run: |
-          set -euo pipefail
-          token="$(az staticwebapp secrets list \
-            --name "${STATIC_WEB_APP_NAME}" \
-            --resource-group "${RESOURCE_GROUP}" \
-            --query 'properties.apiKey' --output tsv)"
-          echo "::add-mask::${token}"
-          echo "token=${token}" >> "$GITHUB_OUTPUT"
-
-      - name: Deploy pull request preview
-        id: deploy_preview
-        uses: Azure/static-web-apps-deploy@v1
-        with:
-          azure_static_web_apps_api_token: ${{ steps.swa_token.outputs.token }}
-          repo_token: ${{ secrets.GITHUB_TOKEN }}
-          action: upload
-          app_location: /
-          output_location: dist
-
-      - name: Publish preview URL
-        env:
-          PREVIEW_URL: ${{ steps.deploy_preview.outputs.static_web_app_url }}
-          STATIC_WEB_APP_NAME: ${{ vars.AZURE_STATIC_WEB_APP_NAME }}
-        run: |
-          set -euo pipefail
-          test -n "$PREVIEW_URL"
-          {
-            echo "Preview environment deployed to test SWA: $STATIC_WEB_APP_NAME"
-            echo "Preview URL: $PREVIEW_URL"
-            echo "Note: this preview has no working /api/* backend (Azure Static Web Apps limitation)."
-          } >> "$GITHUB_STEP_SUMMARY"
-
-  close_preview:
-    name: Close pull request preview
-    if: github.event_name == 'pull_request' && github.event.action == 'closed'
-    runs-on: ubuntu-latest
-    environment: hh-env-test
-    permissions:
-      contents: read
-      pull-requests: write
-      id-token: write
-    steps:
-      - name: Azure login (OIDC)
-        uses: azure/login@v2
-        with:
-          client-id: ${{ secrets.AZURE_CLIENT_ID }}
-          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
-          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-
-      - name: Read deployment token
-        id: swa_token
-        env:
-          RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
-          STATIC_WEB_APP_NAME: ${{ vars.AZURE_STATIC_WEB_APP_NAME }}
-        run: |
-          set -euo pipefail
-          token="$(az staticwebapp secrets list \
-            --name "${STATIC_WEB_APP_NAME}" \
-            --resource-group "${RESOURCE_GROUP}" \
-            --query 'properties.apiKey' --output tsv)"
-          echo "::add-mask::${token}"
-          echo "token=${token}" >> "$GITHUB_OUTPUT"
-
-      - name: Close pull request preview environment
-        uses: Azure/static-web-apps-deploy@v1
-        with:
-          azure_static_web_apps_api_token: ${{ steps.swa_token.outputs.token }}
-          repo_token: ${{ secrets.GITHUB_TOKEN }}
-          action: close

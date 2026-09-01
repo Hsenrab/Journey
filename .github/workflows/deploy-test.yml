@@ -1,8 +1,8 @@
 name: Deploy test environment
 
 on:
-  push:
-    branches-ignore: [main]
+  pull_request:
+    types: [opened, synchronize, reopened]
   workflow_dispatch:
     inputs:
       deploy_api:
@@ -17,8 +17,8 @@ permissions:
   actions: read
 
 concurrency:
-  group: deploy-test-${{ github.workflow }}
-  cancel-in-progress: true
+  group: journey-test-environment
+  cancel-in-progress: false
 
 jobs:
   plan:
