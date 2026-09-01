@@ -244,8 +244,10 @@ jobs:
           action: upload
           app_location: /
           output_location: dist
+          production_branch: "${{ github.event_name == 'workflow_dispatch' && github.ref_name || '' }}"
 
       - name: Verify deployment
+        if: github.event_name != 'pull_request'
         env:
           APPLICATION_URL: ${{ needs.infra.outputs.application_url }}
         run: |
@@ -264,7 +266,7 @@ jobs:
           exit 1
 
       - name: Verify anonymous requests to /api/* are denied
-        if: needs.infra.outputs.function_app_name != ''
+        if: github.event_name != 'pull_request' && needs.infra.outputs.function_app_name != ''
         env:
           APPLICATION_URL: ${{ needs.infra.outputs.application_url }}
         run: |
@@ -278,7 +280,7 @@ jobs:
           fi
 
       - name: Verify the Function App's default hostname rejects direct requests
-        if: needs.infra.outputs.function_app_hostname != ''
+        if: github.event_name != 'pull_request' && needs.infra.outputs.function_app_hostname != ''
         env:
           FUNCTION_APP_HOSTNAME: ${{ needs.infra.outputs.function_app_hostname }}
         run: |
@@ -292,7 +294,7 @@ jobs:
           fi
 
       - name: Verify Application Insights is provisioned and connected
-        if: needs.infra.outputs.function_app_name != ''
+        if: github.event_name != 'pull_request' && needs.infra.outputs.function_app_name != ''
         env:
           RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
           FUNCTION_APP_NAME: ${{ needs.infra.outputs.function_app_name }}
