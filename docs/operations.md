@@ -64,12 +64,12 @@ variables for the deployment target. Optional variables: `AZURE_LOCATION`
 The production Static Web Apps deployment token is never stored as a GitHub secret.
 The deploy job reads it from Azure at run time and masks it in the logs.
 
-The `azure-test` GitHub environment must define `AZURE_STATIC_WEB_APPS_API_TOKEN`
-for pull request previews. This token targets the shared test Static Web App.
-That resource must be provisioned on the **Standard** SKU because it also hosts
-the linked Functions backend used by manual test deployments. Set the SKU with
-`az staticwebapp update --sku Standard --name <name> --resource-group <group>`,
-or use the Azure portal.
+The `hh-env` GitHub environment supplies the production deployment variables and
+OIDC secrets, while `hh-env-test` supplies the corresponding test deployment values.
+The test Static Web App must be provisioned on the **Standard** SKU because it also
+hosts the linked Functions backend used by test deployments. Set the SKU with
+`az staticwebapp update --sku Standard --name <name> --resource-group <group>`, or
+use the Azure portal.
 
 ## API authentication and authorization
 
@@ -184,9 +184,11 @@ after the application boundary validates the caller's Entra provider and assigne
 - The API boundary (`enableApi`) defaults to `true` and can be disabled per
   deployment; linking a Functions backend requires the Standard plan, which
   `skuName` always is.
-- `.github/workflows/azure-static-web-apps.yml` adds a `deploy_api` job that
-  builds `api/` and deploys it with `Azure/functions-action@v1` after Bicep
-  provisioning, before the Static Web App content deploy. The job discovers
+- `.github/workflows/deploy-environment.yml` provides the shared infrastructure,
+  Functions API, static content, and verification jobs used by both production
+  and test deployments. Its API job builds `api/` and deploys it with
+  `Azure/functions-action@v1` after Bicep provisioning and before the Static Web
+  App content deploy. The job discovers
   the GitHub-hosted runner's public IPv4 address, creates a uniquely named
   inbound `/32` rule on the storage perimeter, confirms authenticated Blob
   access, deploys the package, and removes the rule even when deployment fails.
@@ -198,13 +200,9 @@ after the application boundary validates the caller's Entra provider and assigne
   account to `deployer().objectId`, the GitHub OIDC principal that runs the
   Bicep deployment. No extra secret or variable is needed; the object id comes
   from the deployment itself.
-- Pull request previews do not include the API: Azure does not support linked
-  Functions backends in Static Web Apps preview environments, so preview
-  deployments only carry static content. `staticwebapp.config.json` excludes
-  `/api/*` from the SPA `navigationFallback`, so those requests return 404
-  rather than `index.html`, and the Map page reports that the Maps API is not
-  deployed in the current environment instead of failing on an HTML body. Use
-  the production site to exercise the map.
+- Test deployments publish to the test Static Web App's primary environment, where
+  the linked Functions backend is supported. The repository does not create Static
+  Web Apps pull-request preview environments.
 
 ### Diagnostics
 
@@ -258,21 +256,28 @@ integration needs to be fully removed.
 
 ## Pipelines
 
-- `.github/workflows/ci.yml` runs on every pull request, can be started manually,
-  and is reused by the deploy workflow via `workflow_call`: dependency install
-  (`npm ci`), lint, type check, formatting, tests with coverage, a production build,
-  and end-to-end smoke tests for the React app; a separate `validate-api` job runs
-  the equivalent lint, type check, test, and build steps for `api/`.
-- `.github/workflows/azure-static-web-apps.yml` runs production deployment on pushes
-  to `main` and pull request preview deployment for open pull requests. Both paths
-  call the CI workflow first. Production provisions infrastructure (including the
-  API boundary), deploys the Functions API, then deploys the static content and
-  publishes the application URL to the job summary and deployment record. Because
-  the site is sign-in first, verification sends an anonymous request without
-  following redirects and requires HTTP 302 to the sign-in endpoint.
+- `.github/workflows/ci.yml` is started manually or reused by the deployment
+  workflows via `workflow_call`: dependency install (`npm ci`), lint, type check,
+  formatting, tests with coverage, a production build, and end-to-end smoke tests for
+  the React app; a separate `validate-api` job runs the equivalent lint, type check,
+  test, and build steps for `api/`.
+- `.github/workflows/deploy-environment.yml` is the reusable full-stack deployment
+  implementation. It runs CI, provisions infrastructure, optionally deploys the
+  Functions API, and optionally deploys and verifies the primary Static Web App
+  environment. Immediately after OIDC login, it reports the selected subscription and
+  resource group in the job summary and verifies that the resource group is readable
+  before starting Bicep deployment.
+- `.github/workflows/azure-static-web-apps.yml` is the manually dispatched production
+  wrapper. Runs selected from `main` call the reusable workflow with `hh-env` and
+  `prod`.
+- `.github/workflows/deploy-test.yml` is the non-production wrapper and the repository's
+  single pull-request workflow. Pull requests and manual
+  runs call the reusable workflow with `hh-env-test` and `dev` after deciding whether
+  the Functions API needs to be redeployed. Configure required reviewers on the
+  `hh-env-test` GitHub environment to require approval before Azure deployment jobs run.
 
-Both deployment workflows also require anonymous `/api/maps/token` requests to
-return HTTP 302. Their curl checks use `--max-redirs 0` so they inspect the
+The reusable deployment workflow requires anonymous `/api/maps/token` requests to
+return HTTP 302. Its curl checks use `--max-redirs 0` so they inspect the
 application's redirect response without following the interactive sign-in flow.
 
 Failures surface in the GitHub Actions run: the failing job is marked red and
@@ -291,13 +296,14 @@ az deployment group create \
 The template is idempotent: repeated runs converge on the same resource and are
 safe to re-run. Use `--what-if` first to preview changes.
 
-## Manual test deployment
+## Test deployment
 
 The `Deploy test environment` GitHub Actions workflow (`.github/workflows/deploy-test.yml`)
-is triggered only via **Run workflow** (`workflow_dispatch`), from any branch. It provisions
-and deploys a full stack to the Static Web App identified by the `azure-test` GitHub
-environment's `AZURE_STATIC_WEB_APP_NAME` variable — the same app previews target (see
-"Preview environments" below):
+runs for pull requests targeting `main` and can also be started manually from any
+non-`main` branch. It provisions and deploys a full stack to the Static Web App identified
+by the `hh-env-test` GitHub environment's `AZURE_STATIC_WEB_APP_NAME` variable. The
+reusable workflow runs CI first; deployment then waits for approval when required
+reviewers are configured on `hh-env-test`:
 
 1. A `plan` job resolves the `deploy_api` input (`auto`, `true`, or `false`):
    - `true` always builds and deploys the Functions API.
@@ -313,42 +319,24 @@ environment's `AZURE_STATIC_WEB_APP_NAME` variable — the same app previews tar
    (idempotent, so this always runs regardless of the `deploy_api` decision).
 3. When the API is being deployed, builds and deploys the Functions package (`api/`) to the
    provisioned Function App.
-4. Deploys the built static content to the test Static Web App's primary environment (not a
-   PR preview slot), so the linked Function backend — when deployed — is active.
+4. Deploys the built static content to the test Static Web App's primary environment, where the linked Function backend — when deployed — is active.
 5. Publishes the application URL to the job summary and verifies that anonymous requests
    to the application root redirect to sign-in (302). When the API exists, it also checks
    `/api/maps/token` returns 302 and the Function App's default hostname rejects direct
    requests, mirroring the production workflow's verification steps.
 
 The workflow uses the same temporary runner `/32` perimeter rule and guaranteed
-cleanup as the production deployment, and reuses the `azure-test` GitHub environment's
-OIDC login and resource group variable, so the test Static Web App must live in the same
-resource group as the shared preview resource.
-
-## Preview environments
-
-Pull requests targeting `main` are published to a Static Web App preview resource,
-identified by the `azure-test` GitHub environment's `AZURE_STATIC_WEB_APP_NAME` /
-`AZURE_RESOURCE_GROUP` variables — the same test Static Web App the manual
-`Deploy test environment` workflow deploys to. The workflow summary reports the preview
-URL and the resolved test SWA name, and the `close_preview` job deletes the preview
-environment when the pull request is closed. That resource must be on the Standard SKU
-(see "Required configuration" above) because it also supports the linked Functions
-backend used by manual test deployments.
-
-Azure Static Web Apps only links a Functions backend to an app's **production**
-environment; preview environments never get a working backend, regardless of which app
-they hang off. So PR previews never have a working `/api/*` endpoint — validate anything
-that needs the Functions API (Azure Maps token issuance, search) with a manual
-`Deploy test environment` run instead.
+cleanup as the production deployment, and reuses the `hh-env-test` GitHub environment's
+OIDC login and resource group variable. Its `journey-test-environment` concurrency group
+queues concurrent runs instead of cancelling an active ARM deployment.
 
 ## Production dispatch guard
 
 `.github/workflows/azure-static-web-apps.yml` keeps `workflow_dispatch` as a trigger, but
 a `guard` job fails immediately with an `::error::` annotation if it is dispatched from any
-ref other than `refs/heads/main`, instead of silently skipping `infra`, `deploy_api`, and
-`deploy`. `validate`, `infra`, `deploy_api`, and `deploy` all depend on `guard`. Use the
-`Deploy test environment` workflow to test changes from a branch.
+ref other than `refs/heads/main`, instead of silently skipping the reusable production
+deployment. Use the `Deploy test environment` workflow on any non-`main` branch to test
+changes.
 
 ## Rollback
 
@@ -402,6 +390,7 @@ no server-side database to back up.
 | Azure Maps returns `LocalAuthDisabled`                                                     | A shared-key or SAS path is still deployed. Keep `disableLocalAuth: true` and replace that path with Microsoft Entra token acquisition through the Function managed identity.                                                                                                                |
 | `/api/maps/token` fails to acquire an Entra token                                          | Confirm the Function has a system-assigned identity, the token scope is `https://atlas.microsoft.com/.default`, and the identity has the minimum render/search data role scoped to the Maps account.                                                                                         |
 | Bicep deployment fails with `LinkedAuthorizationFailed` for `joinPerimeterRule/action`     | Assign the GitHub OIDC principal the custom **Journey NSP Subscription Join** role at subscription scope. The role must contain only `Microsoft.Network/networkSecurityPerimeters/joinPerimeterRule/action`; a subscription administrator must create and assign it.                         |
+| Azure target preflight reports that the resource group is missing or unreadable            | Check the subscription and resource group printed in the job summary. Correct the target environment's `AZURE_RESOURCE_GROUP` or `AZURE_SUBSCRIPTION_ID`, or grant the GitHub OIDC principal permission to read and deploy to that resource group.                                           |
 | Deploy Functions API fails with `This request is not authorized to perform this operation` | The deploying GitHub OIDC principal lacks data-plane access to the Functions storage account it uploads the package to. Re-run the workflow: the Bicep deployment creates the Storage Blob Data Contributor assignment for `deployer().objectId`, which can take a few minutes to propagate. |
 | Function package upload reports a storage authorization error                              | Check that the workflow created its `github-<run-id>-<attempt>` inbound rule in the Network Security Perimeter profile and that the deploy identity still has Storage Blob Data Contributor on the host storage account.                                                                     |
 | A temporary `github-*` perimeter rule remains after a cancelled workflow                   | Delete that exact rule with `az network perimeter profile access-rule delete --name <rule> --perimeter-name <perimeter> --profile-name function-storage --resource-group <resource-group> --yes`.                                                                                            |
