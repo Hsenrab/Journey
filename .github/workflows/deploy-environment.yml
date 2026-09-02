@@ -15,6 +15,10 @@ on:
         description: Heading used in the workflow summary
         required: true
         type: string
+      deploy_infra:
+        description: Whether to deploy the Bicep infrastructure
+        required: true
+        type: boolean
       deploy_api:
         description: Whether to build and deploy the Functions API
         required: true
@@ -34,18 +38,18 @@ jobs:
     uses: ./.github/workflows/ci.yml
 
   infra:
-    name: Provision infrastructure
+    name: Resolve infrastructure
     needs: validate
     runs-on: ubuntu-latest
     environment: ${{ inputs.github_environment }}
     outputs:
-      application_url: ${{ steps.deploy_bicep.outputs.applicationUrl }}
-      function_app_name: ${{ steps.deploy_bicep.outputs.functionAppName }}
-      function_app_hostname: ${{ steps.deploy_bicep.outputs.functionAppHostname }}
-      app_insights_name: ${{ steps.deploy_bicep.outputs.appInsightsName }}
-      storage_account_name: ${{ steps.deploy_bicep.outputs.storageAccountName }}
-      network_security_perimeter_name: ${{ steps.deploy_bicep.outputs.networkSecurityPerimeterName }}
-      network_security_perimeter_profile_name: ${{ steps.deploy_bicep.outputs.networkSecurityPerimeterProfileName }}
+      application_url: ${{ steps.resolve.outputs.application_url }}
+      function_app_name: ${{ steps.resolve.outputs.function_app_name }}
+      function_app_hostname: ${{ steps.resolve.outputs.function_app_hostname }}
+      app_insights_name: ${{ steps.resolve.outputs.app_insights_name }}
+      storage_account_name: ${{ steps.resolve.outputs.storage_account_name }}
+      network_security_perimeter_name: ${{ steps.resolve.outputs.network_security_perimeter_name }}
+      network_security_perimeter_profile_name: ${{ steps.resolve.outputs.network_security_perimeter_profile_name }}
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -83,6 +87,7 @@ jobs:
           fi
 
       - name: Deploy Bicep (provision Static Web App and API boundary)
+        if: inputs.deploy_infra
         id: deploy_bicep
         uses: azure/arm-deploy@v2
         with:
@@ -98,13 +103,54 @@ jobs:
             repositoryUrl=${{ github.server_url }}/${{ github.repository }}
             repositoryBranch=${{ github.ref_name }}
 
+      - name: Resolve deployed resources
+        id: resolve
+        env:
+          RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
+          STATIC_WEB_APP_NAME: ${{ vars.AZURE_STATIC_WEB_APP_NAME }}
+        run: |
+          set -euo pipefail
+
+          function_app_name="${STATIC_WEB_APP_NAME}-api"
+          app_insights_name="${STATIC_WEB_APP_NAME}-appi"
+          perimeter_name="${STATIC_WEB_APP_NAME}-nsp"
+          perimeter_profile_name="function-storage"
+
+          application_hostname="$(az staticwebapp show \
+            --name "${STATIC_WEB_APP_NAME}" \
+            --resource-group "${RESOURCE_GROUP}" \
+            --query defaultHostname --output tsv)"
+          function_app_hostname="$(az functionapp show \
+            --name "${function_app_name}" \
+            --resource-group "${RESOURCE_GROUP}" \
+            --query defaultHostName --output tsv)"
+          storage_account_name="$(az functionapp config appsettings list \
+            --name "${function_app_name}" \
+            --resource-group "${RESOURCE_GROUP}" \
+            --query "[?name=='AzureWebJobsStorage__accountName'].value | [0]" \
+            --output tsv)"
+
+          test -n "${application_hostname}"
+          test -n "${function_app_hostname}"
+          test -n "${storage_account_name}"
+
+          echo "application_url=https://${application_hostname}" >> "$GITHUB_OUTPUT"
+          echo "function_app_name=${function_app_name}" >> "$GITHUB_OUTPUT"
+          echo "function_app_hostname=${function_app_hostname}" >> "$GITHUB_OUTPUT"
+          echo "app_insights_name=${app_insights_name}" >> "$GITHUB_OUTPUT"
+          echo "storage_account_name=${storage_account_name}" >> "$GITHUB_OUTPUT"
+          echo "network_security_perimeter_name=${perimeter_name}" >> "$GITHUB_OUTPUT"
+          echo "network_security_perimeter_profile_name=${perimeter_profile_name}" >> "$GITHUB_OUTPUT"
+
       - name: Publish application URL to the job summary
         env:
-          APPLICATION_URL: ${{ steps.deploy_bicep.outputs.applicationUrl }}
+          APPLICATION_URL: ${{ steps.resolve.outputs.application_url }}
           DEPLOYMENT_HEADING: ${{ inputs.deployment_heading }}
+          DEPLOY_INFRA: ${{ inputs.deploy_infra }}
         run: |
           echo "### ${DEPLOYMENT_HEADING}" >> "$GITHUB_STEP_SUMMARY"
           echo "Application URL: ${APPLICATION_URL}" >> "$GITHUB_STEP_SUMMARY"
+          echo "Infrastructure deployed: ${DEPLOY_INFRA}" >> "$GITHUB_STEP_SUMMARY"
 
   deploy_api:
     name: Deploy Functions API
