@@ -30,6 +30,7 @@ jobs:
       github_environment: hh-env
       bicep_environment_name: prod
       deployment_heading: Azure Static Web App
+      deploy_infra: true
       deploy_api: true
       deploy_application: true
     secrets: inherit
