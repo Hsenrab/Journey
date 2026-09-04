@@ -105,7 +105,8 @@ export const JourneyDocumentSchema = z
   .strict()
   .superRefine((document, context) => {
     const parsed = schemas[document.type].safeParse(document.entity)
-    if (!parsed.success) context.addIssue({ code: 'custom', message: `Invalid ${document.type} entity.` })
+    if (!parsed.success)
+      for (const issue of parsed.error.issues) context.addIssue({ ...issue, path: ['entity', ...issue.path] })
   })
 export type JourneyDocument = z.infer<typeof JourneyDocumentSchema>
 
