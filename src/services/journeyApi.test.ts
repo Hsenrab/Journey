@@ -6,6 +6,7 @@ import {
   deleteJourneyEntity,
   importJourney,
   loadJourney,
+  replaceJourney,
   updateJourneyEntity,
 } from './journeyApi'
 
@@ -40,12 +41,13 @@ describe('journey API client', () => {
   })
 
   it('supports import and clear operations', async () => {
-    const fetch = vi.fn().mockResolvedValue(new Response(null, { status: 204 }))
-    vi.stubGlobal('fetch', fetch)
     const data = createDefaultData()
+    const fetch = vi.fn().mockImplementation(() => new Response(JSON.stringify({ data, etags: {} }), { status: 200 }))
+    vi.stubGlobal('fetch', fetch)
     await importJourney('production', data)
     await clearJourney('production')
-    expect(fetch).toHaveBeenCalledTimes(2)
+    await replaceJourney('production', data, { activity: 'etag' })
+    expect(fetch).toHaveBeenCalledTimes(3)
   })
 
   it('surfaces API failures', async () => {

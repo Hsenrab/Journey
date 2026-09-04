@@ -86,10 +86,10 @@ var storageQueueDataContributorRoleId = '974c5e8b-45b9-4653-ba55-5f855dd0fb88'
 @description('Built-in role: Storage Table Data Contributor. Required for the Functions host lock/lease tables with an identity-based connection.')
 var storageTableDataContributorRoleId = '0a9a7e1f-b9d0-4cc4-a60d-0319b160aaa3'
 
-@description('Built-in role: Cosmos DB Built-in Data Contributor.')
-var cosmosDataContributorRoleId = '5bd9cd88-fe45-4216-938b-f25a594e1e86'
+@description('Cosmos DB Built-in Data Contributor role definition.')
+var cosmosDataContributorRoleId = '00000000-0000-0000-0000-000000000002'
 
-@description('Built-in role: Cosmos DB Built-in Data Reader.')
+@description('Cosmos DB Built-in Data Reader role definition.')
 var cosmosDataReaderRoleId = '00000000-0000-0000-0000-000000000001'
 
 resource staticWebApp 'Microsoft.Web/staticSites@2023-12-01' = {
@@ -149,7 +149,8 @@ resource cosmosAccount 'Microsoft.DocumentDB/databaseAccounts@2024-05-15' = if (
 }
 
 resource cosmosDatabase 'Microsoft.DocumentDB/databaseAccounts/sqlDatabases@2024-05-15' = if (enableApi) {
-  name: '${cosmosAccountName}/${cosmosDatabaseName}'
+  parent: cosmosAccount
+  name: cosmosDatabaseName
   properties: {
     resource: {
       id: cosmosDatabaseName
@@ -158,7 +159,8 @@ resource cosmosDatabase 'Microsoft.DocumentDB/databaseAccounts/sqlDatabases@2024
 }
 
 resource cosmosProductionContainer 'Microsoft.DocumentDB/databaseAccounts/sqlDatabases/containers@2024-05-15' = if (enableApi) {
-  name: '${cosmosAccountName}/${cosmosDatabaseName}/${cosmosProductionContainerName}'
+  parent: cosmosDatabase
+  name: cosmosProductionContainerName
   properties: {
     resource: {
       id: cosmosProductionContainerName
@@ -172,7 +174,8 @@ resource cosmosProductionContainer 'Microsoft.DocumentDB/databaseAccounts/sqlDat
 }
 
 resource cosmosTestContainer 'Microsoft.DocumentDB/databaseAccounts/sqlDatabases/containers@2024-05-15' = if (enableApi) {
-  name: '${cosmosAccountName}/${cosmosDatabaseName}/${cosmosTestContainerName}'
+  parent: cosmosDatabase
+  name: cosmosTestContainerName
   properties: {
     resource: {
       id: cosmosTestContainerName
@@ -186,7 +189,8 @@ resource cosmosTestContainer 'Microsoft.DocumentDB/databaseAccounts/sqlDatabases
 }
 
 resource cosmosDemoContainer 'Microsoft.DocumentDB/databaseAccounts/sqlDatabases/containers@2024-05-15' = if (enableApi) {
-  name: '${cosmosAccountName}/${cosmosDatabaseName}/${cosmosDemoContainerName}'
+  parent: cosmosDatabase
+  name: cosmosDemoContainerName
   properties: {
     resource: {
       id: cosmosDemoContainerName
@@ -199,23 +203,33 @@ resource cosmosDemoContainer 'Microsoft.DocumentDB/databaseAccounts/sqlDatabases
   }
 }
 
-resource cosmosProductionDataContributorAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = if (enableApi) {
+resource cosmosProductionDataContributorAssignment 'Microsoft.DocumentDB/databaseAccounts/sqlRoleAssignments@2024-05-15' = if (enableApi) {
+  parent: cosmosAccount
   name: guid(cosmosProductionContainer.id, functionAppName, cosmosDataContributorRoleId)
-  scope: cosmosProductionContainer
   properties: {
-    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', cosmosDataContributorRoleId)
+    roleDefinitionId: '${cosmosAccount.id}/sqlRoleDefinitions/${cosmosDataContributorRoleId}'
     principalId: functionApp!.identity.principalId
-    principalType: 'ServicePrincipal'
+    scope: '/dbs/${cosmosDatabaseName}/colls/${cosmosProductionContainerName}'
   }
 }
 
-resource cosmosDemoDataReaderAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = if (enableApi) {
-  name: guid(cosmosDemoContainer.id, functionAppName, cosmosDataReaderRoleId)
-  scope: cosmosDemoContainer
+resource cosmosTestDataContributorAssignment 'Microsoft.DocumentDB/databaseAccounts/sqlRoleAssignments@2024-05-15' = if (enableApi) {
+  parent: cosmosAccount
+  name: guid(cosmosTestContainer.id, functionAppName, cosmosDataContributorRoleId)
   properties: {
-    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', cosmosDataReaderRoleId)
+    roleDefinitionId: '${cosmosAccount.id}/sqlRoleDefinitions/${cosmosDataContributorRoleId}'
     principalId: functionApp!.identity.principalId
-    principalType: 'ServicePrincipal'
+    scope: '/dbs/${cosmosDatabaseName}/colls/${cosmosTestContainerName}'
+  }
+}
+
+resource cosmosDemoDataReaderAssignment 'Microsoft.DocumentDB/databaseAccounts/sqlRoleAssignments@2024-05-15' = if (enableApi) {
+  parent: cosmosAccount
+  name: guid(cosmosDemoContainer.id, functionAppName, cosmosDataReaderRoleId)
+  properties: {
+    roleDefinitionId: '${cosmosAccount.id}/sqlRoleDefinitions/${cosmosDataReaderRoleId}'
+    principalId: functionApp!.identity.principalId
+    scope: '/dbs/${cosmosDatabaseName}/colls/${cosmosDemoContainerName}'
   }
 }
 

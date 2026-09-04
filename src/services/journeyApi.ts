@@ -54,10 +54,35 @@ export async function deleteJourneyEntity(
   await request(container, { method: 'DELETE', body: JSON.stringify({ operation: 'delete', type, id, ifMatch: etag }) })
 }
 
-export async function importJourney(container: Container, data: WaypointsData): Promise<void> {
-  await request(container, { method: 'POST', body: JSON.stringify({ operation: 'import', data }) })
+export async function importJourney(
+  container: Container,
+  data: WaypointsData,
+): Promise<{ data: WaypointsData; etags: Record<string, string> }> {
+  const result = await request<{ data: unknown; etags: Record<string, string> }>(container, {
+    method: 'POST',
+    body: JSON.stringify({ operation: 'import', data }),
+  })
+  return { data: DataSchema.parse(result.data), etags: result.etags }
 }
 
-export async function clearJourney(container: Container): Promise<void> {
-  await request(container, { method: 'POST', body: JSON.stringify({ operation: 'clear' }) })
+export async function replaceJourney(
+  container: Container,
+  data: WaypointsData,
+  etags: Record<string, string>,
+): Promise<{ data: WaypointsData; etags: Record<string, string> }> {
+  const result = await request<{ data: unknown; etags: Record<string, string> }>(container, {
+    method: 'POST',
+    body: JSON.stringify({ operation: 'replace', data, etags }),
+  })
+  return { data: DataSchema.parse(result.data), etags: result.etags }
+}
+
+export async function clearJourney(
+  container: Container,
+): Promise<{ data: WaypointsData; etags: Record<string, string> }> {
+  const result = await request<{ data: unknown; etags: Record<string, string> }>(container, {
+    method: 'POST',
+    body: JSON.stringify({ operation: 'clear' }),
+  })
+  return { data: DataSchema.parse(result.data), etags: result.etags }
 }

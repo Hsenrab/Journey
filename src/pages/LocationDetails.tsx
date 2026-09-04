@@ -49,9 +49,9 @@ export default function LocationDetails() {
           data={data}
           initialWaypointId={id}
           submitLabel="Save activity"
-          onSubmit={(draft) => {
+          onSubmit={async (draft) => {
             try {
-              addActivity(draft)
+              await addActivity(draft)
               setShowEditor(false)
               setMessage({ severity: 'success', text: 'Activity saved.' })
             } catch (error) {

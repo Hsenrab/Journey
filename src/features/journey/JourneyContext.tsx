@@ -1,7 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useReducer, useState, type ReactNode } from 'react'
-import { load, save } from '../../services/storage'
-import { createJourneyEntity, deleteJourneyEntity, loadJourney, updateJourneyEntity } from '../../services/journeyApi'
-import { isDemoModeEnabled } from '../../services/storage'
+import { isDemoModeEnabled, load, save } from '../../services/storage'
+import { clearJourney, importJourney, loadJourney, replaceJourney } from '../../services/journeyApi'
 import {
   activitiesForWaypoint,
   createActivity,
@@ -37,11 +36,12 @@ type Action =
 
 type WaypointsValue = {
   data: WaypointsData
-  addActivity: (input: ActivityDraft) => void
-  updateActivity: (activityId: string, input: ActivityDraft) => void
-  deleteActivity: (activityId: string) => void
-  restore: (data: WaypointsData) => void
-  reload: () => void
+  addActivity: (input: ActivityDraft) => Promise<void>
+  updateActivity: (activityId: string, input: ActivityDraft) => Promise<void>
+  deleteActivity: (activityId: string) => Promise<void>
+  restore: (data: WaypointsData) => Promise<void>
+  clear: () => Promise<void>
+  reload: () => Promise<void>
   activitiesFor: (waypointId: string) => Activity[]
   statusFor: (waypointId: string) => Status
 }
@@ -204,15 +204,17 @@ export function WaypointsProvider({ children }: { children: ReactNode }) {
   })
   const [data, dispatch] = useReducer(reducer, undefined, localTestMode ? load : emptyData)
   const [etags, setEtags] = useState<Record<string, string>>({})
-  const reload = useCallback(() => {
+  const apply = useCallback((loaded: { data: WaypointsData; etags: Record<string, string> }) => {
+    dispatch({ type: 'restore', data: loaded.data })
+    setEtags(loaded.etags)
+  }, [])
+  const reload = useCallback(async () => {
     if (localTestMode) {
       dispatch({ type: 'restore', data: load() })
       return
     }
-    void loadJourney(isDemoModeEnabled() ? 'demo' : 'production').then(
-      (loaded) => (dispatch({ type: 'restore', data: loaded.data }), setEtags(loaded.etags)),
-    )
-  }, [localTestMode])
+    apply(await loadJourney(isDemoModeEnabled() ? 'demo' : 'production'))
+  }, [apply, localTestMode])
   useEffect(() => {
     if (localTestMode) save(data)
   }, [data, localTestMode])
@@ -222,49 +224,42 @@ export function WaypointsProvider({ children }: { children: ReactNode }) {
   const value = useMemo<WaypointsValue>(
     () => ({
       data,
-      addActivity: (input) => {
+      addActivity: async (input) => {
         if (isDemoModeEnabled() && !localTestMode) throw new Error('Demo data is read-only.')
         const action = { type: 'add-activity' as const, input }
         const next = reducer(data, action)
-        dispatch(action)
-        if (!localTestMode) {
-          const activity = next.activities.at(-1)
-          if (activity)
-            void createJourneyEntity('production', 'activity', activity).then(
-              (result) => result.etag && setEtags((current) => ({ ...current, [activity.activityId]: result.etag! })),
-            )
-        }
+        if (localTestMode) dispatch(action)
+        else apply(await replaceJourney('production', next, etags))
       },
-      updateActivity: (activityId, input) => {
+      updateActivity: async (activityId, input) => {
         if (isDemoModeEnabled() && !localTestMode) throw new Error('Demo data is read-only.')
         const action = { type: 'update-activity' as const, activityId, input }
         const next = reducer(data, action)
-        dispatch(action)
-        if (!localTestMode) {
-          const activity = next.activities.find((item) => item.activityId === activityId)
-          const etag = etags[activityId]
-          if (!activity || !etag) throw new Error('Missing server version for activity update.')
-          void updateJourneyEntity('production', 'activity', activity, activityId, etag).then(
-            (result) => result.etag && setEtags((current) => ({ ...current, [activityId]: result.etag! })),
-          )
-        }
+        if (localTestMode) dispatch(action)
+        else apply(await replaceJourney('production', next, etags))
       },
-      deleteActivity: (activityId) => {
+      deleteActivity: async (activityId) => {
         if (isDemoModeEnabled() && !localTestMode) throw new Error('Demo data is read-only.')
         const action = { type: 'delete-activity' as const, activityId }
-        dispatch(action)
-        if (!localTestMode) {
-          const etag = etags[activityId]
-          if (!etag) throw new Error('Missing server version for activity delete.')
-          void deleteJourneyEntity('production', 'activity', activityId, etag)
-        }
+        const next = reducer(data, action)
+        if (localTestMode) dispatch(action)
+        else apply(await replaceJourney('production', next, etags))
       },
-      restore: (newData) => dispatch({ type: 'restore', data: newData }),
+      restore: async (newData) => {
+        if (isDemoModeEnabled() && !localTestMode) throw new Error('Demo data is read-only.')
+        if (localTestMode) dispatch({ type: 'restore', data: newData })
+        else apply(await importJourney('production', newData))
+      },
+      clear: async () => {
+        if (isDemoModeEnabled() && !localTestMode) throw new Error('Demo data is read-only.')
+        if (localTestMode) dispatch({ type: 'restore', data: emptyData() })
+        else apply(await clearJourney('production'))
+      },
       reload,
       activitiesFor: (waypointId) => activitiesForWaypoint(data.activities, waypointId),
       statusFor: (waypointId) => statusForWaypoint(data.activities, waypointId),
     }),
-    [data, etags, localTestMode, reload],
+    [apply, data, etags, localTestMode, reload],
   )
   return <Context.Provider value={value}>{children}</Context.Provider>
 }

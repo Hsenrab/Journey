@@ -5,7 +5,7 @@
   "type": "module",
   "main": "dist/src/functions/*.js",
   "scripts": {
-    "build": "tsc -p tsconfig.json",
+    "build": "tsc -p tsconfig.json && mkdir -p dist/src/data && cp ../src/data/demo.json dist/src/data/demo.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "oxlint",
     "test": "vitest run",

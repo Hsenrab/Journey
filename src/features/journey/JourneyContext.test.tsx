@@ -64,16 +64,20 @@ describe('WaypointsContext', () => {
     expect(() => renderHook(() => useWaypoints())).toThrow('useWaypoints must be used inside WaypointsProvider')
   })
 
-  it('reloads persisted data and restores an explicit dataset', () => {
+  it('reloads persisted data and restores an explicit dataset', async () => {
     const { result } = renderHook(() => useWaypoints(), { wrapper: WaypointsProvider })
     const replacement = createDefaultData()
     replacement.activities = []
     save(replacement)
 
-    act(() => result.current.reload())
+    await act(async () => {
+      await result.current.reload()
+    })
     expect(result.current.data.waypoints).toHaveLength(replacement.waypoints.length)
 
-    act(() => result.current.restore({ ...replacement, waypoints: [] }))
+    await act(async () => {
+      await result.current.restore({ ...replacement, waypoints: [] })
+    })
     expect(result.current.data.waypoints).toEqual([])
   })
 })

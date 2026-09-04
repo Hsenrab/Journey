@@ -5,10 +5,14 @@ import {
   datasetIdFor,
   deleteDocument,
   documentFor,
+  documentsFor,
+  emptyJourneyData,
   journeyContainer,
   loadDataset,
   replaceDocument,
+  replaceDataset,
   savedDocument,
+  seedDemoDataset,
 } from '../lib/cosmos.js'
 import { JourneyMutationSchema } from '../lib/journeySchema.js'
 
@@ -48,6 +52,10 @@ export async function journey(request: HttpRequest, context: InvocationContext):
 
     if (request.method === 'GET') {
       const loaded = await loadDataset(cosmos, datasetId)
+      if (container === 'demo' && Object.keys(loaded.etags).length === 0) {
+        await seedDemoDataset(cosmos, datasetId)
+        return { status: 200, jsonBody: await loadDataset(cosmos, datasetId) }
+      }
       return { status: 200, jsonBody: { data: loaded.data, etags: loaded.etags, datasetId } }
     }
 
@@ -57,19 +65,18 @@ export async function journey(request: HttpRequest, context: InvocationContext):
     if (container === 'demo') throw new ResponseError(405, 'demo_read_only')
     if (parsed.data.operation === 'clear') {
       const loaded = await loadDataset(cosmos, datasetId)
-      await Promise.all(Object.keys(loaded.etags).map((id) => cosmos.item(id, datasetId).delete()))
-      return { status: 200, jsonBody: { data: { ...loaded.data, activities: [], ideas: [], photoReferences: [] } } }
+      await replaceDataset(cosmos, datasetId, {}, loaded.etags)
+      return { status: 200, jsonBody: { data: emptyJourneyData(), etags: {} } }
     }
     if (parsed.data.operation === 'import') {
       const loaded = await loadDataset(cosmos, datasetId)
       if (Object.keys(loaded.etags).length > 0) throw new ResponseError(409, 'production_not_empty')
-      const created = []
-      for (const [type, entities] of Object.entries(parsed.data.data)) {
-        const entityType = type === 'photoReferences' ? 'photoReference' : type.slice(0, -1)
-        for (const entity of entities)
-          created.push(await createDocument(cosmos, documentFor(datasetId, entityType as never, entity)))
-      }
-      return { status: 200, jsonBody: { data: parsed.data.data, saved: created.map(savedDocument) } }
+      await replaceDataset(cosmos, datasetId, documentsFor(datasetId, parsed.data.data), {})
+      return { status: 200, jsonBody: await loadDataset(cosmos, datasetId) }
+    }
+    if (parsed.data.operation === 'replace') {
+      await replaceDataset(cosmos, datasetId, documentsFor(datasetId, parsed.data.data), parsed.data.etags)
+      return { status: 200, jsonBody: await loadDataset(cosmos, datasetId) }
     }
     if (parsed.data.operation === 'create') {
       if (request.method !== 'POST') throw new ResponseError(405, 'method_not_allowed')
@@ -98,11 +105,9 @@ export async function journey(request: HttpRequest, context: InvocationContext):
   }
 }
 
-for (const name of ['production', 'test', 'demo'] as const) {
-  app.http(`journey-${name}`, {
-    methods: ['GET', 'POST', 'PUT', 'DELETE'],
-    authLevel: 'anonymous',
-    route: `journey/${name}`,
-    handler: journey,
-  })
-}
+app.http('journey', {
+  methods: ['GET', 'POST', 'PUT', 'DELETE'],
+  authLevel: 'anonymous',
+  route: 'journey/{container}',
+  handler: journey,
+})

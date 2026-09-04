@@ -1,6 +1,13 @@
 import { CosmosClient, type Container, type Database, type ItemResponse } from '@azure/cosmos'
 import { DefaultAzureCredential } from '@azure/identity'
-import { JourneyDocumentSchema, type EntityType, type JourneyData, type JourneyDocument } from './journeySchema.js'
+import { readFile } from 'node:fs/promises'
+import {
+  JourneyDataSchema,
+  JourneyDocumentSchema,
+  type EntityType,
+  type JourneyData,
+  type JourneyDocument,
+} from './journeySchema.js'
 
 let client: CosmosClient | undefined
 let database: Database | undefined
@@ -18,8 +25,7 @@ export function journeyContainer(name: 'production' | 'test' | 'demo' = 'product
 }
 
 export function datasetIdFor(name: 'production' | 'test' | 'demo'): string {
-  const configured = process.env[`COSMOS_${name.toUpperCase()}_DATASET_ID`]
-  return configured ?? name
+  return required(`COSMOS_${name.toUpperCase()}_DATASET_ID`)
 }
 
 function entityKey(type: EntityType): keyof JourneyData {
@@ -35,7 +41,7 @@ export function documentsToData(documents: JourneyDocument[]): JourneyData {
     references: [],
     photoReferences: [],
   }
-  for (const document of documents) data[entityKey(document.type)].push(document.entity)
+  for (const document of documents) data[entityKey(document.type)].push(document.entity as never)
   return data
 }
 
@@ -74,7 +80,57 @@ export function documentFor(datasetId: string, type: EntityType, entity: Record<
   const idKey = type === 'photoReference' ? 'photoReferenceId' : `${type}Id`
   const id = entity[idKey]
   if (typeof id !== 'string' || !id) throw new Error(`Entity "${type}" is missing its identifier.`)
-  return JourneyDocumentSchema.parse({ id, datasetId, type, schemaVersion: 1, entity })
+  return JourneyDocumentSchema.parse({ id, datasetId, type, schemaVersion: 1, entity }) as JourneyDocument
+}
+
+export function emptyJourneyData(): JourneyData {
+  return { waypoints: [], challenges: [], ideas: [], activities: [], references: [], photoReferences: [] }
+}
+
+export function documentsFor(datasetId: string, data: JourneyData): Record<string, JourneyDocument> {
+  const documents: Record<string, JourneyDocument> = {}
+  for (const [key, entities] of Object.entries(data)) {
+    const type = key === 'photoReferences' ? 'photoReference' : key.slice(0, -1)
+    for (const entity of entities) {
+      const document = documentFor(datasetId, type as EntityType, entity)
+      documents[document.id] = document
+    }
+  }
+  return documents
+}
+
+export async function replaceDataset(
+  container: Container,
+  datasetId: string,
+  documents: Record<string, JourneyDocument>,
+  etags: Record<string, string>,
+) {
+  const operations = [
+    ...Object.entries(documents).map(([id, document]) =>
+      etags[id]
+        ? { operationType: 'Replace' as const, id, resourceBody: document, ifMatch: etags[id] }
+        : { operationType: 'Create' as const, resourceBody: document },
+    ),
+    ...Object.entries(etags)
+      .filter(([id]) => !documents[id])
+      .map(([id, ifMatch]) => ({ operationType: 'Delete' as const, id, ifMatch })),
+  ]
+  if (operations.length > 100) throw new Error('Journey dataset exceeds the Cosmos transactional batch limit.')
+  if (operations.length) {
+    const response = await container.items.batch(operations as never, datasetId)
+    if (response.code !== 200) {
+      const failed = response.result?.find((result) => result.statusCode >= 400)
+      throw Object.assign(new Error('Cosmos transactional batch failed.'), {
+        code: failed?.statusCode ?? response.code,
+      })
+    }
+  }
+}
+
+export async function seedDemoDataset(container: Container, datasetId: string): Promise<void> {
+  const raw = await readFile(new URL('../data/demo.json', import.meta.url), 'utf8')
+  const data = JourneyDataSchema.parse(JSON.parse(raw))
+  await replaceDataset(container, datasetId, documentsFor(datasetId, data), {})
 }
 
 export async function createDocument(container: Container, document: JourneyDocument) {

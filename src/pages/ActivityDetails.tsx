@@ -169,9 +169,9 @@ export default function ActivityDetails() {
           initialReferences={references}
           initialPhotoReferences={photoReferences}
           submitLabel="Save changes"
-          onSubmit={(draft) => {
+          onSubmit={async (draft) => {
             try {
-              updateActivity(activity.activityId, draft)
+              await updateActivity(activity.activityId, draft)
               setEditing(false)
               setMessage({ severity: 'success', text: 'Activity updated.' })
             } catch (error) {
@@ -207,10 +207,17 @@ export default function ActivityDetails() {
           <Button onClick={() => setShowDeleteDialog(false)}>Cancel</Button>
           <Button
             color="error"
-            onClick={() => {
-              deleteActivity(activity.activityId)
-              setShowDeleteDialog(false)
-              navigate(backTarget)
+            onClick={async () => {
+              try {
+                await deleteActivity(activity.activityId)
+                setShowDeleteDialog(false)
+                navigate(backTarget)
+              } catch (error) {
+                setMessage({
+                  severity: 'error',
+                  text: error instanceof Error ? error.message : 'Failed to delete activity.',
+                })
+              }
             }}
           >
             Delete
