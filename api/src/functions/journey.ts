@@ -54,7 +54,8 @@ export async function journey(request: HttpRequest, context: InvocationContext):
       const loaded = await loadDataset(cosmos, datasetId)
       if (container === 'demo' && Object.keys(loaded.etags).length === 0) {
         await seedDemoDataset(cosmos, datasetId)
-        return { status: 200, jsonBody: await loadDataset(cosmos, datasetId) }
+        const seeded = await loadDataset(cosmos, datasetId)
+        return { status: 200, jsonBody: { ...seeded, datasetId } }
       }
       return { status: 200, jsonBody: { data: loaded.data, etags: loaded.etags, datasetId } }
     }

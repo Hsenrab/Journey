@@ -209,7 +209,7 @@ resource cosmosProductionDataContributorAssignment 'Microsoft.DocumentDB/databas
   properties: {
     roleDefinitionId: '${cosmosAccount.id}/sqlRoleDefinitions/${cosmosDataContributorRoleId}'
     principalId: functionApp!.identity.principalId
-    scope: '/dbs/${cosmosDatabaseName}/colls/${cosmosProductionContainerName}'
+    scope: '${cosmosAccount.id}/dbs/${cosmosDatabaseName}/colls/${cosmosProductionContainerName}'
   }
 }
 
@@ -219,7 +219,7 @@ resource cosmosTestDataContributorAssignment 'Microsoft.DocumentDB/databaseAccou
   properties: {
     roleDefinitionId: '${cosmosAccount.id}/sqlRoleDefinitions/${cosmosDataContributorRoleId}'
     principalId: functionApp!.identity.principalId
-    scope: '/dbs/${cosmosDatabaseName}/colls/${cosmosTestContainerName}'
+    scope: '${cosmosAccount.id}/dbs/${cosmosDatabaseName}/colls/${cosmosTestContainerName}'
   }
 }
 
@@ -229,7 +229,7 @@ resource cosmosDemoDataReaderAssignment 'Microsoft.DocumentDB/databaseAccounts/s
   properties: {
     roleDefinitionId: '${cosmosAccount.id}/sqlRoleDefinitions/${cosmosDataReaderRoleId}'
     principalId: functionApp!.identity.principalId
-    scope: '/dbs/${cosmosDatabaseName}/colls/${cosmosDemoContainerName}'
+    scope: '${cosmosAccount.id}/dbs/${cosmosDatabaseName}/colls/${cosmosDemoContainerName}'
   }
 }
 
