@@ -16,7 +16,6 @@ vi.mock('../lib/cosmos.js', () => ({
   replaceDocument: vi.fn(),
   replaceDataset: vi.fn(),
   savedDocument: vi.fn(),
-  seedDemoDataset: vi.fn(),
 }))
 
 const principal = Buffer.from(

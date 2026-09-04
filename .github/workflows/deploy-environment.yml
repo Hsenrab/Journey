@@ -157,7 +157,7 @@ jobs:
           import { DefaultAzureCredential } from '@azure/identity'
           import { readFile } from 'node:fs/promises'
 
-          const data = JSON.parse(await readFile('src/data/demo.json', 'utf8'))
+          const data = JSON.parse(await readFile('../src/data/demo.json', 'utf8'))
           const container = new CosmosClient({
             endpoint: process.env.COSMOS_ENDPOINT,
             aadCredentials: new DefaultAzureCredential(),
