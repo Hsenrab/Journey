@@ -12,7 +12,6 @@ import {
   replaceDocument,
   replaceDataset,
   savedDocument,
-  seedDemoDataset,
 } from '../lib/cosmos.js'
 import { JourneyMutationSchema } from '../lib/journeySchema.js'
 
@@ -52,11 +51,6 @@ export async function journey(request: HttpRequest, context: InvocationContext):
 
     if (request.method === 'GET') {
       const loaded = await loadDataset(cosmos, datasetId)
-      if (container === 'demo' && Object.keys(loaded.etags).length === 0) {
-        await seedDemoDataset(cosmos, datasetId)
-        const seeded = await loadDataset(cosmos, datasetId)
-        return { status: 200, jsonBody: { ...seeded, datasetId } }
-      }
       return { status: 200, jsonBody: { data: loaded.data, etags: loaded.etags, datasetId } }
     }
 

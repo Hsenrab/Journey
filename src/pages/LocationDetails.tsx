@@ -5,13 +5,16 @@ import { ActivityEditor } from '../components/ActivityEditor'
 import { locations } from '../data/locations'
 import { locationSummary, statusLabels } from '../domain/visit'
 import { useWaypoints } from '../features/journey/JourneyContext'
+import { JourneyConflictError } from '../services/journeyApi'
 
 export default function LocationDetails() {
   const { id = '' } = useParams()
   const waypoint = locations.find((item) => item.locationId === id)
-  const { addActivity, activitiesFor, statusFor, data } = useWaypoints()
+  const { addActivity, activitiesFor, statusFor, data, reload } = useWaypoints()
   const [showEditor, setShowEditor] = useState(false)
-  const [message, setMessage] = useState<{ severity: 'success' | 'error'; text: string } | null>(null)
+  const [message, setMessage] = useState<{ severity: 'success' | 'error'; text: string; conflict?: boolean } | null>(
+    null,
+  )
 
   if (!waypoint) {
     return (
@@ -25,6 +28,15 @@ export default function LocationDetails() {
   }
 
   const activities = activitiesFor(id)
+  const reloadLatest = async () => {
+    try {
+      await reload()
+      setMessage(null)
+      setShowEditor(false)
+    } catch (error) {
+      setMessage({ severity: 'error', text: error instanceof Error ? error.message : 'Failed to reload activities.' })
+    }
+  }
 
   return (
     <Stack spacing={3}>
@@ -42,7 +54,20 @@ export default function LocationDetails() {
         National Trust visitor information
       </Button>
 
-      {message && <Alert severity={message.severity}>{message.text}</Alert>}
+      {message && (
+        <Alert
+          severity={message.severity}
+          action={
+            message.conflict ? (
+              <Button color="inherit" size="small" onClick={() => void reloadLatest()}>
+                Reload latest
+              </Button>
+            ) : undefined
+          }
+        >
+          {message.text}
+        </Alert>
+      )}
 
       {showEditor ? (
         <ActivityEditor
@@ -58,6 +83,7 @@ export default function LocationDetails() {
               setMessage({
                 severity: 'error',
                 text: error instanceof Error ? error.message : 'Failed to save activity.',
+                conflict: error instanceof JourneyConflictError,
               })
             }
           }}

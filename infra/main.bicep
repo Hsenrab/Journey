@@ -233,6 +233,16 @@ resource cosmosDemoDataReaderAssignment 'Microsoft.DocumentDB/databaseAccounts/s
   }
 }
 
+resource cosmosDemoDeploymentContributorAssignment 'Microsoft.DocumentDB/databaseAccounts/sqlRoleAssignments@2024-05-15' = if (enableApi) {
+  parent: cosmosAccount
+  name: guid(cosmosDemoContainer.id, deployer().objectId, cosmosDataContributorRoleId)
+  properties: {
+    roleDefinitionId: '${cosmosAccount.id}/sqlRoleDefinitions/${cosmosDataContributorRoleId}'
+    principalId: deployer().objectId
+    scope: '${cosmosAccount.id}/dbs/${cosmosDatabaseName}/colls/${cosmosDemoContainerName}'
+  }
+}
+
 resource storageAccount 'Microsoft.Storage/storageAccounts@2023-05-01' = if (enableApi) {
   name: storageAccountName
   location: location

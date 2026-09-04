@@ -4,16 +4,28 @@ import { Alert, Button, Card, CardContent, Chip, Stack, Typography } from '@mui/
 import { ActivityEditor } from '../components/ActivityEditor'
 import { locationSummary, statusLabels } from '../domain/visit'
 import { useWaypoints } from '../features/journey/JourneyContext'
+import { JourneyConflictError } from '../services/journeyApi'
 
 export default function Activities() {
-  const { data, addActivity } = useWaypoints()
+  const { data, addActivity, reload } = useWaypoints()
   const waypointById = new Map(data.waypoints.map((waypoint) => [waypoint.waypointId, waypoint]))
   const [showEditor, setShowEditor] = useState(false)
-  const [message, setMessage] = useState<{ severity: 'success' | 'error'; text: string } | null>(null)
+  const [message, setMessage] = useState<{ severity: 'success' | 'error'; text: string; conflict?: boolean } | null>(
+    null,
+  )
 
   const activities = [...data.activities].sort(
     (a, b) => b.date.localeCompare(a.date) || b.updatedAt.localeCompare(a.updatedAt),
   )
+  const reloadLatest = async () => {
+    try {
+      await reload()
+      setMessage(null)
+      setShowEditor(false)
+    } catch (error) {
+      setMessage({ severity: 'error', text: error instanceof Error ? error.message : 'Failed to reload activities.' })
+    }
+  }
 
   return (
     <Stack spacing={3}>
@@ -30,7 +42,20 @@ export default function Activities() {
         )}
       </Stack>
 
-      {message && <Alert severity={message.severity}>{message.text}</Alert>}
+      {message && (
+        <Alert
+          severity={message.severity}
+          action={
+            message.conflict ? (
+              <Button color="inherit" size="small" onClick={() => void reloadLatest()}>
+                Reload latest
+              </Button>
+            ) : undefined
+          }
+        >
+          {message.text}
+        </Alert>
+      )}
 
       {showEditor && (
         <ActivityEditor
@@ -45,6 +70,7 @@ export default function Activities() {
               setMessage({
                 severity: 'error',
                 text: error instanceof Error ? error.message : 'Failed to save activity.',
+                conflict: error instanceof JourneyConflictError,
               })
             }
           }}

@@ -12,7 +12,8 @@ Cosmos stores one document per entity. Every document contains `id`, `datasetId`
 validated `WaypointsData` response. Cosmos ETags are kept in application memory and
 are not included in JSON exports.
 
-The initial demo partition is loaded from `src/data/demo.json`. Every place, activity,
+The deployment workflow seeds the initial demo partition from `src/data/demo.json`.
+The runtime Function has read-only access to that container. Every place, activity,
 idea and reference in that fixture is fabricated and visibly labelled as demo content.
 The fixture mixes fictional National Trust-style places with unrelated local activities.
 It is parsed with `DataSchema` before use; only challenges that explicitly set

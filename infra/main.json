@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.46.1.21595",
-      "templateHash": "5899032511951820725"
+      "templateHash": "3516618454471983708"
     }
   },
   "parameters": {
@@ -100,7 +100,7 @@
     "storageBlobDataContributorRoleId": "ba92f5b4-2d11-453d-a403-e96b0029c9fe",
     "storageQueueDataContributorRoleId": "974c5e8b-45b9-4653-ba55-5f855dd0fb88",
     "storageTableDataContributorRoleId": "0a9a7e1f-b9d0-4cc4-a60d-0319b160aaa3",
-    "cosmosDataContributorRoleId": "5bd9cd88-fe45-4216-938b-f25a594e1e86",
+    "cosmosDataContributorRoleId": "00000000-0000-0000-0000-000000000002",
     "cosmosDataReaderRoleId": "00000000-0000-0000-0000-000000000001"
   },
   "resources": [
@@ -168,7 +168,8 @@
         "resource": {
           "id": "[variables('cosmosDatabaseName')]"
         }
-      }
+      },
+      "dependsOn": ["[resourceId('Microsoft.DocumentDB/databaseAccounts', variables('cosmosAccountName'))]"]
     },
     {
       "condition": "[parameters('enableApi')]",
@@ -184,7 +185,10 @@
           }
         },
         "options": "[if(equals(parameters('cosmosMode'), 'freeTier'), createObject('throughput', 400), createObject())]"
-      }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.DocumentDB/databaseAccounts/sqlDatabases', variables('cosmosAccountName'), variables('cosmosDatabaseName'))]"
+      ]
     },
     {
       "condition": "[parameters('enableApi')]",
@@ -200,7 +204,10 @@
           }
         },
         "options": "[if(equals(parameters('cosmosMode'), 'freeTier'), createObject('throughput', 400), createObject())]"
-      }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.DocumentDB/databaseAccounts/sqlDatabases', variables('cosmosAccountName'), variables('cosmosDatabaseName'))]"
+      ]
     },
     {
       "condition": "[parameters('enableApi')]",
@@ -216,38 +223,72 @@
           }
         },
         "options": "[if(equals(parameters('cosmosMode'), 'freeTier'), createObject('throughput', 400), createObject())]"
-      }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.DocumentDB/databaseAccounts/sqlDatabases', variables('cosmosAccountName'), variables('cosmosDatabaseName'))]"
+      ]
     },
     {
       "condition": "[parameters('enableApi')]",
-      "type": "Microsoft.Authorization/roleAssignments",
-      "apiVersion": "2022-04-01",
-      "scope": "[resourceId('Microsoft.DocumentDB/databaseAccounts/sqlDatabases/containers', split(format('{0}/{1}/{2}', variables('cosmosAccountName'), variables('cosmosDatabaseName'), variables('cosmosProductionContainerName')), '/')[0], split(format('{0}/{1}/{2}', variables('cosmosAccountName'), variables('cosmosDatabaseName'), variables('cosmosProductionContainerName')), '/')[1], split(format('{0}/{1}/{2}', variables('cosmosAccountName'), variables('cosmosDatabaseName'), variables('cosmosProductionContainerName')), '/')[2])]",
-      "name": "[guid(resourceId('Microsoft.DocumentDB/databaseAccounts/sqlDatabases/containers', split(format('{0}/{1}/{2}', variables('cosmosAccountName'), variables('cosmosDatabaseName'), variables('cosmosProductionContainerName')), '/')[0], split(format('{0}/{1}/{2}', variables('cosmosAccountName'), variables('cosmosDatabaseName'), variables('cosmosProductionContainerName')), '/')[1], split(format('{0}/{1}/{2}', variables('cosmosAccountName'), variables('cosmosDatabaseName'), variables('cosmosProductionContainerName')), '/')[2]), variables('functionAppName'), variables('cosmosDataContributorRoleId'))]",
+      "type": "Microsoft.DocumentDB/databaseAccounts/sqlRoleAssignments",
+      "apiVersion": "2024-05-15",
+      "name": "[format('{0}/{1}', variables('cosmosAccountName'), guid(resourceId('Microsoft.DocumentDB/databaseAccounts/sqlDatabases/containers', variables('cosmosAccountName'), variables('cosmosDatabaseName'), variables('cosmosProductionContainerName')), variables('functionAppName'), variables('cosmosDataContributorRoleId')))]",
       "properties": {
-        "roleDefinitionId": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', variables('cosmosDataContributorRoleId'))]",
+        "roleDefinitionId": "[format('{0}/sqlRoleDefinitions/{1}', resourceId('Microsoft.DocumentDB/databaseAccounts', variables('cosmosAccountName')), variables('cosmosDataContributorRoleId'))]",
         "principalId": "[reference(resourceId('Microsoft.Web/sites', variables('functionAppName')), '2023-12-01', 'full').identity.principalId]",
-        "principalType": "ServicePrincipal"
+        "scope": "[format('{0}/dbs/{1}/colls/{2}', resourceId('Microsoft.DocumentDB/databaseAccounts', variables('cosmosAccountName')), variables('cosmosDatabaseName'), variables('cosmosProductionContainerName'))]"
       },
       "dependsOn": [
-        "[resourceId('Microsoft.DocumentDB/databaseAccounts/sqlDatabases/containers', split(format('{0}/{1}/{2}', variables('cosmosAccountName'), variables('cosmosDatabaseName'), variables('cosmosProductionContainerName')), '/')[0], split(format('{0}/{1}/{2}', variables('cosmosAccountName'), variables('cosmosDatabaseName'), variables('cosmosProductionContainerName')), '/')[1], split(format('{0}/{1}/{2}', variables('cosmosAccountName'), variables('cosmosDatabaseName'), variables('cosmosProductionContainerName')), '/')[2])]",
+        "[resourceId('Microsoft.DocumentDB/databaseAccounts', variables('cosmosAccountName'))]",
+        "[resourceId('Microsoft.DocumentDB/databaseAccounts/sqlDatabases/containers', variables('cosmosAccountName'), variables('cosmosDatabaseName'), variables('cosmosProductionContainerName'))]",
         "[resourceId('Microsoft.Web/sites', variables('functionAppName'))]"
       ]
     },
     {
       "condition": "[parameters('enableApi')]",
-      "type": "Microsoft.Authorization/roleAssignments",
-      "apiVersion": "2022-04-01",
-      "scope": "[resourceId('Microsoft.DocumentDB/databaseAccounts/sqlDatabases/containers', split(format('{0}/{1}/{2}', variables('cosmosAccountName'), variables('cosmosDatabaseName'), variables('cosmosDemoContainerName')), '/')[0], split(format('{0}/{1}/{2}', variables('cosmosAccountName'), variables('cosmosDatabaseName'), variables('cosmosDemoContainerName')), '/')[1], split(format('{0}/{1}/{2}', variables('cosmosAccountName'), variables('cosmosDatabaseName'), variables('cosmosDemoContainerName')), '/')[2])]",
-      "name": "[guid(resourceId('Microsoft.DocumentDB/databaseAccounts/sqlDatabases/containers', split(format('{0}/{1}/{2}', variables('cosmosAccountName'), variables('cosmosDatabaseName'), variables('cosmosDemoContainerName')), '/')[0], split(format('{0}/{1}/{2}', variables('cosmosAccountName'), variables('cosmosDatabaseName'), variables('cosmosDemoContainerName')), '/')[1], split(format('{0}/{1}/{2}', variables('cosmosAccountName'), variables('cosmosDatabaseName'), variables('cosmosDemoContainerName')), '/')[2]), variables('functionAppName'), variables('cosmosDataReaderRoleId'))]",
+      "type": "Microsoft.DocumentDB/databaseAccounts/sqlRoleAssignments",
+      "apiVersion": "2024-05-15",
+      "name": "[format('{0}/{1}', variables('cosmosAccountName'), guid(resourceId('Microsoft.DocumentDB/databaseAccounts/sqlDatabases/containers', variables('cosmosAccountName'), variables('cosmosDatabaseName'), variables('cosmosTestContainerName')), variables('functionAppName'), variables('cosmosDataContributorRoleId')))]",
       "properties": {
-        "roleDefinitionId": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', variables('cosmosDataReaderRoleId'))]",
+        "roleDefinitionId": "[format('{0}/sqlRoleDefinitions/{1}', resourceId('Microsoft.DocumentDB/databaseAccounts', variables('cosmosAccountName')), variables('cosmosDataContributorRoleId'))]",
         "principalId": "[reference(resourceId('Microsoft.Web/sites', variables('functionAppName')), '2023-12-01', 'full').identity.principalId]",
-        "principalType": "ServicePrincipal"
+        "scope": "[format('{0}/dbs/{1}/colls/{2}', resourceId('Microsoft.DocumentDB/databaseAccounts', variables('cosmosAccountName')), variables('cosmosDatabaseName'), variables('cosmosTestContainerName'))]"
       },
       "dependsOn": [
-        "[resourceId('Microsoft.DocumentDB/databaseAccounts/sqlDatabases/containers', split(format('{0}/{1}/{2}', variables('cosmosAccountName'), variables('cosmosDatabaseName'), variables('cosmosDemoContainerName')), '/')[0], split(format('{0}/{1}/{2}', variables('cosmosAccountName'), variables('cosmosDatabaseName'), variables('cosmosDemoContainerName')), '/')[1], split(format('{0}/{1}/{2}', variables('cosmosAccountName'), variables('cosmosDatabaseName'), variables('cosmosDemoContainerName')), '/')[2])]",
+        "[resourceId('Microsoft.DocumentDB/databaseAccounts', variables('cosmosAccountName'))]",
+        "[resourceId('Microsoft.DocumentDB/databaseAccounts/sqlDatabases/containers', variables('cosmosAccountName'), variables('cosmosDatabaseName'), variables('cosmosTestContainerName'))]",
         "[resourceId('Microsoft.Web/sites', variables('functionAppName'))]"
+      ]
+    },
+    {
+      "condition": "[parameters('enableApi')]",
+      "type": "Microsoft.DocumentDB/databaseAccounts/sqlRoleAssignments",
+      "apiVersion": "2024-05-15",
+      "name": "[format('{0}/{1}', variables('cosmosAccountName'), guid(resourceId('Microsoft.DocumentDB/databaseAccounts/sqlDatabases/containers', variables('cosmosAccountName'), variables('cosmosDatabaseName'), variables('cosmosDemoContainerName')), variables('functionAppName'), variables('cosmosDataReaderRoleId')))]",
+      "properties": {
+        "roleDefinitionId": "[format('{0}/sqlRoleDefinitions/{1}', resourceId('Microsoft.DocumentDB/databaseAccounts', variables('cosmosAccountName')), variables('cosmosDataReaderRoleId'))]",
+        "principalId": "[reference(resourceId('Microsoft.Web/sites', variables('functionAppName')), '2023-12-01', 'full').identity.principalId]",
+        "scope": "[format('{0}/dbs/{1}/colls/{2}', resourceId('Microsoft.DocumentDB/databaseAccounts', variables('cosmosAccountName')), variables('cosmosDatabaseName'), variables('cosmosDemoContainerName'))]"
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.DocumentDB/databaseAccounts', variables('cosmosAccountName'))]",
+        "[resourceId('Microsoft.DocumentDB/databaseAccounts/sqlDatabases/containers', variables('cosmosAccountName'), variables('cosmosDatabaseName'), variables('cosmosDemoContainerName'))]",
+        "[resourceId('Microsoft.Web/sites', variables('functionAppName'))]"
+      ]
+    },
+    {
+      "condition": "[parameters('enableApi')]",
+      "type": "Microsoft.DocumentDB/databaseAccounts/sqlRoleAssignments",
+      "apiVersion": "2024-05-15",
+      "name": "[format('{0}/{1}', variables('cosmosAccountName'), guid(resourceId('Microsoft.DocumentDB/databaseAccounts/sqlDatabases/containers', variables('cosmosAccountName'), variables('cosmosDatabaseName'), variables('cosmosDemoContainerName')), deployer().objectId, variables('cosmosDataContributorRoleId')))]",
+      "properties": {
+        "roleDefinitionId": "[format('{0}/sqlRoleDefinitions/{1}', resourceId('Microsoft.DocumentDB/databaseAccounts', variables('cosmosAccountName')), variables('cosmosDataContributorRoleId'))]",
+        "principalId": "[deployer().objectId]",
+        "scope": "[format('{0}/dbs/{1}/colls/{2}', resourceId('Microsoft.DocumentDB/databaseAccounts', variables('cosmosAccountName')), variables('cosmosDatabaseName'), variables('cosmosDemoContainerName'))]"
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.DocumentDB/databaseAccounts', variables('cosmosAccountName'))]",
+        "[resourceId('Microsoft.DocumentDB/databaseAccounts/sqlDatabases/containers', variables('cosmosAccountName'), variables('cosmosDatabaseName'), variables('cosmosDemoContainerName'))]"
       ]
     },
     {

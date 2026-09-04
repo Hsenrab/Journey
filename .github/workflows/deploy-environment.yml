@@ -142,6 +142,35 @@ jobs:
           echo "network_security_perimeter_name=${perimeter_name}" >> "$GITHUB_OUTPUT"
           echo "network_security_perimeter_profile_name=${perimeter_profile_name}" >> "$GITHUB_OUTPUT"
 
+      - name: Seed read-only demo data
+        if: inputs.deploy_infra
+        working-directory: api
+        env:
+          COSMOS_ENDPOINT: https://${{ vars.AZURE_STATIC_WEB_APP_NAME }}-data.documents.azure.com:443/
+          COSMOS_DATABASE_NAME: journey
+          COSMOS_DEMO_DATASET_ID: demo
+        run: |
+          set -euo pipefail
+          npm ci
+          node --input-type=module <<'EOF'
+          import { CosmosClient } from '@azure/cosmos'
+          import { DefaultAzureCredential } from '@azure/identity'
+          import { readFile } from 'node:fs/promises'
+
+          const data = JSON.parse(await readFile('src/data/demo.json', 'utf8'))
+          const container = new CosmosClient({
+            endpoint: process.env.COSMOS_ENDPOINT,
+            aadCredentials: new DefaultAzureCredential(),
+          }).database(process.env.COSMOS_DATABASE_NAME).container('demo')
+          for (const [key, entities] of Object.entries(data)) {
+            const type = key === 'photoReferences' ? 'photoReference' : key.slice(0, -1)
+            for (const entity of entities) {
+              const id = entity[type === 'photoReference' ? 'photoReferenceId' : `${type}Id`]
+              await container.items.upsert({ id, datasetId: process.env.COSMOS_DEMO_DATASET_ID, type, schemaVersion: 1, entity })
+            }
+          }
+          EOF
+
       - name: Publish application URL to the job summary
         env:
           APPLICATION_URL: ${{ steps.resolve.outputs.application_url }}
