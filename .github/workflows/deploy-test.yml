@@ -1,8 +1,15 @@
 name: Deploy test environment
 
 on:
+  pull_request:
+    types: [opened, synchronize, reopened]
   workflow_dispatch:
     inputs:
+      deploy_infra:
+        description: 'Deploy infrastructure (auto = only when infra/ or deployment workflows changed since the last successful test deploy)'
+        type: choice
+        options: [auto, 'true', 'false']
+        default: auto
       deploy_api:
         description: 'Deploy the Functions API (auto = only when api/ or infra/ changed since the last successful test deploy)'
         type: choice
@@ -15,34 +22,47 @@ permissions:
   actions: read
 
 concurrency:
-  group: deploy-test-${{ github.workflow }}
-  cancel-in-progress: true
+  group: journey-test-environment
+  cancel-in-progress: false
 
 jobs:
   plan:
     name: Plan deployment
     runs-on: ubuntu-latest
     outputs:
+      deploy_infra: ${{ steps.decide.outputs.deploy_infra }}
       deploy_api: ${{ steps.decide.outputs.deploy_api }}
     steps:
+      - name: Reject workflow dispatch from main
+        if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'
+        run: |
+          echo "::error::Test deploys can only be dispatched from a branch other than main."
+          exit 1
+
       - name: Checkout
         uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
-      - name: Decide whether to deploy the API
+      - name: Decide what to deploy
         id: decide
         env:
           GH_TOKEN: ${{ github.token }}
+          INPUT_DEPLOY_INFRA: ${{ inputs.deploy_infra }}
           INPUT_DEPLOY_API: ${{ inputs.deploy_api }}
         run: |
           set -euo pipefail
 
-          if [ "${INPUT_DEPLOY_API}" = "true" ] || [ "${INPUT_DEPLOY_API}" = "false" ]; then
-            echo "deploy_api=${INPUT_DEPLOY_API}" >> "$GITHUB_OUTPUT"
+          deploy_infra="${INPUT_DEPLOY_INFRA:-auto}"
+          deploy_api="${INPUT_DEPLOY_API:-auto}"
+          echo "### Deploy test environment plan" >> "$GITHUB_STEP_SUMMARY"
+
+          if [ "${deploy_infra}" != "auto" ] && [ "${deploy_api}" != "auto" ]; then
+            echo "deploy_infra=${deploy_infra}" >> "$GITHUB_OUTPUT"
+            echo "deploy_api=${deploy_api}" >> "$GITHUB_OUTPUT"
             {
-              echo "### Deploy test environment plan"
-              echo "\`deploy_api\` input explicitly set to \`${INPUT_DEPLOY_API}\`."
+              echo "\`deploy_infra\` input explicitly set to \`${deploy_infra}\`."
+              echo "\`deploy_api\` input explicitly set to \`${deploy_api}\`."
             } >> "$GITHUB_STEP_SUMMARY"
             exit 0
           fi
@@ -51,239 +71,56 @@ jobs:
             "/repos/${{ github.repository }}/actions/workflows/deploy-test.yml/runs?status=success&per_page=1" \
             --jq '.workflow_runs[0].head_sha // empty')"
 
-          echo "### Deploy test environment plan" >> "$GITHUB_STEP_SUMMARY"
-
           if [ -z "${last_success_sha}" ]; then
-            echo "deploy_api=true" >> "$GITHUB_OUTPUT"
-            echo "No previous successful run found; deploying the API (fail safe)." >> "$GITHUB_STEP_SUMMARY"
-            exit 0
-          fi
-
-          if ! git cat-file -e "${last_success_sha}^{commit}" 2>/dev/null; then
-            echo "deploy_api=true" >> "$GITHUB_OUTPUT"
-            echo "Last successful commit ${last_success_sha} is not reachable in history; deploying the API (fail safe)." >> "$GITHUB_STEP_SUMMARY"
-            exit 0
-          fi
-
-          changed_paths="$(git diff --name-only "${last_success_sha}...HEAD")"
-          {
-            echo "Changed paths since last successful run (${last_success_sha}):"
-            echo '```'
-            echo "${changed_paths:-<none>}"
-            echo '```'
-          } >> "$GITHUB_STEP_SUMMARY"
-
-          if echo "${changed_paths}" | grep -qE '^(api/|infra/|staticwebapp\.config\.json|\.github/workflows/deploy-test\.yml)'; then
-            echo "deploy_api=true" >> "$GITHUB_OUTPUT"
-            echo "Decision: deploy the API (relevant paths changed)." >> "$GITHUB_STEP_SUMMARY"
+            auto_deploy_infra=true
+            auto_deploy_api=true
+            echo "No previous successful run found; deploying infrastructure and the API (fail safe)." >> "$GITHUB_STEP_SUMMARY"
+          elif ! git cat-file -e "${last_success_sha}^{commit}" 2>/dev/null; then
+            auto_deploy_infra=true
+            auto_deploy_api=true
+            echo "Last successful commit ${last_success_sha} is not reachable in history; deploying infrastructure and the API (fail safe)." >> "$GITHUB_STEP_SUMMARY"
           else
-            echo "deploy_api=false" >> "$GITHUB_OUTPUT"
-            echo "Decision: skip the API deploy (only frontend files changed)." >> "$GITHUB_STEP_SUMMARY"
+            changed_paths="$(git diff --name-only "${last_success_sha}...HEAD")"
+            {
+              echo "Changed paths since last successful run (${last_success_sha}):"
+              echo '```'
+              echo "${changed_paths:-<none>}"
+              echo '```'
+            } >> "$GITHUB_STEP_SUMMARY"
+
+            if echo "${changed_paths}" | grep -qE '^(infra/|\.github/workflows/(deploy-test|deploy-environment)\.yml)'; then
+              auto_deploy_infra=true
+            else
+              auto_deploy_infra=false
+            fi
+
+            if echo "${changed_paths}" | grep -qE '^(api/|infra/|staticwebapp\.config\.json|\.github/workflows/(deploy-test|deploy-environment)\.yml)'; then
+              auto_deploy_api=true
+            else
+              auto_deploy_api=false
+            fi
           fi
 
-  test_deploy:
+          if [ "${deploy_infra}" = "auto" ]; then
+            deploy_infra="${auto_deploy_infra}"
+          fi
+          if [ "${deploy_api}" = "auto" ]; then
+            deploy_api="${auto_deploy_api}"
+          fi
+
+          echo "deploy_infra=${deploy_infra}" >> "$GITHUB_OUTPUT"
+          echo "deploy_api=${deploy_api}" >> "$GITHUB_OUTPUT"
+          echo "Decision: deploy_infra=${deploy_infra}, deploy_api=${deploy_api}." >> "$GITHUB_STEP_SUMMARY"
+
+  deploy:
     name: Deploy journey test environment
     needs: plan
-    runs-on: ubuntu-latest
-    environment: azure-test
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v6
-
-      - name: Azure login (OIDC)
-        uses: azure/login@v2
-        with:
-          client-id: ${{ secrets.AZURE_CLIENT_ID }}
-          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
-          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-
-      - name: Deploy Bicep (provision Static Web App and API boundary)
-        id: deploy_bicep
-        uses: azure/arm-deploy@v2
-        with:
-          scope: resourcegroup
-          resourceGroupName: ${{ vars.AZURE_RESOURCE_GROUP }}
-          template: ./infra/main.bicep
-          parameters: >
-            location=${{ vars.AZURE_LOCATION || 'westeurope' }}
-            staticWebAppName=${{ vars.AZURE_STATIC_WEB_APP_NAME }}
-            environmentName=dev
-            enableApi=true
-            owner=${{ vars.AZURE_RESOURCE_OWNER || 'journey-maintainers' }}
-            repositoryUrl=${{ github.server_url }}/${{ github.repository }}
-            repositoryBranch=${{ github.ref_name }}
-
-      - name: Setup Node.js
-        if: needs.plan.outputs.deploy_api == 'true'
-        uses: actions/setup-node@v5
-        with:
-          node-version: 24
-          cache: npm
-          cache-dependency-path: api/package-lock.json
-
-      - name: Install and build API
-        if: needs.plan.outputs.deploy_api == 'true'
-        working-directory: api
-        run: |
-          npm ci
-          npm run build
-
-      - name: Allow runner access to Function storage
-        id: allow_function_storage
-        if: needs.plan.outputs.deploy_api == 'true'
-        env:
-          RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
-          STORAGE_ACCOUNT_NAME: ${{ steps.deploy_bicep.outputs.storageAccountName }}
-          PERIMETER_NAME: ${{ steps.deploy_bicep.outputs.networkSecurityPerimeterName }}
-          PROFILE_NAME: ${{ steps.deploy_bicep.outputs.networkSecurityPerimeterProfileName }}
-        run: |
-          set -euo pipefail
-          runner_ip="$(curl --fail --silent --show-error https://api.ipify.org)"
-          if [[ ! "${runner_ip}" =~ ^([0-9]{1,3}\.){3}[0-9]{1,3}$ ]]; then
-            echo "::error::Runner public address is not a valid IPv4 address: ${runner_ip}"
-            exit 1
-          fi
-
-          rule_name="github-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
-          echo "rule_name=${rule_name}" >> "$GITHUB_OUTPUT"
-
-          az extension add --name nsp --only-show-errors
-          az network perimeter profile access-rule create \
-            --name "${rule_name}" \
-            --perimeter-name "${PERIMETER_NAME}" \
-            --profile-name "${PROFILE_NAME}" \
-            --resource-group "${RESOURCE_GROUP}" \
-            --direction Inbound \
-            --address-prefixes "[${runner_ip}/32]" \
-            --output none
-
-          for attempt in {1..12}; do
-            if az storage container list \
-              --account-name "${STORAGE_ACCOUNT_NAME}" \
-              --auth-mode login \
-              --num-results 1 \
-              --only-show-errors \
-              --output none; then
-              exit 0
-            fi
-            if [ "${attempt}" -eq 12 ]; then
-              echo "::error::NSP access rule did not become effective for Function storage"
-              exit 1
-            fi
-            echo "Waiting for NSP access rule propagation (attempt ${attempt}/12)"
-            sleep 10
-          done
-
-      - name: Deploy to Azure Functions
-        if: needs.plan.outputs.deploy_api == 'true'
-        uses: Azure/functions-action@v1
-        with:
-          app-name: ${{ steps.deploy_bicep.outputs.functionAppName }}
-          package: api
-          respect-funcignore: true
-
-      - name: Remove runner access to Function storage
-        if: always() && needs.plan.outputs.deploy_api == 'true' && steps.allow_function_storage.outputs.rule_name != ''
-        env:
-          RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
-          PERIMETER_NAME: ${{ steps.deploy_bicep.outputs.networkSecurityPerimeterName }}
-          PROFILE_NAME: ${{ steps.deploy_bicep.outputs.networkSecurityPerimeterProfileName }}
-          RULE_NAME: ${{ steps.allow_function_storage.outputs.rule_name }}
-        run: |
-          set -euo pipefail
-          az network perimeter profile access-rule delete \
-            --name "${RULE_NAME}" \
-            --perimeter-name "${PERIMETER_NAME}" \
-            --profile-name "${PROFILE_NAME}" \
-            --resource-group "${RESOURCE_GROUP}" \
-            --yes \
-            --output none
-
-      - name: Read deployment token
-        id: swa_token
-        env:
-          STATIC_WEB_APP_NAME: ${{ vars.AZURE_STATIC_WEB_APP_NAME }}
-        run: |
-          set -euo pipefail
-          token="$(az staticwebapp secrets list \
-            --name "${STATIC_WEB_APP_NAME}" \
-            --resource-group "${{ vars.AZURE_RESOURCE_GROUP }}" \
-            --query 'properties.apiKey' --output tsv)"
-          echo "::add-mask::${token}"
-          echo "token=${token}" >> "$GITHUB_OUTPUT"
-
-      - name: Deploy static content to primary environment
-        uses: Azure/static-web-apps-deploy@v1
-        with:
-          azure_static_web_apps_api_token: ${{ steps.swa_token.outputs.token }}
-          repo_token: ${{ secrets.GITHUB_TOKEN }}
-          action: upload
-          app_location: /
-          output_location: dist
-
-      - name: Publish application URL to the job summary
-        env:
-          APPLICATION_URL: ${{ steps.deploy_bicep.outputs.applicationUrl }}
-        run: |
-          echo "### Journey test environment" >> "$GITHUB_STEP_SUMMARY"
-          echo "Application URL: ${APPLICATION_URL}" >> "$GITHUB_STEP_SUMMARY"
-
-      - name: Verify deployment
-        env:
-          APPLICATION_URL: ${{ steps.deploy_bicep.outputs.applicationUrl }}
-        run: |
-          set -euo pipefail
-          for attempt in 1 2 3 4 5; do
-            status="$(curl --silent --show-error --max-time 30 --max-redirs 0 \
-              --output /dev/null --write-out '%{http_code}' "${APPLICATION_URL}" || echo '000')"
-            echo "Attempt ${attempt}: HTTP ${status}"
-            if [ "${status}" = "302" ]; then
-              exit 0
-            fi
-            sleep 15
-          done
-          echo "::error::Expected ${APPLICATION_URL} to redirect anonymous users to sign-in (302)"
-          exit 1
-
-      - name: Verify anonymous requests to /api/* are denied
-        if: steps.deploy_bicep.outputs.functionAppName != ''
-        env:
-          APPLICATION_URL: ${{ steps.deploy_bicep.outputs.applicationUrl }}
-        run: |
-          set -euo pipefail
-          status="$(curl --silent --show-error --max-time 30 --max-redirs 0 \
-            --output /dev/null --write-out '%{http_code}' "${APPLICATION_URL}/api/maps/token" || echo '000')"
-          echo "Anonymous /api/maps/token request: HTTP ${status}"
-          if [ "${status}" != "302" ]; then
-            echo "::error::Expected anonymous /api/maps/token to be redirected to sign-in (302), got ${status}"
-            exit 1
-          fi
-
-      - name: Verify the Function App's default hostname rejects direct requests
-        if: steps.deploy_bicep.outputs.functionAppHostname != ''
-        env:
-          FUNCTION_APP_HOSTNAME: ${{ steps.deploy_bicep.outputs.functionAppHostname }}
-        run: |
-          set -euo pipefail
-          status="$(curl --silent --show-error --max-time 30 \
-            --output /dev/null --write-out '%{http_code}' "https://${FUNCTION_APP_HOSTNAME}/api/maps/token" || echo '000')"
-          echo "Direct Function hostname request: HTTP ${status}"
-          if [ "${status}" = "200" ]; then
-            echo "::error::Direct request to the Function App hostname unexpectedly succeeded"
-            exit 1
-          fi
-
-      - name: Verify Application Insights is provisioned and connected
-        if: steps.deploy_bicep.outputs.functionAppName != ''
-        env:
-          RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
-          FUNCTION_APP_NAME: ${{ steps.deploy_bicep.outputs.functionAppName }}
-          APP_INSIGHTS_NAME: ${{ steps.deploy_bicep.outputs.appInsightsName }}
-        run: |
-          set -euo pipefail
-          az monitor app-insights component show \
-            --app "${APP_INSIGHTS_NAME}" --resource-group "${RESOURCE_GROUP}" --output none
-          connection_string="$(az functionapp config appsettings list \
-            --name "${FUNCTION_APP_NAME}" --resource-group "${RESOURCE_GROUP}" \
-            --query "[?name=='APPLICATIONINSIGHTS_CONNECTION_STRING'].value" --output tsv)"
-          test -n "${connection_string}"
+    uses: ./.github/workflows/deploy-environment.yml
+    with:
+      github_environment: hh-env-test
+      bicep_environment_name: dev
+      deployment_heading: Journey test environment
+      deploy_infra: ${{ needs.plan.outputs.deploy_infra == 'true' }}
+      deploy_api: ${{ needs.plan.outputs.deploy_api == 'true' }}
+      deploy_application: true
+    secrets: inherit

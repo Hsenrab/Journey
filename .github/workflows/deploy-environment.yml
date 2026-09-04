@@ -1,0 +1,355 @@
+name: Deploy environment
+
+on:
+  workflow_call:
+    inputs:
+      github_environment:
+        description: GitHub environment containing the target's Azure configuration
+        required: true
+        type: string
+      bicep_environment_name:
+        description: Environment tag passed to the Bicep deployment
+        required: true
+        type: string
+      deployment_heading:
+        description: Heading used in the workflow summary
+        required: true
+        type: string
+      deploy_infra:
+        description: Whether to deploy the Bicep infrastructure
+        required: true
+        type: boolean
+      deploy_api:
+        description: Whether to build and deploy the Functions API
+        required: true
+        type: boolean
+      deploy_application:
+        description: Whether to deploy and verify the primary Static Web App environment
+        required: true
+        type: boolean
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  validate:
+    name: Validate
+    uses: ./.github/workflows/ci.yml
+
+  infra:
+    name: Resolve infrastructure
+    needs: validate
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.github_environment }}
+    outputs:
+      application_url: ${{ steps.resolve.outputs.application_url }}
+      function_app_name: ${{ steps.resolve.outputs.function_app_name }}
+      function_app_hostname: ${{ steps.resolve.outputs.function_app_hostname }}
+      app_insights_name: ${{ steps.resolve.outputs.app_insights_name }}
+      storage_account_name: ${{ steps.resolve.outputs.storage_account_name }}
+      network_security_perimeter_name: ${{ steps.resolve.outputs.network_security_perimeter_name }}
+      network_security_perimeter_profile_name: ${{ steps.resolve.outputs.network_security_perimeter_profile_name }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Azure login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Verify Azure deployment target
+        env:
+          EXPECTED_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
+        run: |
+          set -euo pipefail
+          active_subscription_id="$(az account show --query id --output tsv)"
+          active_subscription_name="$(az account show --query name --output tsv)"
+
+          {
+            echo "### Azure deployment target"
+            echo "Subscription: ${active_subscription_name} (\`${active_subscription_id}\`)"
+            echo "Resource group: \`${RESOURCE_GROUP}\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          if [ "${active_subscription_id}" != "${EXPECTED_SUBSCRIPTION_ID}" ]; then
+            echo "::error::Azure CLI selected subscription '${active_subscription_id}', but AZURE_SUBSCRIPTION_ID is '${EXPECTED_SUBSCRIPTION_ID}'."
+            exit 1
+          fi
+
+          if ! az group show --name "${RESOURCE_GROUP}" --output none; then
+            echo "::error::Resource group '${RESOURCE_GROUP}' does not exist in subscription '${active_subscription_name}' (${active_subscription_id}), or the OIDC principal cannot read it. Check the target GitHub environment's AZURE_RESOURCE_GROUP value and the principal's resource-group RBAC assignment."
+            exit 1
+          fi
+
+      - name: Deploy Bicep (provision Static Web App and API boundary)
+        if: inputs.deploy_infra
+        id: deploy_bicep
+        uses: azure/arm-deploy@v2
+        with:
+          scope: resourcegroup
+          resourceGroupName: ${{ vars.AZURE_RESOURCE_GROUP }}
+          template: ./infra/main.bicep
+          parameters: >
+            location=${{ vars.AZURE_LOCATION || 'westeurope' }}
+            staticWebAppName=${{ vars.AZURE_STATIC_WEB_APP_NAME }}
+            environmentName=${{ inputs.bicep_environment_name }}
+            enableApi=true
+            owner=${{ vars.AZURE_RESOURCE_OWNER || 'journey-maintainers' }}
+            repositoryUrl=${{ github.server_url }}/${{ github.repository }}
+            repositoryBranch=${{ github.ref_name }}
+
+      - name: Resolve deployed resources
+        id: resolve
+        env:
+          RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
+          STATIC_WEB_APP_NAME: ${{ vars.AZURE_STATIC_WEB_APP_NAME }}
+        run: |
+          set -euo pipefail
+
+          function_app_name="${STATIC_WEB_APP_NAME}-api"
+          app_insights_name="${STATIC_WEB_APP_NAME}-appi"
+          perimeter_name="${STATIC_WEB_APP_NAME}-nsp"
+          perimeter_profile_name="function-storage"
+
+          application_hostname="$(az staticwebapp show \
+            --name "${STATIC_WEB_APP_NAME}" \
+            --resource-group "${RESOURCE_GROUP}" \
+            --query defaultHostname --output tsv)"
+          function_app_hostname="$(az functionapp show \
+            --name "${function_app_name}" \
+            --resource-group "${RESOURCE_GROUP}" \
+            --query defaultHostName --output tsv)"
+          storage_account_name="$(az functionapp config appsettings list \
+            --name "${function_app_name}" \
+            --resource-group "${RESOURCE_GROUP}" \
+            --query "[?name=='AzureWebJobsStorage__accountName'].value | [0]" \
+            --output tsv)"
+
+          test -n "${application_hostname}"
+          test -n "${function_app_hostname}"
+          test -n "${storage_account_name}"
+
+          echo "application_url=https://${application_hostname}" >> "$GITHUB_OUTPUT"
+          echo "function_app_name=${function_app_name}" >> "$GITHUB_OUTPUT"
+          echo "function_app_hostname=${function_app_hostname}" >> "$GITHUB_OUTPUT"
+          echo "app_insights_name=${app_insights_name}" >> "$GITHUB_OUTPUT"
+          echo "storage_account_name=${storage_account_name}" >> "$GITHUB_OUTPUT"
+          echo "network_security_perimeter_name=${perimeter_name}" >> "$GITHUB_OUTPUT"
+          echo "network_security_perimeter_profile_name=${perimeter_profile_name}" >> "$GITHUB_OUTPUT"
+
+      - name: Publish application URL to the job summary
+        env:
+          APPLICATION_URL: ${{ steps.resolve.outputs.application_url }}
+          DEPLOYMENT_HEADING: ${{ inputs.deployment_heading }}
+          DEPLOY_INFRA: ${{ inputs.deploy_infra }}
+        run: |
+          echo "### ${DEPLOYMENT_HEADING}" >> "$GITHUB_STEP_SUMMARY"
+          echo "Application URL: ${APPLICATION_URL}" >> "$GITHUB_STEP_SUMMARY"
+          echo "Infrastructure deployed: ${DEPLOY_INFRA}" >> "$GITHUB_STEP_SUMMARY"
+
+  deploy_api:
+    name: Deploy Functions API
+    needs: infra
+    if: inputs.deploy_api && needs.infra.outputs.function_app_name != ''
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.github_environment }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: api/package-lock.json
+
+      - name: Install and build
+        working-directory: api
+        run: |
+          npm ci
+          npm run build
+
+      - name: Azure login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Allow runner access to Function storage
+        id: allow_function_storage
+        env:
+          RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
+          STORAGE_ACCOUNT_NAME: ${{ needs.infra.outputs.storage_account_name }}
+          PERIMETER_NAME: ${{ needs.infra.outputs.network_security_perimeter_name }}
+          PROFILE_NAME: ${{ needs.infra.outputs.network_security_perimeter_profile_name }}
+        run: |
+          set -euo pipefail
+          runner_ip="$(curl --fail --silent --show-error https://api.ipify.org)"
+          if [[ ! "${runner_ip}" =~ ^([0-9]{1,3}\.){3}[0-9]{1,3}$ ]]; then
+            echo "::error::Runner public address is not a valid IPv4 address: ${runner_ip}"
+            exit 1
+          fi
+
+          rule_name="github-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          echo "rule_name=${rule_name}" >> "$GITHUB_OUTPUT"
+
+          az extension add --name nsp --only-show-errors
+          az network perimeter profile access-rule create \
+            --name "${rule_name}" \
+            --perimeter-name "${PERIMETER_NAME}" \
+            --profile-name "${PROFILE_NAME}" \
+            --resource-group "${RESOURCE_GROUP}" \
+            --direction Inbound \
+            --address-prefixes "[${runner_ip}/32]" \
+            --output none
+
+          for attempt in {1..12}; do
+            if az storage container list \
+              --account-name "${STORAGE_ACCOUNT_NAME}" \
+              --auth-mode login \
+              --num-results 1 \
+              --only-show-errors \
+              --output none; then
+              exit 0
+            fi
+            if [ "${attempt}" -eq 12 ]; then
+              echo "::error::NSP access rule did not become effective for Function storage"
+              exit 1
+            fi
+            echo "Waiting for NSP access rule propagation (attempt ${attempt}/12)"
+            sleep 10
+          done
+
+      - name: Deploy to Azure Functions
+        uses: Azure/functions-action@v1
+        with:
+          app-name: ${{ needs.infra.outputs.function_app_name }}
+          package: api
+          respect-funcignore: true
+
+      - name: Remove runner access to Function storage
+        if: always() && steps.allow_function_storage.outputs.rule_name != ''
+        env:
+          RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
+          PERIMETER_NAME: ${{ needs.infra.outputs.network_security_perimeter_name }}
+          PROFILE_NAME: ${{ needs.infra.outputs.network_security_perimeter_profile_name }}
+          RULE_NAME: ${{ steps.allow_function_storage.outputs.rule_name }}
+        run: |
+          set -euo pipefail
+          az network perimeter profile access-rule delete \
+            --name "${RULE_NAME}" \
+            --perimeter-name "${PERIMETER_NAME}" \
+            --profile-name "${PROFILE_NAME}" \
+            --resource-group "${RESOURCE_GROUP}" \
+            --yes \
+            --output none
+
+  deploy:
+    name: Deploy application
+    needs: [infra, deploy_api]
+    if: inputs.deploy_application && always() && needs.infra.result == 'success' && (needs.deploy_api.result == 'success' || needs.deploy_api.result == 'skipped')
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.github_environment }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Azure login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Read deployment token
+        id: swa_token
+        env:
+          RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
+          STATIC_WEB_APP_NAME: ${{ vars.AZURE_STATIC_WEB_APP_NAME }}
+        run: |
+          set -euo pipefail
+          token="$(az staticwebapp secrets list \
+            --name "${STATIC_WEB_APP_NAME}" \
+            --resource-group "${RESOURCE_GROUP}" \
+            --query 'properties.apiKey' --output tsv)"
+          echo "::add-mask::${token}"
+          echo "token=${token}" >> "$GITHUB_OUTPUT"
+
+      - name: Deploy to Azure Static Web Apps
+        uses: Azure/static-web-apps-deploy@v1
+        with:
+          azure_static_web_apps_api_token: ${{ steps.swa_token.outputs.token }}
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          action: upload
+          app_location: /
+          output_location: dist
+          production_branch: "${{ github.event_name == 'workflow_dispatch' && github.ref_name || '' }}"
+
+      - name: Verify deployment
+        if: github.event_name != 'pull_request'
+        env:
+          APPLICATION_URL: ${{ needs.infra.outputs.application_url }}
+        run: |
+          set -euo pipefail
+          for attempt in 1 2 3 4 5; do
+            status="$(curl --silent --show-error --max-time 30 --max-redirs 0 \
+              --output /dev/null --write-out '%{http_code}' "${APPLICATION_URL}" || echo '000')"
+            echo "Attempt ${attempt}: HTTP ${status}"
+            if [ "${status}" = "302" ]; then
+              echo "Deployment verified at ${APPLICATION_URL}" >> "$GITHUB_STEP_SUMMARY"
+              exit 0
+            fi
+            sleep 15
+          done
+          echo "::error::Expected ${APPLICATION_URL} to redirect anonymous users to sign-in (302)"
+          exit 1
+
+      - name: Verify anonymous requests to /api/* are denied
+        if: github.event_name != 'pull_request' && needs.infra.outputs.function_app_name != ''
+        env:
+          APPLICATION_URL: ${{ needs.infra.outputs.application_url }}
+        run: |
+          set -euo pipefail
+          status="$(curl --silent --show-error --max-time 30 --max-redirs 0 \
+            --output /dev/null --write-out '%{http_code}' "${APPLICATION_URL}/api/maps/token" || echo '000')"
+          echo "Anonymous /api/maps/token request: HTTP ${status}"
+          if [ "${status}" != "302" ]; then
+            echo "::error::Expected anonymous /api/maps/token to be redirected to sign-in (302), got ${status}"
+            exit 1
+          fi
+
+      - name: Verify the Function App's default hostname rejects direct requests
+        if: github.event_name != 'pull_request' && needs.infra.outputs.function_app_hostname != ''
+        env:
+          FUNCTION_APP_HOSTNAME: ${{ needs.infra.outputs.function_app_hostname }}
+        run: |
+          set -euo pipefail
+          status="$(curl --silent --show-error --max-time 30 \
+            --output /dev/null --write-out '%{http_code}' "https://${FUNCTION_APP_HOSTNAME}/api/maps/token" || echo '000')"
+          echo "Direct Function hostname request: HTTP ${status}"
+          if [ "${status}" = "200" ]; then
+            echo "::error::Direct request to the Function App hostname unexpectedly succeeded"
+            exit 1
+          fi
+
+      - name: Verify Application Insights is provisioned and connected
+        if: github.event_name != 'pull_request' && needs.infra.outputs.function_app_name != ''
+        env:
+          RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
+          FUNCTION_APP_NAME: ${{ needs.infra.outputs.function_app_name }}
+          APP_INSIGHTS_NAME: ${{ needs.infra.outputs.app_insights_name }}
+        run: |
+          set -euo pipefail
+          az monitor app-insights component show \
+            --app "${APP_INSIGHTS_NAME}" --resource-group "${RESOURCE_GROUP}" --output none
+          connection_string="$(az functionapp config appsettings list \
+            --name "${FUNCTION_APP_NAME}" --resource-group "${RESOURCE_GROUP}" \
+            --query "[?name=='APPLICATIONINSIGHTS_CONNECTION_STRING'].value" --output tsv)"
+          test -n "${connection_string}"

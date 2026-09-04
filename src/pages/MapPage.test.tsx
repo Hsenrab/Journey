@@ -6,12 +6,18 @@ import { createDefaultData } from '../services/storage'
 import { WaypointsProvider } from '../features/journey/JourneyContext'
 
 type MapClickHandler = (event: {
-  shapes?: Array<{ getProperties?: () => { waypointId?: string }; properties?: { waypointId?: string } }>
+  shapes?: Array<{
+    getProperties?: () => { waypointId?: string; activityId?: string }
+    getCoordinates?: () => number[]
+    properties?: { waypointId?: string; activityId?: string }
+  }>
 }) => void
 type TokenGetter = (resolve: (token: string) => void, reject: (error: unknown) => void) => void
 
 const mapEvents = vi.hoisted(() => ({
   click: undefined as MapClickHandler | undefined,
+  activityClick: undefined as MapClickHandler | undefined,
+  clusterClick: undefined as MapClickHandler | undefined,
   ready: undefined as (() => void) | undefined,
   tokenGetter: undefined as TokenGetter | undefined,
   deferReady: false,
@@ -39,11 +45,26 @@ vi.mock('azure-maps-control', () => ({
           mapEvents.ready = args[1] as () => void
           if (!mapEvents.deferReady) mapEvents.ready()
         }
-        if (args[0] === 'click' && args.length === 3) mapEvents.click = args[2] as MapClickHandler
+        if (args[0] === 'click' && args.length === 3 && (args[1] as { id?: string })?.id === 'waypoints') {
+          mapEvents.click = args[2] as MapClickHandler
+        }
+        if (args[0] === 'click' && args.length === 3 && (args[1] as { id?: string })?.id === 'activities') {
+          mapEvents.activityClick = args[2] as MapClickHandler
+        }
+        if (
+          args[0] === 'click' &&
+          args.length === 3 &&
+          (args[1] as { id?: string })?.id === 'waypoint-cluster-labels'
+        ) {
+          mapEvents.clusterClick = args[2] as MapClickHandler
+        }
       },
     }
     sources = { add: vi.fn() }
     layers = { add: vi.fn() }
+    imageSprite = { add: vi.fn() }
+    getCamera = vi.fn(() => ({ zoom: 8 }))
+    setCamera = vi.fn()
     dispose = vi.fn()
   },
   Popup: class {
@@ -56,7 +77,15 @@ vi.mock('azure-maps-control', () => ({
       clear = vi.fn()
     },
   },
-  layer: { BubbleLayer: class {}, SymbolLayer: class {} },
+  layer: {
+    BubbleLayer: class {},
+    SymbolLayer: class {
+      id?: string
+      constructor(_source: unknown, id: string) {
+        this.id = id
+      }
+    },
+  },
   data: {
     Feature: class {
       constructor(..._args: unknown[]) {}
@@ -73,6 +102,8 @@ describe('MapPage', () => {
   beforeEach(() => {
     localStorage.clear()
     mapEvents.click = undefined
+    mapEvents.activityClick = undefined
+    mapEvents.clusterClick = undefined
     mapEvents.ready = undefined
     mapEvents.tokenGetter = undefined
     mapEvents.deferReady = false
@@ -89,9 +120,10 @@ describe('MapPage', () => {
       </MemoryRouter>,
     )
     expect(screen.getByRole('heading', { name: 'Map' })).toBeInTheDocument()
-    expect(screen.getByLabelText('Show waypoints')).toBeChecked()
-    expect(screen.getByLabelText('Show activities')).toBeChecked()
-    expect(screen.getByLabelText('Waypoint status: Gold')).toBeChecked()
+    expect(screen.getByRole('button', { name: 'Waypoints' })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByRole('button', { name: 'Activities' })).toHaveAttribute('aria-pressed', 'false')
+    await userEvent.setup().click(screen.getByRole('button', { name: 'Award filters' }))
+    expect(screen.getByRole('checkbox', { name: 'Gold' })).toBeChecked()
     expect(screen.getByLabelText('Nearby origin')).toHaveValue('Brockworth, Gloucestershire')
     expect(await screen.findByText('Map access failed: Sign in required')).toBeInTheDocument()
   })
@@ -113,6 +145,23 @@ describe('MapPage', () => {
       </MemoryRouter>,
     )
     expect(await screen.findByText('Map access returned text/html instead of JSON.')).toBeInTheDocument()
+  })
+
+  it('switches exclusively between waypoint and activity modes', async () => {
+    const user = userEvent.setup()
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, text: () => Promise.resolve('Sign in required') }))
+    render(
+      <MemoryRouter>
+        <WaypointsProvider>
+          <MapPage />
+        </WaypointsProvider>
+      </MemoryRouter>,
+    )
+
+    await user.click(screen.getByRole('button', { name: 'Activities' }))
+    expect(screen.getByRole('button', { name: 'Waypoints' })).toHaveAttribute('aria-pressed', 'false')
+    expect(screen.getByRole('button', { name: 'Activities' })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.queryByRole('button', { name: 'Award filters' })).not.toBeInTheDocument()
   })
 
   it('explains that the Maps API is missing when the environment has no linked API', async () => {
@@ -143,12 +192,12 @@ describe('MapPage', () => {
         </WaypointsProvider>
       </MemoryRouter>,
     )
-    await user.click(screen.getByLabelText('Show activities'))
-    await user.click(screen.getByLabelText('Waypoint status: Gold'))
+    await user.click(screen.getByRole('button', { name: 'Award filters' }))
+    await user.click(screen.getByRole('checkbox', { name: 'Gold' }))
     await user.click(screen.getByRole('button', { name: 'Search' }))
     expect(await screen.findByText(/No places matched that search/)).toBeInTheDocument()
-    expect(screen.getByLabelText('Show activities')).not.toBeChecked()
-    expect(screen.getByLabelText('Waypoint status: Gold')).not.toBeChecked()
+    expect(screen.getByRole('button', { name: 'Activities' })).toHaveAttribute('aria-pressed', 'false')
+    expect(screen.getByRole('checkbox', { name: 'Gold' })).not.toBeChecked()
   })
 
   it('requires an explicit selection for ambiguous nearby origins', async () => {
@@ -266,9 +315,9 @@ describe('MapPage', () => {
         </WaypointsProvider>
       </MemoryRouter>,
     )
-    await user.click(screen.getByLabelText('Waypoint status: Gold'))
-    await user.click(screen.getByLabelText('Show activities'))
-    await user.click(screen.getByLabelText('Show activities'))
+    await user.click(screen.getByRole('button', { name: 'Award filters' }))
+    await user.click(screen.getByRole('checkbox', { name: 'Gold' }))
+    await user.click(screen.getByRole('button', { name: 'Activities' }))
     expect(screen.getByRole('link', { name: /Bronze:.*miles/ })).toBeInTheDocument()
   })
 
@@ -356,5 +405,61 @@ describe('MapPage', () => {
       mapEvents.click!({ shapes: [{ getProperties: () => ({ waypointId: waypoint.waypointId }) }] })
     }).not.toThrow()
     expect(await screen.findByRole('status')).toHaveTextContent('Opening waypoint details.')
+  })
+
+  it('shows activity marker details for linked and unlinked activities', async () => {
+    const data = createDefaultData()
+    const activity = {
+      activityId: 'linked',
+      waypointId: data.waypoints[0]!.waypointId,
+      date: '2026-08-10',
+      category: 'bronze' as const,
+      location: { kind: 'coordinates' as const, latitude: 51.86, longitude: -2.22 },
+      notes: '',
+      referenceIds: [],
+      photoReferenceIds: [],
+      createdAt: '2026-08-10T00:00:00.000Z',
+      updatedAt: '2026-08-10T00:00:00.000Z',
+    }
+    const unlinked = { ...activity, activityId: 'unlinked', waypointId: undefined, category: undefined }
+    data.activities = [activity, unlinked]
+    localStorage.setItem('waypoints-v1', JSON.stringify(data))
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(jsonResponse({ token: 'entra', expiresOn: '2026-01-01', clientId: 'maps-client-id' })),
+    )
+    render(
+      <MemoryRouter>
+        <WaypointsProvider>
+          <MapPage />
+        </WaypointsProvider>
+      </MemoryRouter>,
+    )
+    await vi.waitFor(() => expect(mapEvents.activityClick).toBeDefined())
+    expect(() => {
+      mapEvents.activityClick!({})
+      mapEvents.activityClick!({ shapes: [{ properties: { activityId: 'unknown' } }] })
+      mapEvents.activityClick!({ shapes: [{ properties: { activityId: activity.activityId } }] })
+      mapEvents.activityClick!({ shapes: [{ properties: { activityId: unlinked.activityId } }] })
+    }).not.toThrow()
+  })
+
+  it('zooms into an activated cluster', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(jsonResponse({ token: 'entra', expiresOn: '2026-01-01', clientId: 'maps-client-id' })),
+    )
+    render(
+      <MemoryRouter>
+        <WaypointsProvider>
+          <MapPage />
+        </WaypointsProvider>
+      </MemoryRouter>,
+    )
+    await vi.waitFor(() => expect(mapEvents.clusterClick).toBeDefined())
+    expect(() => {
+      mapEvents.clusterClick!({})
+      mapEvents.clusterClick!({ shapes: [{ getCoordinates: () => [-2.2, 51.8] }] })
+    }).not.toThrow()
   })
 })
