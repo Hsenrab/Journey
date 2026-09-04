@@ -191,7 +191,7 @@ resource functionApp 'Microsoft.Web/sites@2023-12-01' = if (enableApi) {
     serverFarmId: enableApi ? hostingPlan.id : null
     httpsOnly: true
     siteConfig: {
-      linuxFxVersion: 'Node|24'
+      linuxFxVersion: 'Node|22'
       ftpsState: 'Disabled'
       minTlsVersion: '1.2'
     }

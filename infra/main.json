@@ -230,7 +230,7 @@
         "serverFarmId": "[if(parameters('enableApi'), resourceId('Microsoft.Web/serverfarms', variables('hostingPlanName')), null())]",
         "httpsOnly": true,
         "siteConfig": {
-          "linuxFxVersion": "Node|24",
+          "linuxFxVersion": "Node|22",
           "ftpsState": "Disabled",
           "minTlsVersion": "1.2"
         }
