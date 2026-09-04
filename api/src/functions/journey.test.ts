@@ -52,6 +52,9 @@ describe('journey', () => {
 
   it('rejects unsupported route containers', async () => {
     const { journey } = await import('./journey.js')
+    await expect(journey(request('test'), { error: vi.fn() } as unknown as InvocationContext)).rejects.toThrow(
+      'Unsupported Journey container "test".',
+    )
     await expect(journey(request('unknown'), { error: vi.fn() } as unknown as InvocationContext)).rejects.toThrow(
       'Unsupported Journey container "unknown".',
     )

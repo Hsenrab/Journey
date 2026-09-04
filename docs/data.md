@@ -4,8 +4,9 @@
 
 Real Journey data is stored only in Azure Cosmos DB for NoSQL. The browser loads the
 complete active dataset through the authenticated same-origin `/api/journey` Function
-and never keeps a data cache or offline queue. The `production`, `test`, and `demo`
-containers are separate, and each uses `/datasetId` as its partition key.
+and never keeps a data cache or offline queue. It can access only the `production` and
+read-only `demo` containers. The separate `test` container uses `/datasetId` as its
+partition key and is accessible only to the test deployment identity.
 
 Cosmos stores one document per entity. Every document contains `id`, `datasetId`,
 `type`, and `schemaVersion`; relationships remain IDs and are hydrated into the

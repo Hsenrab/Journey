@@ -1,6 +1,6 @@
 import { DataSchema, type WaypointsData } from '../domain/visit'
 
-type Container = 'production' | 'demo' | 'test'
+type Container = 'production' | 'demo'
 type EntityType = 'waypoint' | 'challenge' | 'idea' | 'activity' | 'reference' | 'photoReference'
 
 export class JourneyConflictError extends Error {
@@ -9,8 +9,18 @@ export class JourneyConflictError extends Error {
   }
 }
 
-function responseError(response: Response): Error {
-  if (response.status === 409) return new JourneyConflictError()
+export class JourneyImportNotEmptyError extends Error {
+  constructor() {
+    super('Your personal data must be empty before restoring a backup.')
+  }
+}
+
+async function responseError(response: Response): Promise<Error> {
+  if (response.status === 409) {
+    const body = (await response.json().catch(() => undefined)) as { error?: unknown } | undefined
+    if (body?.error === 'conflict') return new JourneyConflictError()
+    if (body?.error === 'production_not_empty') return new JourneyImportNotEmptyError()
+  }
   return new Error(`Journey API request failed with ${response.status}: ${response.statusText}`)
 }
 
@@ -19,7 +29,7 @@ async function request<T>(container: Container, init?: RequestInit): Promise<T> 
     ...init,
     headers: { 'content-type': 'application/json', ...init?.headers },
   })
-  if (!response.ok) throw responseError(response)
+  if (!response.ok) throw await responseError(response)
   if (response.status === 204) return undefined as T
   return (await response.json()) as T
 }

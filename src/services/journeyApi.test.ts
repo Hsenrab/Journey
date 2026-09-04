@@ -8,6 +8,8 @@ import {
   loadJourney,
   replaceJourney,
   updateJourneyEntity,
+  JourneyConflictError,
+  JourneyImportNotEmptyError,
 } from './journeyApi'
 
 describe('journey API client', () => {
@@ -27,7 +29,9 @@ describe('journey API client', () => {
   it('returns saved entity metadata and sends concurrency conditions', async () => {
     const fetch = vi
       .fn()
-      .mockImplementation(() => Promise.resolve(new Response(JSON.stringify({ etag: 'next' }), { status: 201 })))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ etag: 'next' }), { status: 201 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ etag: 'next' }), { status: 201 }))
+      .mockResolvedValueOnce(new Response(null, { status: 204 }))
     vi.stubGlobal('fetch', fetch)
     await expect(createJourneyEntity('production', 'activity', { activityId: 'a' })).resolves.toEqual({ etag: 'next' })
     await expect(updateJourneyEntity('production', 'activity', { activityId: 'a' }, 'a', 'old')).resolves.toEqual({
@@ -50,8 +54,34 @@ describe('journey API client', () => {
     expect(fetch).toHaveBeenCalledTimes(3)
   })
 
-  it('surfaces API failures', async () => {
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('no', { status: 409, statusText: 'Conflict' })))
-    await expect(clearJourney('production')).rejects.toThrow('Your data has changed in another session.')
+  it('distinguishes edit conflicts from non-empty imports', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi
+        .fn()
+        .mockResolvedValueOnce(
+          new Response(JSON.stringify({ error: 'conflict' }), { status: 409, statusText: 'Conflict' }),
+        )
+        .mockResolvedValueOnce(
+          new Response(JSON.stringify({ error: 'production_not_empty' }), { status: 409, statusText: 'Conflict' }),
+        ),
+    )
+    await expect(clearJourney('production')).rejects.toBeInstanceOf(JourneyConflictError)
+    await expect(importJourney('production', createDefaultData())).rejects.toBeInstanceOf(JourneyImportNotEmptyError)
+  })
+
+  it('preserves non-conflict API failures', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi
+        .fn()
+        .mockResolvedValueOnce(
+          new Response(JSON.stringify({ error: 'demo_read_only' }), { status: 409, statusText: 'Conflict' }),
+        )
+        .mockResolvedValueOnce(new Response(null, { status: 500, statusText: 'Internal Server Error' })),
+    )
+
+    await expect(clearJourney('production')).rejects.toThrow('409: Conflict')
+    await expect(clearJourney('production')).rejects.toThrow('500: Internal Server Error')
   })
 })

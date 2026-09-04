@@ -213,16 +213,6 @@ resource cosmosProductionDataContributorAssignment 'Microsoft.DocumentDB/databas
   }
 }
 
-resource cosmosTestDataContributorAssignment 'Microsoft.DocumentDB/databaseAccounts/sqlRoleAssignments@2024-05-15' = if (enableApi) {
-  parent: cosmosAccount
-  name: guid(cosmosTestContainer.id, functionAppName, cosmosDataContributorRoleId)
-  properties: {
-    roleDefinitionId: '${cosmosAccount.id}/sqlRoleDefinitions/${cosmosDataContributorRoleId}'
-    principalId: functionApp!.identity.principalId
-    scope: '${cosmosAccount.id}/dbs/${cosmosDatabaseName}/colls/${cosmosTestContainerName}'
-  }
-}
-
 resource cosmosDemoDataReaderAssignment 'Microsoft.DocumentDB/databaseAccounts/sqlRoleAssignments@2024-05-15' = if (enableApi) {
   parent: cosmosAccount
   name: guid(cosmosDemoContainer.id, functionAppName, cosmosDataReaderRoleId)
@@ -240,6 +230,16 @@ resource cosmosDemoDeploymentContributorAssignment 'Microsoft.DocumentDB/databas
     roleDefinitionId: '${cosmosAccount.id}/sqlRoleDefinitions/${cosmosDataContributorRoleId}'
     principalId: deployer().objectId
     scope: '${cosmosAccount.id}/dbs/${cosmosDatabaseName}/colls/${cosmosDemoContainerName}'
+  }
+}
+
+resource cosmosTestDeploymentContributorAssignment 'Microsoft.DocumentDB/databaseAccounts/sqlRoleAssignments@2024-05-15' = if (enableApi) {
+  parent: cosmosAccount
+  name: guid(cosmosTestContainer.id, deployer().objectId, cosmosDataContributorRoleId)
+  properties: {
+    roleDefinitionId: '${cosmosAccount.id}/sqlRoleDefinitions/${cosmosDataContributorRoleId}'
+    principalId: deployer().objectId
+    scope: '${cosmosAccount.id}/dbs/${cosmosDatabaseName}/colls/${cosmosTestContainerName}'
   }
 }
 
@@ -356,7 +356,6 @@ resource functionAppSettings 'Microsoft.Web/sites/config@2023-12-01' = if (enabl
     COSMOS_ENDPOINT: cosmosAccount!.properties.documentEndpoint
     COSMOS_DATABASE_NAME: cosmosDatabaseName
     COSMOS_PRODUCTION_DATASET_ID: 'production'
-    COSMOS_TEST_DATASET_ID: 'test'
     COSMOS_DEMO_DATASET_ID: 'demo'
   }
 }

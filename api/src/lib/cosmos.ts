@@ -18,13 +18,13 @@ function required(name: string): string {
   return value
 }
 
-export function journeyContainer(name: 'production' | 'test' | 'demo' = 'production'): Container {
+export function journeyContainer(name: 'production' | 'demo' = 'production'): Container {
   client ??= new CosmosClient({ endpoint: required('COSMOS_ENDPOINT'), aadCredentials: new DefaultAzureCredential() })
   if (!database) database = client.database(required('COSMOS_DATABASE_NAME'))
   return database.container(name)
 }
 
-export function datasetIdFor(name: 'production' | 'test' | 'demo'): string {
+export function datasetIdFor(name: 'production' | 'demo'): string {
   return required(`COSMOS_${name.toUpperCase()}_DATASET_ID`)
 }
 

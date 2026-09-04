@@ -15,12 +15,11 @@ import {
 } from '../lib/cosmos.js'
 import { JourneyMutationSchema } from '../lib/journeySchema.js'
 
-type ContainerName = 'production' | 'test' | 'demo'
+type ContainerName = 'production' | 'demo'
 
 function containerName(request: HttpRequest): ContainerName {
   const value = request.params.container
-  if (value !== 'production' && value !== 'test' && value !== 'demo')
-    throw new Error(`Unsupported Journey container "${value}".`)
+  if (value !== 'production' && value !== 'demo') throw new Error(`Unsupported Journey container "${value}".`)
   return value
 }
 

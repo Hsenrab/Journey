@@ -14,6 +14,7 @@ import {
 } from '@mui/material'
 import { statusLabels, statusOrder, statusRules } from '../domain/visit'
 import { useWaypoints } from '../features/journey/JourneyContext'
+import { JourneyImportNotEmptyError } from '../services/journeyApi'
 import { createBackup, isDemoModeEnabled, parseImport } from '../services/storage'
 
 export default function Settings() {
@@ -42,9 +43,12 @@ export default function Settings() {
       if (demoModeEnabled) throw new Error('Demo data is read-only.')
       await restore(parseImport(await file.text()))
       setMessage({ text: `${demoModeEnabled ? 'Demo' : 'Personal'} data was restored.`, error: false })
-    } catch {
+    } catch (error) {
       setMessage({
-        text: 'That file is not a valid Waypoints backup, so your existing data was left unchanged.',
+        text:
+          error instanceof JourneyImportNotEmptyError
+            ? error.message
+            : 'That file is not a valid Waypoints backup, so your existing data was left unchanged.',
         error: true,
       })
     }
