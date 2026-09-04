@@ -60,21 +60,41 @@ The `api/` Functions project has its own `package.json` with equivalent `lint`,
 Agents must execute validation as part of the work. Do not stop after editing and tell
 the user to run commands.
 
-- After the first substantive code change, immediately run the narrowest relevant test
-  or check. Fix failures caused by the change before continuing.
-- Before completing any repository change, run the local equivalent of
-  `.github/workflows/ci.yml` in workflow order:
-  `npm run lint`, `npm run typecheck`, `npm run format:check`,
-  `npm run test:coverage`, `npm run build`, and `npm run test:e2e`.
-- Run `npm ci` first when dependencies are not installed or the lockfile changed. Install
-  the Playwright Chromium browser when it is not already available.
+- Prefer built-in editor and source-control tools for reading, searching, diagnostics,
+  edits, and final diff inspection. Use terminal commands for project scripts and for
+  operations with no built-in equivalent; do not reproduce editor operations with
+  `sed`, `cat`, `find`, or chains of Git inspection commands.
+- During implementation, use editor diagnostics and run a targeted test only when it
+  provides useful feedback. Do not run Prettier, lint, typecheck, coverage, builds,
+  end-to-end tests, or broad validation suites as changes are made.
+- Immediately before committing, trace the changed files to their impacted imports,
+  callers, configuration consumers, build steps, and deployment paths. Run formatting
+  and validate those impacted surfaces once instead of blindly checking every package
+  or only directly edited files:
+  - Documentation-only changes: diagnostics and formatting for changed files.
+  - Workflow or configuration changes: syntax plus the scripts, packages, or deployment
+    paths whose behavior changed. Do not run application tests merely because an
+    unchanged workflow step references them.
+  - Frontend code: lint, typecheck, and directly relevant tests. Add a build for
+    build/configuration changes and end-to-end tests for affected user flows.
+  - API code: run equivalent checks from `api/` without unrelated frontend checks.
+  - Cross-cutting, dependency, release, push, or pull-request work: run the complete
+    `.github/workflows/ci.yml` local sequence once.
+- Run the selected formatting, static, and test checks once after implementation is
+  complete and immediately before final diff review and commit. Do not repeat a
+  successful check unless covered files changed afterward. Committing an already
+  validated, unchanged working tree needs no additional test or lint pass.
+- Run `npm ci` only when dependencies need installing or the lockfile changed. Install
+  Playwright Chromium only when an end-to-end run requires it.
+- Before committing, inspect the final diff and status once and stage only intended
+  files. Run additional Git checks only to investigate a specific concern.
 - Treat a failed command as a failure. Do not suppress it, weaken the check, alter test
   data to avoid it, or claim completion. Fix failures caused by the change; otherwise
   report the exact failing command and error as the blocker.
 - GitHub-hosted workflow behavior that depends on Actions contexts, environments, OIDC,
   repository secrets, or artifact services cannot be faithfully run locally. Do not
-  simulate it or claim it ran. Run all local commands from the workflow and state which
-  GitHub-only steps remain for Actions.
+  simulate it or claim it ran. State which GitHub-only steps remain for Actions when
+  remote validation is relevant.
 - When the user explicitly requests a push or remote validation, use the GitHub CLI to
   dispatch or monitor CI for the current branch, inspect the completed checks, and
   verify the pull request preview URL when the Azure workflow provides one. Do not

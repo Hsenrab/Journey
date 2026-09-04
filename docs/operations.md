@@ -262,19 +262,22 @@ integration needs to be fully removed.
   the React app; a separate `validate-api` job runs the equivalent lint, type check,
   test, and build steps for `api/`.
 - `.github/workflows/deploy-environment.yml` is the reusable full-stack deployment
-  implementation. It runs CI, provisions infrastructure, optionally deploys the
-  Functions API, and optionally deploys and verifies the primary Static Web App
-  environment. Immediately after OIDC login, it reports the selected subscription and
-  resource group in the job summary and verifies that the resource group is readable
-  before starting Bicep deployment.
+  implementation. It runs CI, optionally provisions infrastructure, resolves the
+  deployed resource details, optionally deploys the Functions API, and optionally
+  deploys and verifies the primary Static Web App environment. Immediately after OIDC
+  login, it reports the selected subscription and resource group in the job summary and
+  verifies that the resource group is readable. When Bicep is skipped, the workflow
+  reads the existing Static Web App and Function App details and fails if the expected
+  resources do not exist.
 - `.github/workflows/azure-static-web-apps.yml` is the manually dispatched production
   wrapper. Runs selected from `main` call the reusable workflow with `hh-env` and
   `prod`.
 - `.github/workflows/deploy-test.yml` is the non-production wrapper and the repository's
   single pull-request workflow. Pull requests and manual
-  runs call the reusable workflow with `hh-env-test` and `dev` after deciding whether
-  the Functions API needs to be redeployed. Configure required reviewers on the
-  `hh-env-test` GitHub environment to require approval before Azure deployment jobs run.
+  runs call the reusable workflow with `hh-env-test` and `dev` after independently
+  deciding whether infrastructure and the Functions API need to be redeployed.
+  Configure required reviewers on the `hh-env-test` GitHub environment to require
+  approval before Azure deployment jobs run.
 
 The reusable deployment workflow requires anonymous `/api/maps/token` requests to
 return HTTP 302. Its curl checks use `--max-redirs 0` so they inspect the
@@ -305,18 +308,22 @@ by the `hh-env-test` GitHub environment's `AZURE_STATIC_WEB_APP_NAME` variable. 
 reusable workflow runs CI first; deployment then waits for approval when required
 reviewers are configured on `hh-env-test`:
 
-1. A `plan` job resolves the `deploy_api` input (`auto`, `true`, or `false`):
-   - `true` always builds and deploys the Functions API.
-   - `false` skips the API build, the NSP access-rule steps, and the Functions deploy
-     entirely, deploying static content only.
+1. A `plan` job resolves the independent `deploy_infra` and `deploy_api` inputs. Both
+   accept `auto`, `true`, or `false`:
+   - `true` always deploys that part of the stack.
+   - `false` skips that deployment. Skipping the API also skips its build and temporary
+     NSP access-rule steps.
    - `auto` (the default) compares the current commit against the `head_sha` of the most
-     recent **successful** `Deploy test environment` run (via the GitHub API) and deploys
-     the API only if `api/`, `infra/`, `staticwebapp.config.json`, or the workflow file
-     itself changed since then. If there is no previous successful run, or that commit is
-     no longer reachable in history, it fails safe and deploys the API. The decision and
-     the changed paths are written to the job summary.
-2. Deploys `infra/main.bicep` with `environmentName=dev` and `enableApi=true` on every run
-   (idempotent, so this always runs regardless of the `deploy_api` decision).
+     recent **successful** `Deploy test environment` run via the GitHub API.
+     Infrastructure is deployed only if `infra/` or the test/reusable deployment
+     workflow changed. The API is deployed if `api/`, `infra/`,
+     `staticwebapp.config.json`, or either deployment workflow changed. If there is no
+     previous successful run, or that commit is no longer reachable in history, both
+     decisions fail safe to `true`. The decisions and changed paths are written to the
+     job summary.
+2. Deploys `infra/main.bicep` with `environmentName=dev` and `enableApi=true` only when
+   `deploy_infra` resolves to `true`. Otherwise it resolves the existing Azure resources
+   without starting an ARM deployment.
 3. When the API is being deployed, builds and deploys the Functions package (`api/`) to the
    provisioned Function App.
 4. Deploys the built static content to the test Static Web App's primary environment, where the linked Function backend — when deployed — is active.
