@@ -18,6 +18,12 @@ Provisioning requires an explicit `cosmosMode`: choose `freeTier` only after
 checking the subscription's Cosmos free-tier eligibility with Azure, otherwise
 choose `serverless`. No paid provisioned-throughput fallback is configured.
 
+The account is intentionally single-region and non-zonal: the location sets
+`isZoneRedundant` to `false`. This personal workload does not require availability-zone
+redundancy, and disabling it avoids deployment failures when Azure cannot allocate new
+zonal Cosmos accounts in the selected region. This setting is separate from periodic
+backup storage redundancy, which remains `Local`.
+
 Review Cosmos request units, throttled requests, storage, latency, availability,
 and authorization failures in the Cosmos account metrics and Application
 Insights. Do not log document bodies, credentials, or precise location data.
