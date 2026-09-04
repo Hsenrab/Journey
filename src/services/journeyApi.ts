@@ -3,7 +3,14 @@ import { DataSchema, type WaypointsData } from '../domain/visit'
 type Container = 'production' | 'demo' | 'test'
 type EntityType = 'waypoint' | 'challenge' | 'idea' | 'activity' | 'reference' | 'photoReference'
 
+export class JourneyConflictError extends Error {
+  constructor() {
+    super('Your data has changed in another session.')
+  }
+}
+
 function responseError(response: Response): Error {
+  if (response.status === 409) return new JourneyConflictError()
   return new Error(`Journey API request failed with ${response.status}: ${response.statusText}`)
 }
 

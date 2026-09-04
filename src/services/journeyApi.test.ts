@@ -52,6 +52,6 @@ describe('journey API client', () => {
 
   it('surfaces API failures', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('no', { status: 409, statusText: 'Conflict' })))
-    await expect(clearJourney('production')).rejects.toThrow('409: Conflict')
+    await expect(clearJourney('production')).rejects.toThrow('Your data has changed in another session.')
   })
 })
