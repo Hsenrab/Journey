@@ -12,12 +12,14 @@ type MapClickHandler = (event: {
     properties?: { waypointId?: string; activityId?: string }
   }>
 }) => void
+type TokenGetter = (resolve: (token: string) => void, reject: (error: unknown) => void) => void
 
 const mapEvents = vi.hoisted(() => ({
   click: undefined as MapClickHandler | undefined,
   activityClick: undefined as MapClickHandler | undefined,
   clusterClick: undefined as MapClickHandler | undefined,
   ready: undefined as (() => void) | undefined,
+  tokenGetter: undefined as TokenGetter | undefined,
   deferReady: false,
   sourceAdd: vi.fn(),
 }))
@@ -33,6 +35,10 @@ function jsonResponse(body: unknown) {
 vi.mock('azure-maps-control', () => ({
   AuthenticationType: { anonymous: 'anonymous' },
   Map: class {
+    constructor(...args: unknown[]) {
+      const options = args[1] as { authOptions?: { getToken?: TokenGetter } } | undefined
+      mapEvents.tokenGetter = options?.authOptions?.getToken
+    }
     events = {
       add: (...args: unknown[]) => {
         if (args[0] === 'ready' && args.length === 2) {
@@ -99,6 +105,7 @@ describe('MapPage', () => {
     mapEvents.activityClick = undefined
     mapEvents.clusterClick = undefined
     mapEvents.ready = undefined
+    mapEvents.tokenGetter = undefined
     mapEvents.deferReady = false
     mapEvents.sourceAdd.mockClear()
   })
@@ -338,6 +345,40 @@ describe('MapPage', () => {
     act(() => mapEvents.ready!())
 
     await vi.waitFor(() => expect(mapEvents.sourceAdd).toHaveBeenCalled())
+  })
+
+  it('refreshes the Maps token after the initial token is consumed', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi
+        .fn()
+        .mockResolvedValueOnce(jsonResponse({ token: 'initial', expiresOn: '2027-01-01', clientId: 'maps-client-id' }))
+        .mockResolvedValueOnce(
+          jsonResponse({ token: 'refreshed', expiresOn: '2027-01-01', clientId: 'maps-client-id' }),
+        ),
+    )
+
+    render(
+      <MemoryRouter>
+        <WaypointsProvider>
+          <MapPage />
+        </WaypointsProvider>
+      </MemoryRouter>,
+    )
+
+    await vi.waitFor(() => expect(mapEvents.tokenGetter).toBeDefined())
+    const tokens: string[] = []
+    mapEvents.tokenGetter!(
+      (token) => tokens.push(token),
+      () => undefined,
+    )
+    await new Promise((resolve) => setTimeout(resolve, 0))
+    mapEvents.tokenGetter!(
+      (token) => tokens.push(token),
+      () => undefined,
+    )
+
+    await vi.waitFor(() => expect(tokens).toEqual(['initial', 'refreshed']))
   })
 
   it('handles map marker clicks with and without a matching waypoint', async () => {

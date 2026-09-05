@@ -17,16 +17,19 @@ import {
 import { ActivityEditor } from '../components/ActivityEditor'
 import { locationSummary, statusLabels } from '../domain/visit'
 import { useWaypoints } from '../features/journey/JourneyContext'
+import { JourneyConflictError } from '../services/journeyApi'
 
 export default function ActivityDetails() {
   const { activityId = '' } = useParams()
   const navigate = useNavigate()
-  const { data, updateActivity, deleteActivity } = useWaypoints()
+  const { data, reload, updateActivity, deleteActivity } = useWaypoints()
   const [editing, setEditing] = useState(false)
   const [photoIndex, setPhotoIndex] = useState(0)
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
   const [brokenPhotoIds, setBrokenPhotoIds] = useState<string[]>([])
-  const [message, setMessage] = useState<{ severity: 'success' | 'error'; text: string } | null>(null)
+  const [message, setMessage] = useState<{ severity: 'success' | 'error'; text: string; conflict?: boolean } | null>(
+    null,
+  )
 
   const activity = data.activities.find((item) => item.activityId === activityId)
   const waypoint = activity?.waypointId
@@ -60,6 +63,20 @@ export default function ActivityDetails() {
   }
 
   const detailHeading = [activity.date, waypoint?.title].filter(Boolean).join(' · ')
+  const reloadLatest = async () => {
+    try {
+      await reload()
+      setMessage(null)
+      setEditing(false)
+      setShowDeleteDialog(false)
+    } catch (error) {
+      setMessage({
+        severity: 'error',
+        text: error instanceof Error ? error.message : 'Failed to reload activity.',
+        conflict: error instanceof JourneyConflictError,
+      })
+    }
+  }
 
   return (
     <Stack spacing={3}>
@@ -67,7 +84,20 @@ export default function ActivityDetails() {
         ← Activity log
       </Button>
 
-      {message && <Alert severity={message.severity}>{message.text}</Alert>}
+      {message && (
+        <Alert
+          severity={message.severity}
+          action={
+            message.conflict ? (
+              <Button color="inherit" size="small" onClick={() => void reloadLatest()}>
+                Reload latest
+              </Button>
+            ) : undefined
+          }
+        >
+          {message.text}
+        </Alert>
+      )}
 
       <Typography variant="h4">{detailHeading}</Typography>
       <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: 'wrap' }}>
@@ -169,15 +199,16 @@ export default function ActivityDetails() {
           initialReferences={references}
           initialPhotoReferences={photoReferences}
           submitLabel="Save changes"
-          onSubmit={(draft) => {
+          onSubmit={async (draft) => {
             try {
-              updateActivity(activity.activityId, draft)
+              await updateActivity(activity.activityId, draft)
               setEditing(false)
               setMessage({ severity: 'success', text: 'Activity updated.' })
             } catch (error) {
               setMessage({
                 severity: 'error',
                 text: error instanceof Error ? error.message : 'Failed to update activity.',
+                conflict: error instanceof JourneyConflictError,
               })
             }
           }}
@@ -207,10 +238,18 @@ export default function ActivityDetails() {
           <Button onClick={() => setShowDeleteDialog(false)}>Cancel</Button>
           <Button
             color="error"
-            onClick={() => {
-              deleteActivity(activity.activityId)
-              setShowDeleteDialog(false)
-              navigate(backTarget)
+            onClick={async () => {
+              try {
+                await deleteActivity(activity.activityId)
+                setShowDeleteDialog(false)
+                navigate(backTarget)
+              } catch (error) {
+                setMessage({
+                  severity: 'error',
+                  text: error instanceof Error ? error.message : 'Failed to delete activity.',
+                  conflict: error instanceof JourneyConflictError,
+                })
+              }
             }}
           >
             Delete

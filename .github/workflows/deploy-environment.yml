@@ -27,6 +27,10 @@ on:
         description: Whether to deploy and verify the primary Static Web App environment
         required: true
         type: boolean
+      run_cosmos_test:
+        description: Whether to run the isolated Cosmos test-partition lifecycle
+        required: true
+        type: boolean
 
 permissions:
   contents: read
@@ -142,6 +146,51 @@ jobs:
           echo "network_security_perimeter_name=${perimeter_name}" >> "$GITHUB_OUTPUT"
           echo "network_security_perimeter_profile_name=${perimeter_profile_name}" >> "$GITHUB_OUTPUT"
 
+      - name: Seed read-only demo data
+        if: inputs.deploy_infra
+        working-directory: api
+        env:
+          COSMOS_ENDPOINT: https://${{ vars.AZURE_STATIC_WEB_APP_NAME }}-data.documents.azure.com:443/
+          COSMOS_DATABASE_NAME: journey
+          COSMOS_DEMO_DATASET_ID: demo
+        run: |
+          set -euo pipefail
+          npm ci
+          npm run build
+          node --input-type=module <<'EOF'
+          import { CosmosClient } from '@azure/cosmos'
+          import { DefaultAzureCredential } from '@azure/identity'
+          import { readFile } from 'node:fs/promises'
+          import { JourneyDataSchema } from './dist/src/lib/journeySchema.js'
+
+          const data = JourneyDataSchema.parse(JSON.parse(await readFile('../src/data/demo.json', 'utf8')))
+          const container = new CosmosClient({
+            endpoint: process.env.COSMOS_ENDPOINT,
+            aadCredentials: new DefaultAzureCredential(),
+          }).database(process.env.COSMOS_DATABASE_NAME).container('demo')
+          const existing = await container.items.query({
+            query: 'SELECT c.id FROM c WHERE c.datasetId = @datasetId',
+            parameters: [{ name: '@datasetId', value: process.env.COSMOS_DEMO_DATASET_ID }],
+          }).fetchAll()
+          const documents = []
+          for (const [key, entities] of Object.entries(data)) {
+            const type = key === 'photoReferences' ? 'photoReference' : key.slice(0, -1)
+            for (const entity of entities) {
+              const id = entity[type === 'photoReference' ? 'photoReferenceId' : `${type}Id`]
+              documents.push({ id, datasetId: process.env.COSMOS_DEMO_DATASET_ID, type, schemaVersion: 1, entity })
+            }
+          }
+          const operations = [
+            ...existing.resources.map(({ id }) => ({ operationType: 'Delete', id })),
+            ...documents.map((resourceBody) => ({ operationType: 'Create', resourceBody })),
+          ]
+          if (operations.length > 100) throw new Error('Demo dataset exceeds the Cosmos transactional batch limit.')
+          if (operations.length) {
+            const result = await container.items.batch(operations, process.env.COSMOS_DEMO_DATASET_ID)
+            if (result.code !== 200) throw new Error('Failed to seed the demo dataset.')
+          }
+          EOF
+
       - name: Publish application URL to the job summary
         env:
           APPLICATION_URL: ${{ steps.resolve.outputs.application_url }}
@@ -151,6 +200,75 @@ jobs:
           echo "### ${DEPLOYMENT_HEADING}" >> "$GITHUB_STEP_SUMMARY"
           echo "Application URL: ${APPLICATION_URL}" >> "$GITHUB_STEP_SUMMARY"
           echo "Infrastructure deployed: ${DEPLOY_INFRA}" >> "$GITHUB_STEP_SUMMARY"
+
+  test_cosmos:
+    name: Verify isolated Cosmos test partition
+    needs: infra
+    if: inputs.run_cosmos_test && needs.infra.result == 'success'
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.github_environment }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: api/package-lock.json
+
+      - name: Azure login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Create, clean, and verify a unique test partition
+        working-directory: api
+        env:
+          COSMOS_ENDPOINT: https://${{ vars.AZURE_STATIC_WEB_APP_NAME }}-data.documents.azure.com:443/
+          COSMOS_DATABASE_NAME: journey
+          COSMOS_TEST_DATASET_ID: ci-${{ github.run_id }}-${{ github.run_attempt }}
+        run: |
+          set -euo pipefail
+          npm ci
+          node --input-type=module <<'EOF'
+          import { CosmosClient } from '@azure/cosmos'
+          import { DefaultAzureCredential } from '@azure/identity'
+
+          const datasetId = process.env.COSMOS_TEST_DATASET_ID
+          const container = new CosmosClient({
+            endpoint: process.env.COSMOS_ENDPOINT,
+            aadCredentials: new DefaultAzureCredential(),
+          }).database(process.env.COSMOS_DATABASE_NAME).container('test')
+          const clear = async () => {
+            const existing = await container.items.query({
+              query: 'SELECT c.id FROM c WHERE c.datasetId = @datasetId',
+              parameters: [{ name: '@datasetId', value: datasetId }],
+            }).fetchAll()
+            if (existing.resources.length > 100) throw new Error('Test dataset exceeds the Cosmos transactional batch limit.')
+            if (existing.resources.length) {
+              const result = await container.items.batch(
+                existing.resources.map(({ id }) => ({ operationType: 'Delete', id })),
+                datasetId,
+              )
+              if (result.code !== 200) throw new Error('Failed to clean the test dataset.')
+            }
+          }
+          try {
+            await clear()
+            await container.items.create({ id: 'isolation-check', datasetId, type: 'test', schemaVersion: 1 })
+          } finally {
+            await clear()
+            const remaining = await container.items.query({
+              query: 'SELECT VALUE COUNT(1) FROM c WHERE c.datasetId = @datasetId',
+              parameters: [{ name: '@datasetId', value: datasetId }],
+            }).fetchAll()
+            if (remaining.resources[0] !== 0) throw new Error('Test dataset was not cleaned up.')
+          }
+          EOF
 
   deploy_api:
     name: Deploy Functions API
