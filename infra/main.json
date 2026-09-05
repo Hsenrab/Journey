@@ -25,10 +25,7 @@
     "environmentName": {
       "type": "string",
       "defaultValue": "dev",
-      "allowedValues": [
-        "dev",
-        "prod"
-      ],
+      "allowedValues": ["dev", "prod"],
       "metadata": {
         "description": "Deployment environment. Controls the environment tag and the default SKU."
       }
@@ -42,9 +39,7 @@
     "skuName": {
       "type": "string",
       "defaultValue": "Standard",
-      "allowedValues": [
-        "Standard"
-      ],
+      "allowedValues": ["Standard"],
       "metadata": {
         "description": "SKU used for the Static Web App. Always Standard: the Free SKU cannot host\nthe Microsoft Entra ID authentication configuration that\nstaticwebapp.config.json always includes, so Free is not a supported option.\n"
       }
@@ -79,10 +74,7 @@
     "cosmosMode": {
       "type": "string",
       "defaultValue": "serverless",
-      "allowedValues": [
-        "freeTier",
-        "serverless"
-      ],
+      "allowedValues": ["freeTier", "serverless"],
       "metadata": {
         "description": "Cosmos DB account mode. Select freeTier only after confirming the subscription allowance; serverless is the explicit low-cost alternative."
       }
@@ -178,9 +170,7 @@
           "id": "[variables('cosmosDatabaseName')]"
         }
       },
-      "dependsOn": [
-        "[resourceId('Microsoft.DocumentDB/databaseAccounts', variables('cosmosAccountName'))]"
-      ]
+      "dependsOn": ["[resourceId('Microsoft.DocumentDB/databaseAccounts', variables('cosmosAccountName'))]"]
     },
     {
       "condition": "[parameters('enableApi')]",
@@ -191,9 +181,7 @@
         "resource": {
           "id": "[variables('cosmosProductionContainerName')]",
           "partitionKey": {
-            "paths": [
-              "/datasetId"
-            ],
+            "paths": ["/datasetId"],
             "kind": "Hash"
           }
         },
@@ -212,9 +200,7 @@
         "resource": {
           "id": "[variables('cosmosTestContainerName')]",
           "partitionKey": {
-            "paths": [
-              "/datasetId"
-            ],
+            "paths": ["/datasetId"],
             "kind": "Hash"
           }
         },
@@ -233,9 +219,7 @@
         "resource": {
           "id": "[variables('cosmosDemoContainerName')]",
           "partitionKey": {
-            "paths": [
-              "/datasetId"
-            ],
+            "paths": ["/datasetId"],
             "kind": "Hash"
           }
         },
@@ -430,9 +414,7 @@
           "minTlsVersion": "1.2"
         }
       },
-      "dependsOn": [
-        "[resourceId('Microsoft.Web/serverfarms', variables('hostingPlanName'))]"
-      ]
+      "dependsOn": ["[resourceId('Microsoft.Web/serverfarms', variables('hostingPlanName'))]"]
     },
     {
       "condition": "[parameters('enableApi')]",
@@ -531,9 +513,7 @@
         "principalId": "[deployer().objectId]",
         "principalType": "ServicePrincipal"
       },
-      "dependsOn": [
-        "[resourceId('Microsoft.Storage/storageAccounts', variables('storageAccountName'))]"
-      ]
+      "dependsOn": ["[resourceId('Microsoft.Storage/storageAccounts', variables('storageAccountName'))]"]
     },
     {
       "condition": "[parameters('enableApi')]",
