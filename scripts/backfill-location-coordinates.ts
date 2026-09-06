@@ -1,5 +1,6 @@
 import { execFileSync } from 'node:child_process'
 import { readFile, writeFile } from 'node:fs/promises'
+import { pathToFileURL } from 'node:url'
 
 /**
  * One-time backfill for the static seed catalogue in `src/data/locations.json`.
@@ -88,4 +89,4 @@ async function main(): Promise<void> {
   console.log(`Backfilled coordinates for ${filled.length} seed locations.`)
 }
 
-if (process.argv[1] === new URL(import.meta.url).pathname) await main()
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) await main()

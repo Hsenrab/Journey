@@ -70,8 +70,6 @@ const activityLocationInput = z.looseObject({
   longitude: z.number().optional(),
 })
 
-const entityWithLocation = z.looseObject({ location: z.unknown() })
-
 function hasCoordinates(location: { latitude?: number; longitude?: number }): boolean {
   return typeof location.latitude === 'number' && typeof location.longitude === 'number'
 }
@@ -99,17 +97,15 @@ export async function resolveEntityCoordinates(
   credential: TokenCredential,
 ): Promise<Record<string, unknown>> {
   if (type !== 'waypoint' && type !== 'activity') return entity
-  const parsed = entityWithLocation.safeParse(entity)
-  if (!parsed.success || parsed.data.location === undefined || parsed.data.location === null) return entity
+  if (entity.location === undefined || entity.location === null) return entity
 
-  const schema = type === 'waypoint' ? placeInput : activityLocationInput
-  const location = schema.safeParse(parsed.data.location)
-  if (!location.success) return entity
-  if (hasCoordinates(location.data)) return entity
+  if (type === 'waypoint') {
+    const location = placeInput.parse(entity.location)
+    if (hasCoordinates(location)) return entity
+    return { ...entity, location: { ...location, ...(await geocode(waypointQuery(location), credential)) } }
+  }
 
-  const query =
-    type === 'waypoint'
-      ? waypointQuery(location.data as { placeName?: string; addressOrRegion?: string })
-      : activityQuery(location.data as { kind: string; postcode?: string })
-  return { ...entity, location: { ...location.data, ...(await geocode(query, credential)) } }
+  const location = activityLocationInput.parse(entity.location)
+  if (hasCoordinates(location)) return entity
+  return { ...entity, location: { ...location, ...(await geocode(activityQuery(location), credential)) } }
 }

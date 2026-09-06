@@ -18,12 +18,12 @@ describe('location catalogue', () => {
   })
 
   it('carries backfilled coordinates for every seed location', () => {
-    expect(
-      locations.filter(
-        (location) =>
-          location.latitude >= 49.8 && location.latitude <= 56 && location.longitude >= -6 && location.longitude <= 2,
-      ),
-    ).toHaveLength(138)
+    const outsideGreatBritain = locations.filter(
+      (location) =>
+        location.latitude < 49.8 || location.latitude > 56 || location.longitude < -6 || location.longitude > 2,
+    )
+
+    expect(outsideGreatBritain.map((location) => location.locationId)).toEqual([])
   })
 
   it('includes catalogue metadata needed by the UI', () => {

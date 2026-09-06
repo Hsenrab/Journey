@@ -78,8 +78,8 @@ Waypoints and Activities are geocoded at save time. The `/api/journey` write pat
 resolves a postcode-only or place-only location through Azure Maps Search with the
 Function managed identity before the entity is validated and written, so no Waypoint
 or Activity is persisted without coordinates. A location that Azure Maps cannot
-resolve fails the write with a 400 response; the record is never saved without
-coordinates.
+resolve fails the write with a 400 response, and an Azure Maps search failure fails
+the request outright; the record is never saved without coordinates.
 
 The static seed catalogue in `src/data/locations.json` is geocoded once, offline, by
 `scripts/backfill-location-coordinates.ts`, which writes the coordinates back into the

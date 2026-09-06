@@ -14,7 +14,7 @@ import {
   savedDocument,
 } from '../lib/cosmos.js'
 import { JourneyMutationSchema, type EntityType } from '../lib/journeySchema.js'
-import { GeocodeError, MapsSearchError, resolveEntityCoordinates } from '../lib/geocode.js'
+import { GeocodeError, resolveEntityCoordinates } from '../lib/geocode.js'
 import { DefaultAzureCredential } from '@azure/identity'
 import { referenceIntegrityError, upsertEntity } from '../lib/journeyGraph.js'
 import { ZodError } from 'zod'
@@ -61,8 +61,7 @@ async function geocodedEntity(type: EntityType, entity: Record<string, unknown>)
     return await resolveEntityCoordinates(type, entity, new DefaultAzureCredential())
   } catch (error) {
     if (error instanceof GeocodeError) throw new ResponseError(400, error.message)
-    if (error instanceof MapsSearchError)
-      throw new ResponseError(400, `Azure Maps search failed with status ${error.status}.`)
+    if (error instanceof ZodError) throw new ResponseError(400, error.issues[0]?.message ?? 'Invalid location.')
     throw error
   }
 }
