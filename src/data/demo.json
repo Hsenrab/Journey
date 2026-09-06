@@ -7,7 +7,9 @@
       "category": "House and garden",
       "tags": ["Fictional", "Gloucestershire-inspired", "National Trust-style", "Weekend"],
       "challengeIds": ["national-trust", "heritage-weekend"],
-      "completion": { "mode": "once" },
+      "completion": {
+        "mode": "once"
+      },
       "location": {
         "placeName": "Foxglove Manor (Demo)",
         "addressOrRegion": "Fictional Gloucestershire",
@@ -26,7 +28,9 @@
       "category": "Garden",
       "tags": ["Fictional", "Gloucestershire-inspired", "National Trust-style", "Garden"],
       "challengeIds": ["national-trust", "heritage-weekend"],
-      "completion": { "mode": "once" },
+      "completion": {
+        "mode": "once"
+      },
       "location": {
         "placeName": "Bramblewick Gardens (Demo)",
         "addressOrRegion": "Fictional Cotswolds",
@@ -45,7 +49,9 @@
       "category": "Mill",
       "tags": ["Fictional", "Gloucestershire-inspired", "National Trust-style", "Industrial heritage"],
       "challengeIds": ["national-trust", "heritage-weekend"],
-      "completion": { "mode": "once" },
+      "completion": {
+        "mode": "once"
+      },
       "location": {
         "placeName": "Cindercombe Mill (Demo)",
         "addressOrRegion": "Fictional Stroud Valleys",
@@ -64,7 +70,9 @@
       "category": "Archaeological site",
       "tags": ["Fictional", "Gloucestershire-inspired", "National Trust-style", "Views"],
       "challengeIds": ["national-trust", "heritage-weekend"],
-      "completion": { "mode": "once" },
+      "completion": {
+        "mode": "once"
+      },
       "location": {
         "placeName": "Lantern Hill Fort (Demo)",
         "addressOrRegion": "Fictional Cotswold Escarpment",
@@ -83,7 +91,9 @@
       "category": "Countryside",
       "tags": ["Fictional", "Gloucestershire-inspired", "Walking", "Evening"],
       "challengeIds": ["local-adventures"],
-      "completion": { "mode": "once" },
+      "completion": {
+        "mode": "once"
+      },
       "location": {
         "placeName": "Wychwood Night Walk (Demo)",
         "addressOrRegion": "Fictional Forest of Dean",
@@ -102,7 +112,9 @@
       "category": "Countryside",
       "tags": ["Fictional", "Gloucestershire-inspired", "Watersports", "Family"],
       "challengeIds": ["local-adventures", "family-days"],
-      "completion": { "mode": "once" },
+      "completion": {
+        "mode": "once"
+      },
       "location": {
         "placeName": "Puddlebrook Paddle Club (Demo)",
         "addressOrRegion": "Fictional Cotswold Water Park",
@@ -121,7 +133,9 @@
       "category": "Village",
       "tags": ["Fictional", "Gloucestershire-inspired", "Food", "Day trip"],
       "challengeIds": ["local-adventures", "food-and-craft"],
-      "completion": { "mode": "once" },
+      "completion": {
+        "mode": "once"
+      },
       "location": {
         "placeName": "Copper Kettle Trail (Demo)",
         "addressOrRegion": "Fictional Market Town",
@@ -140,7 +154,9 @@
       "category": "Industrial heritage",
       "tags": ["Fictional", "Gloucestershire-inspired", "Arts", "Workshop"],
       "challengeIds": ["food-and-craft"],
-      "completion": { "mode": "once" },
+      "completion": {
+        "mode": "once"
+      },
       "location": {
         "placeName": "Old Glasshouse Workshop (Demo)",
         "addressOrRegion": "Fictional Gloucester Docks",
@@ -212,9 +228,42 @@
       "ideaId": "demo-idea-railway-picnic",
       "title": "Steam railway picnic (Demo idea)",
       "description": "A fabricated idea saved for a later weekend.",
+      "notes": "Check the fictional timetable before booking.",
       "waypointIds": [],
-      "challengeIds": ["local-adventures"],
-      "location": { "addressOrRegion": "Fictional Gloucestershire", "source": "Fabricated demo data" }
+      "planningState": "someday",
+      "difficulty": 2,
+      "location": {
+        "addressOrRegion": "Fictional Gloucestershire",
+        "source": "Fabricated demo data"
+      },
+      "referenceIds": ["reference-demo-railway-picnic"],
+      "createdAt": "2026-06-01T09:00:00.000Z",
+      "updatedAt": "2026-06-01T09:00:00.000Z"
+    },
+    {
+      "ideaId": "demo-idea-orangery-tour",
+      "title": "Orangery and kitchen garden tour (Demo idea)",
+      "description": "A fabricated idea linked to two demo waypoints and already used by a demo activity.",
+      "notes": "",
+      "waypointIds": ["demo-foxglove-manor", "demo-bramblewick-gardens"],
+      "planningState": "active",
+      "difficulty": 1,
+      "referenceIds": [],
+      "createdAt": "2026-06-02T09:00:00.000Z",
+      "updatedAt": "2026-06-02T09:00:00.000Z"
+    },
+    {
+      "ideaId": "demo-idea-midnight-swim",
+      "title": "Midnight lake swim (Demo idea)",
+      "description": "A fabricated idea that was considered and rejected.",
+      "notes": "",
+      "waypointIds": ["demo-wychwood-night-walk"],
+      "planningState": "rejected",
+      "rejectionReason": "The fictional lake is closed after dusk.",
+      "difficulty": 4,
+      "referenceIds": [],
+      "createdAt": "2026-06-03T09:00:00.000Z",
+      "updatedAt": "2026-06-03T09:00:00.000Z"
     }
   ],
   "activities": [
@@ -222,9 +271,14 @@
       "activityId": "activity-demo-foxglove",
       "waypointId": "demo-foxglove-manor",
       "challengeId": "national-trust",
+      "ideaIds": ["demo-idea-orangery-tour"],
       "date": "2026-07-01",
       "category": "silver",
-      "location": { "kind": "coordinates", "latitude": 51.86, "longitude": -2.22 },
+      "location": {
+        "kind": "coordinates",
+        "latitude": 51.86,
+        "longitude": -2.22
+      },
       "notes": "Demo visit to the fictional manor and orangery.",
       "referenceIds": ["reference-demo-foxglove-manor"],
       "photoReferenceIds": [],
@@ -235,8 +289,13 @@
       "activityId": "activity-demo-wychwood",
       "waypointId": "demo-wychwood-night-walk",
       "challengeId": "local-adventures",
+      "ideaIds": ["demo-idea-orangery-tour", "demo-idea-midnight-swim"],
       "date": "2026-07-08",
-      "location": { "kind": "coordinates", "latitude": 51.82, "longitude": -2.52 },
+      "location": {
+        "kind": "coordinates",
+        "latitude": 51.82,
+        "longitude": -2.52
+      },
       "notes": "Demo evening walk; this challenge intentionally has no Bronze, Silver or Gold category.",
       "referenceIds": ["reference-demo-wychwood-night-walk"],
       "photoReferenceIds": [],
@@ -247,8 +306,13 @@
       "activityId": "activity-demo-glasshouse",
       "waypointId": "demo-glasshouse-workshop",
       "challengeId": "food-and-craft",
+      "ideaIds": [],
       "date": "2026-07-16",
-      "location": { "kind": "coordinates", "latitude": 51.86, "longitude": -2.25 },
+      "location": {
+        "kind": "coordinates",
+        "latitude": 51.86,
+        "longitude": -2.25
+      },
       "notes": "Demo stained-glass workshop with no medal category.",
       "referenceIds": ["reference-demo-glasshouse-workshop"],
       "photoReferenceIds": [],
@@ -304,6 +368,12 @@
       "title": "Old Glasshouse Workshop demo listing",
       "description": "Fabricated reference for demonstration only.",
       "url": "https://example.com/demo/glasshouse-workshop"
+    },
+    {
+      "referenceId": "reference-demo-railway-picnic",
+      "title": "Steam railway demo listing",
+      "description": "Fabricated reference for demonstration only.",
+      "url": "https://example.com/demo/steam-railway"
     }
   ],
   "photoReferences": []

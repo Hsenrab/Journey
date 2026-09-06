@@ -3,7 +3,7 @@ import { assertOwnerPrincipal, parseClientPrincipalHeader, PrincipalValidationEr
 import {
   createDocument,
   datasetIdFor,
-  deleteDocument,
+  deleteEntity,
   documentFor,
   documentsFor,
   emptyJourneyData,
@@ -13,7 +13,9 @@ import {
   replaceDataset,
   savedDocument,
 } from '../lib/cosmos.js'
-import { JourneyMutationSchema } from '../lib/journeySchema.js'
+import { JourneyMutationSchema, type EntityType } from '../lib/journeySchema.js'
+import { referenceIntegrityError, upsertEntity } from '../lib/journeyGraph.js'
+import { ZodError } from 'zod'
 
 type ContainerName = 'production' | 'demo'
 
@@ -41,6 +43,15 @@ class ResponseError extends Error {
   }
 }
 
+function entityDocument(datasetId: string, type: EntityType, entity: Record<string, unknown>) {
+  try {
+    return documentFor(datasetId, type, entity)
+  } catch (error) {
+    if (error instanceof ZodError) throw new ResponseError(400, error.issues[0]?.message ?? 'Invalid entity.')
+    throw error
+  }
+}
+
 export async function journey(request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> {
   try {
     auth(request)
@@ -63,31 +74,34 @@ export async function journey(request: HttpRequest, context: InvocationContext):
       return { status: 200, jsonBody: { data: emptyJourneyData(), etags: {} } }
     }
     if (parsed.data.operation === 'import') {
+      const invalid = referenceIntegrityError(parsed.data.data)
+      if (invalid) return { status: 400, jsonBody: { error: invalid } }
       const loaded = await loadDataset(cosmos, datasetId)
       if (Object.keys(loaded.etags).length > 0) throw new ResponseError(409, 'production_not_empty')
       await replaceDataset(cosmos, datasetId, documentsFor(datasetId, parsed.data.data), {})
       return { status: 200, jsonBody: await loadDataset(cosmos, datasetId) }
     }
     if (parsed.data.operation === 'replace') {
+      const invalid = referenceIntegrityError(parsed.data.data)
+      if (invalid) return { status: 400, jsonBody: { error: invalid } }
       await replaceDataset(cosmos, datasetId, documentsFor(datasetId, parsed.data.data), parsed.data.etags)
       return { status: 200, jsonBody: await loadDataset(cosmos, datasetId) }
     }
-    if (parsed.data.operation === 'create') {
-      if (request.method !== 'POST') throw new ResponseError(405, 'method_not_allowed')
-      const response = await createDocument(cosmos, documentFor(datasetId, parsed.data.type, parsed.data.entity))
-      return { status: 201, jsonBody: savedDocument(response) }
-    }
-    if (parsed.data.operation === 'update') {
-      if (request.method !== 'PUT') throw new ResponseError(405, 'method_not_allowed')
-      const response = await replaceDocument(
-        cosmos,
-        documentFor(datasetId, parsed.data.type, parsed.data.entity),
-        parsed.data.ifMatch,
-      )
-      return { status: 200, jsonBody: savedDocument(response) }
+    if (parsed.data.operation === 'create' || parsed.data.operation === 'update') {
+      const method = parsed.data.operation === 'create' ? 'POST' : 'PUT'
+      if (request.method !== method) throw new ResponseError(405, 'method_not_allowed')
+      const document = entityDocument(datasetId, parsed.data.type, parsed.data.entity)
+      const loaded = await loadDataset(cosmos, datasetId)
+      const invalid = referenceIntegrityError(upsertEntity(loaded.data, document.type, document.entity))
+      if (invalid) return { status: 400, jsonBody: { error: invalid } }
+      if (parsed.data.operation === 'create') {
+        return { status: 201, jsonBody: savedDocument(await createDocument(cosmos, document)) }
+      }
+      return { status: 200, jsonBody: savedDocument(await replaceDocument(cosmos, document, parsed.data.ifMatch)) }
     }
     if (request.method !== 'DELETE') throw new ResponseError(405, 'method_not_allowed')
-    await deleteDocument(cosmos, parsed.data.id, datasetId, parsed.data.ifMatch)
+    const loaded = await loadDataset(cosmos, datasetId)
+    await deleteEntity(cosmos, datasetId, parsed.data.type, parsed.data.id, parsed.data.ifMatch, loaded)
     return { status: 204 }
   } catch (error) {
     if (error instanceof ResponseError) return { status: error.status, jsonBody: { error: error.code } }

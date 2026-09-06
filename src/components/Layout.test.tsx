@@ -33,6 +33,7 @@ describe('Layout', () => {
   function activity(category: 'bronze' | 'silver' | 'gold' = 'silver'): Activity {
     return {
       activityId: `layout-${category}`,
+      ideaIds: [],
       waypointId: 'dyrham-park',
       challengeId: 'national-trust',
       category,

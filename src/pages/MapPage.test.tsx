@@ -280,6 +280,7 @@ describe('MapPage', () => {
     waypoint.location = { ...waypoint.location, latitude: 51.84, longitude: -2.15 }
     data.activities.push({
       activityId: 'activity',
+      ideaIds: [],
       waypointId: waypoint.waypointId,
       date: '2026-08-10',
       category: 'bronze',
@@ -292,6 +293,7 @@ describe('MapPage', () => {
     })
     data.activities.push({
       activityId: 'postcode-activity',
+      ideaIds: [],
       waypointId: 'missing-waypoint',
       date: '2026-08-10',
       category: undefined,
@@ -411,6 +413,7 @@ describe('MapPage', () => {
     const data = createDefaultData()
     const activity = {
       activityId: 'linked',
+      ideaIds: [],
       waypointId: data.waypoints[0]!.waypointId,
       date: '2026-08-10',
       category: 'bronze' as const,

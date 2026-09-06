@@ -80,14 +80,46 @@ export const ChallengeSchema = z.object({
   location: WaypointLocationSchema.optional(),
 })
 
-export const IdeaSchema = z.object({
-  ideaId: z.string().min(1),
-  title: z.string().min(1),
-  description: z.string().min(1),
-  waypointIds: z.array(z.string().min(1)),
-  challengeIds: z.array(z.string().min(1)),
-  location: WaypointLocationSchema.optional(),
-})
+export const planningStates = ['active', 'someday', 'rejected'] as const
+export const PlanningStateSchema = z.enum(planningStates)
+export type PlanningState = z.infer<typeof PlanningStateSchema>
+
+export const difficulties = [1, 2, 3, 4] as const
+export const DifficultySchema = z.union([z.literal(1), z.literal(2), z.literal(3), z.literal(4)])
+export type Difficulty = z.infer<typeof DifficultySchema>
+
+const distinctIds = (message: string) =>
+  z.array(z.string().min(1)).refine((ids) => new Set(ids).size === ids.length, message)
+
+export const IdeaSchema = z
+  .object({
+    ideaId: z.string().min(1),
+    title: z.string().trim().min(1, 'Idea title is required'),
+    description: z.string(),
+    notes: z.string(),
+    waypointIds: distinctIds('Idea waypoint links must be distinct'),
+    planningState: PlanningStateSchema,
+    rejectionReason: z.string().trim().min(1).optional(),
+    difficulty: DifficultySchema,
+    location: WaypointLocationSchema.optional(),
+    referenceIds: distinctIds('Idea reference links must be distinct'),
+    createdAt: z.iso.datetime(),
+    updatedAt: z.iso.datetime(),
+  })
+  .superRefine((idea, context) => {
+    if (idea.planningState === 'rejected' && idea.rejectionReason === undefined)
+      context.addIssue({
+        code: 'custom',
+        path: ['rejectionReason'],
+        message: 'A rejected idea requires a rejection reason',
+      })
+    if (idea.planningState !== 'rejected' && idea.rejectionReason !== undefined)
+      context.addIssue({
+        code: 'custom',
+        path: ['rejectionReason'],
+        message: 'Only a rejected idea can have a rejection reason',
+      })
+  })
 
 const httpsUrl = z.url('Please enter a valid URL').startsWith('https://', 'URL must use https://')
 
@@ -110,7 +142,7 @@ export const ActivitySchema = z.object({
   activityId: z.string().min(1),
   waypointId: z.string().min(1).optional(),
   challengeId: z.string().min(1).optional(),
-  ideaId: z.string().min(1).optional(),
+  ideaIds: distinctIds('Activity idea links must be distinct'),
   date: isoDate,
   category: AwardedStatusSchema.optional(),
   location: ActivityLocationSchema,
@@ -204,7 +236,7 @@ export function createActivity(input: {
   activityId?: string
   waypointId?: string
   challengeId?: string
-  ideaId?: string
+  ideaIds?: string[]
   date: string
   category?: AwardedStatus
   location: z.input<typeof ActivityLocationSchema>
@@ -219,7 +251,7 @@ export function createActivity(input: {
     activityId: input.activityId ?? crypto.randomUUID(),
     waypointId: input.waypointId,
     challengeId: input.challengeId,
-    ideaId: input.ideaId,
+    ideaIds: input.ideaIds ?? [],
     date: input.date,
     category: input.category,
     location: input.location,
@@ -235,6 +267,24 @@ export function activitiesForWaypoint(activities: readonly Activity[], waypointI
   return activities
     .filter((activity) => activity.waypointId === waypointId)
     .sort((a, b) => b.date.localeCompare(a.date) || b.updatedAt.localeCompare(a.updatedAt))
+}
+
+export function ideasForWaypoint(ideas: readonly Idea[], waypointId: string): Idea[] {
+  return ideas.filter((idea) => idea.waypointIds.includes(waypointId))
+}
+
+export function ideasForActivity(ideas: readonly Idea[], activity: Activity): Idea[] {
+  return activity.ideaIds.flatMap((ideaId) => ideas.filter((idea) => idea.ideaId === ideaId))
+}
+
+export function activitiesUsingIdea(activities: readonly Activity[], ideaId: string): Activity[] {
+  return activities
+    .filter((activity) => activity.ideaIds.includes(ideaId))
+    .sort((a, b) => b.date.localeCompare(a.date) || b.updatedAt.localeCompare(a.updatedAt))
+}
+
+export function ideaUsageCount(activities: readonly Activity[], ideaId: string): number {
+  return activitiesUsingIdea(activities, ideaId).length
 }
 
 export function statusForWaypoint(activities: readonly Activity[], waypointId: string): Status {

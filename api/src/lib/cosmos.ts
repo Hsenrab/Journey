@@ -1,9 +1,11 @@
 import { CosmosClient, type Container, type Database, type ItemResponse } from '@azure/cosmos'
 import { DefaultAzureCredential } from '@azure/identity'
 import { readFile } from 'node:fs/promises'
+import { deletionPlan, entityKey, entityTypeFor } from './journeyGraph.js'
 import {
   JourneyDataSchema,
   JourneyDocumentSchema,
+  schemaVersions,
   type EntityType,
   type JourneyData,
   type JourneyDocument,
@@ -26,10 +28,6 @@ export function journeyContainer(name: 'production' | 'demo' = 'production'): Co
 
 export function datasetIdFor(name: 'production' | 'demo'): string {
   return required(`COSMOS_${name.toUpperCase()}_DATASET_ID`)
-}
-
-function entityKey(type: EntityType): keyof JourneyData {
-  return type === 'photoReference' ? 'photoReferences' : (`${type}s` as keyof JourneyData)
 }
 
 export function documentsToData(documents: JourneyDocument[]): JourneyData {
@@ -80,7 +78,13 @@ export function documentFor(datasetId: string, type: EntityType, entity: Record<
   const idKey = type === 'photoReference' ? 'photoReferenceId' : `${type}Id`
   const id = entity[idKey]
   if (typeof id !== 'string' || !id) throw new Error(`Entity "${type}" is missing its identifier.`)
-  return JourneyDocumentSchema.parse({ id, datasetId, type, schemaVersion: 1, entity }) as JourneyDocument
+  return JourneyDocumentSchema.parse({
+    id,
+    datasetId,
+    type,
+    schemaVersion: schemaVersions[type],
+    entity,
+  }) as JourneyDocument
 }
 
 export function emptyJourneyData(): JourneyData {
@@ -90,13 +94,25 @@ export function emptyJourneyData(): JourneyData {
 export function documentsFor(datasetId: string, data: JourneyData): Record<string, JourneyDocument> {
   const documents: Record<string, JourneyDocument> = {}
   for (const [key, entities] of Object.entries(data)) {
-    const type = key === 'photoReferences' ? 'photoReference' : key.slice(0, -1)
+    const type = entityTypeFor(key as keyof JourneyData)
     for (const entity of entities) {
-      const document = documentFor(datasetId, type as EntityType, entity)
+      const document = documentFor(datasetId, type, entity)
       documents[document.id] = document
     }
   }
   return documents
+}
+
+async function runBatch(container: Container, datasetId: string, operations: unknown[]) {
+  if (operations.length > 100) throw new Error('Journey dataset exceeds the Cosmos transactional batch limit.')
+  if (operations.length === 0) return
+  const response = await container.items.batch(operations as never, datasetId)
+  if (response.code !== 200) {
+    const failed = response.result?.find((result) => result.statusCode >= 400)
+    throw Object.assign(new Error('Cosmos transactional batch failed.'), {
+      code: failed?.statusCode ?? response.code,
+    })
+  }
 }
 
 export async function replaceDataset(
@@ -105,7 +121,7 @@ export async function replaceDataset(
   documents: Record<string, JourneyDocument>,
   etags: Record<string, string>,
 ) {
-  const operations = [
+  await runBatch(container, datasetId, [
     ...Object.entries(documents).map(([id, document]) =>
       etags[id]
         ? { operationType: 'Replace' as const, id, resourceBody: document, ifMatch: etags[id] }
@@ -114,17 +130,34 @@ export async function replaceDataset(
     ...Object.entries(etags)
       .filter(([id]) => !documents[id])
       .map(([id, ifMatch]) => ({ operationType: 'Delete' as const, id, ifMatch })),
-  ]
-  if (operations.length > 100) throw new Error('Journey dataset exceeds the Cosmos transactional batch limit.')
-  if (operations.length) {
-    const response = await container.items.batch(operations as never, datasetId)
-    if (response.code !== 200) {
-      const failed = response.result?.find((result) => result.statusCode >= 400)
-      throw Object.assign(new Error('Cosmos transactional batch failed.'), {
-        code: failed?.statusCode ?? response.code,
-      })
-    }
-  }
+  ])
+}
+
+export async function deleteEntity(
+  container: Container,
+  datasetId: string,
+  type: EntityType,
+  id: string,
+  ifMatch: string,
+  loaded: { data: JourneyData; etags: Record<string, string> },
+) {
+  const plan = deletionPlan(loaded.data, type, id)
+  await runBatch(container, datasetId, [
+    ...plan.deletes.map((deletedId) => ({
+      operationType: 'Delete' as const,
+      id: deletedId,
+      ifMatch: deletedId === id ? ifMatch : loaded.etags[deletedId],
+    })),
+    ...plan.updates.map((update) => {
+      const document = documentFor(datasetId, update.type, update.entity)
+      return {
+        operationType: 'Replace' as const,
+        id: document.id,
+        resourceBody: document,
+        ifMatch: loaded.etags[document.id],
+      }
+    }),
+  ])
 }
 
 export async function seedDemoDataset(container: Container, datasetId: string): Promise<void> {
@@ -141,10 +174,6 @@ export async function replaceDocument(container: Container, document: JourneyDoc
   return container
     .item(document.id, document.datasetId)
     .replace(document, { accessCondition: { type: 'IfMatch', condition: ifMatch } })
-}
-
-export async function deleteDocument(container: Container, id: string, datasetId: string, ifMatch: string) {
-  return container.item(id, datasetId).delete({ accessCondition: { type: 'IfMatch', condition: ifMatch } })
 }
 
 export function savedDocument(response: ItemResponse<JourneyDocument>) {

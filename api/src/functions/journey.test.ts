@@ -3,37 +3,82 @@ import type { InvocationContext } from '@azure/functions'
 
 const loadDataset = vi.fn()
 const journeyContainer = vi.fn()
+const createDocument = vi.fn()
+const deleteEntity = vi.fn()
 
-vi.mock('../lib/cosmos.js', () => ({
-  datasetIdFor: (container: string) => container,
-  journeyContainer,
-  loadDataset,
-  createDocument: vi.fn(),
-  deleteDocument: vi.fn(),
-  documentFor: vi.fn(),
-  documentsFor: vi.fn(),
-  emptyJourneyData: vi.fn(),
-  replaceDocument: vi.fn(),
-  replaceDataset: vi.fn(),
-  savedDocument: vi.fn(),
-}))
+vi.mock('../lib/cosmos.js', async () => {
+  const actual = await vi.importActual<typeof import('../lib/cosmos.js')>('../lib/cosmos.js')
+  return {
+    datasetIdFor: (container: string) => container,
+    journeyContainer,
+    loadDataset,
+    createDocument,
+    deleteEntity,
+    documentFor: actual.documentFor,
+    documentsFor: vi.fn(),
+    emptyJourneyData: vi.fn(),
+    replaceDocument: vi.fn(),
+    replaceDataset: vi.fn(),
+    savedDocument: vi.fn(),
+  }
+})
 
 const principal = Buffer.from(
   JSON.stringify({ identityProvider: 'aad', userId: 'owner', userDetails: 'owner@example.com', userRoles: ['owner'] }),
 ).toString('base64')
 
-function request(container: string) {
+function request(container: string, method = 'GET', body?: unknown) {
   return {
-    method: 'GET',
+    method,
     params: { container },
+    json: async () => body,
     headers: { get: (name: string) => (name === 'x-ms-client-principal' ? principal : null) },
   } as never
+}
+
+const context = () => ({ error: vi.fn() }) as never
+
+const emptyData = {
+  waypoints: [],
+  challenges: [],
+  ideas: [],
+  activities: [],
+  references: [],
+  photoReferences: [],
+}
+
+const activity = {
+  activityId: 'activity-1',
+  ideaIds: ['idea-1'],
+  date: '2026-08-02',
+  location: { kind: 'postcode', postcode: 'GL3 4AQ' },
+  notes: '',
+  referenceIds: [],
+  photoReferenceIds: [],
+  createdAt: '2026-08-02T00:00:00.000Z',
+  updatedAt: '2026-08-02T00:00:00.000Z',
+}
+
+const idea = {
+  ideaId: 'idea-1',
+  title: 'Orangery tour',
+  description: '',
+  notes: '',
+  waypointIds: [],
+  planningState: 'active',
+  difficulty: 2,
+  referenceIds: [],
+  createdAt: '2026-08-01T00:00:00.000Z',
+  updatedAt: '2026-08-01T00:00:00.000Z',
 }
 
 describe('journey', () => {
   beforeEach(() => {
     loadDataset.mockReset()
     journeyContainer.mockReset()
+    createDocument.mockReset()
+    deleteEntity.mockReset()
+    journeyContainer.mockReturnValue({})
   })
 
   it('uses the route container for a production read', async () => {
@@ -58,5 +103,52 @@ describe('journey', () => {
     await expect(journey(request('unknown'), { error: vi.fn() } as unknown as InvocationContext)).rejects.toThrow(
       'Unsupported Journey container "unknown".',
     )
+  })
+
+  it('rejects a create that references an unknown idea', async () => {
+    loadDataset.mockResolvedValue({ data: emptyData, etags: {} })
+    const { journey } = await import('./journey.js')
+
+    expect(
+      await journey(
+        request('production', 'POST', { operation: 'create', type: 'activity', entity: activity }),
+        context(),
+      ),
+    ).toEqual({ status: 400, jsonBody: { error: 'Activity "activity-1" references unknown idea "idea-1".' } })
+    expect(createDocument).not.toHaveBeenCalled()
+  })
+
+  it('rejects an entity that fails complete validation', async () => {
+    loadDataset.mockResolvedValue({ data: emptyData, etags: {} })
+    const { journey } = await import('./journey.js')
+
+    expect(
+      await journey(
+        request('production', 'POST', {
+          operation: 'create',
+          type: 'idea',
+          entity: { ...idea, planningState: 'rejected' },
+        }),
+        context(),
+      ),
+    ).toMatchObject({ status: 400, jsonBody: { error: 'A rejected idea requires a rejection reason' } })
+  })
+
+  it('deletes an idea transactionally and returns ETag conflicts explicitly', async () => {
+    const loaded = { data: { ...emptyData, ideas: [idea], activities: [activity] }, etags: { 'idea-1': 'etag' } }
+    loadDataset.mockResolvedValue(loaded)
+    const { journey } = await import('./journey.js')
+    const deleteRequest = request('production', 'DELETE', {
+      operation: 'delete',
+      type: 'idea',
+      id: 'idea-1',
+      ifMatch: 'etag',
+    })
+
+    expect(await journey(deleteRequest, context())).toEqual({ status: 204 })
+    expect(deleteEntity).toHaveBeenCalledWith({}, 'production', 'idea', 'idea-1', 'etag', loaded)
+
+    deleteEntity.mockRejectedValueOnce(Object.assign(new Error('conflict'), { code: 412 }))
+    expect(await journey(deleteRequest, context())).toEqual({ status: 409, jsonBody: { error: 'conflict' } })
   })
 })

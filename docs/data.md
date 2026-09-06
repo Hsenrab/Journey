@@ -13,6 +13,12 @@ Cosmos stores one document per entity. Every document contains `id`, `datasetId`
 validated `WaypointsData` response. Cosmos ETags are kept in application memory and
 are not included in JSON exports.
 
+Each document type declares its own schema version (`idea` and `activity` are version
+2; the other types are version 1). A document whose version or entity shape does not
+match the current schema fails validation with its specific error. There is no
+migration, compatibility parser, or fallback for obsolete documents; production data
+may be deleted and recreated instead.
+
 The deployment workflow seeds the initial demo partition from `src/data/demo.json`.
 The runtime Function has read-only access to that container. Every place, activity,
 idea and reference in that fixture is fabricated and visibly labelled as demo content.
@@ -35,11 +41,23 @@ The persisted root object is:
 }
 ```
 
+`ideas` records include:
+
+- stable IDs and API-owned timestamps (`ideaId`, `createdAt`, `updatedAt`)
+- `title`, and possibly empty `description` and `notes`
+- `waypointIds` (zero, one, or many distinct Waypoint IDs)
+- `planningState` (`active` | `someday` | `rejected`) with `rejectionReason` present
+  only when rejected
+- `difficulty` (`1` | `2` | `3` | `4`)
+- optional `location`
+- `referenceIds`; Ideas never hold photo references
+
 `activities` records include:
 
 - stable IDs and timestamps (`activityId`, `createdAt`, `updatedAt`)
 - `date` (`YYYY-MM-DD`)
 - optional `waypointId`
+- `ideaIds` (zero, one, or many distinct Idea IDs, independent of `waypointId`)
 - optional `category` (`bronze` | `silver` | `gold`)
 - structured location:
   - `{ "kind": "postcode", "postcode": "..." }`, or
@@ -81,9 +99,29 @@ Validation is shared in `src/domain/visit.ts` and enforced by storage import/loa
   is empty; demo and test records can never appear in a production export.
 - **Clear data** is a protected production mutation. Demo is deterministic and read-only.
 
-An update or delete requires its entity ETag. Cosmos `412 Precondition Failed` is
-returned as an explicit `409 Conflict`; the UI must preserve unsaved values and offer
-Reload latest or Cancel rather than retrying or overwriting another tab.
+## API validation and transactional deletion
+
+The Function validates the complete entity for its type and every referenced ID before
+writing. Missing, duplicate, or unknown referenced IDs are rejected with an explicit
+`400`; invalid IDs are never silently removed during ordinary create or update requests.
+
+Each operation that changes several documents runs as a single Cosmos transactional
+batch in the dataset's `/datasetId` logical partition:
+
+- **Delete a Waypoint** — delete the Waypoint, remove its ID from every Idea
+  `waypointIds` array, and clear `waypointId` on Activities recorded under it. All
+  Ideas, Activities, references, and photos are preserved.
+- **Delete an Idea** — delete the Idea and remove its ID from every Activity `ideaIds`
+  array. Activities are preserved; only Reference documents that become unreferenced by
+  every remaining entity are deleted.
+- **Delete an Activity** — delete the Activity and preserve all Ideas. Derived Idea
+  usage follows from the remaining Activities. Only Reference and PhotoReference
+  documents that become unreferenced by every remaining entity are deleted.
+
+An update or delete requires its entity ETag, and every batch operation carries the
+ETag of the document it touches. Cosmos `412 Precondition Failed` is returned as an
+explicit `409 Conflict`; the UI must preserve unsaved values and offer Reload latest or
+Cancel rather than retrying or overwriting another tab.
 
 Production begins empty. Existing browser-local records are not migrated. The test
 container is used only with unique run partitions such as `ci-<run-id>` and every
