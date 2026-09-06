@@ -11,6 +11,7 @@ import {
   CardContent,
   Checkbox,
   Chip,
+  CircularProgress,
   FormControlLabel,
   Stack,
   ToggleButton,
@@ -32,17 +33,37 @@ import { useWaypoints } from '../features/journey/JourneyContext'
 
 const brockworth = { latitude: 51.844, longitude: -2.153 }
 type MapMode = 'waypoints' | 'activities'
-const markerColors = { notStarted: '#455a64', complete: '#2e7d32', activity: '#00838f', selected: '#111827' }
-const markerIcon = (border: string, symbol: string, selected = false) =>
-  `data:image/svg+xml,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="44" height="52" viewBox="0 0 24 28"><path d="M12 1.5C7.3 1.5 3.5 5.3 3.5 10c0 6.2 8.5 15.2 8.5 15.2S20.5 16.2 20.5 10C20.5 5.3 16.7 1.5 12 1.5Z" fill="#fff" stroke="${selected ? markerColors.selected : '#263238'}" stroke-width="${selected ? 2.5 : 1.2}"/><circle cx="12" cy="10" r="6.2" fill="#fff" stroke="${border}" stroke-width="2.4"/>${symbol}</svg>`)}`
+const markerColors = { notStarted: '#455a64', complete: '#2e7d32', activity: '#007c83' }
+const markerIcon = (color: string, symbol: string, selected = false) =>
+  `data:image/svg+xml,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="${selected ? 54 : 48}" height="${selected ? 64 : 58}" viewBox="0 0 28 34">${selected ? '<path d="M14 3C8.5 3 4 7.5 4 13c0 7.2 10 17.7 10 17.7S24 20.2 24 13C24 7.5 19.5 3 14 3Z" fill="none" stroke="#fff" stroke-width="5" stroke-linejoin="round" opacity=".96"/>' : ''}<path d="M14 3C8.5 3 4 7.5 4 13c0 7.2 10 17.7 10 17.7S24 20.2 24 13C24 7.5 19.5 3 14 3Z" fill="${color}" stroke="#263238" stroke-width="1.4" stroke-linejoin="round"/><circle cx="14" cy="13" r="6.8" fill="#fff"/>${symbol}</svg>`)}`
 const markerIcons = {
-  'waypoint-not-started': markerIcon(markerColors.notStarted, '<circle cx="12" cy="10" r="2" fill="#455a64"/>'),
+  'waypoint-not-started': markerIcon(
+    markerColors.notStarted,
+    `<circle cx="14" cy="13" r="2.4" fill="${markerColors.notStarted}"/>`,
+  ),
+  'waypoint-not-started-selected': markerIcon(
+    markerColors.notStarted,
+    `<circle cx="14" cy="13" r="2.4" fill="${markerColors.notStarted}"/>`,
+    true,
+  ),
   'waypoint-complete': markerIcon(
     markerColors.complete,
-    '<path d="m8.5 10 2.2 2.2 4.8-5" fill="none" stroke="#2e7d32" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>',
+    `<path d="m10.2 13 2.5 2.5 5.3-5.7" fill="none" stroke="${markerColors.complete}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>`,
   ),
-  activity: markerIcon(markerColors.activity, '<circle cx="12" cy="10" r="2.6" fill="#00838f"/>'),
-  selected: markerIcon(markerColors.selected, '<circle cx="12" cy="10" r="2" fill="#111827"/>', true),
+  'waypoint-complete-selected': markerIcon(
+    markerColors.complete,
+    `<path d="m10.2 13 2.5 2.5 5.3-5.7" fill="none" stroke="${markerColors.complete}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>`,
+    true,
+  ),
+  activity: markerIcon(
+    markerColors.activity,
+    `<path d="M14 9.6 17.4 13 14 16.4 10.6 13Z" fill="${markerColors.activity}"/>`,
+  ),
+  'activity-selected': markerIcon(
+    markerColors.activity,
+    `<path d="M14 9.6 17.4 13 14 16.4 10.6 13Z" fill="${markerColors.activity}"/>`,
+    true,
+  ),
 }
 
 type MapsToken = { token: string; expiresOn: string; clientId: string }
@@ -50,6 +71,47 @@ type SearchResult = {
   position?: { lat: number; lon: number }
   address?: { freeformAddress?: string }
   type?: string
+}
+
+type PopupContent = {
+  eyebrow: string
+  title: string
+  metadata: string[]
+  summary: string
+  href: string
+}
+
+function buildPopupContent({ eyebrow, title, metadata, summary, href }: PopupContent) {
+  const content = document.createElement('article')
+  content.className = 'journey-map-popup'
+
+  const eyebrowElement = document.createElement('p')
+  eyebrowElement.className = 'journey-map-popup__eyebrow'
+  eyebrowElement.textContent = eyebrow
+
+  const titleElement = document.createElement('h2')
+  titleElement.className = 'journey-map-popup__title'
+  titleElement.textContent = title
+
+  const metadataElement = document.createElement('div')
+  metadataElement.className = 'journey-map-popup__metadata'
+  for (const item of metadata) {
+    const value = document.createElement('span')
+    value.textContent = item
+    metadataElement.append(value)
+  }
+
+  const summaryElement = document.createElement('p')
+  summaryElement.className = 'journey-map-popup__summary'
+  summaryElement.textContent = summary
+
+  const link = document.createElement('a')
+  link.className = 'journey-map-popup__action'
+  link.href = href
+  link.textContent = 'View details'
+
+  content.append(eyebrowElement, titleElement, metadataElement, summaryElement, link)
+  return content
 }
 
 async function requestApi(path: string, operation: string): Promise<Response> {
@@ -80,6 +142,7 @@ export default function MapPage() {
   const { data, statusFor } = useWaypoints()
   const container = useRef<HTMLDivElement>(null)
   const map = useRef<atlas.Map | null>(null)
+  const mapPopup = useRef<atlas.Popup | null>(null)
   const waypointSource = useRef<atlas.source.DataSource | null>(null)
   const activitySource = useRef<atlas.source.DataSource | null>(null)
   const [mode, setMode] = useState<MapMode>('waypoints')
@@ -120,52 +183,81 @@ export default function MapPage() {
     })
     instance.events.add('ready', () => {
       for (const [id, icon] of Object.entries(markerIcons)) void instance.imageSprite.add(id, icon)
-      const popup = new atlas.Popup()
+      const popup = new atlas.Popup({ pixelOffset: [0, -20] })
+      instance.events.add('close', popup, () => {
+        setSelectedWaypointId(null)
+        setSelectedActivityId(null)
+      })
+      mapPopup.current = popup
       const waypoints = new atlas.source.DataSource('waypoints', { cluster: true, clusterRadius: 45 })
       const activities = new atlas.source.DataSource('activities', { cluster: true, clusterRadius: 45 })
       instance.sources.add([waypoints, activities])
       const waypointLayer = new atlas.layer.SymbolLayer(waypoints, 'waypoints', {
         filter: ['!', ['has', 'point_count']],
         iconOptions: { image: ['get', 'icon'], allowOverlap: true, size: 1 },
-        textOptions: { textField: ['get', 'label'], offset: [0, 1.2], allowOverlap: false, minZoom: 11 },
+        textOptions: {
+          textField: ['get', 'label'],
+          offset: [0, 1.35],
+          allowOverlap: false,
+          minZoom: 11,
+          color: '#263238',
+          haloColor: '#fff',
+          haloWidth: 2,
+        },
       })
       const waypointClusterLayer = new atlas.layer.SymbolLayer(waypoints, 'waypoint-cluster-labels', {
         filter: ['has', 'point_count'],
         textOptions: { textField: ['get', 'point_count_abbreviated'], color: '#fff', size: 14 },
-        iconOptions: { image: 'marker-blue', color: '#263238', size: 0.9 },
       })
       const activityLayer = new atlas.layer.SymbolLayer(activities, 'activities', {
         filter: ['!', ['has', 'point_count']],
         iconOptions: { image: ['get', 'icon'], allowOverlap: true, size: 1 },
-        textOptions: { textField: ['get', 'label'], offset: [0, 1.2], allowOverlap: false, minZoom: 11 },
+        textOptions: {
+          textField: ['get', 'label'],
+          offset: [0, 1.35],
+          allowOverlap: false,
+          minZoom: 11,
+          color: '#263238',
+          haloColor: '#fff',
+          haloWidth: 2,
+        },
       })
       const activityClusterLayer = new atlas.layer.SymbolLayer(activities, 'activity-cluster-labels', {
         filter: ['has', 'point_count'],
         textOptions: { textField: ['get', 'point_count_abbreviated'], color: '#fff', size: 14 },
-        iconOptions: { image: 'marker-blue', color: markerColors.activity, size: 0.9 },
       })
       instance.layers.add([
         new atlas.layer.BubbleLayer(waypoints, 'waypoint-clusters', {
           filter: ['has', 'point_count'],
-          radius: 18,
-          color: '#263238',
+          radius: 20,
+          color: markerColors.notStarted,
+          strokeColor: '#fff',
+          strokeWidth: 2,
+        }),
+        new atlas.layer.BubbleLayer(activities, 'activity-clusters', {
+          filter: ['has', 'point_count'],
+          radius: 20,
+          color: markerColors.activity,
+          strokeColor: '#fff',
+          strokeWidth: 2,
         }),
         waypointLayer,
         waypointClusterLayer,
         activityLayer,
         activityClusterLayer,
       ])
-      const zoomIntoCluster = (event: atlas.MapMouseEvent) => {
+      const zoomIntoCluster = (source: atlas.source.DataSource) => (event: atlas.MapMouseEvent) => {
         const shape = event.shapes?.[0]
-        if (!shape || !('getCoordinates' in shape)) return
-        const camera = instance.getCamera()
-        instance.setCamera({
-          center: shape.getCoordinates(),
-          zoom: Math.min((camera.zoom ?? 8) + 2, 18),
+        if (!shape || !('getCoordinates' in shape) || !('getProperties' in shape)) return
+        const properties = shape.getProperties()
+        const clusterId = properties?.cluster_id as number | undefined
+        if (clusterId === undefined) return
+        void source.getClusterExpansionZoom(clusterId).then((zoom) => {
+          instance.setCamera({ center: shape.getCoordinates(), zoom })
         })
       }
-      instance.events.add('click', waypointClusterLayer, zoomIntoCluster)
-      instance.events.add('click', activityClusterLayer, zoomIntoCluster)
+      instance.events.add('click', waypointClusterLayer, zoomIntoCluster(waypoints))
+      instance.events.add('click', activityClusterLayer, zoomIntoCluster(activities))
       instance.events.add('click', waypointLayer, (event) => {
         const shape = event.shapes?.[0]
         const properties = shape && 'getProperties' in shape ? shape.getProperties() : shape?.properties
@@ -173,22 +265,23 @@ export default function MapPage() {
         if (!waypointId) return
         const waypoint = data.waypoints.find((item) => item.waypointId === waypointId)
         if (!waypoint) return
-        const content = document.createElement('div')
-        const title = document.createElement('strong')
-        title.textContent = waypoint.title
-        const state = document.createElement('p')
         const completed = completionStateForWaypoint(waypoint, data.activities) === 'complete'
-        state.textContent = `Completion: ${completed ? 'Complete' : 'Not started'} · Award: ${statusLabels[statusForWaypoint(data.activities, waypoint.waypointId)]}`
-        const summary = document.createElement('p')
-        summary.textContent = `${data.activities.filter((activity) => activity.waypointId === waypoint.waypointId).length} recorded activities`
-        const link = document.createElement('a')
-        link.href = `/waypoints/${waypoint.waypointId}`
-        link.textContent = 'Open waypoint details'
-        content.append(title, state, summary, link)
+        const activityCount = data.activities.filter((activity) => activity.waypointId === waypoint.waypointId).length
+        const content = buildPopupContent({
+          eyebrow: 'Waypoint',
+          title: waypoint.title,
+          metadata: [
+            completed ? 'Complete' : 'Not started',
+            statusLabels[statusForWaypoint(data.activities, waypoint.waypointId)],
+          ],
+          summary: `${activityCount} recorded ${activityCount === 1 ? 'activity' : 'activities'}`,
+          href: `/waypoints/${waypoint.waypointId}`,
+        })
         const coordinates = waypointCoordinates(waypoint)
         if (!coordinates) return
         popup.setOptions({ content, position: [coordinates.longitude, coordinates.latitude] })
         popup.open(instance)
+        setSelectedActivityId(null)
         setSelectedWaypointId(waypointId)
       })
       instance.events.add('click', activityLayer, (event) => {
@@ -199,20 +292,19 @@ export default function MapPage() {
         if (!activity) return
         const coordinates = activityCoordinates(activity)
         if (!coordinates) return
-        const content = document.createElement('div')
-        const title = document.createElement('strong')
-        title.textContent = activity.date
-        const details = document.createElement('p')
         const waypoint = activity.waypointId
           ? data.waypoints.find((item) => item.waypointId === activity.waypointId)
           : undefined
-        details.textContent = `${waypoint?.title ?? 'No linked waypoint'} · ${activity.category ? statusLabels[activity.category] : 'Uncategorised'}`
-        const link = document.createElement('a')
-        link.href = `/activities/${activity.activityId}`
-        link.textContent = 'Open activity details'
-        content.append(title, details, link)
+        const content = buildPopupContent({
+          eyebrow: 'Activity',
+          title: activity.date,
+          metadata: [activity.category ? statusLabels[activity.category] : 'Uncategorised'],
+          summary: waypoint?.title ?? 'No linked waypoint',
+          href: `/activities/${activity.activityId}`,
+        })
         popup.setOptions({ content, position: [coordinates.longitude, coordinates.latitude] })
         popup.open(instance)
+        setSelectedWaypointId(null)
         setSelectedActivityId(activity.activityId)
       })
       waypointSource.current = waypoints
@@ -225,6 +317,7 @@ export default function MapPage() {
       map.current = null
       waypointSource.current = null
       activitySource.current = null
+      mapPopup.current = null
       setMapReady(false)
     }
   }, [data.activities, data.waypoints, origin.latitude, origin.longitude, token])
@@ -252,7 +345,9 @@ export default function MapPage() {
               label: waypoint.title,
               icon:
                 selectedWaypointId === waypoint.waypointId
-                  ? 'selected'
+                  ? completionStateForWaypoint(waypoint, data.activities) === 'complete'
+                    ? 'waypoint-complete-selected'
+                    : 'waypoint-not-started-selected'
                   : completionStateForWaypoint(waypoint, data.activities) === 'complete'
                     ? 'waypoint-complete'
                     : 'waypoint-not-started',
@@ -278,7 +373,7 @@ export default function MapPage() {
           return [
             new atlas.data.Feature(new atlas.data.Point([coordinates.longitude, coordinates.latitude]), {
               label: activity.date,
-              icon: selectedActivityId === activity.activityId ? 'selected' : 'activity',
+              icon: selectedActivityId === activity.activityId ? 'activity-selected' : 'activity',
               activityId: activity.activityId,
               description: `${waypoint?.title ?? 'No linked waypoint'} · ${activity.category ? statusLabels[activity.category] : 'Uncategorised'}`,
             }),
@@ -352,62 +447,6 @@ export default function MapPage() {
           </Stack>
         </CardContent>
       </Card>
-      <Card>
-        <CardContent>
-          <Stack spacing={1.5}>
-            <ToggleButtonGroup
-              exclusive
-              value={mode}
-              onChange={(_, nextMode: MapMode | null) => {
-                if (nextMode) setMode(nextMode)
-              }}
-              aria-label="Map mode"
-              fullWidth
-            >
-              <ToggleButton value="waypoints">Waypoints</ToggleButton>
-              <ToggleButton value="activities">Activities</ToggleButton>
-            </ToggleButtonGroup>
-            {mode === 'waypoints' && (
-              <Accordion disableGutters>
-                <AccordionSummary expandIcon={<ExpandMoreIcon />}>Award filters</AccordionSummary>
-                <AccordionDetails>
-                  <Stack direction="row" useFlexGap sx={{ flexWrap: 'wrap' }}>
-                    {statusOrder.map((status) => (
-                      <FormControlLabel
-                        key={status}
-                        control={
-                          <Checkbox
-                            checked={statuses.includes(status)}
-                            onChange={(event) =>
-                              setStatuses((current) =>
-                                event.target.checked ? [...current, status] : current.filter((item) => item !== status),
-                              )
-                            }
-                          />
-                        }
-                        label={statusLabels[status]}
-                      />
-                    ))}
-                  </Stack>
-                </AccordionDetails>
-              </Accordion>
-            )}
-            <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: 'wrap' }} aria-label="Map legend">
-              {mode === 'waypoints' ? (
-                <>
-                  <Chip size="small" label="Not started" sx={{ border: `2px solid ${markerColors.notStarted}` }} />
-                  <Chip size="small" label="Complete" sx={{ border: `2px solid ${markerColors.complete}` }} />
-                </>
-              ) : (
-                <Chip size="small" label="Activity" sx={{ border: `2px solid ${markerColors.activity}` }} />
-              )}
-              <Typography variant="caption" color="text.secondary" sx={{ alignSelf: 'center' }}>
-                Select a marker for details
-              </Typography>
-            </Stack>
-          </Stack>
-        </CardContent>
-      </Card>
       {error && <Alert severity="error">{error}</Alert>}
       {originResults.length > 0 && (
         <Card>
@@ -429,11 +468,101 @@ export default function MapPage() {
           </CardContent>
         </Card>
       )}
-      <Box
-        ref={container}
-        aria-label="Azure Maps interactive map"
-        sx={{ height: { xs: 360, sm: 560 }, width: '100%' }}
-      />
+      <Box sx={{ overflow: 'hidden', border: '1px solid', borderColor: 'divider', borderRadius: 1, bgcolor: 'white' }}>
+        <Stack spacing={1.5} sx={{ p: { xs: 1.5, sm: 2 }, borderBottom: '1px solid', borderColor: 'divider' }}>
+          <ToggleButtonGroup
+            exclusive
+            value={mode}
+            onChange={(_, nextMode: MapMode | null) => {
+              if (nextMode) {
+                mapPopup.current?.close()
+                setSelectedWaypointId(null)
+                setSelectedActivityId(null)
+                setMode(nextMode)
+              }
+            }}
+            aria-label="Map mode"
+            fullWidth
+            size="small"
+          >
+            <ToggleButton value="waypoints">Waypoints</ToggleButton>
+            <ToggleButton value="activities">Activities</ToggleButton>
+          </ToggleButtonGroup>
+          {mode === 'waypoints' && (
+            <Accordion disableGutters elevation={0} sx={{ '&::before': { display: 'none' } }}>
+              <AccordionSummary expandIcon={<ExpandMoreIcon />} sx={{ px: 0, minHeight: 40 }}>
+                Award filters
+              </AccordionSummary>
+              <AccordionDetails sx={{ px: 0, pb: 0 }}>
+                <Stack direction="row" useFlexGap sx={{ flexWrap: 'wrap' }}>
+                  {statusOrder.map((status) => (
+                    <FormControlLabel
+                      key={status}
+                      control={
+                        <Checkbox
+                          checked={statuses.includes(status)}
+                          onChange={(event) =>
+                            setStatuses((current) =>
+                              event.target.checked ? [...current, status] : current.filter((item) => item !== status),
+                            )
+                          }
+                        />
+                      }
+                      label={statusLabels[status]}
+                    />
+                  ))}
+                </Stack>
+              </AccordionDetails>
+            </Accordion>
+          )}
+          <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: 'wrap' }} aria-label="Map legend">
+            {mode === 'waypoints' ? (
+              <>
+                <Chip
+                  size="small"
+                  label="Not started"
+                  sx={{ border: `2px solid ${markerColors.notStarted}`, bgcolor: 'white' }}
+                />
+                <Chip
+                  size="small"
+                  label="Complete"
+                  sx={{ border: `2px solid ${markerColors.complete}`, bgcolor: 'white' }}
+                />
+              </>
+            ) : (
+              <Chip
+                size="small"
+                label="Activity"
+                sx={{ border: `2px solid ${markerColors.activity}`, bgcolor: 'white' }}
+              />
+            )}
+            <Typography variant="caption" color="text.secondary" sx={{ alignSelf: 'center' }}>
+              Select a marker for details
+            </Typography>
+          </Stack>
+        </Stack>
+        <Box sx={{ position: 'relative', height: { xs: 360, sm: 560 } }}>
+          <Box ref={container} aria-label="Azure Maps interactive map" sx={{ height: '100%', width: '100%' }} />
+          {!mapReady && !error && (
+            <Stack
+              role="status"
+              spacing={1}
+              sx={{
+                position: 'absolute',
+                inset: 0,
+                alignItems: 'center',
+                justifyContent: 'center',
+                bgcolor: 'rgba(255, 255, 255, 0.88)',
+              }}
+            >
+              <CircularProgress size={30} color="primary" />
+              <Typography variant="body2" color="text.secondary">
+                Loading map
+              </Typography>
+            </Stack>
+          )}
+        </Box>
+      </Box>
       <Alert severity="info">
         {waypointWithoutCoordinates} waypoint{waypointWithoutCoordinates === 1 ? '' : 's'} and{' '}
         {activityWithoutCoordinates} {activityWithoutCoordinates === 1 ? 'activity' : 'activities'} have no coordinates
