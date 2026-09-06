@@ -18,12 +18,17 @@ describe('location catalogue', () => {
   })
 
   it('carries backfilled coordinates for every seed location', () => {
-    const outsideGreatBritain = locations.filter(
+    const missingCoordinates = locations.filter(
       (location) =>
-        location.latitude < 49.8 || location.latitude > 56 || location.longitude < -6 || location.longitude > 2,
+        typeof location.latitude !== 'number' ||
+        typeof location.longitude !== 'number' ||
+        location.latitude < 49.8 ||
+        location.latitude > 56 ||
+        location.longitude < -6 ||
+        location.longitude > 2,
     )
 
-    expect(outsideGreatBritain.map((location) => location.locationId)).toEqual([])
+    expect(missingCoordinates.map((location) => location.locationId)).toEqual([])
   })
 
   it('includes catalogue metadata needed by the UI', () => {
