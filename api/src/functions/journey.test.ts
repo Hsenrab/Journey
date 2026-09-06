@@ -23,6 +23,11 @@ vi.mock('../lib/cosmos.js', async () => {
   }
 })
 
+vi.mock('@azure/identity', () => ({ DefaultAzureCredential: vi.fn() }))
+vi.mock('../lib/mapsAuth.js', () => ({
+  acquireMapsAccessToken: vi.fn().mockResolvedValue({ token: 'entra-token', expiresOn: '2026-01-01T00:00:00.000Z' }),
+}))
+
 const principal = Buffer.from(
   JSON.stringify({ identityProvider: 'aad', userId: 'owner', userDetails: 'owner@example.com', userRoles: ['owner'] }),
 ).toString('base64')
@@ -37,6 +42,10 @@ function request(container: string, method = 'GET', body?: unknown) {
 }
 
 const context = () => ({ error: vi.fn() }) as never
+
+function searchResults(results: unknown[]) {
+  vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: () => ({ results }) }))
+}
 
 const emptyData = {
   waypoints: [],
@@ -59,6 +68,19 @@ const activity = {
   updatedAt: '2026-08-02T00:00:00.000Z',
 }
 
+const waypoint = {
+  waypointId: 'waypoint-1',
+  title: 'Lacock Abbey',
+  description: 'Abbey, museum and village.',
+  category: 'House',
+  tags: ['Wiltshire'],
+  challengeIds: [],
+  completion: { mode: 'once' },
+  location: { placeName: 'Lacock Abbey', addressOrRegion: 'Wiltshire' },
+  referenceIds: [],
+  photoReferenceIds: [],
+}
+
 const idea = {
   ideaId: 'idea-1',
   title: 'Orangery tour',
@@ -79,6 +101,8 @@ describe('journey', () => {
     createDocument.mockReset()
     deleteEntity.mockReset()
     journeyContainer.mockReturnValue({})
+    process.env.AZURE_MAPS_CLIENT_ID = 'maps-client-id'
+    searchResults([{ position: { lat: 51.844, lon: -2.153 } }])
   })
 
   it('uses the route container for a production read', async () => {
@@ -132,6 +156,71 @@ describe('journey', () => {
         context(),
       ),
     ).toMatchObject({ status: 400, jsonBody: { error: 'A rejected idea requires a rejection reason' } })
+  })
+
+  it('geocodes a postcode-only activity before it is persisted', async () => {
+    loadDataset.mockResolvedValue({ data: emptyData, etags: {} })
+    createDocument.mockResolvedValue({ resource: {}, headers: {} })
+    const { journey } = await import('./journey.js')
+
+    const result = await journey(
+      request('production', 'POST', { operation: 'create', type: 'activity', entity: { ...activity, ideaIds: [] } }),
+      context(),
+    )
+
+    expect(result).toMatchObject({ status: 201 })
+    expect(createDocument).toHaveBeenCalledWith(
+      {},
+      expect.objectContaining({
+        entity: expect.objectContaining({
+          location: { kind: 'postcode', postcode: 'GL3 4AQ', latitude: 51.844, longitude: -2.153 },
+        }),
+      }),
+    )
+    expect(fetch).toHaveBeenCalledWith(
+      'https://atlas.microsoft.com/search/address/json?api-version=1.0&query=GL3+4AQ',
+      expect.anything(),
+    )
+  })
+
+  it('geocodes a place-only waypoint before it is persisted', async () => {
+    loadDataset.mockResolvedValue({ data: emptyData, etags: {} })
+    createDocument.mockResolvedValue({ resource: {}, headers: {} })
+    const { journey } = await import('./journey.js')
+
+    const result = await journey(
+      request('production', 'POST', { operation: 'create', type: 'waypoint', entity: waypoint }),
+      context(),
+    )
+
+    expect(result).toMatchObject({ status: 201 })
+    expect(createDocument).toHaveBeenCalledWith(
+      {},
+      expect.objectContaining({
+        entity: expect.objectContaining({
+          location: {
+            placeName: 'Lacock Abbey',
+            addressOrRegion: 'Wiltshire',
+            latitude: 51.844,
+            longitude: -2.153,
+          },
+        }),
+      }),
+    )
+  })
+
+  it('rejects a save whose location cannot be geocoded', async () => {
+    loadDataset.mockResolvedValue({ data: emptyData, etags: {} })
+    searchResults([])
+    const { journey } = await import('./journey.js')
+
+    expect(
+      await journey(
+        request('production', 'POST', { operation: 'create', type: 'activity', entity: { ...activity, ideaIds: [] } }),
+        context(),
+      ),
+    ).toEqual({ status: 400, jsonBody: { error: 'Azure Maps found no coordinates for "GL3 4AQ".' } })
+    expect(createDocument).not.toHaveBeenCalled()
   })
 
   it('deletes an idea transactionally and returns ETag conflicts explicitly', async () => {

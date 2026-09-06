@@ -6,7 +6,7 @@ const activity = {
   activityId: 'activity-1',
   ideaIds: ['idea-1'],
   date: '2026-08-02',
-  location: { kind: 'postcode', postcode: 'GL3 4AQ' },
+  location: { kind: 'postcode', postcode: 'GL3 4AQ', latitude: 51.844, longitude: -2.153 },
   notes: '',
   referenceIds: [],
   photoReferenceIds: [],
@@ -39,7 +39,7 @@ const data: JourneyData = {
 describe('Cosmos Journey persistence', () => {
   it('converts a complete dataset to typed documents and back', () => {
     const documents = documentsFor('dataset', data)
-    expect(documents['activity-1']).toMatchObject({ type: 'activity', schemaVersion: 2 })
+    expect(documents['activity-1']).toMatchObject({ type: 'activity', schemaVersion: 3 })
     expect(documents['idea-1']).toMatchObject({ type: 'idea', schemaVersion: 2 })
     expect(documentsToData(Object.values(documents))).toEqual(data)
   })

@@ -46,7 +46,7 @@ function data(): JourneyData {
         waypointId: 'waypoint-1',
         ideaIds: ['idea-1'],
         date: '2026-08-02',
-        location: { kind: 'postcode', postcode: 'GL3 4AQ' },
+        location: { kind: 'postcode', postcode: 'GL3 4AQ', latitude: 51.844, longitude: -2.153 },
         notes: '',
         referenceIds: ['reference-2'],
         photoReferenceIds: ['photo-1'],

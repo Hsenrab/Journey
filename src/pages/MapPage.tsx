@@ -563,11 +563,14 @@ export default function MapPage() {
           )}
         </Box>
       </Box>
-      <Alert severity="info">
-        {waypointWithoutCoordinates} waypoint{waypointWithoutCoordinates === 1 ? '' : 's'} and{' '}
-        {activityWithoutCoordinates} {activityWithoutCoordinates === 1 ? 'activity' : 'activities'} have no coordinates
-        and are not shown. Locations are only geocoded when saved or deliberately changed.
-      </Alert>
+      {waypointWithoutCoordinates + activityWithoutCoordinates > 0 && (
+        <Alert severity="info">
+          {waypointWithoutCoordinates} waypoint{waypointWithoutCoordinates === 1 ? '' : 's'} and{' '}
+          {activityWithoutCoordinates} {activityWithoutCoordinates === 1 ? 'activity' : 'activities'} have no
+          coordinates and are not shown. Locations are geocoded when they are saved, so re-saving a record resolves its
+          coordinates.
+        </Alert>
+      )}
       <Stack spacing={1}>
         <Typography variant="h6">Nearest visible waypoints</Typography>
         {nearby.map(({ waypoint, distanceMiles }) => (

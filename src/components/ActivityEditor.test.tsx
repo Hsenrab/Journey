@@ -107,11 +107,31 @@ describe('ActivityEditor', () => {
     ).toBe(true)
   })
 
+  it('prefills the linked waypoint coordinates and still allows a postcode', async () => {
+    const user = userEvent.setup()
+    const data = createDefaultData()
+    const waypoint = data.waypoints[0]!
+    const { onSubmit } = renderEditor({ data, initialWaypointId: waypoint.waypointId })
+
+    expect(screen.getByLabelText('Latitude')).toHaveValue(String(waypoint.location!.latitude))
+    expect(screen.getByLabelText('Longitude')).toHaveValue(String(waypoint.location!.longitude))
+
+    await user.click(screen.getByRole('combobox', { name: 'Location type' }))
+    await user.click(screen.getByRole('option', { name: 'Postcode' }))
+    await user.type(screen.getByLabelText('Postcode'), 'GL1 1AA')
+    await user.click(screen.getByRole('combobox', { name: 'Activity category' }))
+    await user.click(screen.getByRole('option', { name: 'Gold' }))
+    await user.click(screen.getByRole('button', { name: 'Save' }))
+
+    expect(onSubmit).toHaveBeenCalledWith(
+      expect.objectContaining({ location: { kind: 'postcode', postcode: 'GL1 1AA' } }),
+    )
+  })
+
   it('requires category when waypoint supports categories', async () => {
     const user = userEvent.setup()
     renderEditor({ initialWaypointId: dataWaypointId(createDefaultData()) })
 
-    await user.type(screen.getByLabelText('Postcode'), 'GL1 1AA')
     await user.click(screen.getByRole('button', { name: 'Save' }))
 
     expect(screen.getByText('Select Bronze, Silver or Gold.')).toBeInTheDocument()

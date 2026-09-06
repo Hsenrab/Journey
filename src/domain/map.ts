@@ -23,9 +23,8 @@ export function waypointCoordinates(waypoint: Waypoint): Coordinates | undefined
 }
 
 export function activityCoordinates(activity: Activity): Coordinates | undefined {
-  return activity.location.kind === 'coordinates'
-    ? { latitude: activity.location.latitude, longitude: activity.location.longitude }
-    : undefined
+  const { latitude, longitude } = activity.location
+  return typeof latitude === 'number' && typeof longitude === 'number' ? { latitude, longitude } : undefined
 }
 
 export function filterWaypointsByStatus(

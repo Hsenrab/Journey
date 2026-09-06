@@ -56,7 +56,6 @@ describe('activity logging', () => {
     await user.click(screen.getByRole('button', { name: 'Add activity' }))
     await user.click(screen.getByRole('combobox', { name: 'Activity category' }))
     await user.click(screen.getByRole('option', { name: level }))
-    await user.type(screen.getByLabelText('Postcode'), 'SN15 2LG')
     fireEvent.change(screen.getByLabelText('Activity date'), { target: { value: date } })
     await user.click(screen.getByRole('button', { name: 'Save activity' }))
   }

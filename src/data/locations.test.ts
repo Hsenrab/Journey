@@ -17,6 +17,20 @@ describe('location catalogue', () => {
     expect(locations.every((location) => location.travel.driveTimeMinutes <= MAX_DRIVE_TIME_MINUTES)).toBe(true)
   })
 
+  it('carries backfilled coordinates for every seed location', () => {
+    const missingCoordinates = locations.filter(
+      (location) =>
+        typeof location.latitude !== 'number' ||
+        typeof location.longitude !== 'number' ||
+        location.latitude < 49.8 ||
+        location.latitude > 56 ||
+        location.longitude < -6 ||
+        location.longitude > 2,
+    )
+
+    expect(missingCoordinates.map((location) => location.locationId)).toEqual([])
+  })
+
   it('includes catalogue metadata needed by the UI', () => {
     expect(
       locations.every(
