@@ -1,7 +1,7 @@
 import { CosmosClient, type Container, type Database, type ItemResponse } from '@azure/cosmos'
 import { DefaultAzureCredential } from '@azure/identity'
 import { readFile } from 'node:fs/promises'
-import { deletionPlan, entityKey, entityTypeFor } from './journeyGraph.js'
+import { deletionPlan, entityId, entityKey, entityTypeFor } from './journeyGraph.js'
 import {
   JourneyDataSchema,
   JourneyDocumentSchema,
@@ -75,9 +75,7 @@ export async function loadDataset(
 }
 
 export function documentFor(datasetId: string, type: EntityType, entity: Record<string, unknown>): JourneyDocument {
-  const idKey = type === 'photoReference' ? 'photoReferenceId' : `${type}Id`
-  const id = entity[idKey]
-  if (typeof id !== 'string' || !id) throw new Error(`Entity "${type}" is missing its identifier.`)
+  const id = entityId(type, entity)
   return JourneyDocumentSchema.parse({
     id,
     datasetId,

@@ -63,7 +63,7 @@ const schemas = {
       notes: z.string(),
       waypointIds: distinctIds('Idea waypoint links must be distinct'),
       planningState: z.enum(['active', 'someday', 'rejected']),
-      rejectionReason: identifier.optional(),
+      rejectionReason: z.string().trim().min(1).optional(),
       difficulty: z.union([z.literal(1), z.literal(2), z.literal(3), z.literal(4)]),
       location: place.optional(),
       referenceIds: distinctIds('Idea reference links must be distinct'),

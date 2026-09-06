@@ -274,7 +274,11 @@ export function ideasForWaypoint(ideas: readonly Idea[], waypointId: string): Id
 }
 
 export function ideasForActivity(ideas: readonly Idea[], activity: Activity): Idea[] {
-  return activity.ideaIds.flatMap((ideaId) => ideas.filter((idea) => idea.ideaId === ideaId))
+  const byId = new Map(ideas.map((idea) => [idea.ideaId, idea]))
+  return activity.ideaIds.flatMap((ideaId) => {
+    const idea = byId.get(ideaId)
+    return idea ? [idea] : []
+  })
 }
 
 export function activitiesUsingIdea(activities: readonly Activity[], ideaId: string): Activity[] {
