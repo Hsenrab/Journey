@@ -152,7 +152,7 @@ export const ActivitySchema = z.object({
   photoReferenceIds: z.array(z.string().min(1)),
   createdAt: z.iso.datetime(),
   updatedAt: z.iso.datetime(),
-})
+}).strict()
 
 export const DataSchema = z.object({
   waypoints: z.array(WaypointSchema),
