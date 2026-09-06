@@ -1,3 +1,74 @@
 body {
   margin: 0;
 }
+
+.journey-map-popup {
+  box-sizing: border-box;
+  width: min(290px, calc(100vw - 64px));
+  padding: 18px;
+  color: #263238;
+  font-family: 'Aptos', 'Segoe UI', sans-serif;
+}
+
+.journey-map-popup__eyebrow,
+.journey-map-popup__summary {
+  margin: 0;
+}
+
+.journey-map-popup__eyebrow {
+  color: #607d8b;
+  font-size: 0.72rem;
+  font-weight: 700;
+  line-height: 1.3;
+  text-transform: uppercase;
+}
+
+.journey-map-popup__title {
+  margin: 4px 24px 10px 0;
+  font-size: 1.08rem;
+  line-height: 1.3;
+}
+
+.journey-map-popup__metadata {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.journey-map-popup__metadata span {
+  border: 1px solid #c6d1cc;
+  border-radius: 4px;
+  padding: 3px 7px;
+  background: #f5f8f6;
+  color: #2e5339;
+  font-size: 0.75rem;
+  font-weight: 650;
+}
+
+.journey-map-popup__summary {
+  color: #455a64;
+  font-size: 0.86rem;
+  line-height: 1.45;
+}
+
+.journey-map-popup__action {
+  display: block;
+  margin-top: 14px;
+  border-top: 1px solid #dfe6e2;
+  padding-top: 12px;
+  color: #2e5339;
+  font-size: 0.86rem;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.journey-map-popup__action:hover {
+  text-decoration: underline;
+}
+
+.journey-map-popup__action:focus-visible {
+  border-radius: 2px;
+  outline: 3px solid #8a6d3b;
+  outline-offset: 3px;
+}

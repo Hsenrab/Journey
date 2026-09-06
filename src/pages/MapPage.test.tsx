@@ -7,9 +7,9 @@ import { WaypointsProvider } from '../features/journey/JourneyContext'
 
 type MapClickHandler = (event: {
   shapes?: Array<{
-    getProperties?: () => { waypointId?: string; activityId?: string }
+    getProperties?: () => { waypointId?: string; activityId?: string; cluster_id?: number }
     getCoordinates?: () => number[]
-    properties?: { waypointId?: string; activityId?: string }
+    properties?: { waypointId?: string; activityId?: string; cluster_id?: number }
   }>
 }) => void
 type TokenGetter = (resolve: (token: string) => void, reject: (error: unknown) => void) => void
@@ -22,6 +22,10 @@ const mapEvents = vi.hoisted(() => ({
   tokenGetter: undefined as TokenGetter | undefined,
   deferReady: false,
   sourceAdd: vi.fn(),
+  clusterExpansionZoom: vi.fn(() => Promise.resolve(12)),
+  setCamera: vi.fn(),
+  popupClose: undefined as (() => void) | undefined,
+  popupContent: undefined as HTMLElement | undefined,
 }))
 
 function jsonResponse(body: unknown) {
@@ -58,23 +62,30 @@ vi.mock('azure-maps-control', () => ({
         ) {
           mapEvents.clusterClick = args[2] as MapClickHandler
         }
+        if (args[0] === 'close' && args.length === 3) {
+          mapEvents.popupClose = args[2] as () => void
+        }
       },
     }
     sources = { add: vi.fn() }
     layers = { add: vi.fn() }
     imageSprite = { add: vi.fn() }
     getCamera = vi.fn(() => ({ zoom: 8 }))
-    setCamera = vi.fn()
+    setCamera = mapEvents.setCamera
     dispose = vi.fn()
   },
   Popup: class {
-    setOptions = vi.fn()
+    setOptions = vi.fn((options: { content?: HTMLElement }) => {
+      mapEvents.popupContent = options.content
+    })
     open = vi.fn()
+    close = vi.fn(() => mapEvents.popupClose?.())
   },
   source: {
     DataSource: class {
       add = mapEvents.sourceAdd
       clear = vi.fn()
+      getClusterExpansionZoom = mapEvents.clusterExpansionZoom
     },
   },
   layer: {
@@ -108,6 +119,10 @@ describe('MapPage', () => {
     mapEvents.tokenGetter = undefined
     mapEvents.deferReady = false
     mapEvents.sourceAdd.mockClear()
+    mapEvents.clusterExpansionZoom.mockClear()
+    mapEvents.setCamera.mockClear()
+    mapEvents.popupClose = undefined
+    mapEvents.popupContent = undefined
   })
 
   it('renders accessible layer, status, and nearby controls', async () => {
@@ -341,10 +356,12 @@ describe('MapPage', () => {
     )
     await vi.waitFor(() => expect(mapEvents.ready).toBeDefined())
     expect(mapEvents.sourceAdd).not.toHaveBeenCalled()
+    expect(screen.getByRole('status')).toHaveTextContent('Loading map')
 
     act(() => mapEvents.ready!())
 
     await vi.waitFor(() => expect(mapEvents.sourceAdd).toHaveBeenCalled())
+    expect(screen.queryByText('Loading map')).not.toBeInTheDocument()
   })
 
   it('refreshes the Maps token after the initial token is consumed', async () => {
@@ -404,7 +421,12 @@ describe('MapPage', () => {
       mapEvents.click!({ shapes: [{ properties: { waypointId: 'unknown' } }] })
       mapEvents.click!({ shapes: [{ getProperties: () => ({ waypointId: waypoint.waypointId }) }] })
     }).not.toThrow()
+    expect(mapEvents.popupContent).toHaveTextContent(`Waypoint${waypoint.title}Not started`)
+    expect(mapEvents.popupContent?.querySelector('a')).toHaveAttribute('href', `/waypoints/${waypoint.waypointId}`)
+    expect(mapEvents.popupContent?.querySelector('a')).toHaveTextContent('View details')
     expect(await screen.findByRole('status')).toHaveTextContent('Opening waypoint details.')
+    act(() => mapEvents.popupClose?.())
+    expect(screen.queryByText('Opening waypoint details.')).not.toBeInTheDocument()
   })
 
   it('shows activity marker details for linked and unlinked activities', async () => {
@@ -442,6 +464,8 @@ describe('MapPage', () => {
       mapEvents.activityClick!({ shapes: [{ properties: { activityId: activity.activityId } }] })
       mapEvents.activityClick!({ shapes: [{ properties: { activityId: unlinked.activityId } }] })
     }).not.toThrow()
+    expect(mapEvents.popupContent).toHaveTextContent('Activity2026-08-10UncategorisedNo linked waypoint')
+    expect(mapEvents.popupContent?.querySelector('a')).toHaveAttribute('href', '/activities/unlinked')
   })
 
   it('zooms into an activated cluster', async () => {
@@ -460,6 +484,11 @@ describe('MapPage', () => {
     expect(() => {
       mapEvents.clusterClick!({})
       mapEvents.clusterClick!({ shapes: [{ getCoordinates: () => [-2.2, 51.8] }] })
+      mapEvents.clusterClick!({
+        shapes: [{ getCoordinates: () => [-2.2, 51.8], getProperties: () => ({ cluster_id: 42 }) }],
+      })
     }).not.toThrow()
+    await vi.waitFor(() => expect(mapEvents.clusterExpansionZoom).toHaveBeenCalledWith(42))
+    expect(mapEvents.setCamera).toHaveBeenCalledWith({ center: [-2.2, 51.8], zoom: 12 })
   })
 })
