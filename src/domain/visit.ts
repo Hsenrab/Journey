@@ -346,6 +346,20 @@ export function ideaUsageCount(activities: readonly Activity[], ideaId: string):
   return activities.filter((activity) => usesIdea(activity, ideaId)).length
 }
 
+export function ideaUsageLabel(count: number): string {
+  return count === 0 ? 'Not used' : `Used in ${count} activit${count === 1 ? 'y' : 'ies'}`
+}
+
+export function ideaLocationSummary(location: Idea['location'] | undefined): string {
+  if (!location) return 'No location'
+  const parts = [location.placeName, location.addressOrRegion].filter(Boolean)
+  if (parts.length > 0) return parts.join(' · ')
+  if (location.latitude !== undefined && location.longitude !== undefined) {
+    return `${location.latitude.toFixed(5)}, ${location.longitude.toFixed(5)}`
+  }
+  return 'No location'
+}
+
 export function statusForWaypoint(activities: readonly Activity[], waypointId: string): Status {
   return activities
     .filter((activity) => activity.waypointId === waypointId && activity.category)

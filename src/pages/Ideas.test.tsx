@@ -30,7 +30,6 @@ describe('Ideas', () => {
     await user.click(screen.getAllByRole('option')[0]!)
     await user.click(screen.getByRole('button', { name: 'Save idea' }))
 
-    expect(screen.getByText('Idea saved.')).toBeInTheDocument()
     expect(load().ideas[0]).toMatchObject({
       title: 'Weekend hill walk',
       planningState: 'active',
@@ -95,5 +94,21 @@ describe('Ideas', () => {
     await user.click(screen.getByRole('combobox', { name: 'Usage' }))
     await user.click(screen.getByRole('option', { name: 'Not used' }))
     expect(screen.getByText('No ideas match your filters.')).toBeInTheDocument()
+  })
+
+  it('validates idea location coordinates and reference https URLs', async () => {
+    const user = userEvent.setup()
+    renderIdeas('/ideas?mode=add')
+
+    await user.type(screen.getByLabelText('Title'), 'Plan route')
+    await user.type(screen.getByLabelText('Latitude'), '51.8')
+    await user.click(screen.getByRole('button', { name: 'Add reference' }))
+    await user.type(screen.getByLabelText('Reference title'), 'Guide')
+    await user.type(screen.getByLabelText('Reference URL'), 'http://example.com/guide')
+    await user.click(screen.getByRole('button', { name: 'Save idea' }))
+
+    expect(screen.getByText('Enter both latitude and longitude.')).toBeInTheDocument()
+    expect(screen.getByText('Reference URL must start with https://.')).toBeInTheDocument()
+    expect(load().ideas).toHaveLength(0)
   })
 })

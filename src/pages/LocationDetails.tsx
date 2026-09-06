@@ -3,11 +3,18 @@ import { Link, useParams } from 'react-router-dom'
 import { Alert, Button, Card, CardContent, Chip, Stack, Typography } from '@mui/material'
 import { ActivityEditor } from '../components/ActivityEditor'
 import { locations } from '../data/locations'
-import { ideaUsageCount, ideasForWaypoint, locationSummary, planningStateLabels, statusLabels } from '../domain/visit'
+import {
+  ideaUsageCount,
+  ideaUsageLabel,
+  ideasForWaypoint,
+  locationSummary,
+  planningStateLabels,
+  statusLabels,
+} from '../domain/visit'
 import { useWaypoints } from '../features/journey/JourneyContext'
 import { JourneyConflictError } from '../services/journeyApi'
 
-const locationById = new Map(locations.map((location) => [location.locationId, location]))
+const catalogueLocationById = new Map(locations.map((location) => [location.locationId, location]))
 
 export default function LocationDetails() {
   const { id = '' } = useParams()
@@ -17,7 +24,7 @@ export default function LocationDetails() {
     null,
   )
   const waypoint = data.waypoints.find((item) => item.waypointId === id)
-  const sourceLocation = waypoint ? locationById.get(waypoint.waypointId) : undefined
+  const sourceLocation = waypoint ? catalogueLocationById.get(waypoint.waypointId) : undefined
 
   if (!waypoint) {
     return (
@@ -121,9 +128,7 @@ export default function LocationDetails() {
                   </Typography>
                   <Typography color="text.secondary">
                     {planningStateLabels[idea.planningState]} ·{' '}
-                    {ideaUsageCount(data.activities, idea.ideaId) === 0
-                      ? 'Not used'
-                      : `Used in ${ideaUsageCount(data.activities, idea.ideaId)} activities`}
+                    {ideaUsageLabel(ideaUsageCount(data.activities, idea.ideaId))}
                   </Typography>
                   <Typography color="text.secondary">{idea.description || 'No description'}</Typography>
                 </Stack>

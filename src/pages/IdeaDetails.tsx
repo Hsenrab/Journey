@@ -17,27 +17,17 @@ import {
   activitiesUsingIdea,
   difficultyDescriptions,
   difficultyLabels,
+  ideaLocationSummary,
   ideaUsageCount,
+  ideaUsageLabel,
   planningStateLabels,
 } from '../domain/visit'
 import { useWaypoints } from '../features/journey/JourneyContext'
 
-function locationSummary(
-  location: { placeName?: string; addressOrRegion?: string; latitude?: number; longitude?: number } | undefined,
-): string {
-  if (!location) return 'No location'
-  const parts = [location.placeName, location.addressOrRegion].filter(Boolean)
-  if (parts.length > 0) return parts.join(' · ')
-  if (location.latitude !== undefined && location.longitude !== undefined) {
-    return `${location.latitude.toFixed(5)}, ${location.longitude.toFixed(5)}`
-  }
-  return 'No location'
-}
-
 export default function IdeaDetails() {
   const navigate = useNavigate()
   const { ideaId = '' } = useParams()
-  const { data, updateIdea, deleteIdea, reload } = useWaypoints()
+  const { data, updateIdea, deleteIdea } = useWaypoints()
   const [editing, setEditing] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
@@ -69,7 +59,7 @@ export default function IdeaDetails() {
         ← Ideas
       </Button>
       <Typography variant="h4">{idea.title}</Typography>
-      {error && <Alert severity="error">{error}</Alert>}
+      {!editing && error && <Alert severity="error">{error}</Alert>}
       <Typography color="text.secondary">{idea.description || 'No description'}</Typography>
       <Typography sx={{ whiteSpace: 'pre-wrap' }}>{idea.notes || 'No notes'}</Typography>
       <Typography>Planning state: {planningStateLabels[idea.planningState]}</Typography>
@@ -78,7 +68,7 @@ export default function IdeaDetails() {
       )}
       <Typography>Difficulty: {difficultyLabels[idea.difficulty]}</Typography>
       <Typography color="text.secondary">{difficultyDescriptions[idea.difficulty]}</Typography>
-      <Typography>Location: {locationSummary(idea.location)}</Typography>
+      <Typography>Location: {ideaLocationSummary(idea.location)}</Typography>
       <Typography>
         Linked waypoints:{' '}
         {linkedWaypoints.length > 0 ? linkedWaypoints.map((waypoint) => waypoint.title).join(', ') : 'None'}
@@ -109,9 +99,7 @@ export default function IdeaDetails() {
           <Typography color="text.secondary">Not used</Typography>
         ) : (
           <>
-            <Typography color="text.secondary">
-              Used in {usage} activit{usage === 1 ? 'y' : 'ies'}
-            </Typography>
+            <Typography color="text.secondary">{ideaUsageLabel(usage)}</Typography>
             {activities.map((activity) => {
               const waypoint = activity.waypointId
                 ? data.waypoints.find((item) => item.waypointId === activity.waypointId)
@@ -167,8 +155,7 @@ export default function IdeaDetails() {
         <DialogTitle>Delete idea?</DialogTitle>
         <DialogContent>
           <Typography>
-            Deleting this idea removes its links from activities but keeps the activities and any linked waypoints. The
-            dataset will reload after deletion.
+            Deleting this idea removes its links from activities but keeps the activities and any linked waypoints.
           </Typography>
         </DialogContent>
         <DialogActions>
@@ -178,7 +165,6 @@ export default function IdeaDetails() {
             onClick={async () => {
               try {
                 await deleteIdea(idea.ideaId)
-                await reload()
                 navigate('/ideas')
               } catch (cause) {
                 setError(cause instanceof Error ? cause.message : 'Failed to delete idea.')

@@ -108,9 +108,6 @@ export default function ActivityDetails() {
         )}
       </Stack>
       <Typography color="text.secondary">{locationSummary(activity.location)}</Typography>
-      <Typography color="text.secondary">
-        {ideas.length === 0 ? 'No linked ideas.' : `Linked ideas: ${ideas.map((idea) => idea.title).join(', ')}`}
-      </Typography>
       {activity.notes ? (
         <Typography sx={{ whiteSpace: 'pre-wrap' }}>{activity.notes}</Typography>
       ) : (
@@ -252,8 +249,9 @@ export default function ActivityDetails() {
         <DialogTitle>Delete activity?</DialogTitle>
         <DialogContent>
           <Typography>
-            Deleting this activity keeps linked ideas and waypoints, but idea usage counts update from the remaining
-            activities after the dataset reloads.
+            Delete activity on {activity.date}
+            {waypoint ? ` linked to ${waypoint.title}` : ''}? Linked ideas and waypoints are preserved, and idea usage
+            updates after reloading the dataset.
           </Typography>
         </DialogContent>
         <DialogActions>

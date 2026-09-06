@@ -296,8 +296,8 @@ export function IdeaEditor({
             />
           )}
           <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
-            <Typography id="difficulty-title" variant="subtitle2">
-              Difficulty
+            <Typography variant="body2" color="text.secondary">
+              Difficulty guidance
             </Typography>
             <Tooltip title="Difficulty reflects overall commitment and complexity, not just physical effort. Use judgement.">
               <IconButton aria-label="Difficulty guidance" size="small">
@@ -312,7 +312,7 @@ export function IdeaEditor({
               label="Difficulty"
               value={difficulty}
               onChange={(event) => setDifficulty(Number(event.target.value) as Idea['difficulty'])}
-              aria-describedby={`difficulty-title ${difficultyHelpId}`}
+              aria-describedby={difficultyHelpId}
             >
               {difficulties.map((level) => (
                 <MenuItem key={level} value={level}>

@@ -128,6 +128,16 @@ export function ActivityEditor({
   const [message, setMessage] = useState<string | null>(null)
 
   const supportsCategories = waypointSupportsActivityCategory(data, waypointId || undefined)
+  const sortedIdeas = useMemo(
+    () =>
+      data.ideas.slice().sort((a, b) => {
+        const aLinked = waypointId ? a.waypointIds.includes(waypointId) : false
+        const bLinked = waypointId ? b.waypointIds.includes(waypointId) : false
+        if (aLinked !== bLinked) return aLinked ? -1 : 1
+        return a.title.localeCompare(b.title)
+      }),
+    [data.ideas, waypointId],
+  )
 
   useEffect(() => {
     if (!supportsCategories && category) {
@@ -323,12 +333,7 @@ export function ActivityEditor({
           </FormControl>
           <Autocomplete
             multiple
-            options={data.ideas.slice().sort((a, b) => {
-              const aLinked = waypointId ? a.waypointIds.includes(waypointId) : false
-              const bLinked = waypointId ? b.waypointIds.includes(waypointId) : false
-              if (aLinked !== bLinked) return aLinked ? -1 : 1
-              return a.title.localeCompare(b.title)
-            })}
+            options={sortedIdeas}
             value={data.ideas.filter((idea) => ideaIds.includes(idea.ideaId))}
             isOptionEqualToValue={(option, value) => option.ideaId === value.ideaId}
             getOptionLabel={(option) => option.title}

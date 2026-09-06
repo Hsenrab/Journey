@@ -15,57 +15,48 @@ import {
   Typography,
 } from '@mui/material'
 import { distanceMiles } from '../domain/map'
-import { difficultyLabels, ideaUsageCount, planningStateLabels, planningStates, type Idea } from '../domain/visit'
+import {
+  difficultyLabels,
+  ideaLocationSummary,
+  ideaUsageCount,
+  ideaUsageLabel,
+  planningStateLabels,
+  planningStates,
+  type Idea,
+} from '../domain/visit'
 import { IdeaEditor } from '../components/IdeaEditor'
 import { useWaypoints } from '../features/journey/JourneyContext'
-import { JourneyConflictError } from '../services/journeyApi'
 
 const brockworth = { latitude: 51.844, longitude: -2.153 }
 
 type SortKey = 'distance' | 'updated' | 'difficulty'
 type UsageFilter = 'all' | 'used' | 'not-used'
 
-function usageLabel(count: number): string {
-  return count === 0 ? 'Not used' : `Used in ${count} activit${count === 1 ? 'y' : 'ies'}`
-}
-
-function locationSummary(idea: Idea): string {
-  const parts = [idea.location?.placeName, idea.location?.addressOrRegion].filter(Boolean)
-  if (parts.length > 0) return parts.join(' · ')
-  if (idea.location?.latitude !== undefined && idea.location?.longitude !== undefined) {
-    return `${idea.location.latitude.toFixed(5)}, ${idea.location.longitude.toFixed(5)}`
-  }
-  return 'No location'
-}
-
 function distanceFromBrockworth(idea: Idea): number | undefined {
   if (idea.location?.latitude === undefined || idea.location?.longitude === undefined) return undefined
   return distanceMiles(brockworth, { latitude: idea.location.latitude, longitude: idea.location.longitude })
 }
 
-function referenceHostnames(urls: string[]): string {
-  return urls
-    .map((url) => {
-      try {
-        return new URL(url).hostname
-      } catch {
-        return url
-      }
-    })
-    .join(', ')
+function referenceHostname(url: string): string {
+  try {
+    return new URL(url).hostname
+  } catch {
+    return url
+  }
 }
 
 export default function Ideas() {
   const { data, addIdea } = useWaypoints()
   const [searchParams, setSearchParams] = useSearchParams()
-  const selectedState = (searchParams.get('state') ?? 'active') as Idea['planningState']
+  const stateParam = searchParams.get('state')
+  const selectedState = planningStates.includes(stateParam as Idea['planningState'])
+    ? (stateParam as Idea['planningState'])
+    : 'active'
+  const showEditor = searchParams.get('mode') === 'add'
   const [query, setQuery] = useState('')
   const [usage, setUsage] = useState<UsageFilter>('all')
   const [sort, setSort] = useState<SortKey>('distance')
-  const [showEditor, setShowEditor] = useState(searchParams.get('mode') === 'add')
-  const [message, setMessage] = useState<{ severity: 'success' | 'error'; text: string; conflict?: boolean } | null>(
-    null,
-  )
+  const [message, setMessage] = useState<{ severity: 'success' | 'error'; text: string } | null>(null)
 
   const waypointById = useMemo(
     () => new Map(data.waypoints.map((waypoint) => [waypoint.waypointId, waypoint])),
@@ -103,13 +94,7 @@ export default function Ideas() {
           .map((id) => referenceById.get(id))
           .filter((item): item is NonNullable<typeof item> => Boolean(item))
         const referenceTitles = ideaReferences.map((reference) => reference.title)
-        const hostnames = ideaReferences.map((reference) => {
-          try {
-            return new URL(reference.url).hostname
-          } catch {
-            return reference.url
-          }
-        })
+        const hostnames = ideaReferences.map((reference) => referenceHostname(reference.url))
         return `${idea.title} ${idea.description} ${idea.notes} ${waypointNames.join(' ')} ${referenceTitles.join(' ')} ${hostnames.join(' ')}`
           .toLowerCase()
           .includes(loweredQuery)
@@ -140,7 +125,7 @@ export default function Ideas() {
           <Button
             variant="contained"
             onClick={() => {
-              setShowEditor(true)
+              setMessage(null)
               setSearchParams((previous) => {
                 const next = new URLSearchParams(previous)
                 next.set('mode', 'add')
@@ -200,7 +185,7 @@ export default function Ideas() {
         </FormControl>
       </Stack>
 
-      {message && (
+      {!showEditor && message && (
         <Typography color={message.severity === 'error' ? 'error' : 'success.main'}>{message.text}</Typography>
       )}
 
@@ -212,10 +197,10 @@ export default function Ideas() {
           onSubmit={async (draft) => {
             try {
               await addIdea(draft)
-              setShowEditor(false)
               setMessage({ severity: 'success', text: 'Idea saved.' })
               setSearchParams((previous) => {
                 const next = new URLSearchParams(previous)
+                next.set('state', draft.planningState)
                 next.delete('mode')
                 next.delete('waypoint')
                 return next
@@ -224,12 +209,11 @@ export default function Ideas() {
               setMessage({
                 severity: 'error',
                 text: error instanceof Error ? error.message : 'Failed to save idea.',
-                conflict: error instanceof JourneyConflictError,
               })
             }
           }}
           onCancel={() => {
-            setShowEditor(false)
+            setMessage(null)
             setSearchParams((previous) => {
               const next = new URLSearchParams(previous)
               next.delete('mode')
@@ -263,12 +247,12 @@ export default function Ideas() {
                     <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: 'wrap' }}>
                       <Chip label={planningStateLabels[idea.planningState]} />
                       <Chip label={difficultyLabels[idea.difficulty]} />
-                      <Chip label={usageLabel(count)} />
+                      <Chip label={ideaUsageLabel(count)} />
                     </Stack>
                     <Typography color="text.secondary">
                       Linked waypoints: {linkedWaypointNames.length > 0 ? linkedWaypointNames.join(', ') : 'None'}
                     </Typography>
-                    <Typography color="text.secondary">Location: {locationSummary(idea)}</Typography>
+                    <Typography color="text.secondary">Location: {ideaLocationSummary(idea.location)}</Typography>
                     {distance !== undefined && (
                       <Typography color="text.secondary">
                         Distance from Brockworth: {distance.toFixed(1)} miles
@@ -276,7 +260,7 @@ export default function Ideas() {
                     )}
                     {references[0] ? (
                       <Typography color="text.secondary">
-                        Reference: {references[0].title} ({referenceHostnames([references[0].url])})
+                        Reference: {references[0].title} ({referenceHostname(references[0].url)})
                       </Typography>
                     ) : (
                       <Typography color="text.secondary">No references</Typography>
