@@ -139,20 +139,22 @@ export const ExternalPhotoReferenceSchema = z.object({
   url: httpsUrl,
 })
 
-export const ActivitySchema = z.object({
-  activityId: z.string().min(1),
-  waypointId: z.string().min(1).optional(),
-  challengeId: z.string().min(1).optional(),
-  ideaIds: distinctIds('Activity idea links must be distinct'),
-  date: isoDate,
-  category: AwardedStatusSchema.optional(),
-  location: ActivityLocationSchema,
-  notes: z.string(),
-  referenceIds: z.array(z.string().min(1)),
-  photoReferenceIds: z.array(z.string().min(1)),
-  createdAt: z.iso.datetime(),
-  updatedAt: z.iso.datetime(),
-}).strict()
+export const ActivitySchema = z
+  .object({
+    activityId: z.string().min(1),
+    waypointId: z.string().min(1).optional(),
+    challengeId: z.string().min(1).optional(),
+    ideaIds: distinctIds('Activity idea links must be distinct'),
+    date: isoDate,
+    category: AwardedStatusSchema.optional(),
+    location: ActivityLocationSchema,
+    notes: z.string(),
+    referenceIds: z.array(z.string().min(1)),
+    photoReferenceIds: z.array(z.string().min(1)),
+    createdAt: z.iso.datetime(),
+    updatedAt: z.iso.datetime(),
+  })
+  .strict()
 
 export const DataSchema = z.object({
   waypoints: z.array(WaypointSchema),
