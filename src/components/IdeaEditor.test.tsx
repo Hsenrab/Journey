@@ -122,11 +122,12 @@ describe('IdeaEditor', () => {
     )
   })
 
-  it('ignores approximate location without any location details', async () => {
+  it('ignores approximate and source fields without location details', async () => {
     const user = userEvent.setup()
     const { onSubmit } = renderEditor()
 
     await user.type(screen.getByLabelText('Title'), 'Find hill viewpoint')
+    await user.type(screen.getByLabelText('Source'), 'Guidebook')
     await user.click(screen.getByLabelText('Approximate location'))
     await user.click(screen.getByRole('button', { name: 'Save' }))
 

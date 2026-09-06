@@ -178,7 +178,6 @@ export function IdeaEditor({
     const hasLocation =
       Boolean(placeName.trim()) ||
       Boolean(addressOrRegion.trim()) ||
-      Boolean(source.trim()) ||
       Boolean(latitude.trim()) ||
       Boolean(longitude.trim())
     if (hasLocation) {
