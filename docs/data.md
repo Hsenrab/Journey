@@ -108,9 +108,10 @@ writing. Missing, duplicate, or unknown referenced IDs are rejected with an expl
 Each operation that changes several documents runs as a single Cosmos transactional
 batch in the dataset's `/datasetId` logical partition:
 
-- **Delete a Waypoint** — delete the Waypoint, remove its ID from every Idea
-  `waypointIds` array, and clear `waypointId` on Activities recorded under it. All
-  Ideas, Activities, references, and photos are preserved.
+- **Delete a Waypoint** — delete the Waypoint, remove its ID from every Challenge
+  `waypointIds` and Idea `waypointIds` array, and clear `waypointId` on Activities
+  recorded under it. All Challenges, Ideas, Activities, references, and photos are
+  preserved.
 - **Delete an Idea** — delete the Idea and remove its ID from every Activity `ideaIds`
   array. Activities are preserved; only Reference documents that become unreferenced by
   every remaining entity are deleted.

@@ -109,6 +109,12 @@ export type DeletionPlan = { deletes: string[]; updates: { type: EntityType; ent
 
 export function deletionPlan(data: JourneyData, type: EntityType, id: string): DeletionPlan {
   if (type === 'waypoint') {
+    const challenges = data.challenges
+      .filter((challenge) => challenge.waypointIds.includes(id))
+      .map((challenge) => ({
+        type: 'challenge' as const,
+        entity: { ...challenge, waypointIds: challenge.waypointIds.filter((waypointId) => waypointId !== id) },
+      }))
     const ideas = data.ideas
       .filter((idea) => idea.waypointIds.includes(id))
       .map((idea) => ({
@@ -118,7 +124,7 @@ export function deletionPlan(data: JourneyData, type: EntityType, id: string): D
     const activities = data.activities
       .filter((activity) => activity.waypointId === id)
       .map(({ waypointId: _removed, ...activity }) => ({ type: 'activity' as const, entity: { ...activity } }))
-    return { deletes: [id], updates: [...ideas, ...activities] }
+    return { deletes: [id], updates: [...challenges, ...ideas, ...activities] }
   }
 
   if (type === 'idea') {

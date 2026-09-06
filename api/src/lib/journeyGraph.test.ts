@@ -17,7 +17,15 @@ function data(): JourneyData {
         photoReferenceIds: [],
       },
     ],
-    challenges: [],
+    challenges: [
+      {
+        challengeId: 'challenge-1',
+        title: 'Heritage weekend',
+        description: 'Heritage weekend',
+        waypointIds: ['waypoint-1'],
+        supportsActivityCategories: false,
+      },
+    ],
     ideas: [
       {
         ideaId: 'idea-1',
@@ -88,6 +96,7 @@ describe('deletionPlan', () => {
 
     expect(plan.deletes).toEqual(['waypoint-1'])
     expect(plan.updates).toEqual([
+      { type: 'challenge', entity: expect.objectContaining({ challengeId: 'challenge-1', waypointIds: [] }) },
       { type: 'idea', entity: expect.objectContaining({ ideaId: 'idea-1', waypointIds: [] }) },
       { type: 'activity', entity: expect.objectContaining({ activityId: 'activity-1', ideaIds: ['idea-1'] }) },
     ])

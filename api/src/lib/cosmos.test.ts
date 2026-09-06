@@ -96,6 +96,8 @@ describe('Cosmos Journey persistence', () => {
     const documents = Object.fromEntries(
       Array.from({ length: 101 }, (_, index) => [`id-${index}`, {} as JourneyDocument]),
     )
-    await expect(replaceDataset({} as never, 'dataset', documents, {})).rejects.toThrow('transactional batch limit')
+    await expect(replaceDataset({} as never, 'dataset', documents, {})).rejects.toThrow(
+      '101 operations exceed the Cosmos transactional batch limit of 100 operations.',
+    )
   })
 })

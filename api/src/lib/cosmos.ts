@@ -102,7 +102,8 @@ export function documentsFor(datasetId: string, data: JourneyData): Record<strin
 }
 
 async function runBatch(container: Container, datasetId: string, operations: unknown[]) {
-  if (operations.length > 100) throw new Error('Journey dataset exceeds the Cosmos transactional batch limit.')
+  if (operations.length > 100)
+    throw new Error(`${operations.length} operations exceed the Cosmos transactional batch limit of 100 operations.`)
   if (operations.length === 0) return
   const response = await container.items.batch(operations as never, datasetId)
   if (response.code !== 200) {
