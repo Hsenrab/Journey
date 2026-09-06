@@ -106,6 +106,7 @@ export const IdeaSchema = z
     createdAt: z.iso.datetime(),
     updatedAt: z.iso.datetime(),
   })
+  .strict()
   .superRefine((idea, context) => {
     if (idea.planningState === 'rejected' && idea.rejectionReason === undefined)
       context.addIssue({
