@@ -48,6 +48,8 @@ function entityDocument(datasetId: string, type: EntityType, entity: Record<stri
     return documentFor(datasetId, type, entity)
   } catch (error) {
     if (error instanceof ZodError) throw new ResponseError(400, error.issues[0]?.message ?? 'Invalid entity.')
+    if (error instanceof Error && error.message.includes('missing its identifier.'))
+      throw new ResponseError(400, error.message)
     throw error
   }
 }
