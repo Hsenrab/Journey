@@ -27,7 +27,7 @@ import HikingIcon from '@mui/icons-material/Hiking'
 import MapIcon from '@mui/icons-material/Map'
 import SettingsIcon from '@mui/icons-material/Settings'
 import { useWaypoints } from '../features/journey/JourneyContext'
-import { isDemoModeEnabled, load, setDemoMode } from '../services/storage'
+import { isDemoModeEnabled, setDemoMode } from '../services/storage'
 
 const navItems = [
   { label: 'Waypoints', to: '/waypoints', icon: <PlaceIcon /> },
@@ -46,7 +46,7 @@ export function Layout({ children }: { children: ReactNode }) {
   const [open, setOpen] = useState(false)
   const [demoModeEnabled, setDemoModeEnabled] = useState(isDemoModeEnabled)
   const location = useLocation()
-  const { restore } = useWaypoints()
+  const { reload } = useWaypoints()
 
   const navList = (
     <List>
@@ -100,7 +100,7 @@ export function Layout({ children }: { children: ReactNode }) {
                     const enabled = event.target.checked
                     setDemoMode(enabled)
                     setDemoModeEnabled(enabled)
-                    restore(load())
+                    reload()
                   }}
                 />
               }

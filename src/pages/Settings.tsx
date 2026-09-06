@@ -14,16 +14,11 @@ import {
 } from '@mui/material'
 import { statusLabels, statusOrder, statusRules } from '../domain/visit'
 import { useWaypoints } from '../features/journey/JourneyContext'
-import {
-  createBackup,
-  createDefaultData,
-  createDemoModeData,
-  isDemoModeEnabled,
-  parseImport,
-} from '../services/storage'
+import { JourneyImportNotEmptyError } from '../services/journeyApi'
+import { createBackup, isDemoModeEnabled, parseImport } from '../services/storage'
 
 export default function Settings() {
-  const { data, restore } = useWaypoints()
+  const { clear, data, restore } = useWaypoints()
   const input = useRef<HTMLInputElement>(null)
   const [message, setMessage] = useState<{ text: string; error: boolean } | null>(null)
   const [confirmingClear, setConfirmingClear] = useState(false)
@@ -45,11 +40,15 @@ export default function Settings() {
       return
     }
     try {
-      restore(parseImport(await file.text()))
+      if (demoModeEnabled) throw new Error('Demo data is read-only.')
+      await restore(parseImport(await file.text()))
       setMessage({ text: `${demoModeEnabled ? 'Demo' : 'Personal'} data was restored.`, error: false })
-    } catch {
+    } catch (error) {
       setMessage({
-        text: 'That file is not a valid Waypoints backup, so your existing data was left unchanged.',
+        text:
+          error instanceof JourneyImportNotEmptyError
+            ? error.message
+            : 'That file is not a valid Waypoints backup, so your existing data was left unchanged.',
         error: true,
       })
     }
@@ -83,14 +82,13 @@ export default function Settings() {
       <Stack spacing={2}>
         <Typography variant="h5">{demoModeEnabled ? 'Active demo data' : 'Your data'}</Typography>
         <Typography>
-          Export, restore, and clear actions apply only to the active {demoModeEnabled ? 'demo' : 'personal'} dataset.
-          The other dataset stays in its separate browser storage partition.
+          Export applies to the active dataset. Restore and clear apply to your personal data; demo data is read-only.
         </Typography>
         <Stack direction="row" spacing={2}>
           <Button variant="contained" onClick={exportData}>
             Export JSON
           </Button>
-          <Button component="label" variant="outlined">
+          <Button component="label" variant="outlined" disabled={demoModeEnabled}>
             Restore JSON
             <input
               ref={input}
@@ -104,7 +102,7 @@ export default function Settings() {
               }}
             />
           </Button>
-          <Button color="error" variant="outlined" onClick={() => setConfirmingClear(true)}>
+          <Button color="error" variant="outlined" disabled={demoModeEnabled} onClick={() => setConfirmingClear(true)}>
             Clear data
           </Button>
         </Stack>
@@ -123,11 +121,15 @@ export default function Settings() {
           <Button onClick={() => setConfirmingClear(false)}>Cancel</Button>
           <Button
             color="error"
-            onClick={() => {
-              const reset = demoModeEnabled ? createDemoModeData() : createDefaultData()
-              restore({ ...reset, activities: [], ideas: [], photoReferences: [] })
+            onClick={async () => {
+              try {
+                await clear()
+              } catch (error) {
+                setMessage({ text: error instanceof Error ? error.message : 'Failed to clear your data.', error: true })
+                return
+              }
               setConfirmingClear(false)
-              setMessage({ text: `${demoModeEnabled ? 'Demo' : 'Personal'} data was cleared.`, error: false })
+              setMessage({ text: 'Personal data was cleared.', error: false })
             }}
           >
             Clear everything

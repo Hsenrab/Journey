@@ -3,6 +3,58 @@
 This guide covers deploying, verifying, rolling back, and backing up the Waypoints
 application, which runs as an Azure Static Web App.
 
+## Cosmos DB persistence
+
+The linked Function App is the only data boundary. It uses its system-assigned
+managed identity and container-scoped Cosmos DB RBAC; browser assets never receive
+an account key, connection string, or direct Cosmos endpoint. The account uses
+Session consistency, the default consistent indexing policy, local key
+authentication disabled, and periodic backup.
+
+`infra/main.bicep` provisions the `journey` database with `production`, `test`, and
+`demo` containers, all partitioned by `/datasetId`. `production` starts empty and
+contains the only mutable real data. `demo` is deterministic and read-only.
+Provisioning requires an explicit `cosmosMode`: choose `freeTier` only after
+checking the subscription's Cosmos free-tier eligibility with Azure, otherwise
+choose `serverless`. No paid provisioned-throughput fallback is configured.
+
+The account is intentionally single-region and non-zonal: the location omits the
+`isZoneRedundant` property entirely rather than setting it to `false`, since Azure has
+rejected explicit `false` values as zonal-redundant capacity requests when it cannot
+allocate new zonal Cosmos accounts in the selected region. This personal workload does
+not require availability-zone redundancy. This setting is separate from periodic backup
+storage redundancy, which remains `Local`.
+
+Some regions reject **all** new Cosmos DB account creation, zonal or not, whenever
+their zonal-redundant capacity pool is exhausted (`ServiceUnavailable`, "currently
+experiencing high demand ... for the zonal redundant (Availability Zones) accounts").
+This is an Azure-side regional capacity limit, not something the `isZoneRedundant`
+setting controls, and it has recurred for `westeurope`. Because Cosmos DB and Static
+Web Apps support different region sets, `infra/main.bicep` exposes `cosmosLocation`
+as an independent parameter (default: the Static Web App `location`) so the Cosmos
+account can be deployed to a different, less-constrained region without moving the
+Static Web App. Set the optional `AZURE_COSMOS_LOCATION` environment variable to
+override it; retrying the same region or opening an Azure support/quota request
+(`https://aka.ms/cosmosdbquota`) are the only other ways to resolve a capacity
+rejection.
+
+Review Cosmos request units, throttled requests, storage, latency, availability,
+and authorization failures in the Cosmos account metrics and Application
+Insights. Do not log document bodies, credentials, or precise location data.
+The current periodic backup is every 240 minutes with 8 hours retention and local
+redundancy. Restore requests create a new account/container; validate the restored
+dataset and redirect configuration only after verification. JSON export remains
+the user-controlled backup.
+
+### Test data
+
+Live integration and preview tests must use the `test` container with a unique
+partition such as `ci-<run-id>`. Seed the immutable fixture before the run, allow
+mutations, then delete every item in that partition in unconditional cleanup and
+verify it is empty. Cleanup failure fails the workflow. Test identities have no
+production-container data-plane role. Local development should use the Cosmos DB
+Emulator where practical; deployed validation uses only the live `test` container.
+
 ## Azure Maps
 
 The Azure Maps account must keep `disableLocalAuth: true` to satisfy policy. This
@@ -58,7 +110,9 @@ repository-level secrets:
 
 Define `AZURE_RESOURCE_GROUP` and `AZURE_STATIC_WEB_APP_NAME` as environment
 variables for the deployment target. Optional variables: `AZURE_LOCATION`
-(default `westeurope`) and `AZURE_RESOURCE_OWNER` (default
+(default `westeurope`), `AZURE_COSMOS_LOCATION` (default: same as
+`AZURE_LOCATION`; set this independently if the Cosmos region rejects new
+account creation), and `AZURE_RESOURCE_OWNER` (default
 `journey-maintainers`).
 
 The production Static Web Apps deployment token is never stored as a GitHub secret.

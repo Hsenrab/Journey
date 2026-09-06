@@ -2,10 +2,19 @@
 
 ## Where data lives
 
-All app data is stored in browser local storage (`waypoints-v1` for personal data, `waypoints-demo-v1` for demo data).
-There is no server persistence.
+Real Journey data is stored only in Azure Cosmos DB for NoSQL. The browser loads the
+complete active dataset through the authenticated same-origin `/api/journey` Function
+and never keeps a data cache or offline queue. It can access only the `production` and
+read-only `demo` containers. The separate `test` container uses `/datasetId` as its
+partition key and is accessible only to the test deployment identity.
 
-The initial demo partition is loaded from `src/data/demo.json`. Every place, activity,
+Cosmos stores one document per entity. Every document contains `id`, `datasetId`,
+`type`, and `schemaVersion`; relationships remain IDs and are hydrated into the
+validated `WaypointsData` response. Cosmos ETags are kept in application memory and
+are not included in JSON exports.
+
+The deployment workflow seeds the initial demo partition from `src/data/demo.json`.
+The runtime Function has read-only access to that container. Every place, activity,
 idea and reference in that fixture is fabricated and visibly labelled as demo content.
 The fixture mixes fictional National Trust-style places with unrelated local activities.
 It is parsed with `DataSchema` before use; only challenges that explicitly set
@@ -67,6 +76,15 @@ Validation is shared in `src/domain/visit.ts` and enforced by storage import/loa
 
 ## Export / restore / clear
 
-- **Export JSON** downloads the active partition as the envelope above.
-- **Restore JSON** replaces the active partition with validated backup content.
-- **Clear data** clears activities in the active partition (after confirmation).
+- **Export JSON** downloads the authoritative production partition as the envelope above.
+- **Restore JSON** validates the complete backup and is accepted only when production
+  is empty; demo and test records can never appear in a production export.
+- **Clear data** is a protected production mutation. Demo is deterministic and read-only.
+
+An update or delete requires its entity ETag. Cosmos `412 Precondition Failed` is
+returned as an explicit `409 Conflict`; the UI must preserve unsaved values and offer
+Reload latest or Cancel rather than retrying or overwriting another tab.
+
+Production begins empty. Existing browser-local records are not migrated. The test
+container is used only with unique run partitions such as `ci-<run-id>` and every
+run must delete and verify its partition after success or failure.

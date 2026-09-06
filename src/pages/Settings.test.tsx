@@ -156,21 +156,12 @@ describe('Settings', () => {
     expect(load().activities).toEqual([])
   })
 
-  it('clears only the active demo dataset', async () => {
-    const user = userEvent.setup()
-    const personalActivity = activity('silver')
-    save({ ...createDefaultData(), activities: [personalActivity] })
+  it('disables mutations for demo data', () => {
     setDemoMode(true)
     renderSettings()
 
-    await user.click(screen.getByRole('button', { name: 'Clear data' }))
-    await user.click(screen.getByRole('button', { name: 'Clear everything' }))
-
-    expect(await screen.findByText('Demo data was cleared.')).toBeInTheDocument()
-    expect(load().activities).toEqual([])
-
-    setDemoMode(false)
-    expect(load().activities).toEqual([personalActivity])
+    expect(screen.getByText('Restore JSON').closest('label')).toHaveClass('Mui-disabled')
+    expect(screen.getByRole('button', { name: 'Clear data' })).toBeDisabled()
   })
 
   it('closes the clear data confirmation dialog when dismissed with escape', async () => {

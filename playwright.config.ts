@@ -17,7 +17,11 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: 'npm run preview -- --port 4173',
+    // Build in Vite's "test" mode so the app uses its browser-local storage data
+    // path instead of calling the Azure Functions API, which isn't available
+    // when running these smoke tests. Output goes to a separate directory so it
+    // doesn't clobber the production `dist` build produced by `npm run build`.
+    command: 'vite build --mode test --outDir dist-e2e && vite preview --outDir dist-e2e --port 4173',
     url: 'http://localhost:4173',
     reuseExistingServer: !process.env.CI,
   },

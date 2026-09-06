@@ -41,6 +41,17 @@ describe('Activities', () => {
     expect(load().activities).toEqual([])
   })
 
+  it('cancels adding an activity without saving it', async () => {
+    const user = userEvent.setup()
+    renderActivities()
+
+    await user.click(screen.getByRole('button', { name: 'Add activity' }))
+    await user.click(screen.getByRole('button', { name: 'Cancel' }))
+
+    expect(screen.getByRole('button', { name: 'Add activity' })).toBeInTheDocument()
+    expect(load().activities).toEqual([])
+  })
+
   it('saves an independent activity with postcode location', async () => {
     const user = userEvent.setup()
     renderActivities()

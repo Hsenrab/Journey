@@ -33,4 +33,5 @@ jobs:
       deploy_infra: true
       deploy_api: true
       deploy_application: true
+      run_cosmos_test: false
     secrets: inherit

@@ -3,7 +3,12 @@
   "Values": {
     "AzureWebJobsStorage": "UseDevelopmentStorage=true",
     "FUNCTIONS_WORKER_RUNTIME": "node",
-    "AZURE_MAPS_CLIENT_ID": "<maps-account-client-id>"
+    "AZURE_MAPS_CLIENT_ID": "<maps-account-client-id>",
+    "COSMOS_ENDPOINT": "https://<account>.documents.azure.com:443/",
+    "COSMOS_DATABASE_NAME": "journey",
+    "COSMOS_PRODUCTION_DATASET_ID": "production",
+    "COSMOS_TEST_DATASET_ID": "ci-local",
+    "COSMOS_DEMO_DATASET_ID": "demo"
   },
   "Host": {
     "LocalHttpPort": 7071
