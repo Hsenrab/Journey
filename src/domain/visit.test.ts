@@ -17,6 +17,7 @@ import {
   type Waypoint,
   type WaypointsData,
 } from './visit'
+import { waypointCoordinates } from './map'
 import { locations } from '../data/locations'
 
 function waypoint(waypointId: string): Waypoint {
@@ -65,6 +66,7 @@ describe('activity rules', () => {
   it('makes category optional and validates eligibility by challenge config', () => {
     const data = createSeedData(locations)
     const waypointId = data.waypoints[0]!.waypointId
+    expect(data.waypoints.every((item) => waypointCoordinates(item) !== undefined)).toBe(true)
     expect(waypointSupportsActivityCategory(data, waypointId)).toBe(true)
 
     const activity = createActivity({

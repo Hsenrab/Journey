@@ -8,25 +8,22 @@ const identifier = z.string().min(1)
 const text = z.string().trim().min(1)
 const distinctIds = (message: string) => z.array(identifier).refine((ids) => new Set(ids).size === ids.length, message)
 const httpsUrl = z.url().startsWith('https://')
+const latitude = z.number().min(-90).max(90)
+const longitude = z.number().min(-180).max(180)
 const place = z
   .object({
     placeName: identifier.optional(),
-    latitude: z.number().min(-90).max(90).optional(),
-    longitude: z.number().min(-180).max(180).optional(),
+    latitude: latitude.optional(),
+    longitude: longitude.optional(),
     addressOrRegion: identifier.optional(),
     source: identifier.optional(),
     approximate: z.boolean().optional(),
   })
   .strict()
+const resolvedPlace = place.required({ latitude: true, longitude: true })
 const activityLocation = z.discriminatedUnion('kind', [
-  z.object({ kind: z.literal('postcode'), postcode: identifier }).strict(),
-  z
-    .object({
-      kind: z.literal('coordinates'),
-      latitude: z.number().min(-90).max(90),
-      longitude: z.number().min(-180).max(180),
-    })
-    .strict(),
+  z.object({ kind: z.literal('postcode'), postcode: identifier, latitude, longitude }).strict(),
+  z.object({ kind: z.literal('coordinates'), latitude, longitude }).strict(),
 ])
 const schemas = {
   waypoint: z
@@ -41,7 +38,7 @@ const schemas = {
         z.object({ mode: z.literal('once') }).strict(),
         z.object({ mode: z.literal('count'), target: z.number().int().positive() }).strict(),
       ]),
-      location: place.optional(),
+      location: resolvedPlace.optional(),
       referenceIds: z.array(identifier),
       photoReferenceIds: z.array(identifier),
     })
@@ -117,10 +114,10 @@ const schemas = {
 } as const
 
 export const schemaVersions = {
-  waypoint: 1,
+  waypoint: 2,
   challenge: 1,
   idea: 2,
-  activity: 2,
+  activity: 3,
   reference: 1,
   photoReference: 1,
 } as const satisfies Record<EntityType, number>

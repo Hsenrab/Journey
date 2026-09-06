@@ -11,7 +11,9 @@
     "url": "https://www.nationaltrust.org.uk/visit/bath-bristol/bath-assembly-rooms",
     "notes": "Georgian assembly rooms at the heart of Bath social history.",
     "createdAt": "2026-08-04T00:00:00.000Z",
-    "updatedAt": "2026-08-04T00:00:00.000Z"
+    "updatedAt": "2026-08-04T00:00:00.000Z",
+    "latitude": 51.3865,
+    "longitude": -2.3618
   },
   {
     "locationId": "bath-skyline",
@@ -25,7 +27,9 @@
     "url": "https://www.nationaltrust.org.uk/visit/bath-bristol/bath-skyline",
     "notes": "Countryside walking route around Bath with meadows, woodland and city views.",
     "createdAt": "2026-08-04T00:00:00.000Z",
-    "updatedAt": "2026-08-04T00:00:00.000Z"
+    "updatedAt": "2026-08-04T00:00:00.000Z",
+    "latitude": 51.376,
+    "longitude": -2.335
   },
   {
     "locationId": "prior-park-landscape-garden",
@@ -39,7 +43,9 @@
     "url": "https://www.nationaltrust.org.uk/visit/bath-bristol/prior-park-landscape-garden",
     "notes": "Eighteenth-century landscape garden with Palladian bridge and Bath views.",
     "createdAt": "2026-08-04T00:00:00.000Z",
-    "updatedAt": "2026-08-04T00:00:00.000Z"
+    "updatedAt": "2026-08-04T00:00:00.000Z",
+    "latitude": 51.369,
+    "longitude": -2.3486
   },
   {
     "locationId": "basildon-park",
@@ -53,7 +59,9 @@
     "url": "https://www.nationaltrust.org.uk/visit/oxfordshire-buckinghamshire-berkshire/basildon-park",
     "notes": "Palladian mansion, parkland and gardens above the Thames Valley.",
     "createdAt": "2026-08-04T00:00:00.000Z",
-    "updatedAt": "2026-08-04T00:00:00.000Z"
+    "updatedAt": "2026-08-04T00:00:00.000Z",
+    "latitude": 51.4869,
+    "longitude": -1.1042
   },
   {
     "locationId": "blaise-hamlet",
@@ -67,7 +75,9 @@
     "url": "https://www.nationaltrust.org.uk/visit/bath-bristol/blaise-hamlet",
     "notes": "Picturesque group of early nineteenth-century cottages around a village green.",
     "createdAt": "2026-08-04T00:00:00.000Z",
-    "updatedAt": "2026-08-04T00:00:00.000Z"
+    "updatedAt": "2026-08-04T00:00:00.000Z",
+    "latitude": 51.5,
+    "longitude": -2.639
   },
   {
     "locationId": "ascott",
@@ -81,7 +91,9 @@
     "url": "https://www.nationaltrust.org.uk/visit/oxfordshire-buckinghamshire-berkshire/ascott",
     "notes": "Tudor-style house, art collection and extensive gardens.",
     "createdAt": "2026-08-04T00:00:00.000Z",
-    "updatedAt": "2026-08-04T00:00:00.000Z"
+    "updatedAt": "2026-08-04T00:00:00.000Z",
+    "latitude": 51.8862,
+    "longitude": -0.7217
   },
   {
     "locationId": "boarstall-tower-and-duck-decoy",
@@ -95,7 +107,9 @@
     "url": "https://www.nationaltrust.org.uk/visit/oxfordshire-buckinghamshire-berkshire/boarstall-tower-and-duck-decoy",
     "notes": "Medieval gatehouse and historic duck decoy with limited-opening visitor access.",
     "createdAt": "2026-08-04T00:00:00.000Z",
-    "updatedAt": "2026-08-04T00:00:00.000Z"
+    "updatedAt": "2026-08-04T00:00:00.000Z",
+    "latitude": 51.829,
+    "longitude": -1.064
   },
   {
     "locationId": "bradenham-village",
@@ -109,7 +123,9 @@
     "url": "https://www.nationaltrust.org.uk/visit/oxfordshire-buckinghamshire-berkshire/bradenham-village",
     "notes": "Chilterns village and surrounding beech woodland countryside.",
     "createdAt": "2026-08-04T00:00:00.000Z",
-    "updatedAt": "2026-08-04T00:00:00.000Z"
+    "updatedAt": "2026-08-04T00:00:00.000Z",
+    "latitude": 51.671,
+    "longitude": -0.802
   },
   {
     "locationId": "claydon",
@@ -123,7 +139,9 @@
     "url": "https://www.nationaltrust.org.uk/visit/oxfordshire-buckinghamshire-berkshire/claydon",
     "notes": "Eighteenth-century interiors, gardens and wider Claydon estate setting.",
     "createdAt": "2026-08-04T00:00:00.000Z",
-    "updatedAt": "2026-08-04T00:00:00.000Z"
+    "updatedAt": "2026-08-04T00:00:00.000Z",
+    "latitude": 51.933,
+    "longitude": -0.935
   },
   {
     "locationId": "cliveden",
@@ -137,7 +155,9 @@
     "url": "https://www.nationaltrust.org.uk/visit/oxfordshire-buckinghamshire-berkshire/cliveden",
     "notes": "Formal gardens, woodland, river views and historic estate overlooking the Thames.",
     "createdAt": "2026-08-04T00:00:00.000Z",
-    "updatedAt": "2026-08-04T00:00:00.000Z"
+    "updatedAt": "2026-08-04T00:00:00.000Z",
+    "latitude": 51.558,
+    "longitude": -0.69
   },
   {
     "locationId": "hughenden",
@@ -151,7 +171,9 @@
     "url": "https://www.nationaltrust.org.uk/visit/oxfordshire-buckinghamshire-berkshire/hughenden",
     "notes": "Victorian manor associated with Benjamin Disraeli, gardens and wooded estate.",
     "createdAt": "2026-08-04T00:00:00.000Z",
-    "updatedAt": "2026-08-04T00:00:00.000Z"
+    "updatedAt": "2026-08-04T00:00:00.000Z",
+    "latitude": 51.644,
+    "longitude": -0.762
   },
   {
     "locationId": "stowe",
@@ -165,7 +187,9 @@
     "url": "https://www.nationaltrust.org.uk/visit/oxfordshire-buckinghamshire-berkshire/stowe",
     "notes": "Large-scale landscape garden with temples, monuments and lakes.",
     "createdAt": "2026-08-04T00:00:00.000Z",
-    "updatedAt": "2026-08-04T00:00:00.000Z"
+    "updatedAt": "2026-08-04T00:00:00.000Z",
+    "latitude": 52.03,
+    "longitude": -1.017
   },
   {
     "locationId": "waddesdon-manor",
@@ -179,7 +203,9 @@
     "url": "https://www.nationaltrust.org.uk/visit/oxfordshire-buckinghamshire-berkshire/waddesdon-manor",
     "notes": "Rothschild manor house, collections, formal gardens and parkland.",
     "createdAt": "2026-08-04T00:00:00.000Z",
-    "updatedAt": "2026-08-04T00:00:00.000Z"
+    "updatedAt": "2026-08-04T00:00:00.000Z",
+    "latitude": 51.842,
+    "longitude": -0.944
   },
   {
     "locationId": "west-wycombe-park-village-and-hill",
@@ -193,7 +219,9 @@
     "url": "https://www.nationaltrust.org.uk/visit/oxfordshire-buckinghamshire-berkshire/west-wycombe-park-village-and-hill",
     "notes": "Historic village, hilltop church, mausoleum views and landscaped park.",
     "createdAt": "2026-08-04T00:00:00.000Z",
-    "updatedAt": "2026-08-04T00:00:00.000Z"
+    "updatedAt": "2026-08-04T00:00:00.000Z",
+    "latitude": 51.645,
+    "longitude": -0.806
   },
   {
     "locationId": "dinefwr",
@@ -207,7 +235,9 @@
     "url": "https://www.nationaltrust.org.uk/visit/wales/dinefwr",
     "notes": "Newton House, castle ruins, deer park and historic designed landscape near Llandeilo; a traffic-sensitive boundary case.",
     "createdAt": "2026-08-04T00:00:00.000Z",
-    "updatedAt": "2026-08-04T00:00:00.000Z"
+    "updatedAt": "2026-08-04T00:00:00.000Z",
+    "latitude": 51.879,
+    "longitude": -3.999
   },
   {
     "locationId": "dolaucothi-gold-mines",
@@ -221,7 +251,9 @@
     "url": "https://www.nationaltrust.org.uk/visit/wales/dolaucothi-gold-mines",
     "notes": "Roman and later gold mine landscape with tours and archaeology.",
     "createdAt": "2026-08-04T00:00:00.000Z",
-    "updatedAt": "2026-08-04T00:00:00.000Z"
+    "updatedAt": "2026-08-04T00:00:00.000Z",
+    "latitude": 52.045,
+    "longitude": -3.954
   },
   {
     "locationId": "alderley-edge-and-cheshire-countryside",
@@ -235,7 +267,9 @@
     "url": "https://www.nationaltrust.org.uk/visit/cheshire-greater-manchester/alderley-edge-and-cheshire-countryside",
     "notes": "Woodland walks and sandstone escarpment views in Cheshire.",
     "createdAt": "2026-08-04T00:00:00.000Z",
-    "updatedAt": "2026-08-04T00:00:00.000Z"
+    "updatedAt": "2026-08-04T00:00:00.000Z",
+    "latitude": 53.29,
+    "longitude": -2.22
   },
   {
     "locationId": "hare-hill",
@@ -249,7 +283,9 @@
     "url": "https://www.nationaltrust.org.uk/visit/cheshire-greater-manchester/hare-hill",
     "notes": "Walled garden and surrounding woodland near Alderley Edge.",
     "createdAt": "2026-08-04T00:00:00.000Z",
-    "updatedAt": "2026-08-04T00:00:00.000Z"
+    "updatedAt": "2026-08-04T00:00:00.000Z",
+    "latitude": 53.312,
+    "longitude": -2.172
   },
   {
     "locationId": "little-moreton-hall",
@@ -263,7 +299,9 @@
     "url": "https://www.nationaltrust.org.uk/visit/cheshire-greater-manchester/little-moreton-hall",
     "notes": "Iconic timber-framed Tudor manor house with garden and moat.",
     "createdAt": "2026-08-04T00:00:00.000Z",
-    "updatedAt": "2026-08-04T00:00:00.000Z"
+    "updatedAt": "2026-08-04T00:00:00.000Z",
+    "latitude": 53.14,
+    "longitude": -2.254
   },
   {
     "locationId": "lyme",
@@ -277,7 +315,9 @@
     "url": "https://www.nationaltrust.org.uk/visit/cheshire-greater-manchester/lyme",
     "notes": "Grand house, garden, moorland and deer park on the edge of the Peak District.",
     "createdAt": "2026-08-04T00:00:00.000Z",
-    "updatedAt": "2026-08-04T00:00:00.000Z"
+    "updatedAt": "2026-08-04T00:00:00.000Z",
+    "latitude": 53.34,
+    "longitude": -2.05
   },
   {
     "locationId": "nether-alderley-mill",
@@ -291,7 +331,9 @@
     "url": "https://www.nationaltrust.org.uk/visit/cheshire-greater-manchester/nether-alderley-mill",
     "notes": "Restored historic corn mill with machinery and millpond setting.",
     "createdAt": "2026-08-04T00:00:00.000Z",
-    "updatedAt": "2026-08-04T00:00:00.000Z"
+    "updatedAt": "2026-08-04T00:00:00.000Z",
+    "latitude": 53.28,
+    "longitude": -2.232
   },
   {
     "locationId": "quarry-bank",
@@ -305,7 +347,9 @@
     "url": "https://www.nationaltrust.org.uk/visit/cheshire-greater-manchester/quarry-bank",
     "notes": "Cotton mill, apprentice house, gardens and estate landscape.",
     "createdAt": "2026-08-04T00:00:00.000Z",
-    "updatedAt": "2026-08-04T00:00:00.000Z"
+    "updatedAt": "2026-08-04T00:00:00.000Z",
+    "latitude": 53.341,
+    "longitude": -2.249
   },
   {
     "locationId": "calke-abbey",
@@ -319,7 +363,9 @@
     "url": "https://www.nationaltrust.org.uk/visit/peak-district-derbyshire/calke-abbey",
     "notes": "Country house, parkland and gardens presented as an unstately home.",
     "createdAt": "2026-08-04T00:00:00.000Z",
-    "updatedAt": "2026-08-04T00:00:00.000Z"
+    "updatedAt": "2026-08-04T00:00:00.000Z",
+    "latitude": 52.786,
+    "longitude": -1.457
   },
   {
     "locationId": "hardwick",
@@ -333,7 +379,9 @@
     "url": "https://www.nationaltrust.org.uk/visit/peak-district-derbyshire/hardwick",
     "notes": "Elizabethan Hardwick Hall, gardens and wider estate.",
     "createdAt": "2026-08-04T00:00:00.000Z",
-    "updatedAt": "2026-08-04T00:00:00.000Z"
+    "updatedAt": "2026-08-04T00:00:00.000Z",
+    "latitude": 53.169,
+    "longitude": -1.309
   },
   {
     "locationId": "ilam-park-dovedale-and-the-white-peak",
@@ -347,7 +395,9 @@
     "url": "https://www.nationaltrust.org.uk/visit/peak-district-derbyshire/ilam-park-dovedale-and-the-white-peak",
     "notes": "Peak District parkland, limestone ravines and countryside walking routes.",
     "createdAt": "2026-08-04T00:00:00.000Z",
-    "updatedAt": "2026-08-04T00:00:00.000Z"
+    "updatedAt": "2026-08-04T00:00:00.000Z",
+    "latitude": 53.053,
+    "longitude": -1.806
   },
   {
     "locationId": "kedleston-hall",
@@ -361,7 +411,9 @@
     "url": "https://www.nationaltrust.org.uk/visit/peak-district-derbyshire/kedleston-hall",
     "notes": "Neoclassical mansion, collections, parkland and pleasure grounds.",
     "createdAt": "2026-08-04T00:00:00.000Z",
-    "updatedAt": "2026-08-04T00:00:00.000Z"
+    "updatedAt": "2026-08-04T00:00:00.000Z",
+    "latitude": 52.967,
+    "longitude": -1.534
   },
   {
     "locationId": "sudbury-hall-and-the-national-trust-museum-of-childhood",
@@ -375,7 +427,9 @@
     "url": "https://www.nationaltrust.org.uk/visit/peak-district-derbyshire/sudbury-hall-and-the-national-trust-museum-of-childhood",
     "notes": "Historic hall, gardens and childhood museum displays.",
     "createdAt": "2026-08-04T00:00:00.000Z",
-    "updatedAt": "2026-08-04T00:00:00.000Z"
+    "updatedAt": "2026-08-04T00:00:00.000Z",
+    "latitude": 52.888,
+    "longitude": -1.769
   },
   {
     "locationId": "a-la-ronde",
@@ -389,7 +443,9 @@
     "url": "https://www.nationaltrust.org.uk/visit/devon/a-la-ronde",
     "notes": "Sixteen-sided historic house with shell gallery near Exmouth.",
     "createdAt": "2026-08-04T00:00:00.000Z",
-    "updatedAt": "2026-08-04T00:00:00.000Z"
+    "updatedAt": "2026-08-04T00:00:00.000Z",
+    "latitude": 50.639,
+    "longitude": -3.416
   },
   {
     "locationId": "killerton",
@@ -403,7 +459,9 @@
     "url": "https://www.nationaltrust.org.uk/visit/devon/killerton",
     "notes": "Georgian house, fashion collection, garden and wider estate near Exeter.",
     "createdAt": "2026-08-04T00:00:00.000Z",
-    "updatedAt": "2026-08-04T00:00:00.000Z"
+    "updatedAt": "2026-08-04T00:00:00.000Z",
+    "latitude": 50.794,
+    "longitude": -3.455
   },
   {
     "locationId": "knightshayes",
@@ -417,7 +475,9 @@
     "url": "https://www.nationaltrust.org.uk/visit/devon/knightshayes",
     "notes": "Gothic Revival house, formal garden, kitchen garden and woodland walks.",
     "createdAt": "2026-08-04T00:00:00.000Z",
-    "updatedAt": "2026-08-04T00:00:00.000Z"
+    "updatedAt": "2026-08-04T00:00:00.000Z",
+    "latitude": 50.921,
+    "longitude": -3.472
   },
   {
     "locationId": "ashleworth-tithe-barn",
@@ -431,7 +491,9 @@
     "url": "https://www.nationaltrust.org.uk/visit/gloucestershire-cotswolds/ashleworth-tithe-barn",
     "notes": "Large medieval tithe barn beside the River Severn with limited opening.",
     "createdAt": "2026-08-04T00:00:00.000Z",
-    "updatedAt": "2026-08-04T00:00:00.000Z"
+    "updatedAt": "2026-08-04T00:00:00.000Z",
+    "latitude": 51.926,
+    "longitude": -2.274
   },
   {
     "locationId": "bibury",
@@ -445,7 +507,9 @@
     "url": "https://www.nationaltrust.org.uk/visit/gloucestershire-cotswolds/bibury",
     "notes": "Cotswold village setting including National Trust cared-for historic buildings and riverside walks.",
     "createdAt": "2026-08-04T00:00:00.000Z",
-    "updatedAt": "2026-08-04T00:00:00.000Z"
+    "updatedAt": "2026-08-04T00:00:00.000Z",
+    "latitude": 51.759,
+    "longitude": -1.832
   },
   {
     "locationId": "chedworth-roman-villa",
@@ -459,7 +523,9 @@
     "url": "https://www.nationaltrust.org.uk/visit/gloucestershire-cotswolds/chedworth-roman-villa",
     "notes": "Roman villa remains with mosaics, bath houses and museum displays.",
     "createdAt": "2026-08-04T00:00:00.000Z",
-    "updatedAt": "2026-08-04T00:00:00.000Z"
+    "updatedAt": "2026-08-04T00:00:00.000Z",
+    "latitude": 51.783,
+    "longitude": -1.933
   },
   {
     "locationId": "crickley-hill",
@@ -473,7 +539,9 @@
     "url": "https://www.nationaltrust.org.uk/visit/gloucestershire-cotswolds/crickley-hill",
     "notes": "Cotswold escarpment countryside with hillfort earthworks, grassland and views over Gloucester.",
     "createdAt": "2026-08-04T00:00:00.000Z",
-    "updatedAt": "2026-08-04T00:00:00.000Z"
+    "updatedAt": "2026-08-04T00:00:00.000Z",
+    "latitude": 51.838,
+    "longitude": -2.121
   },
   {
     "locationId": "dovers-hill",
@@ -487,7 +555,9 @@
     "url": "https://www.nationaltrust.org.uk/visit/gloucestershire-cotswolds/dovers-hill",
     "notes": "Natural amphitheatre on the Cotswold escarpment with views over the Vale of Evesham.",
     "createdAt": "2026-08-04T00:00:00.000Z",
-    "updatedAt": "2026-08-04T00:00:00.000Z"
+    "updatedAt": "2026-08-04T00:00:00.000Z",
+    "latitude": 52.062,
+    "longitude": -1.786
   },
   {
     "locationId": "hailes-abbey",
@@ -501,7 +571,9 @@
     "url": "https://www.nationaltrust.org.uk/visit/gloucestershire-cotswolds/hailes-abbey",
     "notes": "Ruins of a Cistercian abbey in the Cotswolds, cared for with English Heritage.",
     "createdAt": "2026-08-04T00:00:00.000Z",
-    "updatedAt": "2026-08-04T00:00:00.000Z"
+    "updatedAt": "2026-08-04T00:00:00.000Z",
+    "latitude": 51.977,
+    "longitude": -1.942
   },
   {
     "locationId": "haresfield-beacon-and-standish-wood",
@@ -515,7 +587,9 @@
     "url": "https://www.nationaltrust.org.uk/visit/gloucestershire-cotswolds/haresfield-beacon-and-standish-wood",
     "notes": "Escarpment walks, beech woodland and Iron Age hillfort remains overlooking the Severn Vale.",
     "createdAt": "2026-08-04T00:00:00.000Z",
-    "updatedAt": "2026-08-04T00:00:00.000Z"
+    "updatedAt": "2026-08-04T00:00:00.000Z",
+    "latitude": 51.793,
+    "longitude": -2.254
   },
   {
     "locationId": "hidcote",
@@ -529,7 +603,9 @@
     "url": "https://www.nationaltrust.org.uk/visit/gloucestershire-cotswolds/hidcote",
     "notes": "Arts and Crafts garden arranged as a sequence of outdoor rooms.",
     "createdAt": "2026-08-04T00:00:00.000Z",
-    "updatedAt": "2026-08-04T00:00:00.000Z"
+    "updatedAt": "2026-08-04T00:00:00.000Z",
+    "latitude": 52.087,
+    "longitude": -1.757
   },
   {
     "locationId": "lodge-park-and-sherborne-estate",
@@ -543,7 +619,9 @@
     "url": "https://www.nationaltrust.org.uk/visit/gloucestershire-cotswolds/lodge-park-and-sherborne-estate",
     "notes": "Seventeenth-century grandstand and wider Cotswold estate countryside.",
     "createdAt": "2026-08-04T00:00:00.000Z",
-    "updatedAt": "2026-08-04T00:00:00.000Z"
+    "updatedAt": "2026-08-04T00:00:00.000Z",
+    "latitude": 51.81,
+    "longitude": -1.809
   },
   {
     "locationId": "may-hill",
@@ -557,7 +635,9 @@
     "url": "https://www.nationaltrust.org.uk/visit/gloucestershire-cotswolds/may-hill",
     "notes": "Distinctive hilltop countryside with woodland, open grassland and long-distance views.",
     "createdAt": "2026-08-04T00:00:00.000Z",
-    "updatedAt": "2026-08-04T00:00:00.000Z"
+    "updatedAt": "2026-08-04T00:00:00.000Z",
+    "latitude": 51.888,
+    "longitude": -2.409
   },
   {
     "locationId": "minchinhampton-and-rodborough-commons",
@@ -571,7 +651,9 @@
     "url": "https://www.nationaltrust.org.uk/visit/gloucestershire-cotswolds/minchinhampton-and-rodborough-commons",
     "notes": "Ancient limestone commons with grazing cattle, grassland habitats and Cotswold views.",
     "createdAt": "2026-08-04T00:00:00.000Z",
-    "updatedAt": "2026-08-04T00:00:00.000Z"
+    "updatedAt": "2026-08-04T00:00:00.000Z",
+    "latitude": 51.72,
+    "longitude": -2.19
   },
   {
     "locationId": "newark-park",
@@ -585,7 +667,9 @@
     "url": "https://www.nationaltrust.org.uk/visit/gloucestershire-cotswolds/newark-park",
     "notes": "Tudor hunting lodge, gardens, woodland and estate walks near Wotton-under-Edge.",
     "createdAt": "2026-08-04T00:00:00.000Z",
-    "updatedAt": "2026-08-04T00:00:00.000Z"
+    "updatedAt": "2026-08-04T00:00:00.000Z",
+    "latitude": 51.63,
+    "longitude": -2.313
   },
   {
     "locationId": "snowshill-manor-and-garden",
@@ -599,7 +683,9 @@
     "url": "https://www.nationaltrust.org.uk/visit/gloucestershire-cotswolds/snowshill-manor-and-garden",
     "notes": "Manor house with Charles Wade collection and hillside garden.",
     "createdAt": "2026-08-04T00:00:00.000Z",
-    "updatedAt": "2026-08-04T00:00:00.000Z"
+    "updatedAt": "2026-08-04T00:00:00.000Z",
+    "latitude": 52.025,
+    "longitude": -1.858
   },
   {
     "locationId": "westbury-court-garden",
@@ -613,7 +699,9 @@
     "url": "https://www.nationaltrust.org.uk/visit/gloucestershire-cotswolds/westbury-court-garden",
     "notes": "Restored Dutch-style water garden beside the River Severn.",
     "createdAt": "2026-08-04T00:00:00.000Z",
-    "updatedAt": "2026-08-04T00:00:00.000Z"
+    "updatedAt": "2026-08-04T00:00:00.000Z",
+    "latitude": 51.828,
+    "longitude": -2.418
   },
   {
     "locationId": "woodchester-park",
@@ -627,7 +715,9 @@
     "url": "https://www.nationaltrust.org.uk/visit/gloucestershire-cotswolds/woodchester-park",
     "notes": "Wooded valley, lakes, wildlife habitats and estate walks near Stroud.",
     "createdAt": "2026-08-04T00:00:00.000Z",
-    "updatedAt": "2026-08-04T00:00:00.000Z"
+    "updatedAt": "2026-08-04T00:00:00.000Z",
+    "latitude": 51.716,
+    "longitude": -2.279
   },
   {
     "locationId": "dunham-massey",
@@ -641,7 +731,9 @@
     "url": "https://www.nationaltrust.org.uk/visit/cheshire-greater-manchester/dunham-massey",
     "notes": "Georgian house, garden and deer park south-west of Manchester.",
     "createdAt": "2026-08-04T00:00:00.000Z",
-    "updatedAt": "2026-08-04T00:00:00.000Z"
+    "updatedAt": "2026-08-04T00:00:00.000Z",
+    "latitude": 53.384,
+    "longitude": -2.39
   },
   {
     "locationId": "hinton-ampner",
@@ -655,7 +747,9 @@
     "url": "https://www.nationaltrust.org.uk/visit/hampshire/hinton-ampner",
     "notes": "Country house, formal garden and parkland with South Downs views.",
     "createdAt": "2026-08-04T00:00:00.000Z",
-    "updatedAt": "2026-08-04T00:00:00.000Z"
+    "updatedAt": "2026-08-04T00:00:00.000Z",
+    "latitude": 51.029,
+    "longitude": -1.149
   },
   {
     "locationId": "mottisfont",
@@ -669,7 +763,9 @@
     "url": "https://www.nationaltrust.org.uk/visit/hampshire/mottisfont",
     "notes": "Historic house, riverside gardens and renowned walled rose garden.",
     "createdAt": "2026-08-04T00:00:00.000Z",
-    "updatedAt": "2026-08-04T00:00:00.000Z"
+    "updatedAt": "2026-08-04T00:00:00.000Z",
+    "latitude": 51.033,
+    "longitude": -1.533
   },
   {
     "locationId": "sandham-memorial-chapel",
@@ -683,7 +779,9 @@
     "url": "https://www.nationaltrust.org.uk/visit/hampshire/sandham-memorial-chapel",
     "notes": "Chapel housing Stanley Spencer murals and garden.",
     "createdAt": "2026-08-04T00:00:00.000Z",
-    "updatedAt": "2026-08-04T00:00:00.000Z"
+    "updatedAt": "2026-08-04T00:00:00.000Z",
+    "latitude": 51.345,
+    "longitude": -1.308
   },
   {
     "locationId": "the-vyne",
@@ -697,7 +795,9 @@
     "url": "https://www.nationaltrust.org.uk/visit/hampshire/the-vyne",
     "notes": "Tudor palace, gardens, wetlands and estate near Basingstoke.",
     "createdAt": "2026-08-04T00:00:00.000Z",
-    "updatedAt": "2026-08-04T00:00:00.000Z"
+    "updatedAt": "2026-08-04T00:00:00.000Z",
+    "latitude": 51.296,
+    "longitude": -1.113
   },
   {
     "locationId": "winchester-city-mill",
@@ -711,7 +811,9 @@
     "url": "https://www.nationaltrust.org.uk/visit/hampshire/winchester-city-mill",
     "notes": "Working watermill in Winchester with river and milling interpretation.",
     "createdAt": "2026-08-04T00:00:00.000Z",
-    "updatedAt": "2026-08-04T00:00:00.000Z"
+    "updatedAt": "2026-08-04T00:00:00.000Z",
+    "latitude": 51.062,
+    "longitude": -1.31
   },
   {
     "locationId": "berrington-hall",
@@ -725,7 +827,9 @@
     "url": "https://www.nationaltrust.org.uk/visit/worcestershire-herefordshire/berrington-hall",
     "notes": "Georgian mansion with Capability Brown parkland and gardens.",
     "createdAt": "2026-08-04T00:00:00.000Z",
-    "updatedAt": "2026-08-04T00:00:00.000Z"
+    "updatedAt": "2026-08-04T00:00:00.000Z",
+    "latitude": 52.26,
+    "longitude": -2.708
   },
   {
     "locationId": "brockhampton",
@@ -739,7 +843,9 @@
     "url": "https://www.nationaltrust.org.uk/visit/worcestershire-herefordshire/brockhampton",
     "notes": "Medieval manor house, orchards and estate walks.",
     "createdAt": "2026-08-04T00:00:00.000Z",
-    "updatedAt": "2026-08-04T00:00:00.000Z"
+    "updatedAt": "2026-08-04T00:00:00.000Z",
+    "latitude": 52.197,
+    "longitude": -2.48
   },
   {
     "locationId": "croft-castle-and-parkland",
@@ -753,7 +859,9 @@
     "url": "https://www.nationaltrust.org.uk/visit/worcestershire-herefordshire/croft-castle-and-parkland",
     "notes": "Historic castle, walled garden and ancient parkland.",
     "createdAt": "2026-08-04T00:00:00.000Z",
-    "updatedAt": "2026-08-04T00:00:00.000Z"
+    "updatedAt": "2026-08-04T00:00:00.000Z",
+    "latitude": 52.279,
+    "longitude": -2.809
   },
   {
     "locationId": "the-weir-garden",
@@ -767,7 +875,9 @@
     "url": "https://www.nationaltrust.org.uk/visit/worcestershire-herefordshire/the-weir-garden",
     "notes": "Riverside garden on the banks of the Wye.",
     "createdAt": "2026-08-04T00:00:00.000Z",
-    "updatedAt": "2026-08-04T00:00:00.000Z"
+    "updatedAt": "2026-08-04T00:00:00.000Z",
+    "latitude": 52.062,
+    "longitude": -2.81
   },
   {
     "locationId": "stoneywell",
@@ -781,7 +891,9 @@
     "url": "https://www.nationaltrust.org.uk/visit/leicestershire-northamptonshire/stoneywell",
     "notes": "Arts and Crafts cottage, garden and woodland in Charnwood Forest.",
     "createdAt": "2026-08-04T00:00:00.000Z",
-    "updatedAt": "2026-08-04T00:00:00.000Z"
+    "updatedAt": "2026-08-04T00:00:00.000Z",
+    "latitude": 52.696,
+    "longitude": -1.283
   },
   {
     "locationId": "clytha-estate",
@@ -795,7 +907,9 @@
     "url": "https://www.nationaltrust.org.uk/visit/wales/clytha-estate",
     "notes": "Historic estate landscape with riverside walks, woodland and Clytha Castle folly.",
     "createdAt": "2026-08-04T00:00:00.000Z",
-    "updatedAt": "2026-08-04T00:00:00.000Z"
+    "updatedAt": "2026-08-04T00:00:00.000Z",
+    "latitude": 51.766,
+    "longitude": -2.928
   },
   {
     "locationId": "skenfrith-castle",
@@ -809,7 +923,9 @@
     "url": "https://www.nationaltrust.org.uk/visit/wales/skenfrith-castle",
     "notes": "Ruined Norman castle beside the River Monnow.",
     "createdAt": "2026-08-04T00:00:00.000Z",
-    "updatedAt": "2026-08-04T00:00:00.000Z"
+    "updatedAt": "2026-08-04T00:00:00.000Z",
+    "latitude": 51.876,
+    "longitude": -2.791
   },
   {
     "locationId": "skirrid",
@@ -823,7 +939,9 @@
     "url": "https://www.nationaltrust.org.uk/visit/wales/sugar-loaf-skirrid-and-usk-valley",
     "notes": "Prominent hill and walking landscape within the Sugar Loaf, Skirrid and Usk Valley area.",
     "createdAt": "2026-08-04T00:00:00.000Z",
-    "updatedAt": "2026-08-04T00:00:00.000Z"
+    "updatedAt": "2026-08-04T00:00:00.000Z",
+    "latitude": 51.839,
+    "longitude": -2.977
   },
   {
     "locationId": "sugar-loaf-and-usk-valley",
@@ -837,7 +955,9 @@
     "url": "https://www.nationaltrust.org.uk/visit/wales/sugar-loaf-skirrid-and-usk-valley",
     "notes": "Black Mountains peak and Usk Valley countryside cared for by the National Trust.",
     "createdAt": "2026-08-04T00:00:00.000Z",
-    "updatedAt": "2026-08-04T00:00:00.000Z"
+    "updatedAt": "2026-08-04T00:00:00.000Z",
+    "latitude": 51.85,
+    "longitude": -3.04
   },
   {
     "locationId": "the-kymin",
@@ -851,7 +971,9 @@
     "url": "https://www.nationaltrust.org.uk/visit/wales/the-kymin",
     "notes": "Round House, Naval Temple and hilltop views above Monmouth.",
     "createdAt": "2026-08-04T00:00:00.000Z",
-    "updatedAt": "2026-08-04T00:00:00.000Z"
+    "updatedAt": "2026-08-04T00:00:00.000Z",
+    "latitude": 51.811,
+    "longitude": -2.682
   },
   {
     "locationId": "aberdulais",
@@ -865,7 +987,9 @@
     "url": "https://www.nationaltrust.org.uk/visit/wales/aberdulais",
     "notes": "Industrial heritage site with waterfall, waterwheel and tinplate history; check current opening before visiting.",
     "createdAt": "2026-08-04T00:00:00.000Z",
-    "updatedAt": "2026-08-04T00:00:00.000Z"
+    "updatedAt": "2026-08-04T00:00:00.000Z",
+    "latitude": 51.687,
+    "longitude": -3.774
   },
   {
     "locationId": "tredegar-house",
@@ -879,7 +1003,9 @@
     "url": "https://www.nationaltrust.org.uk/visit/wales/tredegar-house",
     "notes": "Seventeenth-century mansion with gardens and parkland near Newport.",
     "createdAt": "2026-08-04T00:00:00.000Z",
-    "updatedAt": "2026-08-04T00:00:00.000Z"
+    "updatedAt": "2026-08-04T00:00:00.000Z",
+    "latitude": 51.562,
+    "longitude": -3.023
   },
   {
     "locationId": "cadbury-camp",
@@ -893,7 +1019,9 @@
     "url": "https://www.nationaltrust.org.uk/visit/bath-bristol/cadbury-camp",
     "notes": "Iron Age hillfort earthworks and countryside near Tickenham.",
     "createdAt": "2026-08-04T00:00:00.000Z",
-    "updatedAt": "2026-08-04T00:00:00.000Z"
+    "updatedAt": "2026-08-04T00:00:00.000Z",
+    "latitude": 51.453,
+    "longitude": -2.762
   },
   {
     "locationId": "clevedon-court",
@@ -907,7 +1035,9 @@
     "url": "https://www.nationaltrust.org.uk/visit/bath-bristol/clevedon-court",
     "notes": "Medieval manor house with terraces, collections and gardens.",
     "createdAt": "2026-08-04T00:00:00.000Z",
-    "updatedAt": "2026-08-04T00:00:00.000Z"
+    "updatedAt": "2026-08-04T00:00:00.000Z",
+    "latitude": 51.44,
+    "longitude": -2.834
   },
   {
     "locationId": "leigh-woods",
@@ -921,7 +1051,9 @@
     "url": "https://www.nationaltrust.org.uk/visit/bath-bristol/leigh-woods",
     "notes": "Woodland nature reserve beside the Avon Gorge with city and suspension bridge views.",
     "createdAt": "2026-08-04T00:00:00.000Z",
-    "updatedAt": "2026-08-04T00:00:00.000Z"
+    "updatedAt": "2026-08-04T00:00:00.000Z",
+    "latitude": 51.461,
+    "longitude": -2.64
   },
   {
     "locationId": "tyntesfield",
@@ -935,7 +1067,9 @@
     "url": "https://www.nationaltrust.org.uk/visit/bath-bristol/tyntesfield",
     "notes": "Victorian Gothic Revival house, chapel, gardens and estate near Bristol.",
     "createdAt": "2026-08-04T00:00:00.000Z",
-    "updatedAt": "2026-08-04T00:00:00.000Z"
+    "updatedAt": "2026-08-04T00:00:00.000Z",
+    "latitude": 51.429,
+    "longitude": -2.71
   },
   {
     "locationId": "canons-ashby",
@@ -949,7 +1083,9 @@
     "url": "https://www.nationaltrust.org.uk/visit/northamptonshire/canons-ashby",
     "notes": "Elizabethan manor house, terraced garden and church remains.",
     "createdAt": "2026-08-04T00:00:00.000Z",
-    "updatedAt": "2026-08-04T00:00:00.000Z"
+    "updatedAt": "2026-08-04T00:00:00.000Z",
+    "latitude": 52.147,
+    "longitude": -1.167
   },
   {
     "locationId": "lyveden",
@@ -963,7 +1099,9 @@
     "url": "https://www.nationaltrust.org.uk/visit/northamptonshire/lyveden",
     "notes": "Unfinished Elizabethan lodge, moated garden earthworks and orchard landscape.",
     "createdAt": "2026-08-04T00:00:00.000Z",
-    "updatedAt": "2026-08-04T00:00:00.000Z"
+    "updatedAt": "2026-08-04T00:00:00.000Z",
+    "latitude": 52.47,
+    "longitude": -0.556
   },
   {
     "locationId": "ashdown",
@@ -977,7 +1115,9 @@
     "url": "https://www.nationaltrust.org.uk/visit/oxfordshire-buckinghamshire-berkshire/ashdown",
     "notes": "Unusual Dutch-style house in a wooded downland setting.",
     "createdAt": "2026-08-04T00:00:00.000Z",
-    "updatedAt": "2026-08-04T00:00:00.000Z"
+    "updatedAt": "2026-08-04T00:00:00.000Z",
+    "latitude": 51.558,
+    "longitude": -1.59
   },
   {
     "locationId": "buscot-park",
@@ -991,7 +1131,9 @@
     "url": "https://www.nationaltrust.org.uk/visit/oxfordshire-buckinghamshire-berkshire/buscot-park",
     "notes": "Palladian house, art collection and landscaped gardens on the Buscot and Coleshill estate.",
     "createdAt": "2026-08-04T00:00:00.000Z",
-    "updatedAt": "2026-08-04T00:00:00.000Z"
+    "updatedAt": "2026-08-04T00:00:00.000Z",
+    "latitude": 51.682,
+    "longitude": -1.669
   },
   {
     "locationId": "chastleton-house",
@@ -1005,7 +1147,9 @@
     "url": "https://www.nationaltrust.org.uk/visit/oxfordshire-buckinghamshire-berkshire/chastleton-house",
     "notes": "Jacobean house and garden kept to reflect centuries of family occupation.",
     "createdAt": "2026-08-04T00:00:00.000Z",
-    "updatedAt": "2026-08-04T00:00:00.000Z"
+    "updatedAt": "2026-08-04T00:00:00.000Z",
+    "latitude": 51.937,
+    "longitude": -1.61
   },
   {
     "locationId": "coleshill-estate",
@@ -1019,7 +1163,9 @@
     "url": "https://www.nationaltrust.org.uk/visit/oxfordshire-buckinghamshire-berkshire/coleshill-estate",
     "notes": "Model farm, parkland and working estate countryside on the Oxfordshire-Wiltshire border.",
     "createdAt": "2026-08-04T00:00:00.000Z",
-    "updatedAt": "2026-08-04T00:00:00.000Z"
+    "updatedAt": "2026-08-04T00:00:00.000Z",
+    "latitude": 51.63,
+    "longitude": -1.65
   },
   {
     "locationId": "great-coxwell-barn",
@@ -1033,7 +1179,9 @@
     "url": "https://www.nationaltrust.org.uk/visit/oxfordshire-buckinghamshire-berkshire/great-coxwell-barn",
     "notes": "Medieval stone tithe barn on the Buscot and Coleshill estate.",
     "createdAt": "2026-08-04T00:00:00.000Z",
-    "updatedAt": "2026-08-04T00:00:00.000Z"
+    "updatedAt": "2026-08-04T00:00:00.000Z",
+    "latitude": 51.636,
+    "longitude": -1.622
   },
   {
     "locationId": "greys-court",
@@ -1047,7 +1195,9 @@
     "url": "https://www.nationaltrust.org.uk/visit/oxfordshire-buckinghamshire-berkshire/greys-court",
     "notes": "Tudor country house, walled gardens and estate walks in the Chilterns.",
     "createdAt": "2026-08-04T00:00:00.000Z",
-    "updatedAt": "2026-08-04T00:00:00.000Z"
+    "updatedAt": "2026-08-04T00:00:00.000Z",
+    "latitude": 51.558,
+    "longitude": -0.943
   },
   {
     "locationId": "nuffield-place",
@@ -1061,7 +1211,9 @@
     "url": "https://www.nationaltrust.org.uk/visit/oxfordshire-buckinghamshire-berkshire/nuffield-place",
     "notes": "Home and garden of Lord and Lady Nuffield, preserved with domestic collections.",
     "createdAt": "2026-08-04T00:00:00.000Z",
-    "updatedAt": "2026-08-04T00:00:00.000Z"
+    "updatedAt": "2026-08-04T00:00:00.000Z",
+    "latitude": 51.582,
+    "longitude": -1.049
   },
   {
     "locationId": "white-horse-hill",
@@ -1075,7 +1227,9 @@
     "url": "https://www.nationaltrust.org.uk/visit/oxfordshire-buckinghamshire-berkshire/white-horse-hill",
     "notes": "Ancient chalk hill figure, Uffington Castle earthworks and Ridgeway countryside.",
     "createdAt": "2026-08-04T00:00:00.000Z",
-    "updatedAt": "2026-08-04T00:00:00.000Z"
+    "updatedAt": "2026-08-04T00:00:00.000Z",
+    "latitude": 51.578,
+    "longitude": -1.567
   },
   {
     "locationId": "henrhyd-falls-and-nant-llech-walk",
@@ -1089,7 +1243,9 @@
     "url": "https://www.nationaltrust.org.uk/visit/wales/henrhyd-falls-and-nant-llech-walk",
     "notes": "Waterfall and wooded valley walk in Bannau Brycheiniog National Park.",
     "createdAt": "2026-08-04T00:00:00.000Z",
-    "updatedAt": "2026-08-04T00:00:00.000Z"
+    "updatedAt": "2026-08-04T00:00:00.000Z",
+    "latitude": 51.786,
+    "longitude": -3.689
   },
   {
     "locationId": "attingham-park",
@@ -1103,7 +1259,9 @@
     "url": "https://www.nationaltrust.org.uk/visit/shropshire-staffordshire/attingham-park",
     "notes": "Regency mansion, deer park, walled garden and estate walks.",
     "createdAt": "2026-08-04T00:00:00.000Z",
-    "updatedAt": "2026-08-04T00:00:00.000Z"
+    "updatedAt": "2026-08-04T00:00:00.000Z",
+    "latitude": 52.689,
+    "longitude": -2.669
   },
   {
     "locationId": "benthall-hall",
@@ -1117,7 +1275,9 @@
     "url": "https://www.nationaltrust.org.uk/visit/shropshire-staffordshire/benthall-hall",
     "notes": "Sixteenth-century stone house with garden near the Ironbridge Gorge.",
     "createdAt": "2026-08-04T00:00:00.000Z",
-    "updatedAt": "2026-08-04T00:00:00.000Z"
+    "updatedAt": "2026-08-04T00:00:00.000Z",
+    "latitude": 52.627,
+    "longitude": -2.515
   },
   {
     "locationId": "carding-mill-valley-and-the-long-mynd",
@@ -1131,7 +1291,9 @@
     "url": "https://www.nationaltrust.org.uk/visit/shropshire-staffordshire/carding-mill-valley-and-the-long-mynd",
     "notes": "Shropshire Hills valley and moorland landscape for walking and wildlife.",
     "createdAt": "2026-08-04T00:00:00.000Z",
-    "updatedAt": "2026-08-04T00:00:00.000Z"
+    "updatedAt": "2026-08-04T00:00:00.000Z",
+    "latitude": 52.539,
+    "longitude": -2.838
   },
   {
     "locationId": "dudmaston",
@@ -1145,7 +1307,9 @@
     "url": "https://www.nationaltrust.org.uk/visit/shropshire-staffordshire/dudmaston",
     "notes": "Working estate with historic house, gardens, pools and modern art collection.",
     "createdAt": "2026-08-04T00:00:00.000Z",
-    "updatedAt": "2026-08-04T00:00:00.000Z"
+    "updatedAt": "2026-08-04T00:00:00.000Z",
+    "latitude": 52.517,
+    "longitude": -2.383
   },
   {
     "locationId": "sunnycroft",
@@ -1159,7 +1323,9 @@
     "url": "https://www.nationaltrust.org.uk/visit/shropshire-staffordshire/sunnycroft",
     "notes": "Suburban villa preserving late Victorian and Edwardian domestic life.",
     "createdAt": "2026-08-04T00:00:00.000Z",
-    "updatedAt": "2026-08-04T00:00:00.000Z"
+    "updatedAt": "2026-08-04T00:00:00.000Z",
+    "latitude": 52.679,
+    "longitude": -2.456
   },
   {
     "locationId": "wenlock-edge",
@@ -1173,7 +1339,9 @@
     "url": "https://www.nationaltrust.org.uk/visit/shropshire-staffordshire/wenlock-edge",
     "notes": "Wooded limestone escarpment with walking trails and wildlife.",
     "createdAt": "2026-08-04T00:00:00.000Z",
-    "updatedAt": "2026-08-04T00:00:00.000Z"
+    "updatedAt": "2026-08-04T00:00:00.000Z",
+    "latitude": 52.56,
+    "longitude": -2.63
   },
   {
     "locationId": "wilderhope-manor",
@@ -1187,7 +1355,9 @@
     "url": "https://www.nationaltrust.org.uk/visit/shropshire-staffordshire/wilderhope-manor",
     "notes": "Elizabethan manor house in the Shropshire Hills.",
     "createdAt": "2026-08-04T00:00:00.000Z",
-    "updatedAt": "2026-08-04T00:00:00.000Z"
+    "updatedAt": "2026-08-04T00:00:00.000Z",
+    "latitude": 52.546,
+    "longitude": -2.672
   },
   {
     "locationId": "barrington-court",
@@ -1201,7 +1371,9 @@
     "url": "https://www.nationaltrust.org.uk/visit/somerset/barrington-court",
     "notes": "Tudor manor house, working estate and Gertrude Jekyll-inspired gardens.",
     "createdAt": "2026-08-04T00:00:00.000Z",
-    "updatedAt": "2026-08-04T00:00:00.000Z"
+    "updatedAt": "2026-08-04T00:00:00.000Z",
+    "latitude": 50.966,
+    "longitude": -2.893
   },
   {
     "locationId": "brean-down",
@@ -1215,7 +1387,9 @@
     "url": "https://www.nationaltrust.org.uk/visit/somerset/brean-down",
     "notes": "Coastal headland, wildlife-rich grassland and Victorian fort.",
     "createdAt": "2026-08-04T00:00:00.000Z",
-    "updatedAt": "2026-08-04T00:00:00.000Z"
+    "updatedAt": "2026-08-04T00:00:00.000Z",
+    "latitude": 51.326,
+    "longitude": -3.018
   },
   {
     "locationId": "cheddar-gorge",
@@ -1229,7 +1403,9 @@
     "url": "https://www.nationaltrust.org.uk/visit/somerset/cheddar-gorge",
     "notes": "Limestone gorge, cliffs, rare plants and dramatic Mendip scenery.",
     "createdAt": "2026-08-04T00:00:00.000Z",
-    "updatedAt": "2026-08-04T00:00:00.000Z"
+    "updatedAt": "2026-08-04T00:00:00.000Z",
+    "latitude": 51.282,
+    "longitude": -2.765
   },
   {
     "locationId": "coleridge-cottage",
@@ -1243,7 +1419,9 @@
     "url": "https://www.nationaltrust.org.uk/visit/somerset/coleridge-cottage",
     "notes": "Cottage home of Samuel Taylor Coleridge with garden and interpretation.",
     "createdAt": "2026-08-04T00:00:00.000Z",
-    "updatedAt": "2026-08-04T00:00:00.000Z"
+    "updatedAt": "2026-08-04T00:00:00.000Z",
+    "latitude": 51.155,
+    "longitude": -3.232
   },
   {
     "locationId": "dunster-castle-and-watermill",
@@ -1257,7 +1435,9 @@
     "url": "https://www.nationaltrust.org.uk/visit/somerset/dunster-castle-and-watermill",
     "notes": "Castle, subtropical gardens, parkland and historic working watermill.",
     "createdAt": "2026-08-04T00:00:00.000Z",
-    "updatedAt": "2026-08-04T00:00:00.000Z"
+    "updatedAt": "2026-08-04T00:00:00.000Z",
+    "latitude": 51.183,
+    "longitude": -3.444
   },
   {
     "locationId": "ebbor-gorge",
@@ -1271,7 +1451,9 @@
     "url": "https://www.nationaltrust.org.uk/visit/somerset/ebbor-gorge",
     "notes": "Wooded limestone gorge and National Nature Reserve in the Mendip Hills.",
     "createdAt": "2026-08-04T00:00:00.000Z",
-    "updatedAt": "2026-08-04T00:00:00.000Z"
+    "updatedAt": "2026-08-04T00:00:00.000Z",
+    "latitude": 51.238,
+    "longitude": -2.671
   },
   {
     "locationId": "fyne-court",
@@ -1285,7 +1467,9 @@
     "url": "https://www.nationaltrust.org.uk/visit/somerset/fyne-court",
     "notes": "Woodland and wildlife garden in the Quantock Hills.",
     "createdAt": "2026-08-04T00:00:00.000Z",
-    "updatedAt": "2026-08-04T00:00:00.000Z"
+    "updatedAt": "2026-08-04T00:00:00.000Z",
+    "latitude": 51.074,
+    "longitude": -3.147
   },
   {
     "locationId": "glastonbury-tor",
@@ -1299,7 +1483,9 @@
     "url": "https://www.nationaltrust.org.uk/visit/somerset/glastonbury-tor",
     "notes": "Iconic hilltop tower, archaeology and panoramic Somerset Levels views.",
     "createdAt": "2026-08-04T00:00:00.000Z",
-    "updatedAt": "2026-08-04T00:00:00.000Z"
+    "updatedAt": "2026-08-04T00:00:00.000Z",
+    "latitude": 51.144,
+    "longitude": -2.698
   },
   {
     "locationId": "holnicote-estate",
@@ -1313,7 +1499,9 @@
     "url": "https://www.nationaltrust.org.uk/visit/somerset/holnicote-estate",
     "notes": "Large Exmoor estate with woodland, villages, coast, moorland and river landscapes.",
     "createdAt": "2026-08-04T00:00:00.000Z",
-    "updatedAt": "2026-08-04T00:00:00.000Z"
+    "updatedAt": "2026-08-04T00:00:00.000Z",
+    "latitude": 51.2,
+    "longitude": -3.57
   },
   {
     "locationId": "lytes-cary-manor",
@@ -1327,7 +1515,9 @@
     "url": "https://www.nationaltrust.org.uk/visit/somerset/lytes-cary-manor",
     "notes": "Medieval manor house with Arts and Crafts-inspired garden.",
     "createdAt": "2026-08-04T00:00:00.000Z",
-    "updatedAt": "2026-08-04T00:00:00.000Z"
+    "updatedAt": "2026-08-04T00:00:00.000Z",
+    "latitude": 51.027,
+    "longitude": -2.682
   },
   {
     "locationId": "montacute-house",
@@ -1341,7 +1531,9 @@
     "url": "https://www.nationaltrust.org.uk/visit/somerset/montacute-house",
     "notes": "Elizabethan Renaissance house, long gallery, gardens and parkland.",
     "createdAt": "2026-08-04T00:00:00.000Z",
-    "updatedAt": "2026-08-04T00:00:00.000Z"
+    "updatedAt": "2026-08-04T00:00:00.000Z",
+    "latitude": 50.951,
+    "longitude": -2.716
   },
   {
     "locationId": "sand-point-and-middle-hope",
@@ -1355,7 +1547,9 @@
     "url": "https://www.nationaltrust.org.uk/visit/somerset/sand-point-and-middle-hope",
     "notes": "Limestone headland and coastal grassland with views across the Bristol Channel.",
     "createdAt": "2026-08-04T00:00:00.000Z",
-    "updatedAt": "2026-08-04T00:00:00.000Z"
+    "updatedAt": "2026-08-04T00:00:00.000Z",
+    "latitude": 51.39,
+    "longitude": -2.98
   },
   {
     "locationId": "stembridge-tower-mill",
@@ -1369,7 +1563,9 @@
     "url": "https://www.nationaltrust.org.uk/visit/somerset/stembridge-tower-mill",
     "notes": "Last remaining thatched windmill in England, with limited visitor opening.",
     "createdAt": "2026-08-04T00:00:00.000Z",
-    "updatedAt": "2026-08-04T00:00:00.000Z"
+    "updatedAt": "2026-08-04T00:00:00.000Z",
+    "latitude": 51.018,
+    "longitude": -2.834
   },
   {
     "locationId": "tintinhull-garden",
@@ -1383,7 +1579,9 @@
     "url": "https://www.nationaltrust.org.uk/visit/somerset/tintinhull-garden",
     "notes": "Formal Arts and Crafts garden rooms near Yeovil.",
     "createdAt": "2026-08-04T00:00:00.000Z",
-    "updatedAt": "2026-08-04T00:00:00.000Z"
+    "updatedAt": "2026-08-04T00:00:00.000Z",
+    "latitude": 50.967,
+    "longitude": -2.696
   },
   {
     "locationId": "dyrham-park",
@@ -1397,7 +1595,9 @@
     "url": "https://www.nationaltrust.org.uk/visit/bath-bristol/dyrham-park",
     "notes": "Baroque house, deer park and gardens between Bath and Bristol.",
     "createdAt": "2026-08-04T00:00:00.000Z",
-    "updatedAt": "2026-08-04T00:00:00.000Z"
+    "updatedAt": "2026-08-04T00:00:00.000Z",
+    "latitude": 51.483,
+    "longitude": -2.376
   },
   {
     "locationId": "biddulph-grange-garden",
@@ -1411,7 +1611,9 @@
     "url": "https://www.nationaltrust.org.uk/visit/shropshire-staffordshire/biddulph-grange-garden",
     "notes": "Victorian garden with themed global garden rooms and geological features.",
     "createdAt": "2026-08-04T00:00:00.000Z",
-    "updatedAt": "2026-08-04T00:00:00.000Z"
+    "updatedAt": "2026-08-04T00:00:00.000Z",
+    "latitude": 53.13,
+    "longitude": -2.166
   },
   {
     "locationId": "downs-banks",
@@ -1425,7 +1627,9 @@
     "url": "https://www.nationaltrust.org.uk/visit/shropshire-staffordshire/downs-banks",
     "notes": "Woodland, heath and stream-side countryside near Stone.",
     "createdAt": "2026-08-04T00:00:00.000Z",
-    "updatedAt": "2026-08-04T00:00:00.000Z"
+    "updatedAt": "2026-08-04T00:00:00.000Z",
+    "latitude": 52.928,
+    "longitude": -2.147
   },
   {
     "locationId": "hawksmoor",
@@ -1439,7 +1643,9 @@
     "url": "https://www.nationaltrust.org.uk/visit/shropshire-staffordshire/hawksmoor",
     "notes": "Ancient woodland and valley nature reserve near the Staffordshire Moorlands.",
     "createdAt": "2026-08-04T00:00:00.000Z",
-    "updatedAt": "2026-08-04T00:00:00.000Z"
+    "updatedAt": "2026-08-04T00:00:00.000Z",
+    "latitude": 52.988,
+    "longitude": -1.92
   },
   {
     "locationId": "kinver-edge-and-the-rock-houses",
@@ -1453,7 +1659,9 @@
     "url": "https://www.nationaltrust.org.uk/visit/shropshire-staffordshire/kinver-edge-and-the-rock-houses",
     "notes": "Sandstone ridge, heathland and restored rock houses.",
     "createdAt": "2026-08-04T00:00:00.000Z",
-    "updatedAt": "2026-08-04T00:00:00.000Z"
+    "updatedAt": "2026-08-04T00:00:00.000Z",
+    "latitude": 52.447,
+    "longitude": -2.24
   },
   {
     "locationId": "moseley-old-hall",
@@ -1467,7 +1675,9 @@
     "url": "https://www.nationaltrust.org.uk/visit/shropshire-staffordshire/moseley-old-hall",
     "notes": "Seventeenth-century farmhouse associated with Charles II and a knot garden.",
     "createdAt": "2026-08-04T00:00:00.000Z",
-    "updatedAt": "2026-08-04T00:00:00.000Z"
+    "updatedAt": "2026-08-04T00:00:00.000Z",
+    "latitude": 52.628,
+    "longitude": -2.102
   },
   {
     "locationId": "shugborough-estate",
@@ -1481,7 +1691,9 @@
     "url": "https://www.nationaltrust.org.uk/visit/shropshire-staffordshire/shugborough-estate",
     "notes": "Georgian estate with mansion, servants quarters, gardens, monuments and parkland.",
     "createdAt": "2026-08-04T00:00:00.000Z",
-    "updatedAt": "2026-08-04T00:00:00.000Z"
+    "updatedAt": "2026-08-04T00:00:00.000Z",
+    "latitude": 52.788,
+    "longitude": -2
   },
   {
     "locationId": "dyffryn-gardens",
@@ -1495,7 +1707,9 @@
     "url": "https://www.nationaltrust.org.uk/visit/wales/dyffryn-gardens",
     "notes": "Edwardian gardens with garden rooms, arboretum and restored glasshouse.",
     "createdAt": "2026-08-04T00:00:00.000Z",
-    "updatedAt": "2026-08-04T00:00:00.000Z"
+    "updatedAt": "2026-08-04T00:00:00.000Z",
+    "latitude": 51.447,
+    "longitude": -3.29
   },
   {
     "locationId": "lanlay-meadows",
@@ -1509,7 +1723,9 @@
     "url": "https://www.nationaltrust.org.uk/visit/wales/lanlay-meadows",
     "notes": "Wildflower meadows and woodland walks in the Vale of Glamorgan.",
     "createdAt": "2026-08-04T00:00:00.000Z",
-    "updatedAt": "2026-08-04T00:00:00.000Z"
+    "updatedAt": "2026-08-04T00:00:00.000Z",
+    "latitude": 51.46,
+    "longitude": -3.33
   },
   {
     "locationId": "baddesley-clinton",
@@ -1523,7 +1739,9 @@
     "url": "https://www.nationaltrust.org.uk/visit/warwickshire/baddesley-clinton",
     "notes": "Moated manor house with gardens and woodland walks.",
     "createdAt": "2026-08-04T00:00:00.000Z",
-    "updatedAt": "2026-08-04T00:00:00.000Z"
+    "updatedAt": "2026-08-04T00:00:00.000Z",
+    "latitude": 52.345,
+    "longitude": -1.706
   },
   {
     "locationId": "charlecote-park",
@@ -1537,7 +1755,9 @@
     "url": "https://www.nationaltrust.org.uk/visit/warwickshire/charlecote-park",
     "notes": "Elizabethan house, deer park and riverside gardens.",
     "createdAt": "2026-08-04T00:00:00.000Z",
-    "updatedAt": "2026-08-04T00:00:00.000Z"
+    "updatedAt": "2026-08-04T00:00:00.000Z",
+    "latitude": 52.217,
+    "longitude": -1.63
   },
   {
     "locationId": "coughton-court",
@@ -1551,7 +1771,9 @@
     "url": "https://www.nationaltrust.org.uk/visit/warwickshire/coughton-court",
     "notes": "Tudor house with Catholic history, gardens and riverside walks.",
     "createdAt": "2026-08-04T00:00:00.000Z",
-    "updatedAt": "2026-08-04T00:00:00.000Z"
+    "updatedAt": "2026-08-04T00:00:00.000Z",
+    "latitude": 52.244,
+    "longitude": -1.872
   },
   {
     "locationId": "farnborough-hall",
@@ -1565,7 +1787,9 @@
     "url": "https://www.nationaltrust.org.uk/visit/warwickshire/farnborough-hall",
     "notes": "Honey-coloured country house with landscaped terrace walks.",
     "createdAt": "2026-08-04T00:00:00.000Z",
-    "updatedAt": "2026-08-04T00:00:00.000Z"
+    "updatedAt": "2026-08-04T00:00:00.000Z",
+    "latitude": 52.133,
+    "longitude": -1.38
   },
   {
     "locationId": "kinwarton-dovecote",
@@ -1579,7 +1803,9 @@
     "url": "https://www.nationaltrust.org.uk/visit/warwickshire/kinwarton-dovecote",
     "notes": "Circular medieval dovecote near Alcester.",
     "createdAt": "2026-08-04T00:00:00.000Z",
-    "updatedAt": "2026-08-04T00:00:00.000Z"
+    "updatedAt": "2026-08-04T00:00:00.000Z",
+    "latitude": 52.216,
+    "longitude": -1.83
   },
   {
     "locationId": "packwood-house",
@@ -1593,7 +1819,9 @@
     "url": "https://www.nationaltrust.org.uk/visit/warwickshire/packwood-house",
     "notes": "Historic house known for its yew garden, interiors and estate walks.",
     "createdAt": "2026-08-04T00:00:00.000Z",
-    "updatedAt": "2026-08-04T00:00:00.000Z"
+    "updatedAt": "2026-08-04T00:00:00.000Z",
+    "latitude": 52.357,
+    "longitude": -1.766
   },
   {
     "locationId": "upton-house-and-gardens",
@@ -1607,7 +1835,9 @@
     "url": "https://www.nationaltrust.org.uk/visit/warwickshire/upton-house-and-gardens",
     "notes": "Country house, art collection, terraced gardens and Mirror Pool.",
     "createdAt": "2026-08-04T00:00:00.000Z",
-    "updatedAt": "2026-08-04T00:00:00.000Z"
+    "updatedAt": "2026-08-04T00:00:00.000Z",
+    "latitude": 52.112,
+    "longitude": -1.452
   },
   {
     "locationId": "birmingham-back-to-backs",
@@ -1621,7 +1851,9 @@
     "url": "https://www.nationaltrust.org.uk/visit/birmingham-west-midlands/birmingham-back-to-backs",
     "notes": "Restored courtyard of working-class houses in central Birmingham.",
     "createdAt": "2026-08-04T00:00:00.000Z",
-    "updatedAt": "2026-08-04T00:00:00.000Z"
+    "updatedAt": "2026-08-04T00:00:00.000Z",
+    "latitude": 52.475,
+    "longitude": -1.897
   },
   {
     "locationId": "clent-hills",
@@ -1635,7 +1867,9 @@
     "url": "https://www.nationaltrust.org.uk/visit/birmingham-west-midlands/clent-hills",
     "notes": "Open hills, woodland and viewpoints south-west of Birmingham.",
     "createdAt": "2026-08-04T00:00:00.000Z",
-    "updatedAt": "2026-08-04T00:00:00.000Z"
+    "updatedAt": "2026-08-04T00:00:00.000Z",
+    "latitude": 52.42,
+    "longitude": -2.1
   },
   {
     "locationId": "roundhouse-birmingham",
@@ -1649,7 +1883,9 @@
     "url": "https://www.nationaltrust.org.uk/visit/birmingham-west-midlands/roundhouse-birmingham",
     "notes": "Canal-side former stables now used for heritage tours and city experiences.",
     "createdAt": "2026-08-04T00:00:00.000Z",
-    "updatedAt": "2026-08-04T00:00:00.000Z"
+    "updatedAt": "2026-08-04T00:00:00.000Z",
+    "latitude": 52.484,
+    "longitude": -1.916
   },
   {
     "locationId": "wightwick-manor-and-gardens",
@@ -1663,7 +1899,9 @@
     "url": "https://www.nationaltrust.org.uk/visit/shropshire-staffordshire/wightwick-manor-and-gardens",
     "notes": "Arts and Crafts manor with Pre-Raphaelite collections and gardens.",
     "createdAt": "2026-08-04T00:00:00.000Z",
-    "updatedAt": "2026-08-04T00:00:00.000Z"
+    "updatedAt": "2026-08-04T00:00:00.000Z",
+    "latitude": 52.586,
+    "longitude": -2.183
   },
   {
     "locationId": "avebury",
@@ -1677,7 +1915,9 @@
     "url": "https://www.nationaltrust.org.uk/visit/wiltshire/avebury",
     "notes": "Stone circle, henge, manor garden and World Heritage Site landscape.",
     "createdAt": "2026-08-04T00:00:00.000Z",
-    "updatedAt": "2026-08-04T00:00:00.000Z"
+    "updatedAt": "2026-08-04T00:00:00.000Z",
+    "latitude": 51.428,
+    "longitude": -1.854
   },
   {
     "locationId": "dinton-park-and-philips-house",
@@ -1691,7 +1931,9 @@
     "url": "https://www.nationaltrust.org.uk/visit/wiltshire/dinton-park-and-philipps-house",
     "notes": "Parkland, lake and Philipps House in a historic Wiltshire estate landscape.",
     "createdAt": "2026-08-04T00:00:00.000Z",
-    "updatedAt": "2026-08-04T00:00:00.000Z"
+    "updatedAt": "2026-08-04T00:00:00.000Z",
+    "latitude": 51.081,
+    "longitude": -1.96
   },
   {
     "locationId": "great-chalfield-manor-and-garden",
@@ -1705,7 +1947,9 @@
     "url": "https://www.nationaltrust.org.uk/visit/wiltshire/great-chalfield-manor-and-garden",
     "notes": "Medieval manor house with Arts and Crafts garden.",
     "createdAt": "2026-08-04T00:00:00.000Z",
-    "updatedAt": "2026-08-04T00:00:00.000Z"
+    "updatedAt": "2026-08-04T00:00:00.000Z",
+    "latitude": 51.36,
+    "longitude": -2.19
   },
   {
     "locationId": "lacock-abbey-fox-talbot-museum-and-village",
@@ -1719,7 +1963,9 @@
     "url": "https://www.nationaltrust.org.uk/visit/wiltshire/lacock-abbey-fox-talbot-museum-and-village",
     "notes": "Medieval abbey, photography museum, gardens and National Trust village.",
     "createdAt": "2026-08-04T00:00:00.000Z",
-    "updatedAt": "2026-08-04T00:00:00.000Z"
+    "updatedAt": "2026-08-04T00:00:00.000Z",
+    "latitude": 51.415,
+    "longitude": -2.123
   },
   {
     "locationId": "mompesson-house",
@@ -1733,7 +1979,9 @@
     "url": "https://www.nationaltrust.org.uk/visit/wiltshire/mompesson-house",
     "notes": "Eighteenth-century townhouse and walled garden in Salisbury Cathedral Close.",
     "createdAt": "2026-08-04T00:00:00.000Z",
-    "updatedAt": "2026-08-04T00:00:00.000Z"
+    "updatedAt": "2026-08-04T00:00:00.000Z",
+    "latitude": 51.065,
+    "longitude": -1.798
   },
   {
     "locationId": "stonehenge-landscape",
@@ -1747,7 +1995,9 @@
     "url": "https://www.nationaltrust.org.uk/visit/wiltshire/stonehenge-landscape",
     "notes": "National Trust-managed chalk downland and monuments around Stonehenge.",
     "createdAt": "2026-08-04T00:00:00.000Z",
-    "updatedAt": "2026-08-04T00:00:00.000Z"
+    "updatedAt": "2026-08-04T00:00:00.000Z",
+    "latitude": 51.179,
+    "longitude": -1.826
   },
   {
     "locationId": "stourhead",
@@ -1761,7 +2011,9 @@
     "url": "https://www.nationaltrust.org.uk/visit/wiltshire/stourhead",
     "notes": "Palladian house, world-famous landscape garden and wider estate.",
     "createdAt": "2026-08-04T00:00:00.000Z",
-    "updatedAt": "2026-08-04T00:00:00.000Z"
+    "updatedAt": "2026-08-04T00:00:00.000Z",
+    "latitude": 51.108,
+    "longitude": -2.323
   },
   {
     "locationId": "the-courts-garden",
@@ -1775,7 +2027,9 @@
     "url": "https://www.nationaltrust.org.uk/visit/wiltshire/the-courts-garden",
     "notes": "English country garden with water features, orchard and herbaceous borders.",
     "createdAt": "2026-08-04T00:00:00.000Z",
-    "updatedAt": "2026-08-04T00:00:00.000Z"
+    "updatedAt": "2026-08-04T00:00:00.000Z",
+    "latitude": 51.335,
+    "longitude": -2.166
   },
   {
     "locationId": "westwood-manor",
@@ -1789,7 +2043,9 @@
     "url": "https://www.nationaltrust.org.uk/visit/wiltshire/westwood-manor",
     "notes": "Small medieval manor house with garden near Bradford-on-Avon.",
     "createdAt": "2026-08-04T00:00:00.000Z",
-    "updatedAt": "2026-08-04T00:00:00.000Z"
+    "updatedAt": "2026-08-04T00:00:00.000Z",
+    "latitude": 51.32,
+    "longitude": -2.29
   },
   {
     "locationId": "bredon-barn",
@@ -1803,7 +2059,9 @@
     "url": "https://www.nationaltrust.org.uk/visit/worcestershire-herefordshire/bredon-barn",
     "notes": "Medieval tithe barn with timber roof structure.",
     "createdAt": "2026-08-04T00:00:00.000Z",
-    "updatedAt": "2026-08-04T00:00:00.000Z"
+    "updatedAt": "2026-08-04T00:00:00.000Z",
+    "latitude": 52.035,
+    "longitude": -2.117
   },
   {
     "locationId": "croome",
@@ -1817,7 +2075,9 @@
     "url": "https://www.nationaltrust.org.uk/visit/worcestershire-herefordshire/croome",
     "notes": "Neo-Palladian house and Capability Brown parkland near Worcester.",
     "createdAt": "2026-08-04T00:00:00.000Z",
-    "updatedAt": "2026-08-04T00:00:00.000Z"
+    "updatedAt": "2026-08-04T00:00:00.000Z",
+    "latitude": 52.108,
+    "longitude": -2.173
   },
   {
     "locationId": "greyfriars-house-and-garden",
@@ -1831,7 +2091,9 @@
     "url": "https://www.nationaltrust.org.uk/visit/worcestershire-herefordshire/greyfriars-house-and-garden",
     "notes": "Timber-framed house and walled garden in central Worcester.",
     "createdAt": "2026-08-04T00:00:00.000Z",
-    "updatedAt": "2026-08-04T00:00:00.000Z"
+    "updatedAt": "2026-08-04T00:00:00.000Z",
+    "latitude": 52.19,
+    "longitude": -2.22
   },
   {
     "locationId": "hanbury-hall",
@@ -1845,7 +2107,9 @@
     "url": "https://www.nationaltrust.org.uk/visit/worcestershire-herefordshire/hanbury-hall",
     "notes": "William and Mary-style house, formal gardens and parkland.",
     "createdAt": "2026-08-04T00:00:00.000Z",
-    "updatedAt": "2026-08-04T00:00:00.000Z"
+    "updatedAt": "2026-08-04T00:00:00.000Z",
+    "latitude": 52.266,
+    "longitude": -2.09
   },
   {
     "locationId": "hawford-dovecote",
@@ -1859,7 +2123,9 @@
     "url": "https://www.nationaltrust.org.uk/visit/worcestershire-herefordshire/hawford-dovecote",
     "notes": "Historic brick dovecote near Worcester.",
     "createdAt": "2026-08-04T00:00:00.000Z",
-    "updatedAt": "2026-08-04T00:00:00.000Z"
+    "updatedAt": "2026-08-04T00:00:00.000Z",
+    "latitude": 52.234,
+    "longitude": -2.227
   },
   {
     "locationId": "knowles-mill",
@@ -1873,7 +2139,9 @@
     "url": "https://www.nationaltrust.org.uk/visit/worcestershire-herefordshire/knowles-mill",
     "notes": "Preserved water-powered mill in the Wyre Forest.",
     "createdAt": "2026-08-04T00:00:00.000Z",
-    "updatedAt": "2026-08-04T00:00:00.000Z"
+    "updatedAt": "2026-08-04T00:00:00.000Z",
+    "latitude": 52.38,
+    "longitude": -2.34
   },
   {
     "locationId": "middle-littleton-tithe-barn",
@@ -1887,7 +2155,9 @@
     "url": "https://www.nationaltrust.org.uk/visit/worcestershire-herefordshire/middle-littleton-tithe-barn",
     "notes": "Large medieval tithe barn with traditional agricultural setting.",
     "createdAt": "2026-08-04T00:00:00.000Z",
-    "updatedAt": "2026-08-04T00:00:00.000Z"
+    "updatedAt": "2026-08-04T00:00:00.000Z",
+    "latitude": 52.12,
+    "longitude": -1.86
   },
   {
     "locationId": "rosedene",
@@ -1901,7 +2171,9 @@
     "url": "https://www.nationaltrust.org.uk/visit/worcestershire-herefordshire/rosedene",
     "notes": "Restored Chartist cottage and garden near Bromsgrove.",
     "createdAt": "2026-08-04T00:00:00.000Z",
-    "updatedAt": "2026-08-04T00:00:00.000Z"
+    "updatedAt": "2026-08-04T00:00:00.000Z",
+    "latitude": 52.339,
+    "longitude": -2.118
   },
   {
     "locationId": "the-firs",
@@ -1915,7 +2187,9 @@
     "url": "https://www.nationaltrust.org.uk/visit/worcestershire-herefordshire/the-firs",
     "notes": "Birthplace cottage and garden of composer Edward Elgar.",
     "createdAt": "2026-08-04T00:00:00.000Z",
-    "updatedAt": "2026-08-04T00:00:00.000Z"
+    "updatedAt": "2026-08-04T00:00:00.000Z",
+    "latitude": 52.199,
+    "longitude": -2.287
   },
   {
     "locationId": "wichenford-dovecote",
@@ -1929,6 +2203,8 @@
     "url": "https://www.nationaltrust.org.uk/visit/worcestershire-herefordshire/wichenford-dovecote",
     "notes": "Seventeenth-century dovecote with historic nesting boxes.",
     "createdAt": "2026-08-04T00:00:00.000Z",
-    "updatedAt": "2026-08-04T00:00:00.000Z"
+    "updatedAt": "2026-08-04T00:00:00.000Z",
+    "latitude": 52.23,
+    "longitude": -2.32
   }
 ]

@@ -33,12 +33,12 @@ describe('Journey document validation', () => {
         id: 'activity-1',
         datasetId: 'production',
         type: 'activity',
-        schemaVersion: 2,
+        schemaVersion: 3,
         entity: {
           activityId: 'activity-1',
           ideaIds: [],
           date: '2026-09-04',
-          location: { kind: 'postcode', postcode: 'SN15 2LG' },
+          location: { kind: 'postcode', postcode: 'SN15 2LG', latitude: 51.415, longitude: -2.123 },
           notes: '',
           referenceIds: [],
           photoReferenceIds: [],
@@ -75,7 +75,7 @@ describe('Journey document validation', () => {
         id: 'activity-1',
         datasetId: 'production',
         type: 'activity',
-        schemaVersion: 2,
+        schemaVersion: 3,
         entity: { activityId: 'activity-1' },
       }).success,
     ).toBe(false)

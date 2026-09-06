@@ -65,15 +65,9 @@ function isValidDate(value: string): boolean {
 }
 
 function waypointInitialLocation(data: WaypointsData, waypointId: string | undefined): ActivityLocation | undefined {
-  if (!waypointId) return undefined
-  const waypoint = data.waypoints.find((item) => item.waypointId === waypointId)
-  if (!waypoint?.location) return undefined
-  if (typeof waypoint.location.latitude === 'number' && typeof waypoint.location.longitude === 'number') {
-    return { kind: 'coordinates', latitude: waypoint.location.latitude, longitude: waypoint.location.longitude }
-  }
-  const postcode = waypoint.location.addressOrRegion ?? waypoint.location.placeName
-  if (postcode) return { kind: 'postcode', postcode }
-  return undefined
+  const location = data.waypoints.find((item) => item.waypointId === waypointId)?.location
+  if (typeof location?.latitude !== 'number' || typeof location.longitude !== 'number') return undefined
+  return { kind: 'coordinates', latitude: location.latitude, longitude: location.longitude }
 }
 
 export function ActivityEditor({

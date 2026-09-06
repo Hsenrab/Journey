@@ -13,8 +13,8 @@ Cosmos stores one document per entity. Every document contains `id`, `datasetId`
 validated `WaypointsData` response. Cosmos ETags are kept in application memory and
 are not included in JSON exports.
 
-Each document type declares its own schema version (`idea` and `activity` are version
-2; the other types are version 1). A document whose version or entity shape does not
+Each document type declares its own schema version (`activity` is version 3, `idea`
+and `waypoint` are version 2, and the other types are version 1). A document whose version or entity shape does not
 match the current schema fails validation with its specific error. There is no
 migration, compatibility parser, or fallback for obsolete documents; production data
 may be deleted and recreated instead.
@@ -59,8 +59,8 @@ The persisted root object is:
 - optional `waypointId`
 - `ideaIds` (zero, one, or many distinct Idea IDs, independent of `waypointId`)
 - optional `category` (`bronze` | `silver` | `gold`)
-- structured location:
-  - `{ "kind": "postcode", "postcode": "..." }`, or
+- structured location, always carrying the coordinates resolved at save time:
+  - `{ "kind": "postcode", "postcode": "...", "latitude": number, "longitude": number }`, or
   - `{ "kind": "coordinates", "latitude": number, "longitude": number }`
 - `notes`
 - `referenceIds` and `photoReferenceIds`

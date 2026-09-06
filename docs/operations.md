@@ -71,10 +71,21 @@ a shared key, Function key, client secret, or SAS token.
 
 Treat `LocalAuthDisabled` as an architecture defect indicating that a prohibited
 local-authentication path has been introduced, not as an Azure configuration problem.
-Do not add another provider, retry layer, or bulk geocoding.
+Do not add another provider or retry layer, and do not add live bulk geocoding of
+stored records at runtime.
 
-Coordinates are saved only when a location is deliberately geocoded or changed.
-Records without coordinates remain valid and are reported as omitted by the map.
+Waypoints and Activities are geocoded at save time. The `/api/journey` write path
+resolves a postcode-only or place-only location through Azure Maps Search with the
+Function managed identity before the entity is validated and written, so no Waypoint
+or Activity is persisted without coordinates. A location that Azure Maps cannot
+resolve fails the write with a 400 response; the record is never saved without
+coordinates.
+
+The static seed catalogue in `src/data/locations.json` is geocoded once, offline, by
+`scripts/backfill-location-coordinates.ts`, which writes the coordinates back into the
+checked-in file. Run it manually (`az login`, then
+`AZURE_MAPS_CLIENT_ID=<client id> node --experimental-strip-types scripts/backfill-location-coordinates.ts`)
+when catalogue entries are added. Static content is never re-geocoded at runtime.
 Application Insights should be used to review token, search, error, and throttling
 counts without recording search strings or precise locations.
 

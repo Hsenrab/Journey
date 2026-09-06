@@ -10,6 +10,8 @@ const valid: Location = {
   travel: { distanceMiles: 13, driveTimeMinutes: 30 },
   url: 'https://www.nationaltrust.org.uk/visit/gloucestershire-cotswolds/chedworth-roman-villa',
   notes: 'Excavated remains of a Roman villa.',
+  latitude: 51.783,
+  longitude: -1.933,
   createdAt: '2026-08-04',
   updatedAt: '2026-08-04',
 }
@@ -31,6 +33,14 @@ describe('LocationSchema', () => {
 
   it('rejects a malformed visitor url', () => {
     expect(() => LocationSchema.parse({ ...valid, url: 'not-a-url' })).toThrow()
+  })
+
+  it('requires backfilled coordinates', () => {
+    const { latitude, longitude, ...rest } = valid
+    void latitude
+    void longitude
+    expect(() => LocationSchema.parse(rest)).toThrow()
+    expect(() => LocationSchema.parse({ ...valid, latitude: 120 })).toThrow()
   })
 })
 
