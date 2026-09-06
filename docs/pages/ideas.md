@@ -35,4 +35,4 @@ more activities through activity `ideaIds`.
 
 - Details show usage as **Not used** or **Used in N activities** and list each linked
   activity with date and optional waypoint.
-- Deleting an idea removes idea links from activities and reloads the dataset.
+- Deleting an idea removes idea links from activities and updates the dataset.

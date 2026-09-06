@@ -122,6 +122,21 @@ describe('IdeaEditor', () => {
     )
   })
 
+  it('ignores approximate location without any location details', async () => {
+    const user = userEvent.setup()
+    const { onSubmit } = renderEditor()
+
+    await user.type(screen.getByLabelText('Title'), 'Find hill viewpoint')
+    await user.click(screen.getByLabelText('Approximate location'))
+    await user.click(screen.getByRole('button', { name: 'Save' }))
+
+    expect(onSubmit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        location: undefined,
+      }),
+    )
+  })
+
   it('validates reference metadata and prevents submit', async () => {
     const user = userEvent.setup()
     const { onSubmit } = renderEditor()

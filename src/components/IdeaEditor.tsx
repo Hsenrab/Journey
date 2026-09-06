@@ -180,8 +180,7 @@ export function IdeaEditor({
       Boolean(addressOrRegion.trim()) ||
       Boolean(source.trim()) ||
       Boolean(latitude.trim()) ||
-      Boolean(longitude.trim()) ||
-      approximate
+      Boolean(longitude.trim())
     if (hasLocation) {
       location = {
         placeName: placeName.trim() || undefined,

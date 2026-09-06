@@ -99,10 +99,10 @@ export const difficultyLabels: Record<Difficulty, string> = {
   4: 'Ambitious',
 }
 export const difficultyDescriptions: Record<Difficulty, string> = {
-  1: 'Local, low-cost, and achievable within half a day with little or no preparation.',
-  2: 'Requires some commitment, such as a full-day or straightforward multi-day trip, advance booking, or additional travel.',
-  3: 'Requires substantial preparation or resources, such as route planning, several bookings, specialist knowledge, expense, or coordination.',
-  4: 'A major undertaking requiring extensive planning, training, significant expense, international travel, or long-term commitment.',
+  1: 'Local, low-cost, and achievable within half a day with little or no preparation. It could realistically be done tomorrow.',
+  2: 'Requires some commitment, such as a full-day or straightforward multi-day trip, advance booking, or additional travel, but remains simple to arrange.',
+  3: 'Requires substantial preparation or resources, such as route planning, several bookings, specialist knowledge, significant expense, or coordination with others.',
+  4: 'A major undertaking requiring extensive planning, training, significant expense, international travel, or long-term commitment. It is usually a big-ticket goal.',
 }
 
 const distinctIds = (message: string) =>
