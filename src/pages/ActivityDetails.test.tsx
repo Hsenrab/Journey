@@ -32,12 +32,26 @@ describe('ActivityDetails', () => {
     const seed = createDefaultData()
     save({
       ...seed,
+      ideas: [
+        {
+          ideaId: 'idea-1',
+          title: 'Orangery idea',
+          description: '',
+          notes: '',
+          waypointIds: ['stourhead'],
+          planningState: 'active',
+          difficulty: 1,
+          referenceIds: [],
+          createdAt: '2026-07-01T00:00:00.000Z',
+          updatedAt: '2026-07-01T00:00:00.000Z',
+        },
+      ],
       references: [...seed.references, { referenceId: 'r1', title: 'Guide', url: 'https://example.com/guide' }],
       photoReferences: [{ photoReferenceId: 'p1', title: 'View', url: 'https://example.com/view.jpg' }],
       activities: [
         {
           activityId: 'a1',
-          ideaIds: [],
+          ideaIds: ['idea-1'],
           waypointId: 'stourhead',
           date: '2026-08-01',
           category: 'gold',
@@ -56,6 +70,8 @@ describe('ActivityDetails', () => {
     expect(screen.getByRole('heading', { name: '2026-08-01 · Stourhead' })).toBeInTheDocument()
     expect(screen.getByText('Guide')).toBeInTheDocument()
     expect(screen.getByRole('img', { name: 'View' })).toBeInTheDocument()
+    expect(screen.getByText('Linked ideas: Orangery idea')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Orangery idea' })).toBeInTheDocument()
   })
 
   it('renders empty optional fields and invalid reference hostnames', () => {

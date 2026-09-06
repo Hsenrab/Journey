@@ -4,7 +4,7 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { beforeEach, describe, expect, it } from 'vitest'
 import LocationDetails from './LocationDetails'
 import { WaypointsProvider } from '../features/journey/JourneyContext'
-import { load } from '../services/storage'
+import { createDefaultData, load, save } from '../services/storage'
 
 const lacockId = 'lacock-abbey-fox-talbot-museum-and-village'
 
@@ -37,7 +37,7 @@ describe('LocationDetails', () => {
     const user = userEvent.setup()
     renderDetails(lacockId)
 
-    await user.click(screen.getByRole('button', { name: 'Add activity' }))
+    await user.click(screen.getByRole('button', { name: 'Log activity' }))
     await user.type(screen.getByLabelText('Postcode'), 'SN15 2LG')
     await user.type(screen.getByLabelText('Description / notes'), 'Wonderful visit')
     await user.click(screen.getByRole('combobox', { name: 'Activity category' }))
@@ -54,7 +54,7 @@ describe('LocationDetails', () => {
     const user = userEvent.setup()
     renderDetails(lacockId)
 
-    await user.click(screen.getByRole('button', { name: 'Add activity' }))
+    await user.click(screen.getByRole('button', { name: 'Log activity' }))
     const dateInput = screen.getByLabelText('Activity date')
     await user.clear(dateInput)
     await user.type(dateInput, 'not-a-date')
@@ -62,5 +62,30 @@ describe('LocationDetails', () => {
 
     expect(screen.getByText('Please enter a valid activity date in YYYY-MM-DD format.')).toBeInTheDocument()
     expect(load().activities).toEqual([])
+  })
+
+  it('shows ideas linked to the waypoint with derived usage', () => {
+    const seed = createDefaultData()
+    save({
+      ...seed,
+      ideas: [
+        {
+          ideaId: 'idea-1',
+          title: 'Scout route',
+          description: '',
+          notes: '',
+          waypointIds: [lacockId],
+          planningState: 'active',
+          difficulty: 1,
+          referenceIds: [],
+          createdAt: '2026-08-01T00:00:00.000Z',
+          updatedAt: '2026-08-01T00:00:00.000Z',
+        },
+      ],
+    })
+    renderDetails(lacockId)
+    expect(screen.getByRole('heading', { name: 'Ideas' })).toBeInTheDocument()
+    expect(screen.getByText('Scout route')).toBeInTheDocument()
+    expect(screen.getByText('Active · Not used')).toBeInTheDocument()
   })
 })

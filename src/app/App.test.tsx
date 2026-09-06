@@ -53,7 +53,7 @@ describe('activity logging', () => {
   beforeEach(() => localStorage.clear())
 
   const logActivity = async (user: ReturnType<typeof userEvent.setup>, level: string, date: string) => {
-    await user.click(screen.getByRole('button', { name: 'Add activity' }))
+    await user.click(screen.getByRole('button', { name: 'Log activity' }))
     await user.click(screen.getByRole('combobox', { name: 'Activity category' }))
     await user.click(screen.getByRole('option', { name: level }))
     await user.type(screen.getByLabelText('Postcode'), 'SN15 2LG')

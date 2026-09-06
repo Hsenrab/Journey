@@ -15,7 +15,7 @@ import {
   Typography,
 } from '@mui/material'
 import { ActivityEditor } from '../components/ActivityEditor'
-import { locationSummary, statusLabels } from '../domain/visit'
+import { ideasForActivity, locationSummary, statusLabels } from '../domain/visit'
 import { useWaypoints } from '../features/journey/JourneyContext'
 import { JourneyConflictError } from '../services/journeyApi'
 
@@ -49,6 +49,7 @@ export default function ActivityDetails() {
   }
 
   const references = data.references.filter((reference) => activity.referenceIds.includes(reference.referenceId))
+  const ideas = ideasForActivity(data.ideas, activity)
   const photoReferences = data.photoReferences.filter((photoReference) =>
     activity.photoReferenceIds.includes(photoReference.photoReferenceId),
   )
@@ -107,6 +108,9 @@ export default function ActivityDetails() {
         )}
       </Stack>
       <Typography color="text.secondary">{locationSummary(activity.location)}</Typography>
+      <Typography color="text.secondary">
+        {ideas.length === 0 ? 'No linked ideas.' : `Linked ideas: ${ideas.map((idea) => idea.title).join(', ')}`}
+      </Typography>
       {activity.notes ? (
         <Typography sx={{ whiteSpace: 'pre-wrap' }}>{activity.notes}</Typography>
       ) : (
@@ -161,6 +165,24 @@ export default function ActivityDetails() {
       ) : (
         <Typography color="text.secondary">No photos linked to this activity.</Typography>
       )}
+
+      <Stack spacing={2}>
+        <Typography variant="h5">Ideas</Typography>
+        {ideas.length === 0 ? (
+          <Typography color="text.secondary">No ideas linked to this activity.</Typography>
+        ) : (
+          ideas.map((idea) => (
+            <Button
+              key={idea.ideaId}
+              component={Link}
+              to={`/ideas/${idea.ideaId}`}
+              sx={{ justifyContent: 'flex-start' }}
+            >
+              {idea.title}
+            </Button>
+          ))
+        )}
+      </Stack>
 
       <Stack spacing={2}>
         <Typography variant="h5">References</Typography>
@@ -230,8 +252,8 @@ export default function ActivityDetails() {
         <DialogTitle>Delete activity?</DialogTitle>
         <DialogContent>
           <Typography>
-            Delete activity on {activity.date}
-            {waypoint ? ` linked to ${waypoint.title}` : ''}?
+            Deleting this activity keeps linked ideas and waypoints, but idea usage counts update from the remaining
+            activities after the dataset reloads.
           </Typography>
         </DialogContent>
         <DialogActions>
@@ -241,6 +263,7 @@ export default function ActivityDetails() {
             onClick={async () => {
               try {
                 await deleteActivity(activity.activityId)
+                await reload()
                 setShowDeleteDialog(false)
                 navigate(backTarget)
               } catch (error) {
