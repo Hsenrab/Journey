@@ -5,6 +5,7 @@ export const EntityTypeSchema = z.enum(entityTypes)
 export type EntityType = z.infer<typeof EntityTypeSchema>
 
 const identifier = z.string().min(1)
+const text = z.string().trim().min(1)
 const distinctIds = (message: string) => z.array(identifier).refine((ids) => new Set(ids).size === ids.length, message)
 const httpsUrl = z.url().startsWith('https://')
 const place = z
@@ -58,12 +59,12 @@ const schemas = {
   idea: z
     .object({
       ideaId: identifier,
-      title: identifier,
+      title: text,
       description: z.string(),
       notes: z.string(),
       waypointIds: distinctIds('Idea waypoint links must be distinct'),
       planningState: z.enum(['active', 'someday', 'rejected']),
-      rejectionReason: z.string().trim().min(1).optional(),
+      rejectionReason: text.optional(),
       difficulty: z.union([z.literal(1), z.literal(2), z.literal(3), z.literal(4)]),
       location: place.optional(),
       referenceIds: distinctIds('Idea reference links must be distinct'),

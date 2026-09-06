@@ -140,11 +140,16 @@ export async function deleteEntity(
   loaded: { data: JourneyData; etags: Record<string, string> },
 ) {
   const plan = deletionPlan(loaded.data, type, id)
+  const etagFor = (documentId: string) => {
+    const etag = documentId === id ? ifMatch : loaded.etags[documentId]
+    if (!etag) throw new Error(`Journey document "${documentId}" has no ETag for a transactional delete.`)
+    return etag
+  }
   await runBatch(container, datasetId, [
     ...plan.deletes.map((deletedId) => ({
       operationType: 'Delete' as const,
       id: deletedId,
-      ifMatch: deletedId === id ? ifMatch : loaded.etags[deletedId],
+      ifMatch: etagFor(deletedId),
     })),
     ...plan.updates.map((update) => {
       const document = documentFor(datasetId, update.type, update.entity)
@@ -152,7 +157,7 @@ export async function deleteEntity(
         operationType: 'Replace' as const,
         id: document.id,
         resourceBody: document,
-        ifMatch: loaded.etags[document.id],
+        ifMatch: etagFor(document.id),
       }
     }),
   ])

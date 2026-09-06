@@ -288,7 +288,7 @@ export function activitiesUsingIdea(activities: readonly Activity[], ideaId: str
 }
 
 export function ideaUsageCount(activities: readonly Activity[], ideaId: string): number {
-  return activitiesUsingIdea(activities, ideaId).length
+  return activities.filter((activity) => activity.ideaIds.includes(ideaId)).length
 }
 
 export function statusForWaypoint(activities: readonly Activity[], waypointId: string): Status {
