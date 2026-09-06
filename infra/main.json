@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.46.1.21595",
-      "templateHash": "12136887486065330608"
+      "templateHash": "6197094663435639374"
     }
   },
   "parameters": {
@@ -78,6 +78,13 @@
       "metadata": {
         "description": "Cosmos DB account mode. Select freeTier only after confirming the subscription allowance; serverless is the explicit low-cost alternative."
       }
+    },
+    "cosmosLocation": {
+      "type": "string",
+      "defaultValue": "[parameters('location')]",
+      "metadata": {
+        "description": "Azure region for the Cosmos DB account. Defaults to the Static Web App region\nbut can be overridden independently, because Cosmos DB and Static Web Apps\nsupport different region sets and a region can reject new accounts when its\nzonal-redundant capacity pool is exhausted, even for non-zonal requests.\n"
+      }
     }
   },
   "variables": {
@@ -132,7 +139,7 @@
       "type": "Microsoft.DocumentDB/databaseAccounts",
       "apiVersion": "2024-05-15",
       "name": "[variables('cosmosAccountName')]",
-      "location": "[parameters('location')]",
+      "location": "[parameters('cosmosLocation')]",
       "tags": "[variables('tags')]",
       "kind": "GlobalDocumentDB",
       "properties": {
@@ -153,7 +160,7 @@
         "capabilities": "[if(equals(parameters('cosmosMode'), 'serverless'), createArray(createObject('name', 'EnableServerless')), createArray())]",
         "locations": [
           {
-            "locationName": "[parameters('location')]",
+            "locationName": "[parameters('cosmosLocation')]",
             "failoverPriority": 0
           }
         ]

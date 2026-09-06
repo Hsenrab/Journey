@@ -47,6 +47,14 @@ param enableApi bool = true
 ])
 param cosmosMode string = 'serverless'
 
+@description('''
+Azure region for the Cosmos DB account. Defaults to the Static Web App region
+but can be overridden independently, because Cosmos DB and Static Web Apps
+support different region sets and a region can reject new accounts when its
+zonal-redundant capacity pool is exhausted, even for non-zonal requests.
+''')
+param cosmosLocation string = location
+
 var tags = union(
   {
     environment: environmentName
@@ -120,7 +128,7 @@ resource staticWebApp 'Microsoft.Web/staticSites@2023-12-01' = {
 
 resource cosmosAccount 'Microsoft.DocumentDB/databaseAccounts@2024-05-15' = if (enableApi) {
   name: cosmosAccountName
-  location: location
+  location: cosmosLocation
   tags: tags
   kind: 'GlobalDocumentDB'
   properties: {
@@ -141,7 +149,7 @@ resource cosmosAccount 'Microsoft.DocumentDB/databaseAccounts@2024-05-15' = if (
     capabilities: cosmosMode == 'serverless' ? [{ name: 'EnableServerless' }] : []
     locations: [
       {
-        locationName: location
+        locationName: cosmosLocation
         failoverPriority: 0
       }
     ]
