@@ -14,8 +14,9 @@ validated `WaypointsData` response. Cosmos ETags are kept in application memory 
 are not included in JSON exports.
 
 Each document type declares its own schema version (`activity` is version 3, `idea`
-and `waypoint` are version 2, and the other types are version 1). A document whose version or entity shape does not
-match the current schema fails validation with its specific error. There is no
+and `waypoint` are version 2, and the other types are version 1). A document whose
+version or entity shape does not match the current schema fails validation with its
+specific error. There is no
 migration, compatibility parser, or fallback for obsolete documents; production data
 may be deleted and recreated instead.
 
