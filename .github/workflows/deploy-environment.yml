@@ -106,6 +106,7 @@ jobs:
             owner=${{ vars.AZURE_RESOURCE_OWNER || 'journey-maintainers' }}
             repositoryUrl=${{ github.server_url }}/${{ github.repository }}
             repositoryBranch=${{ github.ref_name }}
+            cosmosLocation=${{ vars.AZURE_COSMOS_LOCATION || vars.AZURE_LOCATION || 'westeurope' }}
 
       - name: Resolve deployed resources
         id: resolve

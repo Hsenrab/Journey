@@ -5,6 +5,8 @@ export const EntityTypeSchema = z.enum(entityTypes)
 export type EntityType = z.infer<typeof EntityTypeSchema>
 
 const identifier = z.string().min(1)
+const text = z.string().trim().min(1)
+const distinctIds = (message: string) => z.array(identifier).refine((ids) => new Set(ids).size === ids.length, message)
 const httpsUrl = z.url().startsWith('https://')
 const place = z
   .object({
@@ -57,19 +59,39 @@ const schemas = {
   idea: z
     .object({
       ideaId: identifier,
-      title: identifier,
-      description: identifier,
-      waypointIds: z.array(identifier),
-      challengeIds: z.array(identifier),
+      title: text,
+      description: z.string(),
+      notes: z.string(),
+      waypointIds: distinctIds('Idea waypoint links must be distinct'),
+      planningState: z.enum(['active', 'someday', 'rejected']),
+      rejectionReason: text.optional(),
+      difficulty: z.union([z.literal(1), z.literal(2), z.literal(3), z.literal(4)]),
       location: place.optional(),
+      referenceIds: distinctIds('Idea reference links must be distinct'),
+      createdAt: z.iso.datetime(),
+      updatedAt: z.iso.datetime(),
     })
-    .strict(),
+    .strict()
+    .superRefine((idea, context) => {
+      if (idea.planningState === 'rejected' && idea.rejectionReason === undefined)
+        context.addIssue({
+          code: 'custom',
+          path: ['rejectionReason'],
+          message: 'A rejected idea requires a rejection reason',
+        })
+      if (idea.planningState !== 'rejected' && idea.rejectionReason !== undefined)
+        context.addIssue({
+          code: 'custom',
+          path: ['rejectionReason'],
+          message: 'Only a rejected idea can have a rejection reason',
+        })
+    }),
   activity: z
     .object({
       activityId: identifier,
       waypointId: identifier.optional(),
       challengeId: identifier.optional(),
-      ideaId: identifier.optional(),
+      ideaIds: distinctIds('Activity idea links must be distinct'),
       date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
       category: z.enum(['bronze', 'silver', 'gold']).optional(),
       location: activityLocation,
@@ -94,6 +116,15 @@ const schemas = {
     .strict(),
 } as const
 
+export const schemaVersions = {
+  waypoint: 1,
+  challenge: 1,
+  idea: 2,
+  activity: 2,
+  reference: 1,
+  photoReference: 1,
+} as const satisfies Record<EntityType, number>
+
 export const JourneyDocumentSchema = z
   .object({
     id: identifier,
@@ -104,6 +135,13 @@ export const JourneyDocumentSchema = z
   })
   .strict()
   .superRefine((document, context) => {
+    const expected = schemaVersions[document.type]
+    if (document.schemaVersion !== expected)
+      context.addIssue({
+        code: 'custom',
+        path: ['schemaVersion'],
+        message: `Document type "${document.type}" requires schema version ${expected}, received ${document.schemaVersion}.`,
+      })
     const parsed = schemas[document.type].safeParse(document.entity)
     if (!parsed.success)
       for (const issue of parsed.error.issues) context.addIssue({ ...issue, path: ['entity', ...issue.path] })

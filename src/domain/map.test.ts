@@ -38,6 +38,7 @@ describe('map domain helpers', () => {
     const count = { ...waypoint('count', 'Count'), completion: { mode: 'count' as const, target: 2 } }
     const activity = (waypointId: string, category?: Activity['category']): Activity => ({
       activityId: `${waypointId}-${category ?? 'uncategorised'}`,
+      ideaIds: [],
       waypointId,
       date: '2026-08-10',
       category,

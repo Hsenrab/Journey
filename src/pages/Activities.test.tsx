@@ -72,6 +72,7 @@ describe('Activities', () => {
     const seed = createDefaultData()
     const seededActivity: Activity = {
       activityId: 'a1',
+      ideaIds: [],
       waypointId: 'stourhead',
       challengeId: 'national-trust',
       date: '2026-08-01',

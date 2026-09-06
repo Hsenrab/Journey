@@ -166,6 +166,14 @@ Tests live alongside the file they cover (`*.test.ts`/`*.test.tsx`).
   `datasetId`, clean it unconditionally, verify it is empty, and never access
   production. Demo records are deterministic and read-only. Production exports
   exclude test and demo records; import is allowed only into empty production.
+- Ideas are planning records and never become Activities. Ideas link to Waypoints
+  through `Idea.waypointIds`; Activities link to at most one Waypoint through
+  `Activity.waypointId` and to Ideas through `Activity.ideaIds`. Waypoints store no
+  child-ID arrays, Idea usage is derived from Activity links and never persisted on an
+  Idea, and Waypoint completion derives only from `Activity.waypointId`.
+- The API validates the complete entity and every referenced ID before writing, and
+  performs each multi-document change (Waypoint, Idea, and Activity deletion with
+  detachment and orphan pruning) in one ETag-checked Cosmos transactional batch.
 - Do not commit secrets or personal data. Visit data lives only in the browser's
   local storage.
 - Tests should assert explicit success or explicit failure. Do not encode silent
