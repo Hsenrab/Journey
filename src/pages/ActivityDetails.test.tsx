@@ -37,6 +37,7 @@ describe('ActivityDetails', () => {
       activities: [
         {
           activityId: 'a1',
+          ideaIds: [],
           waypointId: 'stourhead',
           date: '2026-08-01',
           category: 'gold',
@@ -65,6 +66,7 @@ describe('ActivityDetails', () => {
       activities: [
         {
           activityId: 'a1',
+          ideaIds: [],
           date: '2026-08-01',
           location: { kind: 'postcode', postcode: 'BA12 6QF' },
           notes: '',
@@ -92,6 +94,7 @@ describe('ActivityDetails', () => {
       activities: [
         {
           activityId: 'a1',
+          ideaIds: [],
           waypointId: 'stourhead',
           date: '2026-08-01',
           category: 'gold',
@@ -122,6 +125,7 @@ describe('ActivityDetails', () => {
       activities: [
         {
           activityId: 'a1',
+          ideaIds: [],
           waypointId: 'stourhead',
           date: '2026-08-01',
           category: 'gold',
@@ -155,6 +159,7 @@ describe('ActivityDetails', () => {
       activities: [
         {
           activityId: 'a1',
+          ideaIds: [],
           waypointId: 'stourhead',
           date: '2026-08-01',
           category: 'gold',

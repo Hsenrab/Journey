@@ -100,6 +100,7 @@ function upsertPhotoReferences(
 function pruneUnreferenced(data: WaypointsData): WaypointsData {
   const activeReferenceIds = new Set<string>([
     ...data.waypoints.flatMap((waypoint) => waypoint.referenceIds),
+    ...data.ideas.flatMap((idea) => idea.referenceIds),
     ...data.activities.flatMap((activity) => activity.referenceIds),
   ])
   const activePhotoReferenceIds = new Set<string>([
