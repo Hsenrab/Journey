@@ -100,7 +100,7 @@ describe('deletionPlan', () => {
       { type: 'idea', entity: expect.objectContaining({ ideaId: 'idea-1', waypointIds: [] }) },
       { type: 'activity', entity: expect.objectContaining({ activityId: 'activity-1', ideaIds: ['idea-1'] }) },
     ])
-    expect(plan.updates[1]!.entity).not.toHaveProperty('waypointId')
+    expect(plan.updates[2]!.entity).not.toHaveProperty('waypointId')
   })
 
   it('removes idea links from activities and prunes orphaned references', () => {

@@ -281,14 +281,18 @@ export function ideasForActivity(ideas: readonly Idea[], activity: Activity): Id
   })
 }
 
+function usesIdea(activity: Activity, ideaId: string): boolean {
+  return activity.ideaIds.includes(ideaId)
+}
+
 export function activitiesUsingIdea(activities: readonly Activity[], ideaId: string): Activity[] {
   return activities
-    .filter((activity) => activity.ideaIds.includes(ideaId))
+    .filter((activity) => usesIdea(activity, ideaId))
     .sort((a, b) => b.date.localeCompare(a.date) || b.updatedAt.localeCompare(a.updatedAt))
 }
 
 export function ideaUsageCount(activities: readonly Activity[], ideaId: string): number {
-  return activities.filter((activity) => activity.ideaIds.includes(ideaId)).length
+  return activities.filter((activity) => usesIdea(activity, ideaId)).length
 }
 
 export function statusForWaypoint(activities: readonly Activity[], waypointId: string): Status {
