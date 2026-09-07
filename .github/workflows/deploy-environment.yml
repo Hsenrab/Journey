@@ -409,7 +409,6 @@ jobs:
           action: upload
           app_location: /
           output_location: dist
-          production_branch: "${{ github.event_name == 'workflow_dispatch' && github.ref_name || '' }}"
 
       - name: Verify deployment
         if: github.event_name != 'pull_request'
