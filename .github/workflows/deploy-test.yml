@@ -145,7 +145,6 @@ jobs:
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
       - name: Read deployment token
-        id: swa_token
         env:
           RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
           STATIC_WEB_APP_NAME: ${{ vars.AZURE_STATIC_WEB_APP_NAME }}
@@ -156,11 +155,11 @@ jobs:
             --resource-group "${RESOURCE_GROUP}" \
             --query 'properties.apiKey' --output tsv)"
           echo "::add-mask::${token}"
-          echo "token=${token}" >> "$GITHUB_OUTPUT"
+          echo "SWA_DEPLOYMENT_TOKEN=${token}" >> "$GITHUB_ENV"
 
       - name: Close Azure Static Web Apps preview
         uses: Azure/static-web-apps-deploy@v1
         with:
-          azure_static_web_apps_api_token: ${{ steps.swa_token.outputs.token }}
+          azure_static_web_apps_api_token: ${{ env.SWA_DEPLOYMENT_TOKEN }}
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           action: close
