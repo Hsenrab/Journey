@@ -341,6 +341,8 @@ integration needs to be fully removed.
   single pull-request workflow. Pull requests and manual
   runs call the reusable workflow with `hh-env-test` and `dev` after independently
   deciding whether infrastructure and the Functions API need to be redeployed.
+  Closing a pull request closes its Azure Static Web Apps preview, releasing its
+  staging-environment slot.
   Configure required reviewers on the `hh-env-test` GitHub environment to require
   approval before Azure deployment jobs run.
 

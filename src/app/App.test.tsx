@@ -53,7 +53,7 @@ describe('activity logging', () => {
   beforeEach(() => localStorage.clear())
 
   const logActivity = async (user: ReturnType<typeof userEvent.setup>, level: string, date: string) => {
-    await user.click(screen.getByRole('button', { name: 'Add activity' }))
+    await user.click(screen.getByRole('button', { name: 'Log activity' }))
     await user.click(screen.getByRole('combobox', { name: 'Activity category' }))
     await user.click(screen.getByRole('option', { name: level }))
     fireEvent.change(screen.getByLabelText('Activity date'), { target: { value: date } })
