@@ -37,6 +37,8 @@ export const LocationSchema = z.object({
   category: LocationCategorySchema,
   travel: LocationTravelSchema,
   url: z.string().url().startsWith('https://www.nationaltrust.org.uk/'),
+  latitude: z.number().min(-90).max(90),
+  longitude: z.number().min(-180).max(180),
   notes: z.string().min(1),
   createdAt: CatalogueDateSchema,
   updatedAt: CatalogueDateSchema,

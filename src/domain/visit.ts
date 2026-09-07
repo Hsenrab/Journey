@@ -34,6 +34,8 @@ const isoDate = z
 const PostcodeLocationSchema = z.object({
   kind: z.literal('postcode'),
   postcode: z.string().trim().min(1, 'Postcode is required'),
+  latitude: z.number().min(-90).max(90).optional(),
+  longitude: z.number().min(-180).max(180).optional(),
 })
 
 const CoordinateLocationSchema = z.object({
@@ -206,7 +208,13 @@ export function createSeedData(locations: readonly Location[]): WaypointsData {
     tags: [location.area, location.category],
     challengeIds: ['national-trust'],
     completion: { mode: 'once' },
-    location: { placeName: location.name, addressOrRegion: location.area },
+    location: {
+      placeName: location.name,
+      addressOrRegion: location.area,
+      latitude: location.latitude,
+      longitude: location.longitude,
+      source: 'Azure Maps search backfill',
+    },
     referenceIds: [`reference-${location.locationId}`],
     photoReferenceIds: [],
   }))

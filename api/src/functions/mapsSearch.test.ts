@@ -26,6 +26,7 @@ beforeEach(() => {
   Object.assign(process.env, {
     AZURE_MAPS_CLIENT_ID: 'maps-client-id',
   })
+  acquireMapsAccessToken.mockReset()
   acquireMapsAccessToken.mockResolvedValue({ token: 'entra-token', expiresOn: '2026-01-01T00:00:00.000Z' })
 })
 afterEach(() => {
@@ -34,6 +35,16 @@ afterEach(() => {
 })
 
 describe('mapsSearch', () => {
+  it('reports an Azure Maps failure with its status', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 429, text: () => 'Too many requests' }))
+    const { mapsSearch } = await import('./mapsSearch.js')
+
+    expect(await mapsSearch(request('query=Oxford'), { error: vi.fn() } as unknown as InvocationContext)).toEqual({
+      status: 429,
+      jsonBody: { error: 'Too many requests' },
+    })
+  })
+
   it('rejects unauthorized and invalid search requests', async () => {
     const { mapsSearch } = await import('./mapsSearch.js')
     expect((await mapsSearch(request('query=Oxford', ''), {} as InvocationContext)).status).toBe(403)

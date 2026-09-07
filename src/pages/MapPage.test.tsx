@@ -319,6 +319,7 @@ describe('MapPage', () => {
       createdAt: '2026-08-10T00:00:00.000Z',
       updatedAt: '2026-08-10T00:00:00.000Z',
     })
+    data.waypoints[1]!.location = undefined
     localStorage.setItem('waypoints-v1', JSON.stringify(data))
     const user = userEvent.setup()
     vi.stubGlobal(
@@ -336,6 +337,25 @@ describe('MapPage', () => {
     await user.click(screen.getByRole('checkbox', { name: 'Gold' }))
     await user.click(screen.getByRole('button', { name: 'Activities' }))
     expect(screen.getByRole('link', { name: /Bronze:.*miles/ })).toBeInTheDocument()
+    expect(screen.getByText(/1 waypoint and 1 activity have no coordinates/)).toBeInTheDocument()
+  })
+
+  it('omits the missing-coordinate notice when every record is geocoded', async () => {
+    localStorage.setItem('waypoints-v1', JSON.stringify(createDefaultData()))
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(jsonResponse({ token: 'entra', expiresOn: '2026-01-01', clientId: 'maps-client-id' })),
+    )
+    render(
+      <MemoryRouter>
+        <WaypointsProvider>
+          <MapPage />
+        </WaypointsProvider>
+      </MemoryRouter>,
+    )
+
+    await vi.waitFor(() => expect(mapEvents.sourceAdd).toHaveBeenCalled())
+    expect(screen.queryByText(/have no coordinates/)).not.toBeInTheDocument()
   })
 
   it('adds features after the real SDK signals that the map is ready', async () => {

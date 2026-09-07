@@ -75,6 +75,16 @@ attached to other Waypoints or to no Waypoint, and be unattached itself. Activit
 **must** include structured location data before they are saved (`postcode` or
 coordinate pair).
 
+## Saved locations always carry coordinates
+
+A Waypoint or Activity location that reaches the API is resolved to `latitude` and
+`longitude` before it is persisted. Postcode-only and place-only input is geocoded
+once with Azure Maps Search at save time, and a location that cannot be resolved
+rejects the write instead of being saved without coordinates. Waypoint and Idea
+locations remain optional; once a location is supplied for a Waypoint or an Activity
+it must resolve to coordinates. The static seed catalogue carries coordinates from a
+one-time offline backfill rather than runtime geocoding.
+
 ## Relationships
 
 - A challenge references many waypoints.

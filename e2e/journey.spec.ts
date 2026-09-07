@@ -11,7 +11,7 @@ test.describe('activity management flow', () => {
     await page.getByRole('link', { name: 'View waypoint' }).click()
 
     await page.getByRole('button', { name: 'Log activity' }).click()
-    await page.getByLabel('Postcode').fill('GL54 3LJ')
+    await expect(page.getByLabel('Latitude')).toHaveValue('51.783')
     await page.getByRole('combobox', { name: 'Activity category' }).click()
     await page.getByRole('option', { name: 'Gold' }).click()
     await page.getByLabel('Description / notes').fill('Excellent day')

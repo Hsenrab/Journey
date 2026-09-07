@@ -14,6 +14,8 @@ import {
   savedDocument,
 } from '../lib/cosmos.js'
 import { JourneyMutationSchema, type EntityType } from '../lib/journeySchema.js'
+import { GeocodeError, resolveEntityCoordinates } from '../lib/geocode.js'
+import { DefaultAzureCredential } from '@azure/identity'
 import { referenceIntegrityError, upsertEntity } from '../lib/journeyGraph.js'
 import { ZodError } from 'zod'
 
@@ -50,6 +52,16 @@ function entityDocument(datasetId: string, type: EntityType, entity: Record<stri
     if (error instanceof ZodError) throw new ResponseError(400, error.issues[0]?.message ?? 'Invalid entity.')
     if (error instanceof Error && error.message.includes('missing its identifier.'))
       throw new ResponseError(400, error.message)
+    throw error
+  }
+}
+
+async function geocodedEntity(type: EntityType, entity: Record<string, unknown>): Promise<Record<string, unknown>> {
+  try {
+    return await resolveEntityCoordinates(type, entity, new DefaultAzureCredential())
+  } catch (error) {
+    if (error instanceof GeocodeError) throw new ResponseError(400, error.message)
+    if (error instanceof ZodError) throw new ResponseError(400, error.issues[0]?.message ?? 'Invalid location.')
     throw error
   }
 }
@@ -92,7 +104,8 @@ export async function journey(request: HttpRequest, context: InvocationContext):
     if (parsed.data.operation === 'create' || parsed.data.operation === 'update') {
       const method = parsed.data.operation === 'create' ? 'POST' : 'PUT'
       if (request.method !== method) throw new ResponseError(405, 'method_not_allowed')
-      const document = entityDocument(datasetId, parsed.data.type, parsed.data.entity)
+      const entity = await geocodedEntity(parsed.data.type, parsed.data.entity)
+      const document = entityDocument(datasetId, parsed.data.type, entity)
       const loaded = await loadDataset(cosmos, datasetId)
       const invalid = referenceIntegrityError(upsertEntity(loaded.data, document.type, document.entity))
       if (invalid) return { status: 400, jsonBody: { error: invalid } }

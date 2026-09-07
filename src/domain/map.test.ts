@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { completionStateForWaypoint, distanceMiles, filterWaypointsByStatus, orderNearbyWaypoints } from './map'
+import {
+  activityCoordinates,
+  completionStateForWaypoint,
+  distanceMiles,
+  filterWaypointsByStatus,
+  orderNearbyWaypoints,
+} from './map'
 import type { Activity, Waypoint } from './visit'
 
 const waypoint = (waypointId: string, title: string, latitude?: number): Waypoint => ({
@@ -16,6 +22,25 @@ const waypoint = (waypointId: string, title: string, latitude?: number): Waypoin
 })
 
 describe('map domain helpers', () => {
+  it('reads the coordinates saved with a postcode activity location', () => {
+    const activity = (location: Activity['location']): Activity => ({
+      activityId: 'activity-1',
+      ideaIds: [],
+      date: '2026-08-01',
+      location,
+      notes: '',
+      referenceIds: [],
+      photoReferenceIds: [],
+      createdAt: '2026-08-01T00:00:00.000Z',
+      updatedAt: '2026-08-01T00:00:00.000Z',
+    })
+
+    expect(
+      activityCoordinates(activity({ kind: 'postcode', postcode: 'SN15 2LG', latitude: 51.4, longitude: -2.1 })),
+    ).toEqual({ latitude: 51.4, longitude: -2.1 })
+    expect(activityCoordinates(activity({ kind: 'postcode', postcode: 'SN15 2LG' }))).toBeUndefined()
+  })
+
   it('filters by the selected status', () => {
     const waypoints = [waypoint('one', 'One'), waypoint('two', 'Two')]
     expect(filterWaypointsByStatus(waypoints, ['gold'], (id) => (id === 'one' ? 'gold' : 'bronze'))).toEqual([

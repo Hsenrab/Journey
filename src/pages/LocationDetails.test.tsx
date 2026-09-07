@@ -38,7 +38,6 @@ describe('LocationDetails', () => {
     renderDetails(lacockId)
 
     await user.click(screen.getByRole('button', { name: 'Log activity' }))
-    await user.type(screen.getByLabelText('Postcode'), 'SN15 2LG')
     await user.type(screen.getByLabelText('Description / notes'), 'Wonderful visit')
     await user.click(screen.getByRole('combobox', { name: 'Activity category' }))
     await user.click(screen.getByRole('option', { name: 'Gold' }))
