@@ -10,7 +10,7 @@ test.describe('activity management flow', () => {
     await page.getByLabel('Search waypoints').fill('Chedworth')
     await page.getByRole('link', { name: 'View waypoint' }).click()
 
-    await page.getByRole('button', { name: 'Add activity' }).click()
+    await page.getByRole('button', { name: 'Log activity' }).click()
     await page.getByLabel('Postcode').fill('GL54 3LJ')
     await page.getByRole('combobox', { name: 'Activity category' }).click()
     await page.getByRole('option', { name: 'Gold' }).click()
