@@ -269,7 +269,6 @@ describe('ActivityEditor', () => {
     await user.click(screen.getByRole('option', { name: 'Route option (linked to selected waypoint)' }))
     await user.click(screen.getByRole('combobox', { name: 'Linked waypoint' }))
     await user.click(screen.getByRole('option', { name: 'No linked waypoint' }))
-    await user.type(screen.getByLabelText('Postcode'), 'GL1 1AA')
     await user.click(screen.getByRole('button', { name: 'Save' }))
 
     expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ waypointId: undefined, ideaIds: ['idea-1'] }))
