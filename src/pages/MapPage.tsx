@@ -443,7 +443,7 @@ export default function MapPage() {
             {mode === 'waypoints' && (
               <Accordion disableGutters elevation={0} sx={{ '&::before': { display: 'none' } }}>
                 <AccordionSummary expandIcon={<ExpandMoreIcon />} sx={{ px: 0, minHeight: 40 }}>
-                  Waypoint filters ({statuses.length} of {statusOrder.length} awards)
+                  Waypoint filters ({statuses.length} of {statusOrder.length} statuses selected)
                 </AccordionSummary>
                 <AccordionDetails sx={{ px: 0, pb: 0 }}>
                   <Stack direction="row" useFlexGap sx={{ flexWrap: 'wrap' }}>

@@ -7,6 +7,7 @@ type EmptyStateProps = {
   action?: ReactNode
 }
 
+/** Standard page-level empty state; pass a decorative MUI icon. */
 export function EmptyState({ icon, message, action }: EmptyStateProps) {
   return (
     <Stack spacing={1} sx={{ py: 4, alignItems: 'center', textAlign: 'center' }}>
