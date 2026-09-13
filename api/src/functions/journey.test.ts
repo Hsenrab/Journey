@@ -189,7 +189,10 @@ describe('journey', () => {
     const { journey } = await import('./journey.js')
 
     expect(
-      await journey(request('demo', 'POST', { operation: 'create', type: 'activity', entity: { ...activity, ideaIds: [] } }), context()),
+      await journey(
+        request('demo', 'POST', { operation: 'create', type: 'activity', entity: { ...activity, ideaIds: [] } }),
+        context(),
+      ),
     ).toMatchObject({ status: 201 })
     expect(createDocument).toHaveBeenCalledWith(
       {},

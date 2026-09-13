@@ -7,7 +7,13 @@ import {
   setDataMode as saveDataMode,
   type JourneyDataMode,
 } from '../../services/storage'
-import { clearJourney, importJourney, loadJourney, replaceJourney, type JourneyContainer } from '../../services/journeyApi'
+import {
+  clearJourney,
+  importJourney,
+  loadJourney,
+  replaceJourney,
+  type JourneyContainer,
+} from '../../services/journeyApi'
 import {
   activitiesForWaypoint,
   createActivity,
@@ -356,20 +362,19 @@ export function WaypointsProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!localTestMode || dataMode !== 'production') void reload()
   }, [dataMode, localTestMode, reload])
-  const value = useMemo<WaypointsValue>(
-    () => {
-      const writableContainer = (): JourneyContainer => {
-        if (activeDataMode === 'demo-local') throw new Error('Demo local data is read-only.')
-        if (dataMode === 'demo-cosmos') return 'demo'
-        if (loadError) throw new Error('Production data is not loaded. Reload before making changes.')
-        return 'production'
-      }
-      const persist = async (container: JourneyContainer, action: Action, next: WaypointsData) => {
-        if (localTestMode && dataMode === 'production') dispatch(action)
-        else apply(await replaceJourney(container, next, etags))
-      }
+  const value = useMemo<WaypointsValue>(() => {
+    const writableContainer = (): JourneyContainer => {
+      if (activeDataMode === 'demo-local') throw new Error('Demo local data is read-only.')
+      if (dataMode === 'demo-cosmos') return 'demo'
+      if (loadError) throw new Error('Production data is not loaded. Reload before making changes.')
+      return 'production'
+    }
+    const persist = async (container: JourneyContainer, action: Action, next: WaypointsData) => {
+      if (localTestMode && dataMode === 'production') dispatch(action)
+      else apply(await replaceJourney(container, next, etags))
+    }
 
-      return {
+    return {
       data,
       dataMode,
       activeDataMode,
@@ -424,9 +429,7 @@ export function WaypointsProvider({ children }: { children: ReactNode }) {
       activitiesFor: (waypointId) => activitiesForWaypoint(data.activities, waypointId),
       statusFor: (waypointId) => statusForWaypoint(data.activities, waypointId),
     }
-    },
-    [activeDataMode, apply, changeDataMode, data, dataMode, etags, loadError, localTestMode, reload],
-  )
+  }, [activeDataMode, apply, changeDataMode, data, dataMode, etags, loadError, localTestMode, reload])
   return <Context.Provider value={value}>{children}</Context.Provider>
 }
 

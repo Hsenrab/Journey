@@ -123,12 +123,7 @@ export function Layout({ children }: { children: ReactNode }) {
                 <MenuItem value="production">{modeLabel.production}</MenuItem>
               </Select>
             </FormControl>
-            <Chip
-              color={chipColor}
-              label={chipLabel}
-              size="small"
-              variant={readOnly ? 'filled' : 'outlined'}
-            />
+            <Chip color={chipColor} label={chipLabel} size="small" variant={readOnly ? 'filled' : 'outlined'} />
           </Box>
         </Toolbar>
       </AppBar>

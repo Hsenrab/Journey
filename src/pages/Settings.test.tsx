@@ -170,7 +170,9 @@ describe('Settings', () => {
     setDataMode('demo-cosmos')
     vi.stubGlobal(
       'fetch',
-      vi.fn().mockResolvedValue(new Response(JSON.stringify({ data: createDemoModeData(), etags: {} }), { status: 200 })),
+      vi
+        .fn()
+        .mockResolvedValue(new Response(JSON.stringify({ data: createDemoModeData(), etags: {} }), { status: 200 })),
     )
     renderSettings()
 

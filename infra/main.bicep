@@ -97,9 +97,6 @@ var storageTableDataContributorRoleId = '0a9a7e1f-b9d0-4cc4-a60d-0319b160aaa3'
 @description('Cosmos DB Built-in Data Contributor role definition.')
 var cosmosDataContributorRoleId = '00000000-0000-0000-0000-000000000002'
 
-@description('Cosmos DB Built-in Data Reader role definition.')
-var cosmosDataReaderRoleId = '00000000-0000-0000-0000-000000000001'
-
 resource staticWebApp 'Microsoft.Web/staticSites@2023-12-01' = {
   name: staticWebAppName
   location: location
