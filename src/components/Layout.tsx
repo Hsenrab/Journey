@@ -54,14 +54,24 @@ export function Layout({ children }: { children: ReactNode }) {
     'demo-cosmos': 'Demo Cosmos',
     production: 'Production data',
   }
-  const chipLabel = loadError
+  const usingLocalFallback = dataMode === 'demo-cosmos' && activeDataMode === 'demo-local' && Boolean(loadError)
+  const chipLabel = usingLocalFallback
     ? 'Local fallback read-only'
-    : readOnly
-      ? 'Read-only'
-      : activeDataMode === 'demo-cosmos'
-        ? 'Demo writable'
-        : 'Production'
-  const chipColor = readOnly ? 'warning' : activeDataMode === 'demo-cosmos' ? 'info' : 'default'
+    : loadError
+      ? 'Load error'
+      : readOnly
+        ? 'Read-only'
+        : activeDataMode === 'demo-cosmos'
+          ? 'Demo writable'
+          : 'Production'
+  const chipColor =
+    loadError && !usingLocalFallback
+      ? 'error'
+      : readOnly
+        ? 'warning'
+        : activeDataMode === 'demo-cosmos'
+          ? 'info'
+          : 'default'
   const changeMode = (event: SelectChangeEvent) => {
     void setDataMode(event.target.value as JourneyDataMode)
   }

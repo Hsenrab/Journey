@@ -27,7 +27,8 @@ export default function Settings() {
   const input = useRef<HTMLInputElement>(null)
   const [message, setMessage] = useState<{ text: string; error: boolean } | null>(null)
   const [confirmingClear, setConfirmingClear] = useState(false)
-  const activeLabel = loadError ? 'Demo local fallback' : dataModeLabels[activeDataMode]
+  const usingLocalFallback = dataMode === 'demo-cosmos' && activeDataMode === 'demo-local' && Boolean(loadError)
+  const activeLabel = usingLocalFallback ? 'Demo local fallback' : dataModeLabels[activeDataMode]
 
   const exportData = () => {
     const blob = new Blob([JSON.stringify(createBackup(data), null, 2)], { type: 'application/json' })

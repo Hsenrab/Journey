@@ -287,6 +287,7 @@ function reducer(data: WaypointsData, action: Action): WaypointsData {
 
 export function WaypointsProvider({ children }: { children: ReactNode }) {
   const localTestMode = import.meta.env.MODE === 'test'
+  const initialDataMode = getDataMode()
   const emptyData = (): WaypointsData => ({
     waypoints: [],
     challenges: [],
@@ -295,9 +296,14 @@ export function WaypointsProvider({ children }: { children: ReactNode }) {
     references: [],
     photoReferences: [],
   })
-  const [data, dispatch] = useReducer(reducer, undefined, localTestMode ? load : emptyData)
-  const [dataMode, setDataModeState] = useState<JourneyDataMode>(getDataMode)
-  const [activeDataMode, setActiveDataMode] = useState<JourneyDataMode>(dataMode)
+  const initialData = () => {
+    if (initialDataMode === 'demo-local') return createDemoModeData()
+    if (localTestMode && initialDataMode === 'production') return load()
+    return emptyData()
+  }
+  const [data, dispatch] = useReducer(reducer, undefined, initialData)
+  const [dataMode, setDataModeState] = useState<JourneyDataMode>(initialDataMode)
+  const [activeDataMode, setActiveDataMode] = useState<JourneyDataMode>(initialDataMode)
   const [loadError, setLoadError] = useState<string>()
   const [etags, setEtags] = useState<Record<string, string>>({})
   const apply = useCallback((loaded: { data: WaypointsData; etags: Record<string, string> }) => {
@@ -343,25 +349,16 @@ export function WaypointsProvider({ children }: { children: ReactNode }) {
   const reload = useCallback(async () => {
     await loadMode(dataMode)
   }, [dataMode, loadMode])
-  const changeDataMode = useCallback(
-    async (mode: JourneyDataMode) => {
-      saveDataMode(mode)
-      setDataModeState(mode)
-      await loadMode(mode)
-    },
-    [loadMode],
-  )
+  const changeDataMode = useCallback(async (mode: JourneyDataMode) => {
+    saveDataMode(mode)
+    setDataModeState(mode)
+  }, [])
   useEffect(() => {
-    if (localTestMode && dataMode === 'production') {
-      dispatch({ type: 'restore', data: load() })
-    }
-  }, [dataMode, localTestMode])
+    if (localTestMode && dataMode === 'production' && activeDataMode === 'production') save(data)
+  }, [activeDataMode, data, dataMode, localTestMode])
   useEffect(() => {
-    if (localTestMode && dataMode === 'production') save(data)
-  }, [data, dataMode, localTestMode])
-  useEffect(() => {
-    if (!localTestMode || dataMode !== 'production') void reload()
-  }, [dataMode, localTestMode, reload])
+    void reload()
+  }, [reload])
   const value = useMemo<WaypointsValue>(() => {
     const writableContainer = (): JourneyContainer => {
       if (activeDataMode === 'demo-local') throw new Error('Demo local data is read-only.')
