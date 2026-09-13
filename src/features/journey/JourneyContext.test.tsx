@@ -272,6 +272,7 @@ describe('WaypointsContext in production mode', () => {
       references: [],
       photoReferences: [],
     })
+    expect(result.current.readOnly).toBe(true)
     expect(result.current.data).not.toEqual(createDemoModeData())
     await expect(result.current.addActivity(draft)).rejects.toThrow('Production data is not loaded')
   })

@@ -20,6 +20,12 @@ const demoModeKey = 'waypoints-demo-mode-v1'
 const dataModeKey = 'journey-data-mode-v1'
 const dataModes = new Set<JourneyDataMode>(['demo-local', 'demo-cosmos', 'production'])
 
+function requireProductionDataMode() {
+  const mode = getDataMode()
+  if (mode !== 'production')
+    throw new Error(`load()/save() are only available in Production data mode; the current mode is ${mode}.`)
+}
+
 export function createDefaultData(): WaypointsData {
   return createSeedData(locations)
 }
@@ -34,6 +40,7 @@ export function getDataMode(): JourneyDataMode {
 
   const legacyDemoMode = localStorage.getItem(demoModeKey)
   if (legacyDemoMode === 'true') {
+    // One-way migration for the former boolean demo preference.
     localStorage.setItem(dataModeKey, 'demo-local')
     return 'demo-local'
   }
@@ -50,7 +57,7 @@ export function setDataMode(mode: JourneyDataMode) {
 }
 
 export function load(): WaypointsData {
-  if (getDataMode() !== 'production') throw new Error('Local production storage requires Production data mode.')
+  requireProductionDataMode()
   const fallback = createDefaultData()
   const raw = localStorage.getItem(key)
   if (!raw) return fallback
@@ -58,7 +65,7 @@ export function load(): WaypointsData {
 }
 
 export function save(data: WaypointsData) {
-  if (getDataMode() !== 'production') throw new Error('Local production storage requires Production data mode.')
+  requireProductionDataMode()
   localStorage.setItem(key, JSON.stringify(data))
 }
 

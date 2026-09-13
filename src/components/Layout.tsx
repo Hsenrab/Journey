@@ -42,6 +42,17 @@ const navItems = [
 ]
 
 const drawerWidth = 240
+type DataModeStatus = 'fallback' | 'error' | 'readOnly' | 'demoWritable' | 'production'
+const dataModeStatusView: Record<
+  DataModeStatus,
+  { label: string; color: 'default' | 'error' | 'info' | 'warning'; filled: boolean }
+> = {
+  fallback: { label: 'Local fallback read-only', color: 'warning', filled: true },
+  error: { label: 'Load error', color: 'error', filled: true },
+  readOnly: { label: 'Read-only', color: 'warning', filled: true },
+  demoWritable: { label: 'Demo writable', color: 'info', filled: false },
+  production: { label: 'Production', color: 'default', filled: false },
+}
 
 export function Layout({ children }: { children: ReactNode }) {
   const theme = useTheme()
@@ -55,23 +66,16 @@ export function Layout({ children }: { children: ReactNode }) {
     production: 'Production data',
   }
   const usingLocalFallback = dataMode === 'demo-cosmos' && activeDataMode === 'demo-local' && Boolean(loadError)
-  const chipLabel = usingLocalFallback
-    ? 'Local fallback read-only'
+  const status: DataModeStatus = usingLocalFallback
+    ? 'fallback'
     : loadError
-      ? 'Load error'
-      : readOnly
-        ? 'Read-only'
-        : activeDataMode === 'demo-cosmos'
-          ? 'Demo writable'
-          : 'Production'
-  const chipColor =
-    loadError && !usingLocalFallback
       ? 'error'
       : readOnly
-        ? 'warning'
+        ? 'readOnly'
         : activeDataMode === 'demo-cosmos'
-          ? 'info'
-          : 'default'
+          ? 'demoWritable'
+          : 'production'
+  const chip = dataModeStatusView[status]
   const changeMode = (event: SelectChangeEvent) => {
     void setDataMode(event.target.value as JourneyDataMode)
   }
@@ -133,7 +137,7 @@ export function Layout({ children }: { children: ReactNode }) {
                 <MenuItem value="production">{modeLabel.production}</MenuItem>
               </Select>
             </FormControl>
-            <Chip color={chipColor} label={chipLabel} size="small" variant={readOnly ? 'filled' : 'outlined'} />
+            <Chip color={chip.color} label={chip.label} size="small" variant={chip.filled ? 'filled' : 'outlined'} />
           </Box>
         </Toolbar>
       </AppBar>

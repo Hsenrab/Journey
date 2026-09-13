@@ -360,6 +360,7 @@ export function WaypointsProvider({ children }: { children: ReactNode }) {
     void reload()
   }, [reload])
   const value = useMemo<WaypointsValue>(() => {
+    const readOnly = activeDataMode === 'demo-local' || (dataMode === 'production' && Boolean(loadError))
     const writableContainer = (): JourneyContainer => {
       if (activeDataMode === 'demo-local') throw new Error('Demo local data is read-only.')
       if (dataMode === 'demo-cosmos') return 'demo'
@@ -375,7 +376,7 @@ export function WaypointsProvider({ children }: { children: ReactNode }) {
       data,
       dataMode,
       activeDataMode,
-      readOnly: activeDataMode === 'demo-local',
+      readOnly,
       loadError,
       setDataMode: changeDataMode,
       addActivity: async (input) => {

@@ -61,8 +61,12 @@ describe('load', () => {
     setDataMode('demo-local')
 
     expect(createDemoModeData()).not.toMatchObject({ activities: [activity] })
-    expect(() => load()).toThrow('Local production storage requires Production data mode.')
-    expect(() => save(createDefaultData())).toThrow('Local production storage requires Production data mode.')
+    expect(() => load()).toThrow(
+      'load()/save() are only available in Production data mode; the current mode is demo-local.',
+    )
+    expect(() => save(createDefaultData())).toThrow(
+      'load()/save() are only available in Production data mode; the current mode is demo-local.',
+    )
   })
 
   it('migrates the legacy demo preference to local demo mode', () => {
@@ -77,7 +81,9 @@ describe('load', () => {
     setDataMode('demo-cosmos')
 
     expect(getDataMode()).toBe('demo-cosmos')
-    expect(() => load()).toThrow('Local production storage requires Production data mode.')
+    expect(() => load()).toThrow(
+      'load()/save() are only available in Production data mode; the current mode is demo-cosmos.',
+    )
   })
 })
 
