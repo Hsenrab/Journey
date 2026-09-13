@@ -128,7 +128,8 @@ Tests live alongside the file they cover (`*.test.ts`/`*.test.tsx`).
   components. Put it in `domain/` or `services/`, and have pages/components consume it.
 - Prefer typed props and typed context values; avoid `any`.
 - Use MUI components and the shared theme (`src/app/theme.ts`) rather than ad-hoc CSS
-  where possible.
+  where possible. Follow `docs/UI_GUIDELINES.md` for spacing, layout, form field, tab,
+  and empty-state rules, and run its self-review checklist against changed UI.
 - New routes should be added under `src/pages/` and registered in `src/app/App.tsx`,
   with a corresponding entry in the navigation (`src/components/Layout.tsx`).
 - Do not add Next.js, Redux, arbitrary map UI, or photo upload storage. Azure Cosmos DB for NoSQL is approved only for Journey persistence through the protected boundary below; no other database is approved. Azure Maps is approved only for the waypoint and activity map through the protected boundary below. Microsoft
