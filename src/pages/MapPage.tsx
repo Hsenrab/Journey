@@ -419,26 +419,6 @@ export default function MapPage() {
     <Stack spacing={3}>
       <Typography variant="h4">Map</Typography>
       {error && <Alert severity="error">{error}</Alert>}
-      {originResults.length > 0 && (
-        <Card>
-          <CardContent>
-            <Stack spacing={1}>
-              <Typography variant="h6">Choose a nearby origin</Typography>
-              <Typography color="text.secondary">
-                Azure Maps found multiple approximate matches. Select the intended place.
-              </Typography>
-              {originResults.map((result, index) => (
-                <Button
-                  key={`${result.address?.freeformAddress ?? 'result'}-${index}`}
-                  onClick={() => selectOrigin(result)}
-                >
-                  {result.address?.freeformAddress ?? 'Unnamed Azure Maps result'}
-                </Button>
-              ))}
-            </Stack>
-          </CardContent>
-        </Card>
-      )}
       <Box sx={{ overflow: 'hidden', border: '1px solid', borderColor: 'divider', borderRadius: 1, bgcolor: 'white' }}>
         <Stack spacing={1.5} sx={{ p: { xs: 1.5, sm: 2 }, borderBottom: '1px solid', borderColor: 'divider' }}>
           <Tabs
@@ -455,7 +435,7 @@ export default function MapPage() {
             <Tab id="activities-tab" aria-controls="map-panel" value="activities" label="Activities" />
           </Tabs>
         </Stack>
-        <Box id="map-panel" role="tabpanel" aria-labelledby={`${mode}-tab`} tabIndex={0}>
+        <Box id="map-panel" role="tabpanel" aria-labelledby={`${mode}-tab`}>
           <Stack
             spacing={1.5}
             sx={{ px: { xs: 1.5, sm: 2 }, pb: { xs: 1.5, sm: 2 }, borderBottom: '1px solid', borderColor: 'divider' }}
@@ -563,6 +543,22 @@ export default function MapPage() {
               </Button>
             </Stack>
           </Stack>
+          {originResults.length > 0 && (
+            <Stack spacing={1} sx={{ mt: 2 }}>
+              <Typography variant="h6">Choose a nearby origin</Typography>
+              <Typography color="text.secondary">
+                Azure Maps found multiple approximate matches. Select the intended place.
+              </Typography>
+              {originResults.map((result, index) => (
+                <Button
+                  key={`${result.address?.freeformAddress ?? 'result'}-${index}`}
+                  onClick={() => selectOrigin(result)}
+                >
+                  {result.address?.freeformAddress ?? 'Unnamed Azure Maps result'}
+                </Button>
+              ))}
+            </Stack>
+          )}
         </CardContent>
       </Card>
       {waypointWithoutCoordinates + activityWithoutCoordinates > 0 && (
