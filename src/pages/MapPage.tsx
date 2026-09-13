@@ -451,11 +451,11 @@ export default function MapPage() {
             }}
             aria-label="Map mode"
           >
-            <Tab id="waypoints-tab" aria-controls="waypoints-panel" value="waypoints" label="Waypoints" />
-            <Tab id="activities-tab" aria-controls="activities-panel" value="activities" label="Activities" />
+            <Tab id="waypoints-tab" aria-controls="map-panel" value="waypoints" label="Waypoints" />
+            <Tab id="activities-tab" aria-controls="map-panel" value="activities" label="Activities" />
           </Tabs>
         </Stack>
-        <Box id={`${mode}-panel`} role="tabpanel" aria-labelledby={`${mode}-tab`} tabIndex={0}>
+        <Box id="map-panel" role="tabpanel" aria-labelledby={`${mode}-tab`} tabIndex={0}>
           <Stack
             spacing={1.5}
             sx={{ px: { xs: 1.5, sm: 2 }, pb: { xs: 1.5, sm: 2 }, borderBottom: '1px solid', borderColor: 'divider' }}
