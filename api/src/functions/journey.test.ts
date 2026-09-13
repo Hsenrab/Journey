@@ -183,6 +183,23 @@ describe('journey', () => {
     )
   })
 
+  it('allows demo creates against the demo dataset', async () => {
+    loadDataset.mockResolvedValue({ data: emptyData, etags: {} })
+    createDocument.mockResolvedValue({ resource: {}, headers: {} })
+    const { journey } = await import('./journey.js')
+
+    expect(
+      await journey(request('demo', 'POST', { operation: 'create', type: 'activity', entity: { ...activity, ideaIds: [] } }), context()),
+    ).toMatchObject({ status: 201 })
+    expect(createDocument).toHaveBeenCalledWith(
+      {},
+      expect.objectContaining({
+        datasetId: 'demo',
+        entity: expect.objectContaining({ activityId: 'activity-1' }),
+      }),
+    )
+  })
+
   it('geocodes a place-only waypoint before it is persisted', async () => {
     loadDataset.mockResolvedValue({ data: emptyData, etags: {} })
     createDocument.mockResolvedValue({ resource: {}, headers: {} })

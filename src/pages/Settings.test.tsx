@@ -1,10 +1,10 @@
 import { MemoryRouter } from 'react-router-dom'
 import { cleanup, render, screen, waitForElementToBeRemoved } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import Settings from './Settings'
 import { WaypointsProvider } from '../features/journey/JourneyContext'
-import { backupVersion, createDefaultData, createDemoModeData, load, save, setDemoMode } from '../services/storage'
+import { backupVersion, createDefaultData, createDemoModeData, load, save, setDataMode } from '../services/storage'
 import type { Activity } from '../domain/visit'
 
 function activity(category: 'bronze' | 'silver' | 'gold' = 'gold'): Activity {
@@ -43,6 +43,7 @@ describe('Settings', () => {
     cleanup()
     localStorage.clear()
   })
+  afterEach(() => vi.restoreAllMocks())
 
   it('shows the challenge rules', () => {
     renderSettings()
@@ -50,19 +51,19 @@ describe('Settings', () => {
     expect(screen.getByText('At least one linked Bronze activity has been recorded.')).toBeInTheDocument()
   })
 
-  it('documents the header demo switch instead of showing duplicate mode buttons', () => {
+  it('documents the header mode selector instead of showing duplicate mode buttons', () => {
     renderSettings()
 
-    expect(screen.getByText(/Use the Demo data switch in the header/)).toBeInTheDocument()
+    expect(screen.getByText(/Use the Data mode selector in the header/)).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /demo mode/i })).not.toBeInTheDocument()
   })
 
   it('summarizes the active demo dataset', () => {
-    setDemoMode(true)
+    setDataMode('demo-local')
     renderSettings()
 
     const demo = createDemoModeData()
-    expect(screen.getByText('Active demo data')).toBeInTheDocument()
+    expect(screen.getByText('Demo local data')).toBeInTheDocument()
     expect(
       screen.getByText(
         `${demo.waypoints.length} waypoints · ${demo.challenges.length} challenges · ${demo.ideas.length} ideas · ${demo.activities.length} activities`,
@@ -85,7 +86,7 @@ describe('Settings', () => {
       ),
     )
 
-    expect(await screen.findByText('Personal data was restored.')).toBeInTheDocument()
+    expect(await screen.findByText('Production data was restored.')).toBeInTheDocument()
     expect(load().activities).toContainEqual(expect.objectContaining({ waypointId: 'dyrham-park', category: 'gold' }))
   })
 
@@ -153,16 +154,29 @@ describe('Settings', () => {
     await user.click(screen.getByRole('button', { name: 'Clear data' }))
     await user.click(screen.getByRole('button', { name: 'Clear everything' }))
 
-    expect(await screen.findByText('Personal data was cleared.')).toBeInTheDocument()
+    expect(await screen.findByText('Production data was cleared.')).toBeInTheDocument()
     expect(load().activities).toEqual([])
   })
 
-  it('disables mutations for demo data', () => {
-    setDemoMode(true)
+  it('disables mutations for local demo data', () => {
+    setDataMode('demo-local')
     renderSettings()
 
     expect(screen.getByText('Restore JSON').closest('label')).toHaveClass('Mui-disabled')
     expect(screen.getByRole('button', { name: 'Clear data' })).toBeDisabled()
+  })
+
+  it('keeps mutations enabled for Demo Cosmos data', async () => {
+    setDataMode('demo-cosmos')
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(new Response(JSON.stringify({ data: createDemoModeData(), etags: {} }), { status: 200 })),
+    )
+    renderSettings()
+
+    expect(await screen.findByText('Demo Cosmos loaded')).toBeInTheDocument()
+    expect(screen.getByText('Restore JSON').closest('label')).not.toHaveClass('Mui-disabled')
+    expect(screen.getByRole('button', { name: 'Clear data' })).not.toBeDisabled()
   })
 
   it('closes the clear data confirmation dialog when dismissed with escape', async () => {

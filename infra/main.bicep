@@ -221,11 +221,11 @@ resource cosmosProductionDataContributorAssignment 'Microsoft.DocumentDB/databas
   }
 }
 
-resource cosmosDemoDataReaderAssignment 'Microsoft.DocumentDB/databaseAccounts/sqlRoleAssignments@2024-05-15' = if (enableApi) {
+resource cosmosDemoDataContributorAssignment 'Microsoft.DocumentDB/databaseAccounts/sqlRoleAssignments@2024-05-15' = if (enableApi) {
   parent: cosmosAccount
-  name: guid(cosmosDemoContainer.id, functionAppName, cosmosDataReaderRoleId)
+  name: guid(cosmosDemoContainer.id, functionAppName, cosmosDataContributorRoleId)
   properties: {
-    roleDefinitionId: '${cosmosAccount.id}/sqlRoleDefinitions/${cosmosDataReaderRoleId}'
+    roleDefinitionId: '${cosmosAccount.id}/sqlRoleDefinitions/${cosmosDataContributorRoleId}'
     principalId: functionApp!.identity.principalId
     scope: '${cosmosAccount.id}/dbs/${cosmosDatabaseName}/colls/${cosmosDemoContainerName}'
   }

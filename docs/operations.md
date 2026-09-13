@@ -13,7 +13,9 @@ authentication disabled, and periodic backup.
 
 `infra/main.bicep` provisions the `journey` database with `production`, `test`, and
 `demo` containers, all partitioned by `/datasetId`. `production` starts empty and
-contains the only mutable real data. `demo` is deterministic and read-only.
+contains the only persistent real data. `demo` is deterministic, writable through the
+authenticated API during a deployment's lifetime, and reseeded from `src/data/demo.json`
+on each infrastructure redeploy.
 Provisioning requires an explicit `cosmosMode`: choose `freeTier` only after
 checking the subscription's Cosmos free-tier eligibility with Azure, otherwise
 choose `serverless`. No paid provisioned-throughput fallback is configured.
@@ -45,6 +47,23 @@ The current periodic backup is every 240 minutes with 8 hours retention and loca
 redundancy. Restore requests create a new account/container; validate the restored
 dataset and redirect configuration only after verification. JSON export remains
 the user-controlled backup.
+
+### Journey data modes
+
+The app exposes three explicit modes in the header:
+
+- **Demo local** loads the bundled `src/data/demo.json` fixture in the browser. It is
+  always read-only and works in local development and Static Web Apps previews even
+  when no linked Functions API or Cosmos access is available.
+- **Demo Cosmos** loads the `demo` container through `/api/journey/demo`. Supported
+  mutations are allowed, but changes are temporary because deployment reseeds this
+  partition from `src/data/demo.json`.
+- **Production data** loads the `production` container through `/api/journey/production`.
+  It is writable and persistent.
+
+If Demo Cosmos cannot load, the UI falls back to Demo local for the current session and
+shows a read-only warning. Production load failures show an error and never expose demo
+data. Restore and clear operate only on the active writable dataset.
 
 ### Test data
 

@@ -63,7 +63,7 @@ describe('journey API client', () => {
           new Response(JSON.stringify({ error: 'conflict' }), { status: 409, statusText: 'Conflict' }),
         )
         .mockResolvedValueOnce(
-          new Response(JSON.stringify({ error: 'production_not_empty' }), { status: 409, statusText: 'Conflict' }),
+          new Response(JSON.stringify({ error: 'data_not_empty' }), { status: 409, statusText: 'Conflict' }),
         ),
     )
     await expect(clearJourney('production')).rejects.toBeInstanceOf(JourneyConflictError)
@@ -76,7 +76,7 @@ describe('journey API client', () => {
       vi
         .fn()
         .mockResolvedValueOnce(
-          new Response(JSON.stringify({ error: 'demo_read_only' }), { status: 409, statusText: 'Conflict' }),
+          new Response(JSON.stringify({ error: 'unknown_conflict' }), { status: 409, statusText: 'Conflict' }),
         )
         .mockResolvedValueOnce(new Response(null, { status: 500, statusText: 'Internal Server Error' })),
     )

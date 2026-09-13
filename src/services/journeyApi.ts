@@ -1,6 +1,6 @@
 import { DataSchema, type WaypointsData } from '../domain/visit'
 
-type Container = 'production' | 'demo'
+export type JourneyContainer = 'production' | 'demo'
 type EntityType = 'waypoint' | 'challenge' | 'idea' | 'activity' | 'reference' | 'photoReference'
 
 export class JourneyConflictError extends Error {
@@ -11,7 +11,7 @@ export class JourneyConflictError extends Error {
 
 export class JourneyImportNotEmptyError extends Error {
   constructor() {
-    super('Your personal data must be empty before restoring a backup.')
+    super('The active dataset must be empty before restoring a backup.')
   }
 }
 
@@ -19,12 +19,12 @@ async function responseError(response: Response): Promise<Error> {
   if (response.status === 409) {
     const body = (await response.json().catch(() => undefined)) as { error?: unknown } | undefined
     if (body?.error === 'conflict') return new JourneyConflictError()
-    if (body?.error === 'production_not_empty') return new JourneyImportNotEmptyError()
+    if (body?.error === 'data_not_empty') return new JourneyImportNotEmptyError()
   }
   return new Error(`Journey API request failed with ${response.status}: ${response.statusText}`)
 }
 
-async function request<T>(container: Container, init?: RequestInit): Promise<T> {
+async function request<T>(container: JourneyContainer, init?: RequestInit): Promise<T> {
   const response = await fetch(`/api/journey/${container}`, {
     ...init,
     headers: { 'content-type': 'application/json', ...init?.headers },
@@ -35,14 +35,14 @@ async function request<T>(container: Container, init?: RequestInit): Promise<T> 
 }
 
 export async function loadJourney(
-  container: Container,
+  container: JourneyContainer,
 ): Promise<{ data: WaypointsData; etags: Record<string, string> }> {
   const result = await request<{ data: unknown; etags: Record<string, string> }>(container)
   return { data: DataSchema.parse(result.data), etags: result.etags }
 }
 
 export async function createJourneyEntity(
-  container: Container,
+  container: JourneyContainer,
   type: EntityType,
   entity: Record<string, unknown>,
 ): Promise<{ etag?: string }> {
@@ -50,7 +50,7 @@ export async function createJourneyEntity(
 }
 
 export async function updateJourneyEntity(
-  container: Container,
+  container: JourneyContainer,
   type: EntityType,
   entity: Record<string, unknown>,
   id: string,
@@ -63,7 +63,7 @@ export async function updateJourneyEntity(
 }
 
 export async function deleteJourneyEntity(
-  container: Container,
+  container: JourneyContainer,
   type: EntityType,
   id: string,
   etag: string,
@@ -72,7 +72,7 @@ export async function deleteJourneyEntity(
 }
 
 export async function importJourney(
-  container: Container,
+  container: JourneyContainer,
   data: WaypointsData,
 ): Promise<{ data: WaypointsData; etags: Record<string, string> }> {
   const result = await request<{ data: unknown; etags: Record<string, string> }>(container, {
@@ -83,7 +83,7 @@ export async function importJourney(
 }
 
 export async function replaceJourney(
-  container: Container,
+  container: JourneyContainer,
   data: WaypointsData,
   etags: Record<string, string>,
 ): Promise<{ data: WaypointsData; etags: Record<string, string> }> {
@@ -95,7 +95,7 @@ export async function replaceJourney(
 }
 
 export async function clearJourney(
-  container: Container,
+  container: JourneyContainer,
 ): Promise<{ data: WaypointsData; etags: Record<string, string> }> {
   const result = await request<{ data: unknown; etags: Record<string, string> }>(container, {
     method: 'POST',

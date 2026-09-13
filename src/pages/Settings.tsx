@@ -14,22 +14,27 @@ import {
 } from '@mui/material'
 import { statusLabels, statusOrder, statusRules } from '../domain/visit'
 import { useWaypoints } from '../features/journey/JourneyContext'
-import { JourneyImportNotEmptyError } from '../services/journeyApi'
-import { createBackup, isDemoModeEnabled, parseImport } from '../services/storage'
+import { createBackup, parseImport, type JourneyDataMode } from '../services/storage'
+
+const dataModeLabels: Record<JourneyDataMode, string> = {
+  'demo-local': 'Demo local',
+  'demo-cosmos': 'Demo Cosmos',
+  production: 'Production',
+}
 
 export default function Settings() {
-  const { clear, data, restore } = useWaypoints()
+  const { activeDataMode, clear, data, dataMode, loadError, readOnly, restore } = useWaypoints()
   const input = useRef<HTMLInputElement>(null)
   const [message, setMessage] = useState<{ text: string; error: boolean } | null>(null)
   const [confirmingClear, setConfirmingClear] = useState(false)
-  const demoModeEnabled = isDemoModeEnabled()
+  const activeLabel = loadError ? 'Demo local fallback' : dataModeLabels[activeDataMode]
 
   const exportData = () => {
     const blob = new Blob([JSON.stringify(createBackup(data), null, 2)], { type: 'application/json' })
     const url = URL.createObjectURL(blob)
     const link = document.createElement('a')
     link.href = url
-    link.download = demoModeEnabled ? 'waypoints-demo.json' : 'waypoints.json'
+    link.download = dataMode === 'production' ? 'waypoints.json' : `waypoints-${dataMode}.json`
     link.click()
     URL.revokeObjectURL(url)
   }
@@ -39,16 +44,26 @@ export default function Settings() {
       setMessage({ text: 'Choose a JSON backup file exported from this app.', error: true })
       return
     }
+    if (readOnly) {
+      setMessage({ text: 'Demo local data is read-only.', error: true })
+      return
+    }
+    let importedData
     try {
-      if (demoModeEnabled) throw new Error('Demo data is read-only.')
-      await restore(parseImport(await file.text()))
-      setMessage({ text: `${demoModeEnabled ? 'Demo' : 'Personal'} data was restored.`, error: false })
+      importedData = parseImport(await file.text())
+    } catch {
+      setMessage({
+        text: 'That file is not a valid Waypoints backup, so your existing data was left unchanged.',
+        error: true,
+      })
+      return
+    }
+    try {
+      await restore(importedData)
+      setMessage({ text: `${activeLabel} data was restored.`, error: false })
     } catch (error) {
       setMessage({
-        text:
-          error instanceof JourneyImportNotEmptyError
-            ? error.message
-            : 'That file is not a valid Waypoints backup, so your existing data was left unchanged.',
+        text: error instanceof Error ? error.message : 'Failed to restore the active data.',
         error: true,
       })
     }
@@ -61,14 +76,15 @@ export default function Settings() {
       <Stack spacing={2}>
         <Typography variant="h5">Demo mode</Typography>
         <Typography>
-          Use the Demo data switch in the header to swap between your personal data and a separate sample dataset.
-          Switching modes never overwrites the other dataset.
+          Use the Data mode selector in the header to choose Demo local, Demo Cosmos, or Production data. Switching
+          modes reloads that dataset and never overwrites data that belongs to another mode.
         </Typography>
-        {demoModeEnabled && (
+        {loadError && <Alert severity={activeDataMode === 'demo-local' ? 'warning' : 'error'}>{loadError}</Alert>}
+        {dataMode !== 'production' && (
           <Card>
             <CardContent>
               <Stack spacing={1}>
-                <Typography variant="subtitle1">Sample data loaded</Typography>
+                <Typography variant="subtitle1">{activeLabel} loaded</Typography>
                 <Typography variant="body2">
                   {data.waypoints.length} waypoints · {data.challenges.length} challenges · {data.ideas.length} ideas ·{' '}
                   {data.activities.length} activities
@@ -80,15 +96,16 @@ export default function Settings() {
       </Stack>
 
       <Stack spacing={2}>
-        <Typography variant="h5">{demoModeEnabled ? 'Active demo data' : 'Your data'}</Typography>
+        <Typography variant="h5">{activeLabel} data</Typography>
         <Typography>
-          Export applies to the active dataset. Restore and clear apply to your personal data; demo data is read-only.
+          Export, restore, and clear apply only to the active dataset. Demo local and fallback data are read-only; Demo
+          Cosmos changes are temporary and reset on redeploy.
         </Typography>
         <Stack direction="row" spacing={2}>
           <Button variant="contained" onClick={exportData}>
             Export JSON
           </Button>
-          <Button component="label" variant="outlined" disabled={demoModeEnabled}>
+          <Button component="label" variant="outlined" disabled={readOnly}>
             Restore JSON
             <input
               ref={input}
@@ -102,7 +119,7 @@ export default function Settings() {
               }}
             />
           </Button>
-          <Button color="error" variant="outlined" disabled={demoModeEnabled} onClick={() => setConfirmingClear(true)}>
+          <Button color="error" variant="outlined" disabled={readOnly} onClick={() => setConfirmingClear(true)}>
             Clear data
           </Button>
         </Stack>
@@ -113,8 +130,8 @@ export default function Settings() {
         <DialogTitle>Clear all activity data?</DialogTitle>
         <DialogContent>
           <DialogContentText>
-            This permanently removes every activity, note and photo reference from this browser. Export a backup first
-            if you want to keep it.
+            This permanently removes every activity, note and photo reference from the active writable dataset. Export a
+            backup first if you want to keep it.
           </DialogContentText>
         </DialogContent>
         <DialogActions>
@@ -129,7 +146,7 @@ export default function Settings() {
                 return
               }
               setConfirmingClear(false)
-              setMessage({ text: 'Personal data was cleared.', error: false })
+              setMessage({ text: `${activeLabel} data was cleared.`, error: false })
             }}
           >
             Clear everything

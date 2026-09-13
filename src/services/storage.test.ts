@@ -4,9 +4,11 @@ import {
   createBackup,
   createDefaultData,
   createDemoModeData,
+  getDataMode,
   load,
   parseImport,
   save,
+  setDataMode,
   setDemoMode,
 } from './storage'
 import { type Activity, type WaypointsData } from '../domain/visit'
@@ -58,6 +60,28 @@ describe('load', () => {
   it('loads demo data when demo mode is enabled', () => {
     setDemoMode(true)
     expect(load()).toMatchObject({ waypoints: createDemoModeData().waypoints })
+  })
+
+  it('loads local demo data directly from the bundled fixture', () => {
+    setDataMode('demo-local')
+    save({ ...createDefaultData(), activities: [activity] })
+
+    expect(load()).toEqual(createDemoModeData())
+  })
+
+  it('migrates the legacy demo preference to local demo mode', () => {
+    localStorage.setItem('waypoints-demo-mode-v1', 'true')
+
+    expect(getDataMode()).toBe('demo-local')
+    expect(localStorage.getItem('journey-data-mode-v1')).toBe('demo-local')
+  })
+
+  it('loads the bundled fixture when Cosmos demo mode is read through local storage', () => {
+    setDataMode('demo-cosmos')
+    save({ ...createDefaultData(), activities: [activity] })
+
+    expect(getDataMode()).toBe('demo-cosmos')
+    expect(load()).toEqual(createDemoModeData())
   })
 })
 

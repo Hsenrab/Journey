@@ -81,7 +81,6 @@ export async function journey(request: HttpRequest, context: InvocationContext):
     const parsed = JourneyMutationSchema.safeParse(await request.json())
     if (!parsed.success)
       return { status: 400, jsonBody: { error: parsed.error.issues[0]?.message ?? 'Invalid request.' } }
-    if (container === 'demo') throw new ResponseError(405, 'demo_read_only')
     if (parsed.data.operation === 'clear') {
       const loaded = await loadDataset(cosmos, datasetId)
       await replaceDataset(cosmos, datasetId, {}, loaded.etags)
@@ -91,7 +90,7 @@ export async function journey(request: HttpRequest, context: InvocationContext):
       const invalid = referenceIntegrityError(parsed.data.data)
       if (invalid) return { status: 400, jsonBody: { error: invalid } }
       const loaded = await loadDataset(cosmos, datasetId)
-      if (Object.keys(loaded.etags).length > 0) throw new ResponseError(409, 'production_not_empty')
+      if (Object.keys(loaded.etags).length > 0) throw new ResponseError(409, 'data_not_empty')
       await replaceDataset(cosmos, datasetId, documentsFor(datasetId, parsed.data.data), {})
       return { status: 200, jsonBody: await loadDataset(cosmos, datasetId) }
     }

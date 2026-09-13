@@ -7,13 +7,16 @@ import {
   Container,
   Divider,
   Drawer,
-  FormControlLabel,
+  FormControl,
   IconButton,
+  InputLabel,
   List,
   ListItemButton,
   ListItemIcon,
   ListItemText,
-  Switch,
+  MenuItem,
+  Select,
+  type SelectChangeEvent,
   Toolbar,
   Typography,
   useMediaQuery,
@@ -27,7 +30,7 @@ import HikingIcon from '@mui/icons-material/Hiking'
 import MapIcon from '@mui/icons-material/Map'
 import SettingsIcon from '@mui/icons-material/Settings'
 import { useWaypoints } from '../features/journey/JourneyContext'
-import { isDemoModeEnabled, setDemoMode } from '../services/storage'
+import type { JourneyDataMode } from '../services/storage'
 
 const navItems = [
   { label: 'Waypoints', to: '/waypoints', icon: <PlaceIcon /> },
@@ -44,9 +47,24 @@ export function Layout({ children }: { children: ReactNode }) {
   const theme = useTheme()
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'))
   const [open, setOpen] = useState(false)
-  const [demoModeEnabled, setDemoModeEnabled] = useState(isDemoModeEnabled)
   const location = useLocation()
-  const { reload } = useWaypoints()
+  const { activeDataMode, dataMode, loadError, readOnly, setDataMode } = useWaypoints()
+  const modeLabel: Record<JourneyDataMode, string> = {
+    'demo-local': 'Demo local',
+    'demo-cosmos': 'Demo Cosmos',
+    production: 'Production data',
+  }
+  const chipLabel = loadError
+    ? 'Local fallback read-only'
+    : readOnly
+      ? 'Read-only'
+      : activeDataMode === 'demo-cosmos'
+        ? 'Demo writable'
+        : 'Production'
+  const chipColor = readOnly ? 'warning' : activeDataMode === 'demo-cosmos' ? 'info' : 'default'
+  const changeMode = (event: SelectChangeEvent) => {
+    void setDataMode(event.target.value as JourneyDataMode)
+  }
 
   const navList = (
     <List>
@@ -91,27 +109,25 @@ export function Layout({ children }: { children: ReactNode }) {
               gap: 1,
             }}
           >
-            <FormControlLabel
-              control={
-                <Switch
-                  checked={demoModeEnabled}
-                  color="default"
-                  onChange={(event) => {
-                    const enabled = event.target.checked
-                    setDemoMode(enabled)
-                    setDemoModeEnabled(enabled)
-                    reload()
-                  }}
-                />
-              }
-              label="Demo data"
-              sx={{ m: 0, whiteSpace: 'nowrap' }}
-            />
+            <FormControl size="small" sx={{ minWidth: 160 }}>
+              <InputLabel id="journey-data-mode-label">Data mode</InputLabel>
+              <Select
+                label="Data mode"
+                labelId="journey-data-mode-label"
+                onChange={changeMode}
+                value={dataMode}
+                variant="outlined"
+              >
+                <MenuItem value="demo-local">{modeLabel['demo-local']}</MenuItem>
+                <MenuItem value="demo-cosmos">{modeLabel['demo-cosmos']}</MenuItem>
+                <MenuItem value="production">{modeLabel.production}</MenuItem>
+              </Select>
+            </FormControl>
             <Chip
-              color={demoModeEnabled ? 'warning' : 'default'}
-              label={demoModeEnabled ? 'Demo active' : 'Personal data'}
+              color={chipColor}
+              label={chipLabel}
               size="small"
-              variant={demoModeEnabled ? 'filled' : 'outlined'}
+              variant={readOnly ? 'filled' : 'outlined'}
             />
           </Box>
         </Toolbar>

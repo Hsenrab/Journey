@@ -1,7 +1,7 @@
 import { act, renderHook, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { WaypointsProvider, useWaypoints } from './JourneyContext'
-import { createDefaultData, load, save, setDemoMode } from '../../services/storage'
+import { createDefaultData, createDemoModeData, load, save, setDataMode } from '../../services/storage'
 import { createActivity, createIdea } from '../../domain/visit'
 
 const lacockId = 'lacock-abbey-fox-talbot-museum-and-village'
@@ -209,16 +209,70 @@ describe('WaypointsContext in production mode', () => {
     expect(fetch).toHaveBeenCalledTimes(9)
   })
 
-  it('refuses to mutate demo data outside of test mode', async () => {
-    setDemoMode(true)
+  it('refuses to mutate local demo data', async () => {
+    setDataMode('demo-local')
+
+    const { result } = renderHook(() => useWaypoints(), { wrapper: WaypointsProvider })
+    await waitFor(() => expect(result.current.data).toEqual(createDemoModeData()))
+
+    await expect(result.current.addActivity(draft)).rejects.toThrow('Demo local data is read-only.')
+    expect(result.current.data).toEqual(createDemoModeData())
+  })
+
+  it('loads Demo Cosmos and routes mutations to the demo container', async () => {
+    setDataMode('demo-cosmos')
+    const seeded = createDefaultData()
     const fetch = vi
       .fn()
-      .mockImplementation(() => new Response(JSON.stringify({ data: createDefaultData(), etags: {} }), { status: 200 }))
+      .mockImplementation(() => new Response(JSON.stringify({ data: seeded, etags: {} }), { status: 200 }))
     vi.stubGlobal('fetch', fetch)
 
     const { result } = renderHook(() => useWaypoints(), { wrapper: WaypointsProvider })
-    await waitFor(() => expect(fetch).toHaveBeenCalledWith('/api/journey/demo', expect.anything()))
+    await waitFor(() => {
+      expect(result.current.activeDataMode).toBe('demo-cosmos')
+      expect(result.current.data.waypoints).toHaveLength(seeded.waypoints.length)
+    })
 
-    await expect(result.current.addActivity(draft)).rejects.toThrow('Demo data is read-only.')
+    await act(async () => {
+      await result.current.addActivity(draft)
+    })
+
+    expect(fetch).toHaveBeenCalledWith('/api/journey/demo', expect.anything())
+    expect(fetch).toHaveBeenLastCalledWith('/api/journey/demo', expect.objectContaining({ method: 'POST' }))
+  })
+
+  it('falls back to read-only local demo data when Demo Cosmos cannot be loaded', async () => {
+    setDataMode('demo-cosmos')
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('Cosmos unavailable')))
+
+    const { result } = renderHook(() => useWaypoints(), { wrapper: WaypointsProvider })
+    await waitFor(() => expect(result.current.activeDataMode).toBe('demo-local'))
+
+    expect(result.current.data).toEqual(createDemoModeData())
+    expect(result.current.readOnly).toBe(true)
+    expect(result.current.loadError).toContain('Demo Cosmos could not be loaded')
+    await expect(result.current.addActivity(draft)).rejects.toThrow('Demo local data is read-only.')
+  })
+
+  it('does not expose demo data when Production cannot be loaded', async () => {
+    setDataMode('production')
+    const fetch = vi
+      .fn()
+      .mockResolvedValue(new Response(JSON.stringify({ error: 'unavailable' }), { status: 500, statusText: 'Broken' }))
+    vi.stubGlobal('fetch', fetch)
+
+    const { result } = renderHook(() => useWaypoints(), { wrapper: WaypointsProvider })
+    await waitFor(() => expect(result.current.loadError).toContain('Production data could not be loaded'))
+
+    expect(result.current.data).toEqual({
+      waypoints: [],
+      challenges: [],
+      ideas: [],
+      activities: [],
+      references: [],
+      photoReferences: [],
+    })
+    expect(result.current.data).not.toEqual(createDemoModeData())
+    await expect(result.current.addActivity(draft)).rejects.toThrow('Production data is not loaded')
   })
 })
