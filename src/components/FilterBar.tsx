@@ -1,4 +1,4 @@
-import { Children, type ReactElement } from 'react'
+import { Children, isValidElement, type ReactElement } from 'react'
 import { Grid } from '@mui/material'
 
 type FilterBarProps = {
@@ -9,11 +9,15 @@ type FilterBarProps = {
 export function FilterBar({ children }: FilterBarProps) {
   return (
     <Grid container spacing={2}>
-      {(Children.toArray(children) as ReactElement[]).map((child) => (
-        <Grid key={child.key} size={{ xs: 12, sm: 6, md: 4 }}>
-          {child}
-        </Grid>
-      ))}
+      {Children.toArray(children).flatMap((child) =>
+        isValidElement(child) ? (
+          <Grid key={child.key} size={{ xs: 12, sm: 6, md: 4 }}>
+            {child}
+          </Grid>
+        ) : (
+          []
+        ),
+      )}
     </Grid>
   )
 }
