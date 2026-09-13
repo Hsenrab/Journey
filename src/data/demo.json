@@ -194,7 +194,7 @@
       "waypointId": "demo-glasshouse-workshop",
       "title": "Old Glasshouse Workshop (Demo)",
       "description": "A fictional stained-glass workshop in a converted railway goods shed.",
-      "category": "Industrial heritage",
+      "category": "Craft workshop",
       "tags": ["Fictional", "Gloucestershire-inspired", "Arts", "Workshop"],
       "challengeIds": ["food-and-craft"],
       "completion": {
@@ -215,7 +215,7 @@
       "waypointId": "demo-tannery-lane-pottery",
       "title": "Tannery Lane Pottery (Demo)",
       "description": "A fictional riverside pottery running evening wheel-throwing tasters.",
-      "category": "Industrial heritage",
+      "category": "Craft workshop",
       "tags": ["Fictional", "Gloucestershire-inspired", "Arts", "Evening"],
       "challengeIds": ["food-and-craft"],
       "completion": {
@@ -333,10 +333,10 @@
       "updatedAt": "2026-06-03T09:00:00.000Z"
     },
     {
-      "ideaId": "demo-idea-mill-machinery-day",
-      "title": "Working machinery day (Demo idea)",
+      "ideaId": "demo-idea-heritage-open-day",
+      "title": "Heritage open day (Demo idea)",
       "description": "A fabricated idea linked to three demo waypoints and used by two demo activities.",
-      "notes": "Arrive early for the fictional gear-turning demonstration.",
+      "notes": "Arrive early for the fictional guided tour at each place.",
       "waypointIds": ["demo-cindercombe-mill", "demo-thistledown-priory", "demo-marlpit-water-garden"],
       "planningState": "active",
       "difficulty": 2,
@@ -458,7 +458,7 @@
       "activityId": "activity-demo-cindercombe-spring",
       "waypointId": "demo-cindercombe-mill",
       "challengeId": "national-trust",
-      "ideaIds": ["demo-idea-mill-machinery-day"],
+      "ideaIds": ["demo-idea-heritage-open-day"],
       "date": "2026-03-21",
       "category": "gold",
       "location": {
@@ -494,7 +494,7 @@
       "activityId": "activity-demo-marlpit-june",
       "waypointId": "demo-marlpit-water-garden",
       "challengeId": "national-trust",
-      "ideaIds": ["demo-idea-mill-machinery-day"],
+      "ideaIds": ["demo-idea-heritage-open-day"],
       "date": "2026-06-06",
       "category": "silver",
       "location": {

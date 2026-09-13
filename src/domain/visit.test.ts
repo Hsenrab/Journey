@@ -173,7 +173,9 @@ describe('demo data', () => {
       expect(completed.length).toBeGreaterThan(0)
       expect(completed.length).toBeLessThan(challenge.waypointIds.length)
     }
-    expect(data.challenges.filter((challenge) => challenge.waypointIds.length === 0)).toHaveLength(1)
+    expect(data.challenges.filter((challenge) => challenge.waypointIds.length === 0)).toEqual([
+      expect.objectContaining({ challengeId: 'future-shortlist' }),
+    ])
   })
 
   it('links photo references to some waypoints and activities but not all', () => {
@@ -316,7 +318,7 @@ describe('idea and activity relationships', () => {
 
     expect(shared?.waypointIds).toEqual(['demo-foxglove-manor', 'demo-bramblewick-gardens'])
     expect(ideaUsageCount(data.activities, 'demo-idea-orangery-tour')).toBe(3)
-    expect(ideaUsageCount(data.activities, 'demo-idea-mill-machinery-day')).toBe(2)
+    expect(ideaUsageCount(data.activities, 'demo-idea-heritage-open-day')).toBe(2)
     expect(ideaUsageCount(data.activities, 'demo-idea-railway-picnic')).toBe(0)
     expect(ideaUsageCount(data.activities, 'demo-idea-winter-lantern-trail')).toBe(0)
     for (const state of ['active', 'someday', 'rejected'] as const)
