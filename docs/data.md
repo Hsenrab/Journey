@@ -3,10 +3,10 @@
 ## Where data lives
 
 Real Journey data is stored only in Azure Cosmos DB for NoSQL. The browser loads the
-complete active dataset through the authenticated same-origin `/api/journey` Function
-and never keeps a data cache or offline queue. It can access only the `production` and
-read-only `demo` containers. The separate `test` container uses `/datasetId` as its
-partition key and is accessible only to the test deployment identity.
+complete active Cosmos dataset through the authenticated same-origin `/api/journey`
+Function and never keeps a data cache or offline queue. It can access only the
+`production` and `demo` containers. The separate `test` container uses `/datasetId` as
+its partition key and is accessible only to the test deployment identity.
 
 Cosmos stores one document per entity. Every document contains `id`, `datasetId`,
 `type`, and `schemaVersion`; relationships remain IDs and are hydrated into the
@@ -20,12 +20,15 @@ specific error. There is no
 migration, compatibility parser, or fallback for obsolete documents; production data
 may be deleted and recreated instead.
 
-The deployment workflow seeds the initial demo partition from `src/data/demo.json`.
-The runtime Function has read-only access to that container. Every place, activity,
-idea and reference in that fixture is fabricated and visibly labelled as demo content.
-The fixture mixes fictional National Trust-style places with unrelated local activities.
-It is parsed with `DataSchema` before use; only challenges that explicitly set
-`supportsActivityCategories` can use Bronze, Silver or Gold activity categories.
+`src/data/demo.json` is the canonical demo fixture. Demo local loads it directly in the
+browser and is always read-only. The deployment workflow also reseeds the Cosmos `demo`
+partition from that file on every infrastructure redeploy; Demo Cosmos is writable
+during the deployment lifetime, but those changes are intentionally temporary. Every
+place, activity, idea and reference in the fixture is fabricated and visibly labelled as
+demo content. The fixture mixes fictional National Trust-style places with unrelated
+local activities. It is parsed with `DataSchema` before use; only challenges that
+explicitly set `supportsActivityCategories` can use Bronze, Silver or Gold activity
+categories.
 
 ## Stored shape
 
@@ -95,10 +98,12 @@ Validation is shared in `src/domain/visit.ts` and enforced by storage import/loa
 
 ## Export / restore / clear
 
-- **Export JSON** downloads the authoritative production partition as the envelope above.
-- **Restore JSON** validates the complete backup and is accepted only when production
-  is empty; demo and test records can never appear in a production export.
-- **Clear data** is a protected production mutation. Demo is deterministic and read-only.
+- **Export JSON** downloads the active dataset as the envelope above.
+- **Restore JSON** validates the complete backup and is accepted only when the active
+  writable dataset is empty. Demo local and fallback data reject restore because they
+  are read-only.
+- **Clear data** is a protected mutation on the active writable dataset. In Demo Cosmos
+  it affects only the temporary `demo` partition; production is never touched.
 
 ## API validation and transactional deletion
 
@@ -125,6 +130,7 @@ ETag of the document it touches. Cosmos `412 Precondition Failed` is returned as
 explicit `409 Conflict`; the UI must preserve unsaved values and offer Reload latest or
 Cancel rather than retrying or overwriting another tab.
 
-Production begins empty. Existing browser-local records are not migrated. The test
-container is used only with unique run partitions such as `ci-<run-id>` and every
-run must delete and verify its partition after success or failure.
+Production begins empty and never falls back to either demo dataset. Existing
+browser-local records are not migrated. The test container is used only with unique run
+partitions such as `ci-<run-id>` and every run must delete and verify its partition
+after success or failure.

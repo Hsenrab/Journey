@@ -3,6 +3,7 @@ import { locations } from '../data/locations'
 import { createDemoData, createSeedData, DataSchema, type WaypointsData } from '../domain/visit'
 
 export type Backup = { version: number; exportedAt: string; data: WaypointsData }
+export type JourneyDataMode = 'demo-local' | 'demo-cosmos' | 'production'
 
 export const backupVersion = 1
 
@@ -13,10 +14,15 @@ const ImportSchema = z
     data: DataSchema,
   })
   .strict()
-
 const key = 'waypoints-v1'
-const demoKey = 'waypoints-demo-v1'
-const demoModeKey = 'waypoints-demo-mode-v1'
+const dataModeKey = 'journey-data-mode-v1'
+const dataModes = new Set<JourneyDataMode>(['demo-local', 'demo-cosmos', 'production'])
+
+function requireProductionDataMode() {
+  const mode = getDataMode()
+  if (mode !== 'production')
+    throw new Error(`load()/save() are only available in Production data mode; the current mode is ${mode}.`)
+}
 
 export function createDefaultData(): WaypointsData {
   return createSeedData(locations)
@@ -26,30 +32,28 @@ export function createDemoModeData(): WaypointsData {
   return createDemoData()
 }
 
-export function isDemoModeEnabled(): boolean {
-  return localStorage.getItem(demoModeKey) === 'true'
+export function getDataMode(): JourneyDataMode {
+  const stored = localStorage.getItem(dataModeKey)
+  if (dataModes.has(stored as JourneyDataMode)) return stored as JourneyDataMode
+
+  return 'production'
 }
 
-function activeKey(): string {
-  return isDemoModeEnabled() ? demoKey : key
-}
-
-export function setDemoMode(enabled: boolean) {
-  localStorage.setItem(demoModeKey, String(enabled))
-  if (enabled && !localStorage.getItem(demoKey)) {
-    localStorage.setItem(demoKey, JSON.stringify(createDemoModeData()))
-  }
+export function setDataMode(mode: JourneyDataMode) {
+  localStorage.setItem(dataModeKey, mode)
 }
 
 export function load(): WaypointsData {
-  const fallback = isDemoModeEnabled() ? createDemoModeData() : createDefaultData()
-  const raw = localStorage.getItem(activeKey())
+  requireProductionDataMode()
+  const fallback = createDefaultData()
+  const raw = localStorage.getItem(key)
   if (!raw) return fallback
   return DataSchema.parse(JSON.parse(raw))
 }
 
 export function save(data: WaypointsData) {
-  localStorage.setItem(activeKey(), JSON.stringify(data))
+  requireProductionDataMode()
+  localStorage.setItem(key, JSON.stringify(data))
 }
 
 export function createBackup(data: WaypointsData): Backup {

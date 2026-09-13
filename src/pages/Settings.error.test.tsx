@@ -12,13 +12,15 @@ vi.mock('../features/journey/JourneyContext', () => ({
   useWaypoints: () => ({
     clear,
     data: { waypoints: [], challenges: [], ideas: [], activities: [], references: [], photoReferences: [] },
+    dataMode: 'production',
+    activeDataMode: 'production',
+    readOnly: false,
     restore,
   }),
 }))
 
 vi.mock('../services/storage', () => ({
   createBackup: vi.fn(),
-  isDemoModeEnabled: () => false,
   parseImport: () => ({}),
 }))
 
@@ -36,7 +38,7 @@ describe('Settings import errors', () => {
       new File(['{}'], 'backup.json', { type: 'application/json' }),
     )
 
-    expect(await screen.findByText('Your personal data must be empty before restoring a backup.')).toBeInTheDocument()
+    expect(await screen.findByText('The active dataset must be empty before restoring a backup.')).toBeInTheDocument()
   })
 
   it('reports a clear failure without closing the dialog', async () => {

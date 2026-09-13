@@ -7,13 +7,16 @@ import {
   Container,
   Divider,
   Drawer,
-  FormControlLabel,
+  FormControl,
   IconButton,
+  InputLabel,
   List,
   ListItemButton,
   ListItemIcon,
   ListItemText,
-  Switch,
+  MenuItem,
+  Select,
+  type SelectChangeEvent,
   Toolbar,
   Typography,
   useMediaQuery,
@@ -27,7 +30,7 @@ import HikingIcon from '@mui/icons-material/Hiking'
 import MapIcon from '@mui/icons-material/Map'
 import SettingsIcon from '@mui/icons-material/Settings'
 import { useWaypoints } from '../features/journey/JourneyContext'
-import { isDemoModeEnabled, setDemoMode } from '../services/storage'
+import type { JourneyDataMode } from '../services/storage'
 
 const navItems = [
   { label: 'Waypoints', to: '/waypoints', icon: <PlaceIcon /> },
@@ -39,14 +42,43 @@ const navItems = [
 ]
 
 const drawerWidth = 240
+type DataModeStatus = 'fallback' | 'error' | 'readOnly' | 'demoWritable' | 'production'
+const dataModeStatusView: Record<
+  DataModeStatus,
+  { label: string; color: 'default' | 'error' | 'info' | 'warning'; filled: boolean }
+> = {
+  fallback: { label: 'Local fallback read-only', color: 'warning', filled: true },
+  error: { label: 'Load error', color: 'error', filled: true },
+  readOnly: { label: 'Read-only', color: 'warning', filled: true },
+  demoWritable: { label: 'Demo writable', color: 'info', filled: false },
+  production: { label: 'Production', color: 'default', filled: false },
+}
 
 export function Layout({ children }: { children: ReactNode }) {
   const theme = useTheme()
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'))
   const [open, setOpen] = useState(false)
-  const [demoModeEnabled, setDemoModeEnabled] = useState(isDemoModeEnabled)
   const location = useLocation()
-  const { reload } = useWaypoints()
+  const { activeDataMode, dataMode, loadError, readOnly, setDataMode } = useWaypoints()
+  const modeLabel: Record<JourneyDataMode, string> = {
+    'demo-local': 'Demo local',
+    'demo-cosmos': 'Demo Cosmos',
+    production: 'Production data',
+  }
+  const usingLocalFallback = dataMode === 'demo-cosmos' && activeDataMode === 'demo-local' && Boolean(loadError)
+  const status: DataModeStatus = usingLocalFallback
+    ? 'fallback'
+    : loadError
+      ? 'error'
+      : readOnly
+        ? 'readOnly'
+        : activeDataMode === 'demo-cosmos'
+          ? 'demoWritable'
+          : 'production'
+  const chip = dataModeStatusView[status]
+  const changeMode = (event: SelectChangeEvent) => {
+    void setDataMode(event.target.value as JourneyDataMode)
+  }
 
   const navList = (
     <List>
@@ -91,28 +123,21 @@ export function Layout({ children }: { children: ReactNode }) {
               gap: 1,
             }}
           >
-            <FormControlLabel
-              control={
-                <Switch
-                  checked={demoModeEnabled}
-                  color="default"
-                  onChange={(event) => {
-                    const enabled = event.target.checked
-                    setDemoMode(enabled)
-                    setDemoModeEnabled(enabled)
-                    reload()
-                  }}
-                />
-              }
-              label="Demo data"
-              sx={{ m: 0, whiteSpace: 'nowrap' }}
-            />
-            <Chip
-              color={demoModeEnabled ? 'warning' : 'default'}
-              label={demoModeEnabled ? 'Demo active' : 'Personal data'}
-              size="small"
-              variant={demoModeEnabled ? 'filled' : 'outlined'}
-            />
+            <FormControl size="small" sx={{ minWidth: 160 }}>
+              <InputLabel id="journey-data-mode-label">Data mode</InputLabel>
+              <Select
+                label="Data mode"
+                labelId="journey-data-mode-label"
+                onChange={changeMode}
+                value={dataMode}
+                variant="outlined"
+              >
+                <MenuItem value="demo-local">{modeLabel['demo-local']}</MenuItem>
+                <MenuItem value="demo-cosmos">{modeLabel['demo-cosmos']}</MenuItem>
+                <MenuItem value="production">{modeLabel.production}</MenuItem>
+              </Select>
+            </FormControl>
+            <Chip color={chip.color} label={chip.label} size="small" variant={chip.filled ? 'filled' : 'outlined'} />
           </Box>
         </Toolbar>
       </AppBar>

@@ -4,7 +4,7 @@ import { MemoryRouter } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { Layout } from './Layout'
 import { WaypointsProvider, useWaypoints } from '../features/journey/JourneyContext'
-import { createDefaultData, createDemoModeData, isDemoModeEnabled, load, save } from '../services/storage'
+import { createDefaultData, createDemoModeData, getDataMode, load, save } from '../services/storage'
 import type { Activity } from '../domain/visit'
 
 function setViewport(width: number) {
@@ -92,26 +92,27 @@ describe('Layout', () => {
     await user.click(links[0])
   })
 
-  it('switches to demo data immediately and back to the personal dataset', async () => {
+  it('switches to local demo data immediately and back to the production dataset', async () => {
     const user = userEvent.setup()
     save({ ...createDefaultData(), activities: [activity()] })
     renderLayout()
 
-    const demoSwitch = screen.getByRole('switch', { name: 'Demo data' })
-    expect(demoSwitch).not.toBeChecked()
-    expect(screen.getByText('Personal data')).toBeInTheDocument()
+    expect(screen.getByRole('combobox', { name: 'Data mode' })).toHaveTextContent('Production data')
+    expect(screen.getByText('Production')).toBeInTheDocument()
     expect(screen.getByText('Activities: 1')).toBeInTheDocument()
 
-    await user.click(demoSwitch)
+    await user.click(screen.getByRole('combobox', { name: 'Data mode' }))
+    await user.click(screen.getByRole('option', { name: 'Demo local' }))
 
-    expect(isDemoModeEnabled()).toBe(true)
-    expect(await screen.findByText('Demo active')).toBeInTheDocument()
+    expect(getDataMode()).toBe('demo-local')
+    expect(await screen.findByText('Read-only')).toBeInTheDocument()
     expect(screen.getByText(`Activities: ${createDemoModeData().activities.length}`)).toBeInTheDocument()
 
-    await user.click(screen.getByRole('switch', { name: 'Demo data' }))
+    await user.click(screen.getByRole('combobox', { name: 'Data mode' }))
+    await user.click(screen.getByRole('option', { name: 'Production data' }))
 
-    expect(isDemoModeEnabled()).toBe(false)
-    expect(await screen.findByText('Personal data')).toBeInTheDocument()
+    expect(getDataMode()).toBe('production')
+    expect(await screen.findByText('Production')).toBeInTheDocument()
     expect(screen.getByText('Activities: 1')).toBeInTheDocument()
     expect(load().activities).toEqual([activity()])
   })

@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.46.1.21595",
-      "templateHash": "6197094663435639374"
+      "templateHash": "16869573342247386974"
     }
   },
   "parameters": {
@@ -107,8 +107,7 @@
     "storageBlobDataContributorRoleId": "ba92f5b4-2d11-453d-a403-e96b0029c9fe",
     "storageQueueDataContributorRoleId": "974c5e8b-45b9-4653-ba55-5f855dd0fb88",
     "storageTableDataContributorRoleId": "0a9a7e1f-b9d0-4cc4-a60d-0319b160aaa3",
-    "cosmosDataContributorRoleId": "00000000-0000-0000-0000-000000000002",
-    "cosmosDataReaderRoleId": "00000000-0000-0000-0000-000000000001"
+    "cosmosDataContributorRoleId": "00000000-0000-0000-0000-000000000002"
   },
   "resources": [
     {
@@ -255,9 +254,9 @@
       "condition": "[parameters('enableApi')]",
       "type": "Microsoft.DocumentDB/databaseAccounts/sqlRoleAssignments",
       "apiVersion": "2024-05-15",
-      "name": "[format('{0}/{1}', variables('cosmosAccountName'), guid(resourceId('Microsoft.DocumentDB/databaseAccounts/sqlDatabases/containers', variables('cosmosAccountName'), variables('cosmosDatabaseName'), variables('cosmosDemoContainerName')), variables('functionAppName'), variables('cosmosDataReaderRoleId')))]",
+      "name": "[format('{0}/{1}', variables('cosmosAccountName'), guid(resourceId('Microsoft.DocumentDB/databaseAccounts/sqlDatabases/containers', variables('cosmosAccountName'), variables('cosmosDatabaseName'), variables('cosmosDemoContainerName')), variables('functionAppName'), variables('cosmosDataContributorRoleId')))]",
       "properties": {
-        "roleDefinitionId": "[format('{0}/sqlRoleDefinitions/{1}', resourceId('Microsoft.DocumentDB/databaseAccounts', variables('cosmosAccountName')), variables('cosmosDataReaderRoleId'))]",
+        "roleDefinitionId": "[format('{0}/sqlRoleDefinitions/{1}', resourceId('Microsoft.DocumentDB/databaseAccounts', variables('cosmosAccountName')), variables('cosmosDataContributorRoleId'))]",
         "principalId": "[reference(resourceId('Microsoft.Web/sites', variables('functionAppName')), '2023-12-01', 'full').identity.principalId]",
         "scope": "[format('{0}/dbs/{1}/colls/{2}', resourceId('Microsoft.DocumentDB/databaseAccounts', variables('cosmosAccountName')), variables('cosmosDatabaseName'), variables('cosmosDemoContainerName'))]"
       },

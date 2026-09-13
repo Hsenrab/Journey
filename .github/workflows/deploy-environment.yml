@@ -147,7 +147,7 @@ jobs:
           echo "network_security_perimeter_name=${perimeter_name}" >> "$GITHUB_OUTPUT"
           echo "network_security_perimeter_profile_name=${perimeter_profile_name}" >> "$GITHUB_OUTPUT"
 
-      - name: Seed read-only demo data
+      - name: Seed demo data
         if: inputs.deploy_infra
         working-directory: api
         env:
@@ -162,34 +162,21 @@ jobs:
           import { CosmosClient } from '@azure/cosmos'
           import { DefaultAzureCredential } from '@azure/identity'
           import { readFile } from 'node:fs/promises'
+          import { documentsFor, replaceDataset } from './dist/src/lib/cosmos.js'
           import { JourneyDataSchema } from './dist/src/lib/journeySchema.js'
 
+          const datasetId = process.env.COSMOS_DEMO_DATASET_ID
           const data = JourneyDataSchema.parse(JSON.parse(await readFile('../src/data/demo.json', 'utf8')))
           const container = new CosmosClient({
             endpoint: process.env.COSMOS_ENDPOINT,
             aadCredentials: new DefaultAzureCredential(),
           }).database(process.env.COSMOS_DATABASE_NAME).container('demo')
           const existing = await container.items.query({
-            query: 'SELECT c.id FROM c WHERE c.datasetId = @datasetId',
-            parameters: [{ name: '@datasetId', value: process.env.COSMOS_DEMO_DATASET_ID }],
+            query: 'SELECT c.id, c._etag FROM c WHERE c.datasetId = @datasetId',
+            parameters: [{ name: '@datasetId', value: datasetId }],
           }).fetchAll()
-          const documents = []
-          for (const [key, entities] of Object.entries(data)) {
-            const type = key === 'photoReferences' ? 'photoReference' : key.slice(0, -1)
-            for (const entity of entities) {
-              const id = entity[type === 'photoReference' ? 'photoReferenceId' : `${type}Id`]
-              documents.push({ id, datasetId: process.env.COSMOS_DEMO_DATASET_ID, type, schemaVersion: 1, entity })
-            }
-          }
-          const operations = [
-            ...existing.resources.map(({ id }) => ({ operationType: 'Delete', id })),
-            ...documents.map((resourceBody) => ({ operationType: 'Create', resourceBody })),
-          ]
-          if (operations.length > 100) throw new Error('Demo dataset exceeds the Cosmos transactional batch limit.')
-          if (operations.length) {
-            const result = await container.items.batch(operations, process.env.COSMOS_DEMO_DATASET_ID)
-            if (result.code !== 200) throw new Error('Failed to seed the demo dataset.')
-          }
+          const etags = Object.fromEntries(existing.resources.map((item) => [item.id, item._etag]))
+          await replaceDataset(container, datasetId, documentsFor(datasetId, data), etags)
           EOF
 
       - name: Publish application URL to the job summary

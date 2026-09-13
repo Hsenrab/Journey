@@ -1,6 +1,29 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useReducer, useState, type ReactNode } from 'react'
-import { isDemoModeEnabled, load, save } from '../../services/storage'
-import { clearJourney, importJourney, loadJourney, replaceJourney } from '../../services/journeyApi'
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useReducer,
+  useRef,
+  useState,
+  type ReactNode,
+} from 'react'
+import {
+  createDemoModeData,
+  getDataMode,
+  load,
+  save,
+  setDataMode as saveDataMode,
+  type JourneyDataMode,
+} from '../../services/storage'
+import {
+  clearJourney,
+  importJourney,
+  loadJourney,
+  replaceJourney,
+  type JourneyContainer,
+} from '../../services/journeyApi'
 import {
   activitiesForWaypoint,
   createActivity,
@@ -54,6 +77,11 @@ type Action =
 
 type WaypointsValue = {
   data: WaypointsData
+  dataMode: JourneyDataMode
+  activeDataMode: JourneyDataMode
+  readOnly: boolean
+  loadError?: string
+  setDataMode: (mode: JourneyDataMode) => Promise<void>
   addActivity: (input: ActivityDraft) => Promise<void>
   updateActivity: (activityId: string, input: ActivityDraft) => Promise<void>
   deleteActivity: (activityId: string) => Promise<void>
@@ -269,6 +297,7 @@ function reducer(data: WaypointsData, action: Action): WaypointsData {
 
 export function WaypointsProvider({ children }: { children: ReactNode }) {
   const localTestMode = import.meta.env.MODE === 'test'
+  const initialDataMode = getDataMode()
   const emptyData = (): WaypointsData => ({
     waypoints: [],
     challenges: [],
@@ -277,86 +306,154 @@ export function WaypointsProvider({ children }: { children: ReactNode }) {
     references: [],
     photoReferences: [],
   })
-  const [data, dispatch] = useReducer(reducer, undefined, localTestMode ? load : emptyData)
+  const initialData = () => {
+    if (initialDataMode === 'demo-local') return createDemoModeData()
+    if (localTestMode && initialDataMode === 'production') return load()
+    return emptyData()
+  }
+  const [data, dispatch] = useReducer(reducer, undefined, initialData)
+  const [dataMode, setDataModeState] = useState<JourneyDataMode>(initialDataMode)
+  const [activeDataMode, setActiveDataMode] = useState<JourneyDataMode>(initialDataMode)
+  const [loadError, setLoadError] = useState<string>()
+  const [loading, setLoading] = useState(true)
   const [etags, setEtags] = useState<Record<string, string>>({})
+  const loadGeneration = useRef(0)
   const apply = useCallback((loaded: { data: WaypointsData; etags: Record<string, string> }) => {
     dispatch({ type: 'restore', data: loaded.data })
     setEtags(loaded.etags)
   }, [])
+  const loadMode = useCallback(
+    async (mode: JourneyDataMode) => {
+      const generation = loadGeneration.current + 1
+      loadGeneration.current = generation
+      setLoading(true)
+      const settle = (
+        loaded: { data: WaypointsData; etags: Record<string, string> },
+        active: JourneyDataMode,
+        error?: string,
+      ) => {
+        if (loadGeneration.current !== generation) return
+        apply(loaded)
+        setActiveDataMode(active)
+        setLoadError(error)
+        setLoading(false)
+      }
+
+      if (mode === 'demo-local') {
+        settle({ data: createDemoModeData(), etags: {} }, 'demo-local')
+        return
+      }
+
+      if (localTestMode && mode === 'production') {
+        settle({ data: load(), etags: {} }, 'production')
+        return
+      }
+
+      try {
+        settle(await loadJourney(mode === 'demo-cosmos' ? 'demo' : 'production'), mode)
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error)
+        if (mode === 'demo-cosmos') {
+          settle(
+            { data: createDemoModeData(), etags: {} },
+            'demo-local',
+            `Demo Cosmos could not be loaded, so read-only local demo data is shown: ${message}`,
+          )
+          return
+        }
+        settle(
+          { data: emptyData(), etags: {} },
+          'production',
+          `Production data could not be loaded. Check the Journey API and Cosmos configuration: ${message}`,
+        )
+      }
+    },
+    [apply, localTestMode],
+  )
   const reload = useCallback(async () => {
-    if (localTestMode) {
-      dispatch({ type: 'restore', data: load() })
-      return
+    await loadMode(dataMode)
+  }, [dataMode, loadMode])
+  const changeDataMode = useCallback(async (mode: JourneyDataMode) => {
+    saveDataMode(mode)
+    setDataModeState(mode)
+  }, [])
+  useEffect(() => {
+    if (localTestMode && dataMode === 'production' && activeDataMode === 'production') save(data)
+  }, [activeDataMode, data, dataMode, localTestMode])
+  useEffect(() => {
+    void reload()
+  }, [reload])
+  const value = useMemo<WaypointsValue>(() => {
+    const readOnly = loading || activeDataMode === 'demo-local' || (dataMode === 'production' && Boolean(loadError))
+    const writableContainer = (): JourneyContainer => {
+      if (loading)
+        throw new Error('Journey data is still loading. Wait for the selected data mode before making changes.')
+      if (activeDataMode === 'demo-local') throw new Error('Demo local data is read-only.')
+      if (activeDataMode === 'demo-cosmos') return 'demo'
+      if (loadError) throw new Error('Production data is not loaded. Reload before making changes.')
+      return 'production'
     }
-    apply(await loadJourney(isDemoModeEnabled() ? 'demo' : 'production'))
-  }, [apply, localTestMode])
-  useEffect(() => {
-    if (localTestMode) save(data)
-  }, [data, localTestMode])
-  useEffect(() => {
-    if (!localTestMode) reload()
-  }, [localTestMode, reload])
-  const value = useMemo<WaypointsValue>(
-    () => ({
+    const persist = async (container: JourneyContainer, action: Action, next: WaypointsData) => {
+      if (localTestMode && dataMode === 'production') dispatch(action)
+      else apply(await replaceJourney(container, next, etags))
+    }
+
+    return {
       data,
+      dataMode,
+      activeDataMode,
+      readOnly,
+      loadError,
+      setDataMode: changeDataMode,
       addActivity: async (input) => {
-        if (isDemoModeEnabled() && !localTestMode) throw new Error('Demo data is read-only.')
+        const container = writableContainer()
         const action = { type: 'add-activity' as const, input }
         const next = reducer(data, action)
-        if (localTestMode) dispatch(action)
-        else apply(await replaceJourney('production', next, etags))
+        await persist(container, action, next)
       },
       updateActivity: async (activityId, input) => {
-        if (isDemoModeEnabled() && !localTestMode) throw new Error('Demo data is read-only.')
+        const container = writableContainer()
         const action = { type: 'update-activity' as const, activityId, input }
         const next = reducer(data, action)
-        if (localTestMode) dispatch(action)
-        else apply(await replaceJourney('production', next, etags))
+        await persist(container, action, next)
       },
       deleteActivity: async (activityId) => {
-        if (isDemoModeEnabled() && !localTestMode) throw new Error('Demo data is read-only.')
+        const container = writableContainer()
         const action = { type: 'delete-activity' as const, activityId }
         const next = reducer(data, action)
-        if (localTestMode) dispatch(action)
-        else apply(await replaceJourney('production', next, etags))
+        await persist(container, action, next)
       },
       addIdea: async (input) => {
-        if (isDemoModeEnabled() && !localTestMode) throw new Error('Demo data is read-only.')
+        const container = writableContainer()
         const action = { type: 'add-idea' as const, input }
         const next = reducer(data, action)
-        if (localTestMode) dispatch(action)
-        else apply(await replaceJourney('production', next, etags))
+        await persist(container, action, next)
       },
       updateIdea: async (ideaId, input) => {
-        if (isDemoModeEnabled() && !localTestMode) throw new Error('Demo data is read-only.')
+        const container = writableContainer()
         const action = { type: 'update-idea' as const, ideaId, input }
         const next = reducer(data, action)
-        if (localTestMode) dispatch(action)
-        else apply(await replaceJourney('production', next, etags))
+        await persist(container, action, next)
       },
       deleteIdea: async (ideaId) => {
-        if (isDemoModeEnabled() && !localTestMode) throw new Error('Demo data is read-only.')
+        const container = writableContainer()
         const action = { type: 'delete-idea' as const, ideaId }
         const next = reducer(data, action)
-        if (localTestMode) dispatch(action)
-        else apply(await replaceJourney('production', next, etags))
+        await persist(container, action, next)
       },
       restore: async (newData) => {
-        if (isDemoModeEnabled() && !localTestMode) throw new Error('Demo data is read-only.')
-        if (localTestMode) dispatch({ type: 'restore', data: newData })
-        else apply(await importJourney('production', newData))
+        if (localTestMode && dataMode === 'production') dispatch({ type: 'restore', data: newData })
+        else apply(await importJourney(writableContainer(), newData))
       },
       clear: async () => {
-        if (isDemoModeEnabled() && !localTestMode) throw new Error('Demo data is read-only.')
-        if (localTestMode) dispatch({ type: 'restore', data: emptyData() })
-        else apply(await clearJourney('production'))
+        if (localTestMode && dataMode === 'production') dispatch({ type: 'restore', data: emptyData() })
+        else apply(await clearJourney(writableContainer()))
       },
       reload,
       activitiesFor: (waypointId) => activitiesForWaypoint(data.activities, waypointId),
       statusFor: (waypointId) => statusForWaypoint(data.activities, waypointId),
-    }),
-    [apply, data, etags, localTestMode, reload],
-  )
+    }
+  }, [activeDataMode, apply, changeDataMode, data, dataMode, etags, loadError, loading, localTestMode, reload])
   return <Context.Provider value={value}>{children}</Context.Provider>
 }
 

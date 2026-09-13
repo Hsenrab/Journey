@@ -4,10 +4,11 @@ import {
   createBackup,
   createDefaultData,
   createDemoModeData,
+  getDataMode,
   load,
   parseImport,
   save,
-  setDemoMode,
+  setDataMode,
 } from './storage'
 import { type Activity, type WaypointsData } from '../domain/visit'
 
@@ -55,9 +56,35 @@ describe('load', () => {
     expect(() => load()).toThrow()
   })
 
-  it('loads demo data when demo mode is enabled', () => {
-    setDemoMode(true)
-    expect(load()).toMatchObject({ waypoints: createDemoModeData().waypoints })
+  it('keeps production storage separate from the bundled local demo fixture', () => {
+    save({ ...createDefaultData(), activities: [activity] })
+    setDataMode('demo-local')
+
+    expect(createDemoModeData()).not.toMatchObject({ activities: [activity] })
+    expect(() => load()).toThrow(
+      'load()/save() are only available in Production data mode; the current mode is demo-local.',
+    )
+    expect(() => save(createDefaultData())).toThrow(
+      'load()/save() are only available in Production data mode; the current mode is demo-local.',
+    )
+  })
+
+  it('defaults missing or unknown mode preferences to production', () => {
+    localStorage.setItem('journey-data-mode-v1', 'obsolete')
+
+    expect(getDataMode()).toBe('production')
+    localStorage.removeItem('journey-data-mode-v1')
+    expect(getDataMode()).toBe('production')
+  })
+
+  it('persists the selected Cosmos demo mode without changing production storage', () => {
+    save({ ...createDefaultData(), activities: [activity] })
+    setDataMode('demo-cosmos')
+
+    expect(getDataMode()).toBe('demo-cosmos')
+    expect(() => load()).toThrow(
+      'load()/save() are only available in Production data mode; the current mode is demo-cosmos.',
+    )
   })
 })
 

@@ -48,10 +48,14 @@ Shared domain validation lives in `src/domain/visit.ts` and is reused by UI + st
 - Activities require a non-empty location record before save/import.
 - Waypoint/challenge/idea location data remains optional.
 - Export/import uses a versioned portable JSON format.
-- The app header includes a **Demo data** switch on every route. Demo records are
-  deterministic, Cosmos-backed, and read-only; switching modes never changes production.
-- Export is generated from authoritative production data. Import is allowed only into
-  empty production data and is fully validated before writing.
+- The app header includes a **Data mode** selector on every route:
+  **Demo local** loads the bundled `src/data/demo.json` fixture read-only, **Demo Cosmos**
+  loads a writable temporary demo partition that is reseeded on redeploy, and
+  **Production data** loads the persistent production partition.
+- If Demo Cosmos cannot load, the app uses visible read-only Demo local fallback data for
+  that session. Production load failures never fall back to demo data.
+- Export is generated from the active dataset. Import is allowed only into an empty
+  writable active dataset and is fully validated before writing.
 
 ### Backup format
 
