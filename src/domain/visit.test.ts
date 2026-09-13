@@ -153,11 +153,11 @@ describe('demo data', () => {
     expect(activitiesForWaypoint(data.activities, 'demo-foxglove-manor')).toHaveLength(2)
     expect(activitiesForWaypoint(data.activities, 'demo-puddlebrook-paddle')).toHaveLength(2)
     expect(activitiesForWaypoint(data.activities, 'demo-lantern-hill-fort')).toEqual([])
-    expect(visitCounts.filter((count) => count > 1).length).toBeGreaterThan(1)
-    expect(visitCounts.filter((count) => count === 1).length).toBeGreaterThan(1)
-    expect(visitCounts.filter((count) => count === 0).length).toBeGreaterThan(1)
-    expect(years.size).toBeGreaterThan(2)
-    expect(new Set(data.activities.map((activity) => activity.date.slice(0, 7))).size).toBeGreaterThan(5)
+    expect(visitCounts.filter((count) => count > 1).length).toBe(2)
+    expect(visitCounts.filter((count) => count === 1).length).toBe(6)
+    expect(visitCounts.filter((count) => count === 0).length).toBe(3)
+    expect([...years]).toEqual(['2024', '2025', '2026'])
+    expect(new Set(data.activities.map((activity) => activity.date.slice(0, 7))).size).toBe(8)
   })
 
   it('shows partial progress for every challenge that has waypoints', () => {
