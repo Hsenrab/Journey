@@ -83,6 +83,7 @@ export default function Locations() {
           fullWidth
         />
         <TextField
+          id="waypoint-status"
           select
           label="Status"
           value={status}
@@ -98,6 +99,7 @@ export default function Locations() {
           ))}
         </TextField>
         <TextField
+          id="waypoint-sort"
           select
           label="Sort"
           value={sort}
@@ -112,6 +114,7 @@ export default function Locations() {
           <MenuItem value="lastActivity">Last activity date</MenuItem>
         </TextField>
         <TextField
+          id="maximum-driving-distance"
           select
           label="Maximum driving distance"
           value={maxDistance}

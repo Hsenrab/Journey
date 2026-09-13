@@ -455,7 +455,7 @@ export default function MapPage() {
             <Tab id="activities-tab" aria-controls="activities-panel" value="activities" label="Activities" />
           </Tabs>
         </Stack>
-        <Box id={`${mode}-panel`} role="tabpanel" aria-labelledby={`${mode}-tab`}>
+        <Box id={`${mode}-panel`} role="tabpanel" aria-labelledby={`${mode}-tab`} tabIndex={0}>
           <Stack
             spacing={1.5}
             sx={{ px: { xs: 1.5, sm: 2 }, pb: { xs: 1.5, sm: 2 }, borderBottom: '1px solid', borderColor: 'divider' }}

@@ -5,6 +5,7 @@ type FilterBarProps = {
   children: ReactNode
 }
 
+/** Responsive three-column grid for full-width filter controls. */
 export function FilterBar({ children }: FilterBarProps) {
   return (
     <Grid container spacing={2}>
