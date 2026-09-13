@@ -2,7 +2,7 @@ name: Deploy test environment
 
 on:
   pull_request:
-    types: [opened, synchronize, reopened]
+    types: [opened, synchronize, reopened, closed]
   workflow_dispatch:
     inputs:
       deploy_infra:
@@ -28,6 +28,7 @@ concurrency:
 jobs:
   plan:
     name: Plan deployment
+    if: github.event.action != 'closed'
     runs-on: ubuntu-latest
     outputs:
       deploy_infra: ${{ steps.decide.outputs.deploy_infra }}
@@ -114,6 +115,7 @@ jobs:
 
   deploy:
     name: Deploy journey test environment
+    if: github.event.action != 'closed'
     needs: plan
     uses: ./.github/workflows/deploy-environment.yml
     with:
@@ -125,3 +127,39 @@ jobs:
       deploy_application: true
       run_cosmos_test: true
     secrets: inherit
+
+  close_preview:
+    name: Close test preview
+    if: github.event_name == 'pull_request' && github.event.action == 'closed'
+    runs-on: ubuntu-latest
+    environment: hh-env-test
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Azure login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Read deployment token
+        env:
+          RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
+          STATIC_WEB_APP_NAME: ${{ vars.AZURE_STATIC_WEB_APP_NAME }}
+        run: |
+          set -euo pipefail
+          token="$(az staticwebapp secrets list \
+            --name "${STATIC_WEB_APP_NAME}" \
+            --resource-group "${RESOURCE_GROUP}" \
+            --query 'properties.apiKey' --output tsv)"
+          echo "::add-mask::${token}"
+          echo "SWA_DEPLOYMENT_TOKEN=${token}" >> "$GITHUB_ENV"
+
+      - name: Close Azure Static Web Apps preview
+        uses: Azure/static-web-apps-deploy@v1
+        with:
+          azure_static_web_apps_api_token: ${{ env.SWA_DEPLOYMENT_TOKEN }}
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          action: close

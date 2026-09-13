@@ -9,6 +9,7 @@ import Locations from '../pages/Locations'
 import LocationDetails from '../pages/LocationDetails'
 import Settings from '../pages/Settings'
 import Ideas from '../pages/Ideas'
+import IdeaDetails from '../pages/IdeaDetails'
 import Activities from '../pages/Activities'
 import ActivityDetails from '../pages/ActivityDetails'
 import MapPage from '../pages/MapPage'
@@ -26,6 +27,7 @@ export default function App() {
               <Route path="/waypoints/:id" element={<LocationDetails />} />
               <Route path="/challenges" element={<Dashboard />} />
               <Route path="/ideas" element={<Ideas />} />
+              <Route path="/ideas/:ideaId" element={<IdeaDetails />} />
               <Route path="/activities" element={<Activities />} />
               <Route path="/activities/:activityId" element={<ActivityDetails />} />
               <Route path="/map" element={<MapPage />} />

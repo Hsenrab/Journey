@@ -15,7 +15,7 @@ import {
   Typography,
 } from '@mui/material'
 import { ActivityEditor } from '../components/ActivityEditor'
-import { locationSummary, statusLabels } from '../domain/visit'
+import { ideasForActivity, locationSummary, statusLabels } from '../domain/visit'
 import { useWaypoints } from '../features/journey/JourneyContext'
 import { JourneyConflictError } from '../services/journeyApi'
 
@@ -49,6 +49,7 @@ export default function ActivityDetails() {
   }
 
   const references = data.references.filter((reference) => activity.referenceIds.includes(reference.referenceId))
+  const ideas = ideasForActivity(data.ideas, activity)
   const photoReferences = data.photoReferences.filter((photoReference) =>
     activity.photoReferenceIds.includes(photoReference.photoReferenceId),
   )
@@ -163,6 +164,24 @@ export default function ActivityDetails() {
       )}
 
       <Stack spacing={2}>
+        <Typography variant="h5">Ideas</Typography>
+        {ideas.length === 0 ? (
+          <Typography color="text.secondary">No ideas linked to this activity.</Typography>
+        ) : (
+          ideas.map((idea) => (
+            <Button
+              key={idea.ideaId}
+              component={Link}
+              to={`/ideas/${idea.ideaId}`}
+              sx={{ justifyContent: 'flex-start' }}
+            >
+              {idea.title}
+            </Button>
+          ))
+        )}
+      </Stack>
+
+      <Stack spacing={2}>
         <Typography variant="h5">References</Typography>
         {references.length === 0 ? (
           <Typography color="text.secondary">No references linked to this activity.</Typography>
@@ -231,7 +250,8 @@ export default function ActivityDetails() {
         <DialogContent>
           <Typography>
             Delete activity on {activity.date}
-            {waypoint ? ` linked to ${waypoint.title}` : ''}?
+            {waypoint ? ` linked to ${waypoint.title}` : ''}? Linked ideas and waypoints are preserved, and idea usage
+            updates after reloading the dataset.
           </Typography>
         </DialogContent>
         <DialogActions>
@@ -241,6 +261,7 @@ export default function ActivityDetails() {
             onClick={async () => {
               try {
                 await deleteActivity(activity.activityId)
+                await reload()
                 setShowDeleteDialog(false)
                 navigate(backTarget)
               } catch (error) {
