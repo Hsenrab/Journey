@@ -13,10 +13,11 @@ Activities can be linked to a waypoint or left unlinked.
 
 ## Shared editor behavior
 
-- Fields: date, description/notes, linked waypoint (or no waypoint), conditional Bronze/Silver/Gold category, location, references, and external photo references.
+- Fields: date, description/notes, linked waypoint (or no waypoint), optional linked ideas, conditional Bronze/Silver/Gold category, location, references, and external photo references.
 - Location is explicit: **Postcode** or **Latitude and longitude**.
 - Category is shown only when the selected waypoint belongs to at least one challenge with `supportsActivityCategories: true`.
 - If category eligibility is lost after changing waypoint, the category is cleared before save.
+- Idea selections are independent from waypoint selection. Changing or clearing waypoint does not clear selected ideas.
 - Invalid input keeps entered values and shows field-level messages.
 - Unsaved edits show a leave warning on page unload and when cancelling the form.
 
@@ -29,7 +30,7 @@ Activities can be linked to a waypoint or left unlinked.
 
 ## Activity details (`/activities/:activityId`)
 
-- Shows date, full notes, location, optional category, optional linked waypoint, references, and photos.
+- Shows date, full notes, location, optional category, optional linked waypoint, linked ideas, references, and photos.
 - Photos are rendered in a simple gallery with previous/next controls.
 - References render as metadata cards (title, optional description, optional preview image, hostname, external-link action).
 - Supports edit via the shared editor and delete with confirmation.
@@ -37,4 +38,5 @@ Activities can be linked to a waypoint or left unlinked.
 ## Delete behavior
 
 Deleting an activity removes the activity and prunes any now-unreferenced activity-linked reference/photo records.
+Idea records are preserved and usage is derived from remaining activity links after reload.
 Referenced records still used elsewhere remain.

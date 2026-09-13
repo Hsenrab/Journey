@@ -85,10 +85,27 @@ export const ChallengeSchema = z.object({
 export const planningStates = ['active', 'someday', 'rejected'] as const
 export const PlanningStateSchema = z.enum(planningStates)
 export type PlanningState = z.infer<typeof PlanningStateSchema>
+export const planningStateLabels: Record<PlanningState, string> = {
+  active: 'Active',
+  someday: 'Someday',
+  rejected: 'Rejected',
+}
 
 export const difficulties = [1, 2, 3, 4] as const
 export const DifficultySchema = z.union([z.literal(1), z.literal(2), z.literal(3), z.literal(4)])
 export type Difficulty = z.infer<typeof DifficultySchema>
+export const difficultyLabels: Record<Difficulty, string> = {
+  1: 'Easy',
+  2: 'Moderate',
+  3: 'Involved',
+  4: 'Ambitious',
+}
+export const difficultyDescriptions: Record<Difficulty, string> = {
+  1: 'Local, low-cost, and achievable within half a day with little or no preparation. It could realistically be done tomorrow.',
+  2: 'Requires some commitment, such as a full-day or straightforward multi-day trip, advance booking, or additional travel, but remains simple to arrange.',
+  3: 'Requires substantial preparation or resources, such as route planning, several bookings, specialist knowledge, significant expense, or coordination with others.',
+  4: 'A major undertaking requiring extensive planning, training, significant expense, international travel, or long-term commitment. It is usually a big-ticket goal.',
+}
 
 const distinctIds = (message: string) =>
   z.array(z.string().min(1)).refine((ids) => new Set(ids).size === ids.length, message)
@@ -274,6 +291,37 @@ export function createActivity(input: {
   })
 }
 
+export function createIdea(input: {
+  ideaId?: string
+  title: string
+  description?: string
+  notes?: string
+  waypointIds?: string[]
+  planningState: PlanningState
+  rejectionReason?: string
+  difficulty: Difficulty
+  location?: z.input<typeof WaypointLocationSchema>
+  referenceIds?: string[]
+  createdAt?: string
+  updatedAt?: string
+}): Idea {
+  const now = new Date().toISOString()
+  return IdeaSchema.parse({
+    ideaId: input.ideaId ?? crypto.randomUUID(),
+    title: input.title,
+    description: input.description ?? '',
+    notes: input.notes ?? '',
+    waypointIds: input.waypointIds ?? [],
+    planningState: input.planningState,
+    rejectionReason: input.rejectionReason?.trim() ? input.rejectionReason.trim() : undefined,
+    difficulty: input.difficulty,
+    location: input.location,
+    referenceIds: input.referenceIds ?? [],
+    createdAt: input.createdAt ?? now,
+    updatedAt: input.updatedAt ?? now,
+  })
+}
+
 export function activitiesForWaypoint(activities: readonly Activity[], waypointId: string): Activity[] {
   return activities
     .filter((activity) => activity.waypointId === waypointId)
@@ -304,6 +352,20 @@ export function activitiesUsingIdea(activities: readonly Activity[], ideaId: str
 
 export function ideaUsageCount(activities: readonly Activity[], ideaId: string): number {
   return activities.filter((activity) => usesIdea(activity, ideaId)).length
+}
+
+export function ideaUsageLabel(count: number): string {
+  return count === 0 ? 'Not used' : `Used in ${count} activit${count === 1 ? 'y' : 'ies'}`
+}
+
+export function ideaLocationSummary(location: Idea['location'] | undefined): string {
+  if (!location) return 'No location'
+  const parts = [location.placeName, location.addressOrRegion].filter(Boolean)
+  if (parts.length > 0) return parts.join(' · ')
+  if (location.latitude !== undefined && location.longitude !== undefined) {
+    return `${location.latitude.toFixed(5)}, ${location.longitude.toFixed(5)}`
+  }
+  return 'No location'
 }
 
 export function statusForWaypoint(activities: readonly Activity[], waypointId: string): Status {

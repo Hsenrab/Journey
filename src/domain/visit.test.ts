@@ -7,6 +7,7 @@ import {
   createActivity,
   createDemoData,
   createSeedData,
+  difficultyDescriptions,
   ideaUsageCount,
   ideasForActivity,
   ideasForWaypoint,
@@ -175,6 +176,13 @@ describe('idea schema', () => {
     )
     expect(idea({ difficulty: 4 }).difficulty).toBe(4)
     expect(() => idea({ difficulty: 5 as Idea['difficulty'] })).toThrow()
+  })
+
+  it('uses the agreed difficulty guidance copy', () => {
+    expect(difficultyDescriptions[1]).toContain('It could realistically be done tomorrow.')
+    expect(difficultyDescriptions[2]).toContain('but remains simple to arrange.')
+    expect(difficultyDescriptions[3]).toContain('coordination with others.')
+    expect(difficultyDescriptions[4]).toContain('It is usually a big-ticket goal.')
   })
 })
 

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useBeforeUnload } from 'react-router-dom'
 import {
   Alert,
+  Autocomplete,
   Box,
   Button,
   Card,
@@ -90,6 +91,7 @@ export function ActivityEditor({
   const [date, setDate] = useState(initialActivity?.date ?? new Date().toISOString().slice(0, 10))
   const [notes, setNotes] = useState(initialActivity?.notes ?? '')
   const [waypointId, setWaypointId] = useState(initialActivity?.waypointId ?? initialWaypointId ?? '')
+  const [ideaIds, setIdeaIds] = useState<string[]>(initialActivity?.ideaIds ?? [])
   const [category, setCategory] = useState<AwardedStatus | ''>(initialActivity?.category ?? '')
   const [locationKind, setLocationKind] = useState<ActivityLocation['kind']>(initialLocation.kind)
   const [postcode, setPostcode] = useState(initialLocation.kind === 'postcode' ? initialLocation.postcode : '')
@@ -120,6 +122,16 @@ export function ActivityEditor({
   const [message, setMessage] = useState<string | null>(null)
 
   const supportsCategories = waypointSupportsActivityCategory(data, waypointId || undefined)
+  const sortedIdeas = useMemo(
+    () =>
+      data.ideas.slice().sort((a, b) => {
+        const aLinked = waypointId ? a.waypointIds.includes(waypointId) : false
+        const bLinked = waypointId ? b.waypointIds.includes(waypointId) : false
+        if (aLinked !== bLinked) return aLinked ? -1 : 1
+        return a.title.localeCompare(b.title)
+      }),
+    [data.ideas, waypointId],
+  )
 
   useEffect(() => {
     if (!supportsCategories && category) {
@@ -133,6 +145,7 @@ export function ActivityEditor({
       date: initialActivity?.date ?? new Date().toISOString().slice(0, 10),
       notes: initialActivity?.notes ?? '',
       waypointId: initialActivity?.waypointId ?? initialWaypointId ?? '',
+      ideaIds: initialActivity?.ideaIds ?? [],
       category: initialActivity?.category ?? '',
       location: initialLocation,
       references: (initialReferences ?? []).map((item) => ({
@@ -159,6 +172,7 @@ export function ActivityEditor({
         date,
         notes,
         waypointId,
+        ideaIds,
         category,
         location: currentLocation,
         references,
@@ -180,6 +194,7 @@ export function ActivityEditor({
     photoReferences,
     postcode,
     references,
+    ideaIds,
     waypointId,
   ])
 
@@ -256,6 +271,7 @@ export function ActivityEditor({
             setErrors({})
             onSubmit({
               waypointId: waypointId || undefined,
+              ideaIds,
               date,
               category: supportsCategories ? category || undefined : undefined,
               location: result.location,
@@ -309,6 +325,21 @@ export function ActivityEditor({
               ))}
             </Select>
           </FormControl>
+          <Autocomplete
+            multiple
+            options={sortedIdeas}
+            value={data.ideas.filter((idea) => ideaIds.includes(idea.ideaId))}
+            isOptionEqualToValue={(option, value) => option.ideaId === value.ideaId}
+            getOptionLabel={(option) => option.title}
+            onChange={(_, values) => setIdeaIds(values.map((value) => value.ideaId))}
+            renderInput={(params) => <TextField {...params} label="Linked ideas (optional)" />}
+            renderOption={(props, option) => (
+              <li {...props} key={option.ideaId}>
+                {option.title}
+                {waypointId && option.waypointIds.includes(waypointId) ? ' (linked to selected waypoint)' : ''}
+              </li>
+            )}
+          />
 
           {supportsCategories && (
             <FormControl error={Boolean(errors.category)}>

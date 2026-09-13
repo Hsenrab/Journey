@@ -44,6 +44,7 @@ describe('ActivityEditor', () => {
 
     expect(onSubmit).toHaveBeenCalledWith(
       expect.objectContaining({
+        ideaIds: [],
         location: { kind: 'postcode', postcode: 'GL1 1AA' },
         notes: 'Nice day',
       }),
@@ -243,6 +244,34 @@ describe('ActivityEditor', () => {
     expect(onSubmit).toHaveBeenCalledWith(
       expect.objectContaining({ location: { kind: 'coordinates', latitude: 51.75, longitude: -1.26 } }),
     )
+  })
+
+  it('keeps selected ideas when changing or clearing waypoint', async () => {
+    const user = userEvent.setup()
+    const data = createDefaultData()
+    data.ideas = [
+      {
+        ideaId: 'idea-1',
+        title: 'Route option',
+        description: '',
+        notes: '',
+        waypointIds: [data.waypoints[0]!.waypointId],
+        planningState: 'active',
+        difficulty: 2,
+        referenceIds: [],
+        createdAt: '2026-08-01T00:00:00.000Z',
+        updatedAt: '2026-08-01T00:00:00.000Z',
+      },
+    ]
+    const { onSubmit } = renderEditor({ data, initialWaypointId: data.waypoints[0]!.waypointId })
+
+    await user.click(screen.getByRole('combobox', { name: 'Linked ideas (optional)' }))
+    await user.click(screen.getByRole('option', { name: 'Route option (linked to selected waypoint)' }))
+    await user.click(screen.getByRole('combobox', { name: 'Linked waypoint' }))
+    await user.click(screen.getByRole('option', { name: 'No linked waypoint' }))
+    await user.click(screen.getByRole('button', { name: 'Save' }))
+
+    expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ waypointId: undefined, ideaIds: ['idea-1'] }))
   })
 
   it('uses waypoint coordinates as initial location when available', () => {

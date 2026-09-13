@@ -4,12 +4,14 @@ import { clearJourney, importJourney, loadJourney, replaceJourney } from '../../
 import {
   activitiesForWaypoint,
   createActivity,
+  createIdea,
   statusForWaypoint,
   validateActivityCategory,
   type Activity,
   type ActivityLocation,
   type AwardedStatus,
   type ExternalPhotoReference,
+  type Idea,
   type Reference,
   type Status,
   type WaypointsData,
@@ -20,6 +22,7 @@ type DraftPhotoReference = Pick<ExternalPhotoReference, 'title' | 'url' | 'altTe
 
 export type ActivityDraft = {
   waypointId?: string
+  ideaIds: string[]
   date: string
   category?: AwardedStatus
   location: ActivityLocation
@@ -28,10 +31,25 @@ export type ActivityDraft = {
   photoReferences: DraftPhotoReference[]
 }
 
+export type IdeaDraft = {
+  title: string
+  description: string
+  notes: string
+  waypointIds: string[]
+  planningState: Idea['planningState']
+  rejectionReason?: string
+  difficulty: Idea['difficulty']
+  location?: Idea['location']
+  references: DraftReference[]
+}
+
 type Action =
   | { type: 'add-activity'; input: ActivityDraft }
   | { type: 'update-activity'; activityId: string; input: ActivityDraft }
   | { type: 'delete-activity'; activityId: string }
+  | { type: 'add-idea'; input: IdeaDraft }
+  | { type: 'update-idea'; ideaId: string; input: IdeaDraft }
+  | { type: 'delete-idea'; ideaId: string }
   | { type: 'restore'; data: WaypointsData }
 
 type WaypointsValue = {
@@ -39,6 +57,9 @@ type WaypointsValue = {
   addActivity: (input: ActivityDraft) => Promise<void>
   updateActivity: (activityId: string, input: ActivityDraft) => Promise<void>
   deleteActivity: (activityId: string) => Promise<void>
+  addIdea: (input: IdeaDraft) => Promise<void>
+  updateIdea: (ideaId: string, input: IdeaDraft) => Promise<void>
+  deleteIdea: (ideaId: string) => Promise<void>
   restore: (data: WaypointsData) => Promise<void>
   clear: () => Promise<void>
   reload: () => Promise<void>
@@ -135,6 +156,7 @@ function reducer(data: WaypointsData, action: Action): WaypointsData {
         data,
         createActivity({
           waypointId: action.input.waypointId,
+          ideaIds: action.input.ideaIds,
           date: action.input.date,
           category,
           location: action.input.location,
@@ -167,6 +189,7 @@ function reducer(data: WaypointsData, action: Action): WaypointsData {
           createdAt: existing.createdAt,
           updatedAt,
           waypointId: action.input.waypointId,
+          ideaIds: action.input.ideaIds,
           date: action.input.date,
           category: action.input.waypointId ? action.input.category : undefined,
           location: action.input.location,
@@ -187,6 +210,57 @@ function reducer(data: WaypointsData, action: Action): WaypointsData {
       return pruneUnreferenced({
         ...data,
         activities: data.activities.filter((activity) => activity.activityId !== action.activityId),
+      })
+    case 'add-idea': {
+      const refs = upsertReferences(data, action.input.references)
+      const idea = createIdea({
+        title: action.input.title,
+        description: action.input.description,
+        notes: action.input.notes,
+        waypointIds: action.input.waypointIds,
+        planningState: action.input.planningState,
+        rejectionReason: action.input.rejectionReason,
+        difficulty: action.input.difficulty,
+        location: action.input.location,
+        referenceIds: refs.referenceIds,
+      })
+      return pruneUnreferenced({ ...data, ideas: [...data.ideas, idea], references: refs.references })
+    }
+    case 'update-idea': {
+      const existing = data.ideas.find((idea) => idea.ideaId === action.ideaId)
+      if (!existing) throw new Error('Idea not found')
+      const now = new Date()
+      const updatedAt =
+        now.toISOString() > existing.updatedAt ? now.toISOString() : new Date(now.getTime() + 1).toISOString()
+      const refs = upsertReferences(data, action.input.references)
+      const updated = createIdea({
+        ideaId: existing.ideaId,
+        createdAt: existing.createdAt,
+        updatedAt,
+        title: action.input.title,
+        description: action.input.description,
+        notes: action.input.notes,
+        waypointIds: action.input.waypointIds,
+        planningState: action.input.planningState,
+        rejectionReason: action.input.rejectionReason,
+        difficulty: action.input.difficulty,
+        location: action.input.location,
+        referenceIds: refs.referenceIds,
+      })
+      return pruneUnreferenced({
+        ...data,
+        ideas: data.ideas.map((idea) => (idea.ideaId === action.ideaId ? updated : idea)),
+        references: refs.references,
+      })
+    }
+    case 'delete-idea':
+      return pruneUnreferenced({
+        ...data,
+        ideas: data.ideas.filter((idea) => idea.ideaId !== action.ideaId),
+        activities: data.activities.map((activity) => ({
+          ...activity,
+          ideaIds: activity.ideaIds.filter((ideaId) => ideaId !== action.ideaId),
+        })),
       })
     default:
       return data
@@ -242,6 +316,27 @@ export function WaypointsProvider({ children }: { children: ReactNode }) {
       deleteActivity: async (activityId) => {
         if (isDemoModeEnabled() && !localTestMode) throw new Error('Demo data is read-only.')
         const action = { type: 'delete-activity' as const, activityId }
+        const next = reducer(data, action)
+        if (localTestMode) dispatch(action)
+        else apply(await replaceJourney('production', next, etags))
+      },
+      addIdea: async (input) => {
+        if (isDemoModeEnabled() && !localTestMode) throw new Error('Demo data is read-only.')
+        const action = { type: 'add-idea' as const, input }
+        const next = reducer(data, action)
+        if (localTestMode) dispatch(action)
+        else apply(await replaceJourney('production', next, etags))
+      },
+      updateIdea: async (ideaId, input) => {
+        if (isDemoModeEnabled() && !localTestMode) throw new Error('Demo data is read-only.')
+        const action = { type: 'update-idea' as const, ideaId, input }
+        const next = reducer(data, action)
+        if (localTestMode) dispatch(action)
+        else apply(await replaceJourney('production', next, etags))
+      },
+      deleteIdea: async (ideaId) => {
+        if (isDemoModeEnabled() && !localTestMode) throw new Error('Demo data is read-only.')
+        const action = { type: 'delete-idea' as const, ideaId }
         const next = reducer(data, action)
         if (localTestMode) dispatch(action)
         else apply(await replaceJourney('production', next, etags))
