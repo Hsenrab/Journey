@@ -14,9 +14,7 @@ const ImportSchema = z
     data: DataSchema,
   })
   .strict()
-
 const key = 'waypoints-v1'
-const demoModeKey = 'waypoints-demo-mode-v1'
 const dataModeKey = 'journey-data-mode-v1'
 const dataModes = new Set<JourneyDataMode>(['demo-local', 'demo-cosmos', 'production'])
 
@@ -37,17 +35,6 @@ export function createDemoModeData(): WaypointsData {
 export function getDataMode(): JourneyDataMode {
   const stored = localStorage.getItem(dataModeKey)
   if (dataModes.has(stored as JourneyDataMode)) return stored as JourneyDataMode
-
-  const legacyDemoMode = localStorage.getItem(demoModeKey)
-  if (legacyDemoMode === 'true') {
-    // One-way migration for the former boolean demo preference.
-    localStorage.setItem(dataModeKey, 'demo-local')
-    return 'demo-local'
-  }
-  if (legacyDemoMode === 'false') {
-    localStorage.setItem(dataModeKey, 'production')
-    return 'production'
-  }
 
   return 'production'
 }

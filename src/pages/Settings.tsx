@@ -31,11 +31,12 @@ export default function Settings() {
   const activeLabel = usingLocalFallback ? 'Demo local fallback' : dataModeLabels[activeDataMode]
 
   const exportData = () => {
+    const exportMode = usingLocalFallback ? 'demo-local' : activeDataMode
     const blob = new Blob([JSON.stringify(createBackup(data), null, 2)], { type: 'application/json' })
     const url = URL.createObjectURL(blob)
     const link = document.createElement('a')
     link.href = url
-    link.download = dataMode === 'production' ? 'waypoints.json' : `waypoints-${dataMode}.json`
+    link.download = exportMode === 'production' ? 'waypoints.json' : `waypoints-${exportMode}.json`
     link.click()
     URL.revokeObjectURL(url)
   }
@@ -46,7 +47,13 @@ export default function Settings() {
       return
     }
     if (readOnly) {
-      setMessage({ text: 'Demo local data is read-only.', error: true })
+      setMessage({
+        text:
+          loadError && dataMode === 'production'
+            ? 'Production data is not loaded. Reload before restoring a backup.'
+            : 'Demo local data is read-only.',
+        error: true,
+      })
       return
     }
     let importedData

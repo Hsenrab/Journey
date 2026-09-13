@@ -69,11 +69,12 @@ describe('load', () => {
     )
   })
 
-  it('migrates the legacy demo preference to local demo mode', () => {
-    localStorage.setItem('waypoints-demo-mode-v1', 'true')
+  it('defaults missing or unknown mode preferences to production', () => {
+    localStorage.setItem('journey-data-mode-v1', 'obsolete')
 
-    expect(getDataMode()).toBe('demo-local')
-    expect(localStorage.getItem('journey-data-mode-v1')).toBe('demo-local')
+    expect(getDataMode()).toBe('production')
+    localStorage.removeItem('journey-data-mode-v1')
+    expect(getDataMode()).toBe('production')
   })
 
   it('persists the selected Cosmos demo mode without changing production storage', () => {
