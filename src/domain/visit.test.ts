@@ -150,6 +150,9 @@ describe('demo data', () => {
     )
     const years = new Set(data.activities.map((activity) => activity.date.slice(0, 4)))
 
+    expect(activitiesForWaypoint(data.activities, 'demo-foxglove-manor')).toHaveLength(2)
+    expect(activitiesForWaypoint(data.activities, 'demo-puddlebrook-paddle')).toHaveLength(2)
+    expect(activitiesForWaypoint(data.activities, 'demo-lantern-hill-fort')).toEqual([])
     expect(visitCounts.filter((count) => count > 1).length).toBeGreaterThan(1)
     expect(visitCounts.filter((count) => count === 1).length).toBeGreaterThan(1)
     expect(visitCounts.filter((count) => count === 0).length).toBeGreaterThan(1)

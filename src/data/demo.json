@@ -370,8 +370,8 @@
       "updatedAt": "2026-04-04T09:00:00.000Z"
     },
     {
-      "ideaId": "demo-idea-pottery-taster",
-      "title": "Evening pottery taster (Demo idea)",
+      "ideaId": "demo-idea-craft-taster",
+      "title": "Evening craft taster (Demo idea)",
       "description": "A fabricated idea linked to two craft waypoints and used by one demo activity.",
       "notes": "",
       "waypointIds": ["demo-tannery-lane-pottery", "demo-glasshouse-workshop"],
@@ -546,7 +546,7 @@
       "activityId": "activity-demo-glasshouse",
       "waypointId": "demo-glasshouse-workshop",
       "challengeId": "food-and-craft",
-      "ideaIds": ["demo-idea-pottery-taster"],
+      "ideaIds": ["demo-idea-craft-taster"],
       "date": "2026-07-16",
       "location": {
         "kind": "coordinates",
