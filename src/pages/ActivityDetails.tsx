@@ -14,7 +14,9 @@ import {
   Stack,
   Typography,
 } from '@mui/material'
+import InboxOutlinedIcon from '@mui/icons-material/InboxOutlined'
 import { ActivityEditor } from '../components/ActivityEditor'
+import { EmptyState } from '../components/EmptyState'
 import { ideasForActivity, locationSummary, statusLabels } from '../domain/visit'
 import { useWaypoints } from '../features/journey/JourneyContext'
 import { JourneyConflictError } from '../services/journeyApi'
@@ -160,13 +162,13 @@ export default function ActivityDetails() {
           </CardContent>
         </Card>
       ) : (
-        <Typography color="text.secondary">No photos linked to this activity.</Typography>
+        <EmptyState icon={<InboxOutlinedIcon color="disabled" />} message="No photos linked to this activity." />
       )}
 
       <Stack spacing={2}>
         <Typography variant="h5">Ideas</Typography>
         {ideas.length === 0 ? (
-          <Typography color="text.secondary">No ideas linked to this activity.</Typography>
+          <EmptyState icon={<InboxOutlinedIcon color="disabled" />} message="No ideas linked to this activity." />
         ) : (
           ideas.map((idea) => (
             <Button
@@ -184,7 +186,7 @@ export default function ActivityDetails() {
       <Stack spacing={2}>
         <Typography variant="h5">References</Typography>
         {references.length === 0 ? (
-          <Typography color="text.secondary">No references linked to this activity.</Typography>
+          <EmptyState icon={<InboxOutlinedIcon color="disabled" />} message="No references linked to this activity." />
         ) : (
           references.map((reference) => (
             <Card key={reference.referenceId}>

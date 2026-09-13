@@ -14,8 +14,9 @@ import {
   CircularProgress,
   FormControlLabel,
   Stack,
-  ToggleButton,
-  ToggleButtonGroup,
+  Tab,
+  Tabs,
+  TextField,
   Typography,
 } from '@mui/material'
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
@@ -417,36 +418,6 @@ export default function MapPage() {
   return (
     <Stack spacing={3}>
       <Typography variant="h4">Map</Typography>
-      <Card>
-        <CardContent>
-          <Stack
-            component="form"
-            spacing={2}
-            onSubmit={(event) => {
-              event.preventDefault()
-              void findNearby()
-            }}
-          >
-            <Typography variant="h6">Find nearby waypoints</Typography>
-            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
-              <Box
-                component="input"
-                aria-label="Nearby origin"
-                value={originQuery}
-                onChange={(event) => setOriginQuery(event.target.value)}
-                sx={{ p: 1, flex: 1 }}
-              />
-              <Button type="submit" variant="contained">
-                Search
-              </Button>
-            </Stack>
-            <Typography variant="body2" color="text.secondary">
-              Origin is temporary and does not change saved waypoint or activity data. Results are ordered by
-              straight-line miles.
-            </Typography>
-          </Stack>
-        </CardContent>
-      </Card>
       {error && <Alert severity="error">{error}</Alert>}
       {originResults.length > 0 && (
         <Card>
@@ -470,28 +441,23 @@ export default function MapPage() {
       )}
       <Box sx={{ overflow: 'hidden', border: '1px solid', borderColor: 'divider', borderRadius: 1, bgcolor: 'white' }}>
         <Stack spacing={1.5} sx={{ p: { xs: 1.5, sm: 2 }, borderBottom: '1px solid', borderColor: 'divider' }}>
-          <ToggleButtonGroup
-            exclusive
+          <Tabs
             value={mode}
-            onChange={(_, nextMode: MapMode | null) => {
-              if (nextMode) {
-                mapPopup.current?.close()
-                setSelectedWaypointId(null)
-                setSelectedActivityId(null)
-                setMode(nextMode)
-              }
+            onChange={(_, nextMode: MapMode) => {
+              mapPopup.current?.close()
+              setSelectedWaypointId(null)
+              setSelectedActivityId(null)
+              setMode(nextMode)
             }}
             aria-label="Map mode"
-            fullWidth
-            size="small"
           >
-            <ToggleButton value="waypoints">Waypoints</ToggleButton>
-            <ToggleButton value="activities">Activities</ToggleButton>
-          </ToggleButtonGroup>
+            <Tab value="waypoints" label="Waypoints" />
+            <Tab value="activities" label="Activities" />
+          </Tabs>
           {mode === 'waypoints' && (
             <Accordion disableGutters elevation={0} sx={{ '&::before': { display: 'none' } }}>
               <AccordionSummary expandIcon={<ExpandMoreIcon />} sx={{ px: 0, minHeight: 40 }}>
-                Award filters
+                Waypoint filters ({statuses.length} of {statusOrder.length} awards)
               </AccordionSummary>
               <AccordionDetails sx={{ px: 0, pb: 0 }}>
                 <Stack direction="row" useFlexGap sx={{ flexWrap: 'wrap' }}>
@@ -515,33 +481,35 @@ export default function MapPage() {
               </AccordionDetails>
             </Accordion>
           )}
-          <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: 'wrap' }} aria-label="Map legend">
-            {mode === 'waypoints' ? (
-              <>
+          <Stack spacing={0.5}>
+            <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: 'wrap' }} aria-label="Map legend">
+              {mode === 'waypoints' ? (
+                <>
+                  <Chip
+                    size="small"
+                    label="Not started"
+                    sx={{ border: `2px solid ${markerColors.notStarted}`, bgcolor: 'white' }}
+                  />
+                  <Chip
+                    size="small"
+                    label="Complete"
+                    sx={{ border: `2px solid ${markerColors.complete}`, bgcolor: 'white' }}
+                  />
+                </>
+              ) : (
                 <Chip
                   size="small"
-                  label="Not started"
-                  sx={{ border: `2px solid ${markerColors.notStarted}`, bgcolor: 'white' }}
+                  label="Activity"
+                  sx={{ border: `2px solid ${markerColors.activity}`, bgcolor: 'white' }}
                 />
-                <Chip
-                  size="small"
-                  label="Complete"
-                  sx={{ border: `2px solid ${markerColors.complete}`, bgcolor: 'white' }}
-                />
-              </>
-            ) : (
-              <Chip
-                size="small"
-                label="Activity"
-                sx={{ border: `2px solid ${markerColors.activity}`, bgcolor: 'white' }}
-              />
-            )}
-            <Typography variant="caption" color="text.secondary" sx={{ alignSelf: 'center' }}>
+              )}
+            </Stack>
+            <Typography variant="caption" color="text.secondary">
               Select a marker for details
             </Typography>
           </Stack>
         </Stack>
-        <Box sx={{ position: 'relative', height: { xs: 360, sm: 560 } }}>
+        <Box sx={{ position: 'relative', height: { xs: 360, sm: 480 } }}>
           <Box ref={container} aria-label="Azure Maps interactive map" sx={{ height: '100%', width: '100%' }} />
           {!mapReady && !error && (
             <Stack
@@ -563,6 +531,33 @@ export default function MapPage() {
           )}
         </Box>
       </Box>
+      <Card>
+        <CardContent>
+          <Stack
+            component="form"
+            spacing={2}
+            onSubmit={(event) => {
+              event.preventDefault()
+              void findNearby()
+            }}
+          >
+            <Typography variant="h6">Find nearby waypoints</Typography>
+            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
+              <TextField
+                label="Nearby origin"
+                value={originQuery}
+                onChange={(event) => setOriginQuery(event.target.value)}
+                helperText="Temporary origin; results use straight-line distance."
+                size="small"
+                fullWidth
+              />
+              <Button type="submit" variant="contained" sx={{ alignSelf: { sm: 'flex-start' } }}>
+                Search
+              </Button>
+            </Stack>
+          </Stack>
+        </CardContent>
+      </Card>
       {waypointWithoutCoordinates + activityWithoutCoordinates > 0 && (
         <Alert severity="info">
           {waypointWithoutCoordinates} waypoint{waypointWithoutCoordinates === 1 ? '' : 's'} and{' '}

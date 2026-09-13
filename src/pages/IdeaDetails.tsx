@@ -12,6 +12,8 @@ import {
   Stack,
   Typography,
 } from '@mui/material'
+import InboxOutlinedIcon from '@mui/icons-material/InboxOutlined'
+import { EmptyState } from '../components/EmptyState'
 import { IdeaEditor } from '../components/IdeaEditor'
 import {
   activitiesUsingIdea,
@@ -76,7 +78,7 @@ export default function IdeaDetails() {
       <Stack spacing={1}>
         <Typography variant="h5">References</Typography>
         {references.length === 0 ? (
-          <Typography color="text.secondary">No references linked to this idea.</Typography>
+          <EmptyState icon={<InboxOutlinedIcon color="disabled" />} message="No references linked to this idea." />
         ) : (
           references.map((reference) => (
             <Card key={reference.referenceId}>

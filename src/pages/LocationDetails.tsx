@@ -1,7 +1,9 @@
 import { useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { Alert, Button, Card, CardContent, Chip, Stack, Typography } from '@mui/material'
+import InboxOutlinedIcon from '@mui/icons-material/InboxOutlined'
 import { ActivityEditor } from '../components/ActivityEditor'
+import { EmptyState } from '../components/EmptyState'
 import { locations } from '../data/locations'
 import {
   ideaUsageCount,
@@ -117,7 +119,7 @@ export default function LocationDetails() {
           </Button>
         </Stack>
         {waypointIdeas.length === 0 ? (
-          <Typography color="text.secondary">No ideas linked to this waypoint.</Typography>
+          <EmptyState icon={<InboxOutlinedIcon color="disabled" />} message="No ideas linked to this waypoint." />
         ) : (
           waypointIdeas.map((idea) => (
             <Card key={idea.ideaId}>
@@ -140,7 +142,9 @@ export default function LocationDetails() {
 
       <Stack spacing={2}>
         <Typography variant="h5">Activity history</Typography>
-        {activities.length === 0 && <Typography color="text.secondary">No activities logged yet.</Typography>}
+        {activities.length === 0 && (
+          <EmptyState icon={<InboxOutlinedIcon color="disabled" />} message="No activities logged yet." />
+        )}
         {activities.map((activity) => (
           <Card key={activity.activityId}>
             <CardContent>

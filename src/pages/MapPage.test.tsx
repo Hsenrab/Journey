@@ -135,9 +135,9 @@ describe('MapPage', () => {
       </MemoryRouter>,
     )
     expect(screen.getByRole('heading', { name: 'Map' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Waypoints' })).toHaveAttribute('aria-pressed', 'true')
-    expect(screen.getByRole('button', { name: 'Activities' })).toHaveAttribute('aria-pressed', 'false')
-    await userEvent.setup().click(screen.getByRole('button', { name: 'Award filters' }))
+    expect(screen.getByRole('tab', { name: 'Waypoints' })).toHaveAttribute('aria-selected', 'true')
+    expect(screen.getByRole('tab', { name: 'Activities' })).toHaveAttribute('aria-selected', 'false')
+    await userEvent.setup().click(screen.getByRole('button', { name: /Waypoint filters/ }))
     expect(screen.getByRole('checkbox', { name: 'Gold' })).toBeChecked()
     expect(screen.getByLabelText('Nearby origin')).toHaveValue('Brockworth, Gloucestershire')
     expect(await screen.findByText('Map access failed: Sign in required')).toBeInTheDocument()
@@ -173,10 +173,10 @@ describe('MapPage', () => {
       </MemoryRouter>,
     )
 
-    await user.click(screen.getByRole('button', { name: 'Activities' }))
-    expect(screen.getByRole('button', { name: 'Waypoints' })).toHaveAttribute('aria-pressed', 'false')
-    expect(screen.getByRole('button', { name: 'Activities' })).toHaveAttribute('aria-pressed', 'true')
-    expect(screen.queryByRole('button', { name: 'Award filters' })).not.toBeInTheDocument()
+    await user.click(screen.getByRole('tab', { name: 'Activities' }))
+    expect(screen.getByRole('tab', { name: 'Waypoints' })).toHaveAttribute('aria-selected', 'false')
+    expect(screen.getByRole('tab', { name: 'Activities' })).toHaveAttribute('aria-selected', 'true')
+    expect(screen.queryByRole('button', { name: /Waypoint filters/ })).not.toBeInTheDocument()
   })
 
   it('explains that the Maps API is missing when the environment has no linked API', async () => {
@@ -207,11 +207,11 @@ describe('MapPage', () => {
         </WaypointsProvider>
       </MemoryRouter>,
     )
-    await user.click(screen.getByRole('button', { name: 'Award filters' }))
+    await user.click(screen.getByRole('button', { name: /Waypoint filters/ }))
     await user.click(screen.getByRole('checkbox', { name: 'Gold' }))
     await user.click(screen.getByRole('button', { name: 'Search' }))
     expect(await screen.findByText(/No places matched that search/)).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Activities' })).toHaveAttribute('aria-pressed', 'false')
+    expect(screen.getByRole('tab', { name: 'Activities' })).toHaveAttribute('aria-selected', 'false')
     expect(screen.getByRole('checkbox', { name: 'Gold' })).not.toBeChecked()
   })
 
@@ -333,9 +333,9 @@ describe('MapPage', () => {
         </WaypointsProvider>
       </MemoryRouter>,
     )
-    await user.click(screen.getByRole('button', { name: 'Award filters' }))
+    await user.click(screen.getByRole('button', { name: /Waypoint filters/ }))
     await user.click(screen.getByRole('checkbox', { name: 'Gold' }))
-    await user.click(screen.getByRole('button', { name: 'Activities' }))
+    await user.click(screen.getByRole('tab', { name: 'Activities' }))
     expect(screen.getByRole('link', { name: /Bronze:.*miles/ })).toBeInTheDocument()
     expect(screen.getByText(/1 waypoint and 1 activity have no coordinates/)).toBeInTheDocument()
   })
