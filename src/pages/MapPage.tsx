@@ -451,84 +451,91 @@ export default function MapPage() {
             }}
             aria-label="Map mode"
           >
-            <Tab value="waypoints" label="Waypoints" />
-            <Tab value="activities" label="Activities" />
+            <Tab id="waypoints-tab" aria-controls="waypoints-panel" value="waypoints" label="Waypoints" />
+            <Tab id="activities-tab" aria-controls="activities-panel" value="activities" label="Activities" />
           </Tabs>
-          {mode === 'waypoints' && (
-            <Accordion disableGutters elevation={0} sx={{ '&::before': { display: 'none' } }}>
-              <AccordionSummary expandIcon={<ExpandMoreIcon />} sx={{ px: 0, minHeight: 40 }}>
-                Waypoint filters ({statuses.length} of {statusOrder.length} awards)
-              </AccordionSummary>
-              <AccordionDetails sx={{ px: 0, pb: 0 }}>
-                <Stack direction="row" useFlexGap sx={{ flexWrap: 'wrap' }}>
-                  {statusOrder.map((status) => (
-                    <FormControlLabel
-                      key={status}
-                      control={
-                        <Checkbox
-                          checked={statuses.includes(status)}
-                          onChange={(event) =>
-                            setStatuses((current) =>
-                              event.target.checked ? [...current, status] : current.filter((item) => item !== status),
-                            )
-                          }
-                        />
-                      }
-                      label={statusLabels[status]}
-                    />
-                  ))}
-                </Stack>
-              </AccordionDetails>
-            </Accordion>
-          )}
-          <Stack spacing={0.5}>
-            <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: 'wrap' }} aria-label="Map legend">
-              {mode === 'waypoints' ? (
-                <>
-                  <Chip
-                    size="small"
-                    label="Not started"
-                    sx={{ border: `2px solid ${markerColors.notStarted}`, bgcolor: 'white' }}
-                  />
-                  <Chip
-                    size="small"
-                    label="Complete"
-                    sx={{ border: `2px solid ${markerColors.complete}`, bgcolor: 'white' }}
-                  />
-                </>
-              ) : (
-                <Chip
-                  size="small"
-                  label="Activity"
-                  sx={{ border: `2px solid ${markerColors.activity}`, bgcolor: 'white' }}
-                />
-              )}
-            </Stack>
-            <Typography variant="caption" color="text.secondary">
-              Select a marker for details
-            </Typography>
-          </Stack>
         </Stack>
-        <Box sx={{ position: 'relative', height: { xs: 360, sm: 480 } }}>
-          <Box ref={container} aria-label="Azure Maps interactive map" sx={{ height: '100%', width: '100%' }} />
-          {!mapReady && !error && (
-            <Stack
-              role="status"
-              spacing={1}
-              sx={{
-                position: 'absolute',
-                inset: 0,
-                alignItems: 'center',
-                justifyContent: 'center',
-                bgcolor: 'rgba(255, 255, 255, 0.88)',
-              }}
-            >
-              <CircularProgress size={30} color="primary" />
-              <Typography variant="body2" color="text.secondary">
-                Loading map
+        <Box id={`${mode}-panel`} role="tabpanel" aria-labelledby={`${mode}-tab`}>
+          <Stack
+            spacing={1.5}
+            sx={{ px: { xs: 1.5, sm: 2 }, pb: { xs: 1.5, sm: 2 }, borderBottom: '1px solid', borderColor: 'divider' }}
+          >
+            {mode === 'waypoints' && (
+              <Accordion disableGutters elevation={0} sx={{ '&::before': { display: 'none' } }}>
+                <AccordionSummary expandIcon={<ExpandMoreIcon />} sx={{ px: 0, minHeight: 40 }}>
+                  Waypoint filters ({statuses.length} of {statusOrder.length} awards)
+                </AccordionSummary>
+                <AccordionDetails sx={{ px: 0, pb: 0 }}>
+                  <Stack direction="row" useFlexGap sx={{ flexWrap: 'wrap' }}>
+                    {statusOrder.map((status) => (
+                      <FormControlLabel
+                        key={status}
+                        control={
+                          <Checkbox
+                            checked={statuses.includes(status)}
+                            onChange={(event) =>
+                              setStatuses((current) =>
+                                event.target.checked ? [...current, status] : current.filter((item) => item !== status),
+                              )
+                            }
+                          />
+                        }
+                        label={statusLabels[status]}
+                      />
+                    ))}
+                  </Stack>
+                </AccordionDetails>
+              </Accordion>
+            )}
+            <Stack spacing={0.5}>
+              <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: 'wrap' }} aria-label="Map legend">
+                {mode === 'waypoints' ? (
+                  <>
+                    <Chip
+                      size="small"
+                      label="Not started"
+                      sx={{ border: `2px solid ${markerColors.notStarted}`, bgcolor: 'white' }}
+                    />
+                    <Chip
+                      size="small"
+                      label="Complete"
+                      sx={{ border: `2px solid ${markerColors.complete}`, bgcolor: 'white' }}
+                    />
+                  </>
+                ) : (
+                  <Chip
+                    size="small"
+                    label="Activity"
+                    sx={{ border: `2px solid ${markerColors.activity}`, bgcolor: 'white' }}
+                  />
+                )}
+              </Stack>
+              <Typography variant="caption" color="text.secondary">
+                Select a marker for details
               </Typography>
             </Stack>
-          )}
+          </Stack>
+          <Box sx={{ position: 'relative', height: { xs: 360, sm: 480 } }}>
+            <Box ref={container} aria-label="Azure Maps interactive map" sx={{ height: '100%', width: '100%' }} />
+            {!mapReady && !error && (
+              <Stack
+                role="status"
+                spacing={1}
+                sx={{
+                  position: 'absolute',
+                  inset: 0,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  bgcolor: 'rgba(255, 255, 255, 0.88)',
+                }}
+              >
+                <CircularProgress size={30} color="primary" />
+                <Typography variant="body2" color="text.secondary">
+                  Loading map
+                </Typography>
+              </Stack>
+            )}
+          </Box>
         </Box>
       </Box>
       <Card>

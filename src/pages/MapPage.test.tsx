@@ -137,6 +137,7 @@ describe('MapPage', () => {
     expect(screen.getByRole('heading', { name: 'Map' })).toBeInTheDocument()
     expect(screen.getByRole('tab', { name: 'Waypoints' })).toHaveAttribute('aria-selected', 'true')
     expect(screen.getByRole('tab', { name: 'Activities' })).toHaveAttribute('aria-selected', 'false')
+    expect(screen.getByRole('tabpanel')).toHaveAttribute('aria-labelledby', 'waypoints-tab')
     await userEvent.setup().click(screen.getByRole('button', { name: /Waypoint filters/ }))
     expect(screen.getByRole('checkbox', { name: 'Gold' })).toBeChecked()
     expect(screen.getByLabelText('Nearby origin')).toHaveValue('Brockworth, Gloucestershire')
