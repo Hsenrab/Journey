@@ -30,6 +30,17 @@ local activities. It is parsed with `DataSchema` before use; only challenges tha
 explicitly set `supportsActivityCategories` can use Bronze, Silver or Gold activity
 categories.
 
+The fixture is deliberately varied so every view has something to show: around fifty
+entities spread over waypoints, challenges, ideas, activities, references and photo
+references. It includes waypoints with repeat visits, exactly one visit and none at
+all; shared categories and a reference shared by several waypoints; waypoints and
+activities with several, one or no photo references; Bronze, Silver and Gold each
+awarded more than once within the `national-trust` challenge; several ideas in each
+planning state, some used by more than one activity and some unused; and activity
+dates spread across multiple months and years. Every challenge that has waypoints is
+partially complete, and `future-shortlist` is intentionally empty so the no-waypoints
+state can be previewed.
+
 ## Stored shape
 
 The persisted root object is:
