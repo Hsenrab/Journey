@@ -162,7 +162,7 @@ jobs:
           import { CosmosClient } from '@azure/cosmos'
           import { DefaultAzureCredential } from '@azure/identity'
           import { readFile } from 'node:fs/promises'
-          import { documentsFor, loadDataset, replaceDataset } from './dist/src/lib/cosmos.js'
+          import { documentsFor, replaceDataset } from './dist/src/lib/cosmos.js'
           import { JourneyDataSchema } from './dist/src/lib/journeySchema.js'
 
           const datasetId = process.env.COSMOS_DEMO_DATASET_ID
@@ -171,8 +171,12 @@ jobs:
             endpoint: process.env.COSMOS_ENDPOINT,
             aadCredentials: new DefaultAzureCredential(),
           }).database(process.env.COSMOS_DATABASE_NAME).container('demo')
-          const loaded = await loadDataset(container, datasetId)
-          await replaceDataset(container, datasetId, documentsFor(datasetId, data), loaded.etags)
+          const existing = await container.items.query({
+            query: 'SELECT c.id, c._etag FROM c WHERE c.datasetId = @datasetId',
+            parameters: [{ name: '@datasetId', value: datasetId }],
+          }).fetchAll()
+          const etags = Object.fromEntries(existing.resources.map((item) => [item.id, item._etag]))
+          await replaceDataset(container, datasetId, documentsFor(datasetId, data), etags)
           EOF
 
       - name: Publish application URL to the job summary

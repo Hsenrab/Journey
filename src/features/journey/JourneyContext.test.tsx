@@ -254,6 +254,31 @@ describe('WaypointsContext in production mode', () => {
     await expect(result.current.addActivity(draft)).rejects.toThrow('Demo local data is read-only.')
   })
 
+  it('blocks mutations while a mode load is in flight and ignores the stale response', async () => {
+    setDataMode('demo-cosmos')
+    const resolvers: ((response: Response) => void)[] = []
+    const fetch = vi.fn().mockImplementation(() => new Promise<Response>((resolve) => resolvers.push(resolve)))
+    vi.stubGlobal('fetch', fetch)
+
+    const { result } = renderHook(() => useWaypoints(), { wrapper: WaypointsProvider })
+    await waitFor(() => expect(fetch).toHaveBeenCalledTimes(1))
+
+    expect(result.current.readOnly).toBe(true)
+    await expect(result.current.addActivity(draft)).rejects.toThrow('Journey data is still loading')
+
+    await act(async () => {
+      await result.current.setDataMode('demo-local')
+    })
+    await waitFor(() => expect(result.current.activeDataMode).toBe('demo-local'))
+
+    await act(async () => {
+      resolvers[0]?.(new Response(JSON.stringify({ data: createDefaultData(), etags: {} }), { status: 200 }))
+    })
+
+    expect(result.current.activeDataMode).toBe('demo-local')
+    expect(result.current.data).toEqual(createDemoModeData())
+  })
+
   it('does not expose demo data when Production cannot be loaded', async () => {
     setDataMode('production')
     const fetch = vi

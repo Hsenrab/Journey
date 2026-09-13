@@ -1,4 +1,14 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useReducer, useState, type ReactNode } from 'react'
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useReducer,
+  useRef,
+  useState,
+  type ReactNode,
+} from 'react'
 import {
   createDemoModeData,
   getDataMode,
@@ -305,43 +315,57 @@ export function WaypointsProvider({ children }: { children: ReactNode }) {
   const [dataMode, setDataModeState] = useState<JourneyDataMode>(initialDataMode)
   const [activeDataMode, setActiveDataMode] = useState<JourneyDataMode>(initialDataMode)
   const [loadError, setLoadError] = useState<string>()
+  const [loading, setLoading] = useState(true)
   const [etags, setEtags] = useState<Record<string, string>>({})
+  const loadGeneration = useRef(0)
   const apply = useCallback((loaded: { data: WaypointsData; etags: Record<string, string> }) => {
     dispatch({ type: 'restore', data: loaded.data })
     setEtags(loaded.etags)
   }, [])
   const loadMode = useCallback(
     async (mode: JourneyDataMode) => {
+      const generation = loadGeneration.current + 1
+      loadGeneration.current = generation
+      setLoading(true)
+      const settle = (
+        loaded: { data: WaypointsData; etags: Record<string, string> },
+        active: JourneyDataMode,
+        error?: string,
+      ) => {
+        if (loadGeneration.current !== generation) return
+        apply(loaded)
+        setActiveDataMode(active)
+        setLoadError(error)
+        setLoading(false)
+      }
+
       if (mode === 'demo-local') {
-        apply({ data: createDemoModeData(), etags: {} })
-        setActiveDataMode('demo-local')
-        setLoadError(undefined)
+        settle({ data: createDemoModeData(), etags: {} }, 'demo-local')
         return
       }
 
       if (localTestMode && mode === 'production') {
-        dispatch({ type: 'restore', data: load() })
-        setEtags({})
-        setActiveDataMode('production')
-        setLoadError(undefined)
+        settle({ data: load(), etags: {} }, 'production')
         return
       }
 
       try {
-        apply(await loadJourney(mode === 'demo-cosmos' ? 'demo' : 'production'))
-        setActiveDataMode(mode)
-        setLoadError(undefined)
+        settle(await loadJourney(mode === 'demo-cosmos' ? 'demo' : 'production'), mode)
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error)
         if (mode === 'demo-cosmos') {
-          apply({ data: createDemoModeData(), etags: {} })
-          setActiveDataMode('demo-local')
-          setLoadError(`Demo Cosmos could not be loaded, so read-only local demo data is shown: ${message}`)
+          settle(
+            { data: createDemoModeData(), etags: {} },
+            'demo-local',
+            `Demo Cosmos could not be loaded, so read-only local demo data is shown: ${message}`,
+          )
           return
         }
-        apply({ data: emptyData(), etags: {} })
-        setActiveDataMode('production')
-        setLoadError(`Production data could not be loaded. Check the Journey API and Cosmos configuration: ${message}`)
+        settle(
+          { data: emptyData(), etags: {} },
+          'production',
+          `Production data could not be loaded. Check the Journey API and Cosmos configuration: ${message}`,
+        )
       }
     },
     [apply, localTestMode],
@@ -360,10 +384,12 @@ export function WaypointsProvider({ children }: { children: ReactNode }) {
     void reload()
   }, [reload])
   const value = useMemo<WaypointsValue>(() => {
-    const readOnly = activeDataMode === 'demo-local' || (dataMode === 'production' && Boolean(loadError))
+    const readOnly = loading || activeDataMode === 'demo-local' || (dataMode === 'production' && Boolean(loadError))
     const writableContainer = (): JourneyContainer => {
+      if (loading)
+        throw new Error('Journey data is still loading. Wait for the selected data mode before making changes.')
       if (activeDataMode === 'demo-local') throw new Error('Demo local data is read-only.')
-      if (dataMode === 'demo-cosmos') return 'demo'
+      if (activeDataMode === 'demo-cosmos') return 'demo'
       if (loadError) throw new Error('Production data is not loaded. Reload before making changes.')
       return 'production'
     }
@@ -427,7 +453,7 @@ export function WaypointsProvider({ children }: { children: ReactNode }) {
       activitiesFor: (waypointId) => activitiesForWaypoint(data.activities, waypointId),
       statusFor: (waypointId) => statusForWaypoint(data.activities, waypointId),
     }
-  }, [activeDataMode, apply, changeDataMode, data, dataMode, etags, loadError, localTestMode, reload])
+  }, [activeDataMode, apply, changeDataMode, data, dataMode, etags, loadError, loading, localTestMode, reload])
   return <Context.Provider value={value}>{children}</Context.Provider>
 }
 
