@@ -106,4 +106,5 @@ invitations, deployment verification, and sign-in troubleshooting.
 ## Documentation
 
 - [Waypoints model and relationships](docs/waypoints-model.md)
+- [UI guidelines](docs/UI_GUIDELINES.md)
 - [Deployment and operations](docs/operations.md)
