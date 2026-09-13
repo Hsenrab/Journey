@@ -536,7 +536,7 @@ export default function MapPage() {
                 onChange={(event) => setOriginQuery(event.target.value)}
                 helperText="Temporary origin; results use straight-line distance."
                 size="small"
-                fullWidth
+sx={{ flex: { sm: 1 }, minWidth: 0 }}
               />
               <Button type="submit" variant="contained" sx={{ alignSelf: { sm: 'flex-start' } }}>
                 Search
