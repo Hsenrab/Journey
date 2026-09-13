@@ -1,5 +1,7 @@
 import { Link } from 'react-router-dom'
 import { Box, Card, CardActionArea, CardContent, LinearProgress, Stack, Typography } from '@mui/material'
+import InboxOutlinedIcon from '@mui/icons-material/InboxOutlined'
+import { EmptyState } from '../components/EmptyState'
 import {
   awardableStatuses,
   completedWaypointCount,
@@ -19,7 +21,7 @@ export default function Dashboard() {
     return (
       <Stack spacing={3}>
         <Typography variant="h4">National Trust Challenge</Typography>
-        <Typography color="text.secondary">No challenges are available yet.</Typography>
+        <EmptyState icon={<InboxOutlinedIcon color="disabled" />} message="No challenges are available yet." />
       </Stack>
     )
   }
@@ -74,7 +76,7 @@ export default function Dashboard() {
       <Stack spacing={2}>
         <Typography variant="h5">Recently visited</Typography>
         {recent.length === 0 ? (
-          <Typography color="text.secondary">You haven't logged any activities yet.</Typography>
+          <EmptyState icon={<InboxOutlinedIcon color="disabled" />} message="You haven't logged any activities yet." />
         ) : (
           <Stack spacing={1}>
             {recent.map((waypoint) => {

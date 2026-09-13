@@ -1,7 +1,9 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Alert, Button, Card, CardContent, Chip, Stack, Typography } from '@mui/material'
+import InboxOutlinedIcon from '@mui/icons-material/InboxOutlined'
 import { ActivityEditor } from '../components/ActivityEditor'
+import { EmptyState } from '../components/EmptyState'
 import { locationSummary, statusLabels } from '../domain/visit'
 import { useWaypoints } from '../features/journey/JourneyContext'
 import { JourneyConflictError } from '../services/journeyApi'
@@ -81,7 +83,7 @@ export default function Activities() {
       <Stack spacing={2}>
         <Typography variant="h5">Activity log</Typography>
         {activities.length === 0 ? (
-          <Typography color="text.secondary">No activities logged yet.</Typography>
+          <EmptyState icon={<InboxOutlinedIcon color="disabled" />} message="No activities logged yet." />
         ) : (
           activities.map((activity) => {
             const waypoint = activity.waypointId ? waypointById.get(activity.waypointId) : undefined

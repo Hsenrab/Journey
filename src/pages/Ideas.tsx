@@ -1,19 +1,9 @@
 import { useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
-import {
-  Box,
-  Button,
-  Card,
-  CardContent,
-  Chip,
-  FormControl,
-  InputLabel,
-  MenuItem,
-  Select,
-  Stack,
-  TextField,
-  Typography,
-} from '@mui/material'
+import { Box, Button, Card, CardContent, Chip, MenuItem, Stack, TextField, Typography } from '@mui/material'
+import SearchOffIcon from '@mui/icons-material/SearchOff'
+import { EmptyState } from '../components/EmptyState'
+import { FilterBar } from '../components/FilterBar'
 import { distanceMiles } from '../domain/map'
 import {
   difficultyLabels,
@@ -155,35 +145,39 @@ export default function Ideas() {
           </Button>
         ))}
       </Stack>
-      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
-        <TextField label="Search ideas" value={query} onChange={(event) => setQuery(event.target.value)} fullWidth />
-        <FormControl sx={{ minWidth: 180 }}>
-          <InputLabel id="idea-usage-label">Usage</InputLabel>
-          <Select
-            labelId="idea-usage-label"
-            label="Usage"
-            value={usage}
-            onChange={(event) => setUsage(event.target.value as UsageFilter)}
-          >
-            <MenuItem value="all">All usage</MenuItem>
-            <MenuItem value="used">Used ideas</MenuItem>
-            <MenuItem value="not-used">Not used</MenuItem>
-          </Select>
-        </FormControl>
-        <FormControl sx={{ minWidth: 220 }}>
-          <InputLabel id="idea-sort-label">Sort</InputLabel>
-          <Select
-            labelId="idea-sort-label"
-            label="Sort"
-            value={sort}
-            onChange={(event) => setSort(event.target.value as SortKey)}
-          >
-            <MenuItem value="distance">Distance from Brockworth</MenuItem>
-            <MenuItem value="updated">Recently updated</MenuItem>
-            <MenuItem value="difficulty">Difficulty</MenuItem>
-          </Select>
-        </FormControl>
-      </Stack>
+      <FilterBar>
+        <TextField
+          label="Search ideas"
+          value={query}
+          onChange={(event) => setQuery(event.target.value)}
+          size="small"
+          fullWidth
+        />
+        <TextField
+          select
+          label="Usage"
+          value={usage}
+          onChange={(event) => setUsage(event.target.value as UsageFilter)}
+          size="small"
+          fullWidth
+        >
+          <MenuItem value="all">All usage</MenuItem>
+          <MenuItem value="used">Used ideas</MenuItem>
+          <MenuItem value="not-used">Not used</MenuItem>
+        </TextField>
+        <TextField
+          select
+          label="Sort"
+          value={sort}
+          onChange={(event) => setSort(event.target.value as SortKey)}
+          size="small"
+          fullWidth
+        >
+          <MenuItem value="distance">Distance from Brockworth</MenuItem>
+          <MenuItem value="updated">Recently updated</MenuItem>
+          <MenuItem value="difficulty">Difficulty</MenuItem>
+        </TextField>
+      </FilterBar>
 
       {!showEditor && message && (
         <Typography color={message.severity === 'error' ? 'error' : 'success.main'}>{message.text}</Typography>
@@ -226,7 +220,7 @@ export default function Ideas() {
       )}
 
       {filteredIdeas.length === 0 ? (
-        <Typography color="text.secondary">No ideas match your filters.</Typography>
+        <EmptyState icon={<SearchOffIcon color="disabled" />} message="No ideas match your filters." />
       ) : (
         <Box sx={{ display: 'grid', gap: 2, gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))' }}>
           {filteredIdeas.map((idea) => {
