@@ -30,6 +30,7 @@ import {
   waypointCoordinates,
 } from '../domain/map'
 import { statusForWaypoint, statusLabels, statusOrder, type Status } from '../domain/visit'
+import { PageHeader } from '../components/PageHeader'
 import { useWaypoints } from '../features/journey/JourneyContext'
 
 const brockworth = { latitude: 51.844, longitude: -2.153 }
@@ -416,30 +417,48 @@ export default function MapPage() {
   }
 
   return (
-    <Stack spacing={3}>
-      <Typography variant="h4">Map</Typography>
+    <Stack spacing={2}>
+      <PageHeader title="Map">
+        <Tabs
+          value={mode}
+          onChange={(_, nextMode: MapMode) => {
+            mapPopup.current?.close()
+            setSelectedWaypointId(null)
+            setSelectedActivityId(null)
+            setMode(nextMode)
+          }}
+          aria-label="Map mode"
+        >
+          <Tab id="waypoints-tab" aria-controls="map-panel" value="waypoints" label="Waypoints" />
+          <Tab id="activities-tab" aria-controls="map-panel" value="activities" label="Activities" />
+        </Tabs>
+        <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: 'wrap' }} aria-label="Map legend">
+          {mode === 'waypoints' ? (
+            <>
+              <Chip
+                size="small"
+                label="Not started"
+                sx={{ border: `2px solid ${markerColors.notStarted}`, bgcolor: 'white' }}
+              />
+              <Chip
+                size="small"
+                label="Complete"
+                sx={{ border: `2px solid ${markerColors.complete}`, bgcolor: 'white' }}
+              />
+            </>
+          ) : (
+            <Chip
+              size="small"
+              label="Activity"
+              sx={{ border: `2px solid ${markerColors.activity}`, bgcolor: 'white' }}
+            />
+          )}
+        </Stack>
+      </PageHeader>
       {error && <Alert severity="error">{error}</Alert>}
       <Box sx={{ overflow: 'hidden', border: '1px solid', borderColor: 'divider', borderRadius: 1, bgcolor: 'white' }}>
-        <Stack spacing={1.5} sx={{ p: { xs: 1.5, sm: 2 }, borderBottom: '1px solid', borderColor: 'divider' }}>
-          <Tabs
-            value={mode}
-            onChange={(_, nextMode: MapMode) => {
-              mapPopup.current?.close()
-              setSelectedWaypointId(null)
-              setSelectedActivityId(null)
-              setMode(nextMode)
-            }}
-            aria-label="Map mode"
-          >
-            <Tab id="waypoints-tab" aria-controls="map-panel" value="waypoints" label="Waypoints" />
-            <Tab id="activities-tab" aria-controls="map-panel" value="activities" label="Activities" />
-          </Tabs>
-        </Stack>
         <Box id="map-panel" role="tabpanel" aria-labelledby={`${mode}-tab`} tabIndex={0}>
-          <Stack
-            spacing={1.5}
-            sx={{ px: { xs: 1.5, sm: 2 }, pb: { xs: 1.5, sm: 2 }, borderBottom: '1px solid', borderColor: 'divider' }}
-          >
+          <Stack spacing={1.5} sx={{ p: { xs: 1.5, sm: 2 }, borderBottom: '1px solid', borderColor: 'divider' }}>
             {mode === 'waypoints' && (
               <Accordion disableGutters elevation={0} sx={{ '&::before': { display: 'none' } }}>
                 <AccordionSummary expandIcon={<ExpandMoreIcon />} sx={{ px: 0, minHeight: 40 }}>
@@ -467,33 +486,9 @@ export default function MapPage() {
                 </AccordionDetails>
               </Accordion>
             )}
-            <Stack spacing={0.5}>
-              <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: 'wrap' }} aria-label="Map legend">
-                {mode === 'waypoints' ? (
-                  <>
-                    <Chip
-                      size="small"
-                      label="Not started"
-                      sx={{ border: `2px solid ${markerColors.notStarted}`, bgcolor: 'white' }}
-                    />
-                    <Chip
-                      size="small"
-                      label="Complete"
-                      sx={{ border: `2px solid ${markerColors.complete}`, bgcolor: 'white' }}
-                    />
-                  </>
-                ) : (
-                  <Chip
-                    size="small"
-                    label="Activity"
-                    sx={{ border: `2px solid ${markerColors.activity}`, bgcolor: 'white' }}
-                  />
-                )}
-              </Stack>
-              <Typography variant="caption" color="text.secondary">
-                Select a marker for details
-              </Typography>
-            </Stack>
+            <Typography variant="caption" color="text.secondary">
+              Select a marker for details
+            </Typography>
           </Stack>
           <Box sx={{ position: 'relative', height: { xs: 360, sm: 480 } }}>
             <Box ref={container} aria-label="Azure Maps interactive map" sx={{ height: '100%', width: '100%' }} />

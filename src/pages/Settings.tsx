@@ -13,6 +13,7 @@ import {
   Typography,
 } from '@mui/material'
 import { statusLabels, statusOrder, statusRules } from '../domain/visit'
+import { PageHeader } from '../components/PageHeader'
 import { useWaypoints } from '../features/journey/JourneyContext'
 import { createBackup, parseImport, type JourneyDataMode } from '../services/storage'
 
@@ -78,8 +79,8 @@ export default function Settings() {
   }
 
   return (
-    <Stack spacing={4}>
-      <Typography variant="h4">Settings</Typography>
+    <Stack spacing={3}>
+      <PageHeader title="Settings" />
 
       <Stack spacing={2}>
         <Typography variant="h5">Demo mode</Typography>

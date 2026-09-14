@@ -4,6 +4,7 @@ import { Box, Button, Card, CardContent, Chip, MenuItem, Stack, TextField, Typog
 import SearchOffIcon from '@mui/icons-material/SearchOff'
 import { EmptyState } from '../components/EmptyState'
 import { FilterBar } from '../components/FilterBar'
+import { PageHeader } from '../components/PageHeader'
 import { locations } from '../data/locations'
 import { lastActivityDates, statusLabels, statusOrder } from '../domain/visit'
 import { useWaypoints } from '../features/journey/JourneyContext'
@@ -72,8 +73,8 @@ export default function Locations() {
   }, [activities, area, category, data.waypoints, maxDistance, query, sort, status, statusFor])
 
   return (
-    <Stack spacing={3}>
-      <Typography variant="h4">Waypoints</Typography>
+    <Stack spacing={2}>
+      <PageHeader title="Waypoints" />
       <FilterBar>
         <TextField
           label="Search waypoints"

@@ -4,6 +4,7 @@ import { Box, Button, Card, CardContent, Chip, MenuItem, Stack, TextField, Typog
 import SearchOffIcon from '@mui/icons-material/SearchOff'
 import { EmptyState } from '../components/EmptyState'
 import { FilterBar } from '../components/FilterBar'
+import { PageHeader } from '../components/PageHeader'
 import { distanceMiles } from '../domain/map'
 import {
   difficultyLabels,
@@ -104,13 +105,8 @@ export default function Ideas() {
   const initialWaypointId = searchParams.get('waypoint') ?? undefined
 
   return (
-    <Stack spacing={3}>
-      <Stack
-        direction={{ xs: 'column', sm: 'row' }}
-        spacing={2}
-        sx={{ justifyContent: 'space-between', alignItems: { sm: 'center' } }}
-      >
-        <Typography variant="h4">Ideas</Typography>
+    <Stack spacing={2}>
+      <PageHeader title="Ideas">
         {!showEditor && (
           <Button
             variant="contained"
@@ -126,8 +122,6 @@ export default function Ideas() {
             Add idea
           </Button>
         )}
-      </Stack>
-      <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: 'wrap' }}>
         {planningStates.map((state) => (
           <Button
             key={state}
@@ -144,7 +138,7 @@ export default function Ideas() {
             {planningStateLabels[state]} ({counts[state]})
           </Button>
         ))}
-      </Stack>
+      </PageHeader>
       <FilterBar>
         <TextField
           label="Search ideas"
