@@ -429,8 +429,22 @@ describe('ActivityEditor', () => {
 
     try {
       await user.click(screen.getByRole('tab', { name: 'Paste JSON' }))
+      await user.click(screen.getByLabelText('Activity JSON'))
+      await user.paste(
+        JSON.stringify({
+          date: '2026-09-01',
+          notes: 123,
+          ideaIds: [],
+          location: { kind: 'postcode', postcode: 'GL1 1AA' },
+          references: [],
+          photoReferences: [],
+        }),
+      )
+      await user.click(screen.getByRole('button', { name: 'Load into form' }))
+      expect(screen.getByText(/notes: Invalid input/)).toBeInTheDocument()
       await user.click(screen.getByRole('button', { name: 'Copy example JSON' }))
       expect(screen.getByText('Clipboard is unavailable in this browser.')).toBeInTheDocument()
+      expect(screen.queryByText(/notes: Invalid input/)).not.toBeInTheDocument()
     } finally {
       Object.defineProperty(navigator, 'clipboard', {
         configurable: true,
