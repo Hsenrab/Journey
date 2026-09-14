@@ -418,9 +418,8 @@ export default function MapPage() {
 
   return (
     <Stack spacing={2}>
-      {error && <Alert severity="error">{error}</Alert>}
       <PageHeader title="Map">
-        <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: 'wrap' }} aria-label="Map legend">
+        <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: 'wrap' }} aria-label="Map legend" role="group">
           {mode === 'waypoints' ? (
             <>
               <Chip
@@ -458,6 +457,7 @@ export default function MapPage() {
       </PageHeader>
       <Box sx={{ overflow: 'hidden', border: '1px solid', borderColor: 'divider', borderRadius: 1, bgcolor: 'white' }}>
         <Box id="map-panel" role="tabpanel" aria-labelledby={`${mode}-tab`} tabIndex={0}>
+          {error && <Alert severity="error">{error}</Alert>}
           <Stack spacing={1.5} sx={{ p: { xs: 1.5, sm: 2 }, borderBottom: '1px solid', borderColor: 'divider' }}>
             {mode === 'waypoints' && (
               <Accordion disableGutters elevation={0} sx={{ '&::before': { display: 'none' } }}>
