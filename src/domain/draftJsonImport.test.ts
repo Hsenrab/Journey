@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { parseActivityDraftJson, parseIdeaDraftJson } from './draftJsonImport'
+import { parseActivityDraftJson, parseIdeaDraftJson, parseWaypointDraftJson } from './draftJsonImport'
 
 describe('draftJsonImport', () => {
   it('parses a valid activity draft payload', () => {
@@ -164,6 +164,69 @@ describe('draftJsonImport', () => {
     if (!result.ok) {
       expect(result.error).toBe('JSON does not match the idea draft shape.')
       expect(result.issues).toContain('location: Invalid input: expected object, received array')
+    }
+  })
+
+  it('parses a valid waypoint draft payload', () => {
+    const result = parseWaypointDraftJson(
+      JSON.stringify({
+        title: 'Sunrise viewpoint',
+        description: 'A local spot for early walks.',
+        category: 'Scenic',
+        tags: ['sunrise'],
+        challengeIds: ['national-trust'],
+        completion: { mode: 'count', target: 2 },
+        location: { placeName: 'Brockworth', source: '' },
+        references: [{ title: 'Guide', url: 'https://example.com/guide', description: '', previewImageUrl: '' }],
+        photoReferences: [{ title: 'Photo', url: 'https://example.com/photo.jpg', altText: '' }],
+      }),
+    )
+
+    expect(result.ok).toBe(true)
+    if (result.ok) {
+      expect(result.value.references[0]).toEqual({
+        title: 'Guide',
+        url: 'https://example.com/guide',
+        description: undefined,
+        previewImageUrl: undefined,
+      })
+      expect(result.value.photoReferences[0]).toEqual({
+        title: 'Photo',
+        url: 'https://example.com/photo.jpg',
+        altText: undefined,
+      })
+      expect(result.value.completion).toEqual({ mode: 'count', target: 2 })
+    }
+  })
+
+  it('rejects arrays and forbidden ids for waypoint drafts', () => {
+    expect(parseWaypointDraftJson('[]')).toEqual({
+      ok: false,
+      error: 'Paste a single object, not an array.',
+      issues: [],
+    })
+    expect(parseWaypointDraftJson('42')).toEqual({
+      ok: false,
+      error: 'Paste a single object, not a primitive value.',
+      issues: [],
+    })
+
+    const withId = parseWaypointDraftJson(
+      JSON.stringify({
+        waypointId: 'waypoint-1',
+        title: 'Sunrise viewpoint',
+        description: 'A local spot for early walks.',
+        category: 'Scenic',
+        tags: [],
+        challengeIds: ['national-trust'],
+        completion: { mode: 'once' },
+        references: [],
+        photoReferences: [],
+      }),
+    )
+    expect(withId.ok).toBe(false)
+    if (!withId.ok) {
+      expect(withId.error).toContain("Remove 'waypointId' — IDs are assigned automatically.")
     }
   })
 })

@@ -134,4 +134,13 @@ describe('Locations', () => {
     await user.click(screen.getByRole('option', { name: 'Garden' }))
     expect(screen.getByText('Westbury Court Garden')).toBeInTheDocument()
   })
+
+  it('shows the waypoint editor and paste-json mode on add', async () => {
+    const user = userEvent.setup()
+    renderLocations(['/waypoints?mode=add'])
+
+    expect(screen.getByRole('button', { name: 'Save waypoint' })).toBeInTheDocument()
+    await user.click(screen.getByRole('tab', { name: 'Paste JSON' }))
+    expect(screen.getByLabelText('Waypoint JSON')).toBeInTheDocument()
+  })
 })

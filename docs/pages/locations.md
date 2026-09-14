@@ -1,6 +1,6 @@
 # Locations
 
-Route: `/locations` — implemented in `src/pages/Locations.tsx`.
+Route: `/waypoints` — implemented in `src/pages/Locations.tsx`.
 
 ## Purpose
 
@@ -13,17 +13,17 @@ review a visit.
 - Filter by maximum driving distance from Brockworth
 - Filter by status (all, Not Started, Bronze, Silver, Gold), area and category
 - Sort by name, progress, distance (nearest first), travel time or last visit date
+- Add a waypoint with the shared waypoint add form
 - Open a location's details page
 
 ## Data read
 
 - `locations` from `src/data/locations.ts`
-- The visit history from `useJourney().data.visits`, and derived statuses from `useJourney().statusFor`
+- Waypoints and activities from `useWaypoints().data`, and derived statuses from `useWaypoints().statusFor`
 
 ## Data written
 
-None. The page holds search, filter and sort choices in component state only, so they reset on
-reload.
+- Waypoint creation through `useWaypoints().addWaypoint`.
 
 ## Rules and data flow
 
@@ -34,8 +34,33 @@ reload.
    orders by status value, sorting by distance orders by road miles from Brockworth, sorting by
    travel time orders by estimated drive minutes, and sorting by last visit date shows newest visits
    first.
-4. Each card links to `/locations/:id`, where the id is the stable identifier used as the storage
+4. Add mode includes **Form** and **Paste JSON** tabs. Paste JSON accepts one waypoint draft object,
+   rejects arrays, and rejects ID fields (`waypointId`, `referenceId`, `photoReferenceId`).
+5. **Copy example JSON** copies a representative draft shape. **Load into form** validates the pasted
+   JSON, keeps the pasted text on errors, and on success populates the existing form state before save.
+6. Each card links to `/waypoints/:id`, where the id is the stable identifier used as the storage
    key.
+
+### Waypoint Paste JSON draft example
+
+```json
+{
+  "title": "Sunrise viewpoint",
+  "description": "A local spot for early walks.",
+  "category": "Scenic",
+  "tags": ["sunrise"],
+  "challengeIds": ["national-trust"],
+  "completion": { "mode": "once" },
+  "location": {
+    "placeName": "Brockworth",
+    "addressOrRegion": "Gloucestershire",
+    "source": "Manual research",
+    "approximate": true
+  },
+  "references": [{ "title": "Waypoint guide", "url": "https://example.com/guide" }],
+  "photoReferences": [{ "title": "Waypoint photo", "url": "https://example.com/photo.jpg" }]
+}
+```
 
 ## Future improvements
 

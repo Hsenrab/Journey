@@ -4,6 +4,7 @@ import {
   ExternalPhotoReferenceSchema,
   PlanningStateSchema,
   ReferenceSchema,
+  WaypointSchema,
   createActivity,
   createIdea,
   type ActivityLocation,
@@ -11,6 +12,7 @@ import {
   type ExternalPhotoReference,
   type Idea,
   type Reference,
+  type Waypoint,
 } from './visit'
 
 export type ActivityJsonImportDraft = {
@@ -34,6 +36,18 @@ export type IdeaJsonImportDraft = {
   difficulty: Idea['difficulty']
   location?: Idea['location']
   references: Array<Pick<Reference, 'title' | 'url' | 'description' | 'previewImageUrl'>>
+}
+
+export type WaypointJsonImportDraft = {
+  title: string
+  description: string
+  category: string
+  tags: string[]
+  challengeIds: string[]
+  completion: Waypoint['completion']
+  location?: Waypoint['location']
+  references: Array<Pick<Reference, 'title' | 'url' | 'description' | 'previewImageUrl'>>
+  photoReferences: Array<Pick<ExternalPhotoReference, 'title' | 'url' | 'altText'>>
 }
 
 type ParseResult<T> = { ok: true; value: T } | { ok: false; error: string; issues: string[] }
@@ -80,8 +94,38 @@ const ideaLocationAllowedFields = new Set([
   'source',
   'approximate',
 ])
+const waypointLocationAllowedFields = new Set([
+  'placeName',
+  'latitude',
+  'longitude',
+  'addressOrRegion',
+  'source',
+  'approximate',
+])
 const activityPostcodeLocationAllowedFields = new Set(['kind', 'postcode', 'latitude', 'longitude'])
 const activityCoordinateLocationAllowedFields = new Set(['kind', 'latitude', 'longitude'])
+const waypointForbiddenIdFields = new Set(['waypointId', 'referenceId', 'photoReferenceId'])
+const waypointRequiredImportFields = [
+  'title',
+  'description',
+  'category',
+  'tags',
+  'challengeIds',
+  'completion',
+  'references',
+  'photoReferences',
+] as const
+const waypointAllowedImportFields = new Set([
+  'title',
+  'description',
+  'category',
+  'tags',
+  'challengeIds',
+  'completion',
+  'location',
+  'references',
+  'photoReferences',
+])
 
 export const activityImportExample: ActivityJsonImportDraft = {
   date: '2026-01-15',
@@ -107,6 +151,23 @@ export const ideaImportExample: IdeaJsonImportDraft = {
     approximate: true,
   },
   references: [{ title: 'Route ideas', url: 'https://example.com/route' }],
+}
+
+export const waypointImportExample: WaypointJsonImportDraft = {
+  title: 'Sunrise viewpoint',
+  description: 'A local spot for early walks.',
+  category: 'Scenic',
+  tags: ['sunrise'],
+  challengeIds: ['national-trust'],
+  completion: { mode: 'once' },
+  location: {
+    placeName: 'Brockworth',
+    addressOrRegion: 'Gloucestershire',
+    source: 'Manual research',
+    approximate: true,
+  },
+  references: [{ title: 'Waypoint guide', url: 'https://example.com/guide' }],
+  photoReferences: [{ title: 'Waypoint photo', url: 'https://example.com/photo.jpg' }],
 }
 
 function parseObject(value: string): ParseResult<Record<string, unknown>> {
@@ -417,6 +478,125 @@ export function parseIdeaDraftJson(value: string): ParseResult<IdeaJsonImportDra
       difficulty: payload.difficulty as Idea['difficulty'],
       location,
       references: references.data,
+    },
+  }
+}
+
+export function parseWaypointDraftJson(value: string): ParseResult<WaypointJsonImportDraft> {
+  const parsedObject = parseObject(value)
+  if (!parsedObject.ok) return parsedObject
+
+  const foundIds = Array.from(collectForbiddenIdFields(parsedObject.value, waypointForbiddenIdFields))
+  if (foundIds.length > 0) {
+    return {
+      ok: false,
+      error: foundIds.map((id) => `Remove '${id}' — IDs are assigned automatically.`).join(' '),
+      issues: [],
+    }
+  }
+
+  const keys = validateObjectKeys(parsedObject.value, waypointRequiredImportFields, waypointAllowedImportFields)
+  if (!keys.ok) return keys
+
+  const payload = keys.value
+  if (Array.isArray(payload.location)) {
+    return {
+      ok: false,
+      error: 'JSON does not match the waypoint draft shape.',
+      issues: ['location: Invalid input: expected object, received array'],
+    }
+  }
+  if (payload.location && typeof payload.location === 'object' && !Array.isArray(payload.location)) {
+    const location = payload.location as Record<string, unknown>
+    const unknownLocationFields = Object.keys(location).filter((key) => !waypointLocationAllowedFields.has(key))
+    if (unknownLocationFields.length > 0) {
+      return {
+        ok: false,
+        error: 'JSON does not match the waypoint draft shape.',
+        issues: [unknownFieldsError('location', unknownLocationFields)],
+      }
+    }
+  }
+
+  const normalizedReferences = normalizeReferences(payload.references)
+  const normalizedPhotoReferences = Array.isArray(payload.photoReferences)
+    ? payload.photoReferences.map((entry) => {
+        if (!entry || typeof entry !== 'object') return entry
+        const photoReference = entry as Record<string, unknown>
+        return {
+          ...photoReference,
+          altText:
+            typeof photoReference.altText === 'string' && !photoReference.altText.trim()
+              ? undefined
+              : photoReference.altText,
+        }
+      })
+    : payload.photoReferences
+
+  const references = ReferenceSchema.omit({ referenceId: true }).array().safeParse(normalizedReferences)
+  const photoReferences = ExternalPhotoReferenceSchema.omit({ photoReferenceId: true })
+    .array()
+    .safeParse(normalizedPhotoReferences)
+  const issues: string[] = []
+  if (!references.success) issues.push(...zodIssues(references.error))
+  if (!photoReferences.success) issues.push(...zodIssues(photoReferences.error))
+
+  const location = (() => {
+    if (!payload.location || typeof payload.location !== 'object')
+      return payload.location as Waypoint['location'] | undefined
+    const rawLocation = payload.location as Record<string, unknown>
+    return {
+      placeName:
+        typeof rawLocation.placeName === 'string' && !rawLocation.placeName.trim()
+          ? undefined
+          : (rawLocation.placeName as string | undefined),
+      addressOrRegion:
+        typeof rawLocation.addressOrRegion === 'string' && !rawLocation.addressOrRegion.trim()
+          ? undefined
+          : (rawLocation.addressOrRegion as string | undefined),
+      source:
+        typeof rawLocation.source === 'string' && !rawLocation.source.trim()
+          ? undefined
+          : (rawLocation.source as string | undefined),
+      latitude: rawLocation.latitude as number | undefined,
+      longitude: rawLocation.longitude as number | undefined,
+      approximate: rawLocation.approximate as boolean | undefined,
+    } satisfies Waypoint['location']
+  })()
+
+  const waypoint = WaypointSchema.safeParse({
+    waypointId: 'waypoint-import',
+    title: payload.title as string,
+    description: payload.description as string,
+    category: payload.category as string,
+    tags: payload.tags as string[],
+    challengeIds: payload.challengeIds as string[],
+    completion: payload.completion as Waypoint['completion'],
+    location,
+    // Placeholder IDs are only used to validate the draft against persisted-entity schemas.
+    referenceIds: references.success ? references.data.map((_, index) => `reference-${index}`) : [],
+    photoReferenceIds: photoReferences.success
+      ? photoReferences.data.map((_, index) => `photo-reference-${index}`)
+      : [],
+  })
+  if (!waypoint.success) issues.push(...zodIssues(waypoint.error))
+
+  if (issues.length > 0 || !references.success || !photoReferences.success || !waypoint.success) {
+    return { ok: false, error: 'JSON does not match the waypoint draft shape.', issues }
+  }
+
+  return {
+    ok: true,
+    value: {
+      title: payload.title as string,
+      description: payload.description as string,
+      category: payload.category as string,
+      tags: payload.tags as string[],
+      challengeIds: payload.challengeIds as string[],
+      completion: payload.completion as Waypoint['completion'],
+      location,
+      references: references.data,
+      photoReferences: photoReferences.data,
     },
   }
 }

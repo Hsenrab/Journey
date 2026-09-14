@@ -36,6 +36,8 @@ import {
   type ExternalPhotoReference,
   type Idea,
   type Reference,
+  type Waypoint,
+  WaypointSchema,
   type Status,
   type WaypointsData,
 } from '../../domain/visit'
@@ -66,7 +68,20 @@ export type IdeaDraft = {
   references: DraftReference[]
 }
 
+export type WaypointDraft = {
+  title: string
+  description: string
+  category: string
+  tags: string[]
+  challengeIds: string[]
+  completion: Waypoint['completion']
+  location?: Waypoint['location']
+  references: DraftReference[]
+  photoReferences: DraftPhotoReference[]
+}
+
 type Action =
+  | { type: 'add-waypoint'; input: WaypointDraft }
   | { type: 'add-activity'; input: ActivityDraft }
   | { type: 'update-activity'; activityId: string; input: ActivityDraft }
   | { type: 'delete-activity'; activityId: string }
@@ -82,6 +97,7 @@ type WaypointsValue = {
   readOnly: boolean
   loadError?: string
   setDataMode: (mode: JourneyDataMode) => Promise<void>
+  addWaypoint: (input: WaypointDraft) => Promise<void>
   addActivity: (input: ActivityDraft) => Promise<void>
   updateActivity: (activityId: string, input: ActivityDraft) => Promise<void>
   deleteActivity: (activityId: string) => Promise<void>
@@ -176,6 +192,46 @@ function reducer(data: WaypointsData, action: Action): WaypointsData {
   switch (action.type) {
     case 'restore':
       return action.data
+    case 'add-waypoint': {
+      const refs = upsertReferences(data, action.input.references)
+      const photos = upsertPhotoReferences(data, action.input.photoReferences)
+      const missingChallenges = action.input.challengeIds.filter(
+        (challengeId) => !data.challenges.some((challenge) => challenge.challengeId === challengeId),
+      )
+      if (missingChallenges.length > 0) {
+        throw new Error(`Unknown challenge ID: ${missingChallenges[0]}`)
+      }
+      const waypointId = crypto.randomUUID()
+      const waypoint = WaypointSchema.parse({
+        waypointId,
+        title: action.input.title,
+        description: action.input.description,
+        category: action.input.category,
+        tags: action.input.tags,
+        challengeIds: action.input.challengeIds,
+        completion: action.input.completion,
+        location: action.input.location,
+        referenceIds: refs.referenceIds,
+        photoReferenceIds: photos.photoReferenceIds,
+      })
+      const challenges = data.challenges.map((challenge) =>
+        waypoint.challengeIds.includes(challenge.challengeId)
+          ? {
+              ...challenge,
+              waypointIds: challenge.waypointIds.includes(waypoint.waypointId)
+                ? challenge.waypointIds
+                : [...challenge.waypointIds, waypoint.waypointId],
+            }
+          : challenge,
+      )
+      return pruneUnreferenced({
+        ...data,
+        waypoints: [...data.waypoints, waypoint],
+        challenges,
+        references: refs.references,
+        photoReferences: photos.photoReferences,
+      })
+    }
     case 'add-activity': {
       const refs = upsertReferences(data, action.input.references)
       const photos = upsertPhotoReferences(data, action.input.photoReferences)
@@ -405,6 +461,12 @@ export function WaypointsProvider({ children }: { children: ReactNode }) {
       readOnly,
       loadError,
       setDataMode: changeDataMode,
+      addWaypoint: async (input) => {
+        const container = writableContainer()
+        const action = { type: 'add-waypoint' as const, input }
+        const next = reducer(data, action)
+        await persist(container, action, next)
+      },
       addActivity: async (input) => {
         const container = writableContainer()
         const action = { type: 'add-activity' as const, input }
