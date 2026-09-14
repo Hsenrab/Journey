@@ -190,7 +190,8 @@ describe('MapPage', () => {
     expect(screen.getByRole('heading', { name: 'Map' })).toBeInTheDocument()
     expect(screen.getByRole('tab', { name: 'Waypoints' })).toHaveAttribute('aria-selected', 'true')
     expect(screen.getByRole('tab', { name: 'Activities' })).toHaveAttribute('aria-selected', 'false')
-    expect(screen.getByRole('heading', { name: 'Nearest visible waypoints' })).toBeInTheDocument()
+    expect(screen.getByLabelText('Nearest visible waypoints')).toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: 'Find nearby waypoints' })).not.toBeInTheDocument()
     expect(screen.getByLabelText('Azure Maps interactive map')).toBeInTheDocument()
     expect(screen.getByRole('tabpanel')).toHaveAttribute('aria-labelledby', 'waypoints-tab')
     expect(screen.queryByRole('group', { name: 'Marker colour legend' })).not.toBeInTheDocument()
@@ -236,7 +237,7 @@ describe('MapPage', () => {
     await user.click(screen.getByRole('tab', { name: 'Activities' }))
     expect(screen.getByRole('tab', { name: 'Waypoints' })).toHaveAttribute('aria-selected', 'false')
     expect(screen.getByRole('tab', { name: 'Activities' })).toHaveAttribute('aria-selected', 'true')
-    expect(screen.getByRole('heading', { name: 'Nearest activities' })).toBeInTheDocument()
+    expect(screen.getByLabelText('Nearest activities')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /Waypoint filters/ })).not.toBeInTheDocument()
   })
 
@@ -254,10 +255,10 @@ describe('MapPage', () => {
 
     expect(screen.getByRole('button', { name: 'Map' })).toHaveAttribute('aria-pressed', 'true')
     expect(screen.getByLabelText('Azure Maps interactive map')).toBeInTheDocument()
-    expect(screen.queryByRole('heading', { name: 'Nearest visible waypoints' })).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('Nearest visible waypoints')).not.toBeVisible()
 
     await user.click(screen.getByRole('button', { name: 'List' }))
-    expect(screen.getByRole('heading', { name: 'Nearest visible waypoints' })).toBeInTheDocument()
+    expect(screen.getByLabelText('Nearest visible waypoints')).toBeVisible()
     expect(screen.getByLabelText('Azure Maps interactive map')).not.toBeVisible()
   })
 

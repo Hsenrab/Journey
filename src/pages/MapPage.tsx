@@ -733,12 +733,12 @@ export default function MapPage() {
           <Stack
             component="form"
             spacing={1}
+            aria-label="Find nearby waypoints"
             onSubmit={(event) => {
               event.preventDefault()
               void findNearby()
             }}
           >
-            <Typography variant="h6">Find nearby waypoints</Typography>
             <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
               <TextField
                 label="Nearby origin"
@@ -797,11 +797,9 @@ export default function MapPage() {
             flexShrink: 0,
             display: isMobile && mobilePanel !== 'list' ? 'none' : 'block',
           }}
+          aria-label={mode === 'waypoints' ? 'Nearest visible waypoints' : 'Nearest activities'}
         >
           <Stack spacing={0}>
-            <Typography variant="h6" sx={{ mb: 1 }}>
-              {mode === 'waypoints' ? 'Nearest visible waypoints' : 'Nearest activities'}
-            </Typography>
             {mode === 'waypoints'
               ? nearby.map(({ waypoint, distanceMiles: miles }) => {
                   const status = statusFor(waypoint.waypointId)
