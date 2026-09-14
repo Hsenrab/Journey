@@ -164,7 +164,7 @@ export function Layout({ children }: { children: ReactNode }) {
 
       <Box component="main" sx={{ flexGrow: 1, width: { sm: `calc(100% - ${drawerWidth}px)` } }}>
         <Toolbar />
-        <Container maxWidth="md" sx={{ py: 4 }}>
+        <Container maxWidth="md" sx={{ py: 2 }}>
           {children}
         </Container>
       </Box>

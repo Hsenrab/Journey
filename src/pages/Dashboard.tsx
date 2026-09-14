@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom'
 import { Box, Card, CardActionArea, CardContent, LinearProgress, Stack, Typography } from '@mui/material'
 import InboxOutlinedIcon from '@mui/icons-material/InboxOutlined'
 import { EmptyState } from '../components/EmptyState'
+import { PageHeader } from '../components/PageHeader'
 import {
   awardableStatuses,
   completedWaypointCount,
@@ -19,8 +20,8 @@ export default function Dashboard() {
 
   if (!challenge) {
     return (
-      <Stack spacing={3}>
-        <Typography variant="h4">National Trust Challenge</Typography>
+      <Stack spacing={2}>
+        <PageHeader title="National Trust Challenge" />
         <EmptyState icon={<InboxOutlinedIcon color="disabled" />} message="No challenges are available yet." />
       </Stack>
     )
@@ -34,8 +35,8 @@ export default function Dashboard() {
   const completionPercent = waypoints.length === 0 ? 0 : Math.round((complete / waypoints.length) * 100)
 
   return (
-    <Stack spacing={4}>
-      <Typography variant="h4">National Trust Challenge</Typography>
+    <Stack spacing={3}>
+      <PageHeader title="National Trust Challenge" />
 
       <Card>
         <CardContent>

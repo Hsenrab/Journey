@@ -138,6 +138,7 @@ describe('MapPage', () => {
     expect(screen.getByRole('tab', { name: 'Waypoints' })).toHaveAttribute('aria-selected', 'true')
     expect(screen.getByRole('tab', { name: 'Activities' })).toHaveAttribute('aria-selected', 'false')
     expect(screen.getByRole('tabpanel')).toHaveAttribute('aria-labelledby', 'waypoints-tab')
+    expect(screen.getByRole('group', { name: 'Marker colour legend' })).toBeInTheDocument()
     const user = userEvent.setup()
     await user.click(screen.getByRole('button', { name: 'Waypoint filters (4 of 4 statuses selected)' }))
     expect(screen.getByRole('checkbox', { name: 'Gold' })).toBeChecked()

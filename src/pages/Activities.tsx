@@ -4,6 +4,7 @@ import { Alert, Button, Card, CardContent, Chip, Stack, Typography } from '@mui/
 import InboxOutlinedIcon from '@mui/icons-material/InboxOutlined'
 import { ActivityEditor } from '../components/ActivityEditor'
 import { EmptyState } from '../components/EmptyState'
+import { PageHeader } from '../components/PageHeader'
 import { locationSummary, statusLabels } from '../domain/visit'
 import { useWaypoints } from '../features/journey/JourneyContext'
 import { JourneyConflictError } from '../services/journeyApi'
@@ -30,19 +31,14 @@ export default function Activities() {
   }
 
   return (
-    <Stack spacing={3}>
-      <Stack
-        direction={{ xs: 'column', sm: 'row' }}
-        spacing={2}
-        sx={{ justifyContent: 'space-between', alignItems: { sm: 'center' } }}
-      >
-        <Typography variant="h4">Activities</Typography>
+    <Stack spacing={2}>
+      <PageHeader title="Activities">
         {!showEditor && (
           <Button variant="contained" onClick={() => setShowEditor(true)}>
             Add activity
           </Button>
         )}
-      </Stack>
+      </PageHeader>
 
       {message && (
         <Alert
