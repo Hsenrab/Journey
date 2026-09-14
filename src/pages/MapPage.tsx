@@ -10,7 +10,6 @@ import {
   Card,
   CardContent,
   Checkbox,
-  Chip,
   CircularProgress,
   FormControlLabel,
   Stack,
@@ -712,37 +711,8 @@ export default function MapPage() {
   }
 
   return (
-    <Stack spacing={2}>
+    <Stack spacing={1}>
       <PageHeader title="Map">
-        <Stack
-          direction="row"
-          spacing={1}
-          useFlexGap
-          sx={{ flexWrap: 'wrap' }}
-          aria-label="Marker colour legend"
-          role="group"
-        >
-          {mode === 'waypoints' ? (
-            <>
-              <Chip
-                size="small"
-                label="Not started"
-                sx={{ border: `2px solid ${markerColors.notStarted}`, bgcolor: 'white' }}
-              />
-              <Chip
-                size="small"
-                label="Complete"
-                sx={{ border: `2px solid ${markerColors.complete}`, bgcolor: 'white' }}
-              />
-            </>
-          ) : (
-            <Chip
-              size="small"
-              label="Activity"
-              sx={{ border: `2px solid ${markerColors.activity}`, bgcolor: 'white' }}
-            />
-          )}
-        </Stack>
         <Tabs
           value={mode}
           onChange={(_, nextMode: MapMode) => {
@@ -758,6 +728,49 @@ export default function MapPage() {
         </Tabs>
       </PageHeader>
       {error && <Alert severity="error">{error}</Alert>}
+      <Card>
+        <CardContent>
+          <Stack
+            component="form"
+            spacing={1}
+            onSubmit={(event) => {
+              event.preventDefault()
+              void findNearby()
+            }}
+          >
+            <Typography variant="h6">Find nearby waypoints</Typography>
+            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
+              <TextField
+                label="Nearby origin"
+                value={originQuery}
+                onChange={(event) => setOriginQuery(event.target.value)}
+                helperText="Temporary origin; results use straight-line distance."
+                size="small"
+                sx={{ flex: { sm: 1 }, minWidth: 0 }}
+              />
+              <Button type="submit" variant="contained" sx={{ alignSelf: { sm: 'flex-start' } }}>
+                Search
+              </Button>
+            </Stack>
+          </Stack>
+          {originResults.length > 0 && (
+            <Stack spacing={1} sx={{ mt: 2 }}>
+              <Typography variant="h6">Choose a nearby origin</Typography>
+              <Typography color="text.secondary">
+                Azure Maps found multiple approximate matches. Select the intended place.
+              </Typography>
+              {originResults.map((result, index) => (
+                <Button
+                  key={`${result.address?.freeformAddress ?? 'result'}-${index}`}
+                  onClick={() => selectOrigin(result)}
+                >
+                  {result.address?.freeformAddress ?? 'Unnamed Azure Maps result'}
+                </Button>
+              ))}
+            </Stack>
+          )}
+        </CardContent>
+      </Card>
       {isMobile && (
         <ToggleButtonGroup
           exclusive
@@ -809,7 +822,7 @@ export default function MapPage() {
                     key={activity.activityId}
                     to={`/activities/${activity.activityId}`}
                     name={activityDisplayName(activity)}
-complete={true}
+                    complete={true}
                     tier={activity.category}
                     distance={formatMiles(miles)}
                     date={activity.date}
@@ -898,49 +911,6 @@ complete={true}
           </Box>
         </Box>
       </Stack>
-      <Card>
-        <CardContent>
-          <Stack
-            component="form"
-            spacing={2}
-            onSubmit={(event) => {
-              event.preventDefault()
-              void findNearby()
-            }}
-          >
-            <Typography variant="h6">Find nearby waypoints</Typography>
-            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
-              <TextField
-                label="Nearby origin"
-                value={originQuery}
-                onChange={(event) => setOriginQuery(event.target.value)}
-                helperText="Temporary origin; results use straight-line distance."
-                size="small"
-                sx={{ flex: { sm: 1 }, minWidth: 0 }}
-              />
-              <Button type="submit" variant="contained" sx={{ alignSelf: { sm: 'flex-start' } }}>
-                Search
-              </Button>
-            </Stack>
-          </Stack>
-          {originResults.length > 0 && (
-            <Stack spacing={1} sx={{ mt: 2 }}>
-              <Typography variant="h6">Choose a nearby origin</Typography>
-              <Typography color="text.secondary">
-                Azure Maps found multiple approximate matches. Select the intended place.
-              </Typography>
-              {originResults.map((result, index) => (
-                <Button
-                  key={`${result.address?.freeformAddress ?? 'result'}-${index}`}
-                  onClick={() => selectOrigin(result)}
-                >
-                  {result.address?.freeformAddress ?? 'Unnamed Azure Maps result'}
-                </Button>
-              ))}
-            </Stack>
-          )}
-        </CardContent>
-      </Card>
       {waypointWithoutCoordinates + activityWithoutCoordinates > 0 && (
         <Alert severity="info">
           {waypointWithoutCoordinates} waypoint{waypointWithoutCoordinates === 1 ? '' : 's'} and{' '}

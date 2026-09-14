@@ -178,7 +178,7 @@ describe('MapPage', () => {
     mapEvents.popupContent = undefined
   })
 
-  it('renders accessible layer, status, and nearby controls', async () => {
+  it('renders accessible layer and nearby controls without a marker legend', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, text: () => Promise.resolve('Sign in required') }))
     render(
       <MemoryRouter>
@@ -193,7 +193,7 @@ describe('MapPage', () => {
     expect(screen.getByRole('heading', { name: 'Nearest visible waypoints' })).toBeInTheDocument()
     expect(screen.getByLabelText('Azure Maps interactive map')).toBeInTheDocument()
     expect(screen.getByRole('tabpanel')).toHaveAttribute('aria-labelledby', 'waypoints-tab')
-    expect(screen.getByRole('group', { name: 'Marker colour legend' })).toBeInTheDocument()
+    expect(screen.queryByRole('group', { name: 'Marker colour legend' })).not.toBeInTheDocument()
     const user = userEvent.setup()
     await user.click(screen.getByRole('button', { name: 'Waypoint filters (4 of 4 statuses selected)' }))
     expect(screen.getByRole('checkbox', { name: 'Gold' })).toBeChecked()
