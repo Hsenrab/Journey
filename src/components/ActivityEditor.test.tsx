@@ -417,6 +417,27 @@ describe('ActivityEditor', () => {
     await user.click(screen.getByRole('button', { name: 'Load into form' }))
     expect(screen.getByText(/Remove 'activityId' — IDs are assigned automatically./)).toBeInTheDocument()
   })
+
+  it('shows an inline error when clipboard write is unavailable', async () => {
+    const user = userEvent.setup()
+    renderEditor()
+    const originalClipboard = navigator.clipboard
+    Object.defineProperty(navigator, 'clipboard', {
+      configurable: true,
+      value: undefined,
+    })
+
+    try {
+      await user.click(screen.getByRole('tab', { name: 'Paste JSON' }))
+      await user.click(screen.getByRole('button', { name: 'Copy example JSON' }))
+      expect(screen.getByText('Clipboard is unavailable in this browser.')).toBeInTheDocument()
+    } finally {
+      Object.defineProperty(navigator, 'clipboard', {
+        configurable: true,
+        value: originalClipboard,
+      })
+    }
+  })
 })
 
 function dataWaypointId(data: ReturnType<typeof createDefaultData>) {

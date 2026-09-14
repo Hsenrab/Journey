@@ -326,11 +326,14 @@ export function ActivityEditor({
               <Stack direction="row" spacing={1}>
                 <Button
                   onClick={() => {
-                    void navigator.clipboard
-                      .writeText(JSON.stringify(activityImportExample, null, 2))
-                      .catch((error) => {
-                        setJsonError(error instanceof Error ? error.message : String(error))
-                      })
+                    const clipboard = navigator.clipboard
+                    if (!clipboard?.writeText) {
+                      setJsonError('Clipboard is unavailable in this browser.')
+                      return
+                    }
+                    void clipboard.writeText(JSON.stringify(activityImportExample, null, 2)).catch((error) => {
+                      setJsonError(error instanceof Error ? error.message : String(error))
+                    })
                   }}
                 >
                   Copy example JSON
