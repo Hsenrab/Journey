@@ -1,6 +1,6 @@
 import { act, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { MemoryRouter } from 'react-router-dom'
+import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createDefaultData } from '../services/storage'
 import { WaypointsProvider } from '../features/journey/JourneyContext'
@@ -521,6 +521,48 @@ describe('MapPage', () => {
     expect(await screen.findByRole('status')).toHaveTextContent('Opening waypoint details.')
     act(() => mapEvents.popupClose?.())
     expect(screen.queryByText('Opening waypoint details.')).not.toBeInTheDocument()
+  })
+
+  it('navigates via the router when a popup activity link is clicked', async () => {
+    const data = createDefaultData()
+    const waypoint = data.waypoints[0]!
+    waypoint.location = { ...waypoint.location, latitude: 51.84, longitude: -2.15 }
+    data.activities = [
+      {
+        activityId: 'linked-activity',
+        ideaIds: [],
+        waypointId: waypoint.waypointId,
+        date: '2026-08-11',
+        category: 'silver',
+        location: { kind: 'coordinates', latitude: 51.85, longitude: -2.14 },
+        notes: '',
+        referenceIds: [],
+        photoReferenceIds: [],
+        createdAt: '2026-08-11T00:00:00.000Z',
+        updatedAt: '2026-08-11T00:00:00.000Z',
+      },
+    ]
+    localStorage.setItem('waypoints-v1', JSON.stringify(data))
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(jsonResponse({ token: 'entra', expiresOn: '2026-01-01', clientId: 'maps-client-id' })),
+    )
+    render(
+      <MemoryRouter initialEntries={['/map']}>
+        <WaypointsProvider>
+          <Routes>
+            <Route path="/map" element={<MapPage />} />
+            <Route path="/activities/:activityId" element={<div>Activity details</div>} />
+          </Routes>
+        </WaypointsProvider>
+      </MemoryRouter>,
+    )
+    await vi.waitFor(() => expect(mapEvents.click).toBeDefined())
+    mapEvents.click!({ shapes: [{ getProperties: () => ({ waypointId: waypoint.waypointId }) }] })
+    const link = mapEvents.popupContent?.querySelector('a')
+    expect(link).toHaveAttribute('href', '/activities/linked-activity')
+    await userEvent.click(link!)
+    expect(await screen.findByText('Activity details')).toBeInTheDocument()
   })
 
   it('shows an empty-state popup when a waypoint has no recorded activities', async () => {
