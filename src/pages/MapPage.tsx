@@ -201,10 +201,15 @@ async function getMapsToken(): Promise<MapsToken> {
   return responseJson<MapsToken>(response, 'Map access')
 }
 
+const MIN_MAP_HEIGHT = 320
+const MAP_BOTTOM_MARGIN = 24
+
 export default function MapPage() {
   const navigate = useNavigate()
   const { data, statusFor } = useWaypoints()
   const container = useRef<HTMLDivElement>(null)
+  const mapBox = useRef<HTMLDivElement>(null)
+  const filters = useRef<HTMLDivElement>(null)
   const map = useRef<atlas.Map | null>(null)
   const mapPopup = useRef<atlas.Popup | null>(null)
   const waypointSource = useRef<atlas.source.DataSource | null>(null)
@@ -222,12 +227,43 @@ export default function MapPage() {
   const [originResults, setOriginResults] = useState<SearchResult[]>([])
   const theme = useTheme()
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'), { noSsr: true })
+  const [mapHeight, setMapHeight] = useState(MIN_MAP_HEIGHT)
 
   useEffect(() => {
     void getMapsToken()
       .then(setToken)
       .catch((cause: unknown) => setError(cause instanceof Error ? cause.message : String(cause)))
   }, [])
+
+  useEffect(() => {
+    const element = mapBox.current
+    if (!element) return
+
+    const updateHeight = () => {
+      const top = element.getBoundingClientRect().top
+      const available = window.innerHeight - top - MAP_BOTTOM_MARGIN
+      setMapHeight(Math.max(available, MIN_MAP_HEIGHT))
+    }
+
+    updateHeight()
+    window.addEventListener('resize', updateHeight)
+
+    let observer: ResizeObserver | undefined
+    if (typeof ResizeObserver !== 'undefined' && filters.current) {
+      observer = new ResizeObserver(updateHeight)
+      observer.observe(filters.current)
+    }
+
+    return () => {
+      window.removeEventListener('resize', updateHeight)
+      observer?.disconnect()
+    }
+  }, [error])
+
+  useEffect(() => {
+    if (!mapReady) return
+    map.current?.resize()
+  }, [mapHeight, mapReady])
 
   useEffect(() => {
     if (!token || !container.current || map.current) return
@@ -597,7 +633,11 @@ export default function MapPage() {
           }}
         >
           <Box id="map-panel" role="tabpanel" aria-labelledby={`${mode}-tab`} tabIndex={0}>
-            <Stack spacing={1.5} sx={{ p: { xs: 1.5, sm: 2 }, borderBottom: '1px solid', borderColor: 'divider' }}>
+            <Stack
+              ref={filters}
+              spacing={1.5}
+              sx={{ p: { xs: 1.5, sm: 2 }, borderBottom: '1px solid', borderColor: 'divider' }}
+            >
               {mode === 'waypoints' && (
                 <Accordion disableGutters elevation={0} sx={{ '&::before': { display: 'none' } }}>
                   <AccordionSummary expandIcon={<ExpandMoreIcon />} sx={{ px: 0, minHeight: 40 }}>
@@ -631,7 +671,7 @@ export default function MapPage() {
                 Select a marker for details
               </Typography>
             </Stack>
-            <Box sx={{ position: 'relative', height: { xs: 360, sm: 480 } }}>
+            <Box ref={mapBox} sx={{ position: 'relative', height: mapHeight }}>
               <Box ref={container} aria-label="Azure Maps interactive map" sx={{ height: '100%', width: '100%' }} />
               {!mapReady && !error && (
                 <Stack
