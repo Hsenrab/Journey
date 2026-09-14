@@ -341,7 +341,8 @@ describe('ActivityEditor', () => {
     }
 
     await user.click(screen.getByRole('tab', { name: 'Paste JSON' }))
-    await user.type(screen.getByLabelText('Activity JSON'), JSON.stringify(payload))
+    await user.click(screen.getByLabelText('Activity JSON'))
+    await user.paste(JSON.stringify(payload))
     await user.click(screen.getByRole('button', { name: 'Load into form' }))
     await user.click(screen.getByRole('button', { name: 'Save' }))
 
@@ -365,14 +366,15 @@ describe('ActivityEditor', () => {
     await user.click(screen.getByRole('tab', { name: 'Paste JSON' }))
     const input = screen.getByLabelText('Activity JSON')
 
-    await user.type(input, '{bad')
+    await user.click(input)
+    await user.paste('{bad')
     await user.click(screen.getByRole('button', { name: 'Load into form' }))
     expect(screen.getByText('Invalid JSON. Paste a valid JSON object.')).toBeInTheDocument()
     expect(input).toHaveValue('{bad')
 
     await user.clear(input)
-    await user.type(
-      input,
+    await user.click(input)
+    await user.paste(
       JSON.stringify({
         date: '2026-09-01',
         notes: 123,
@@ -394,13 +396,14 @@ describe('ActivityEditor', () => {
     await user.click(screen.getByRole('tab', { name: 'Paste JSON' }))
     const input = screen.getByLabelText('Activity JSON')
 
-    await user.type(input, '[]')
+    await user.click(input)
+    await user.paste('[]')
     await user.click(screen.getByRole('button', { name: 'Load into form' }))
     expect(screen.getByText('Paste a single object, not an array.')).toBeInTheDocument()
 
     await user.clear(input)
-    await user.type(
-      input,
+    await user.click(input)
+    await user.paste(
       JSON.stringify({
         activityId: 'activity-1',
         date: '2026-09-01',

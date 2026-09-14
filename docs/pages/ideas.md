@@ -45,8 +45,15 @@ more activities through activity `ideaIds`.
   "waypointIds": [],
   "planningState": "active",
   "difficulty": 1,
-  "location": { "placeName": "Brockworth", "addressOrRegion": "Gloucestershire", "source": "Manual research", "approximate": true },
-  "references": [{ "title": "Route ideas", "url": "https://example.com/route", "description": "", "previewImageUrl": "" }]
+  "location": {
+    "placeName": "Brockworth",
+    "addressOrRegion": "Gloucestershire",
+    "source": "Manual research",
+    "approximate": true
+  },
+  "references": [
+    { "title": "Route ideas", "url": "https://example.com/route", "description": "", "previewImageUrl": "" }
+  ]
 }
 ```
 

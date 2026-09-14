@@ -251,7 +251,8 @@ describe('IdeaEditor', () => {
     }
 
     await user.click(screen.getByRole('tab', { name: 'Paste JSON' }))
-    await user.type(screen.getByLabelText('Idea JSON'), JSON.stringify(payload))
+    await user.click(screen.getByLabelText('Idea JSON'))
+    await user.paste(JSON.stringify(payload))
     await user.click(screen.getByRole('button', { name: 'Load into form' }))
     await user.click(screen.getByRole('button', { name: 'Save' }))
 
@@ -274,14 +275,15 @@ describe('IdeaEditor', () => {
     await user.click(screen.getByRole('tab', { name: 'Paste JSON' }))
     const input = screen.getByLabelText('Idea JSON')
 
-    await user.type(input, '{bad')
+    await user.click(input)
+    await user.paste('{bad')
     await user.click(screen.getByRole('button', { name: 'Load into form' }))
     expect(screen.getByText('Invalid JSON. Paste a valid JSON object.')).toBeInTheDocument()
     expect(input).toHaveValue('{bad')
 
     await user.clear(input)
-    await user.type(
-      input,
+    await user.click(input)
+    await user.paste(
       JSON.stringify({
         title: 'Bad draft',
         description: 'x',
@@ -304,13 +306,14 @@ describe('IdeaEditor', () => {
     await user.click(screen.getByRole('tab', { name: 'Paste JSON' }))
     const input = screen.getByLabelText('Idea JSON')
 
-    await user.type(input, '[]')
+    await user.click(input)
+    await user.paste('[]')
     await user.click(screen.getByRole('button', { name: 'Load into form' }))
     expect(screen.getByText('Paste a single object, not an array.')).toBeInTheDocument()
 
     await user.clear(input)
-    await user.type(
-      input,
+    await user.click(input)
+    await user.paste(
       JSON.stringify({
         ideaId: 'idea-1',
         title: 'Bad draft',

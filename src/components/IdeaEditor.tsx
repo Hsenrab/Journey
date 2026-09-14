@@ -82,8 +82,13 @@ const ideaImportExample = {
   waypointIds: [],
   planningState: 'active',
   difficulty: 1,
-  location: { placeName: 'Brockworth', addressOrRegion: 'Gloucestershire', source: 'Manual research', approximate: true },
-  references: [{ title: 'Route ideas', url: 'https://example.com/route', description: '', previewImageUrl: '' }],
+  location: {
+    placeName: 'Brockworth',
+    addressOrRegion: 'Gloucestershire',
+    source: 'Manual research',
+    approximate: true,
+  },
+  references: [{ title: 'Route ideas', url: 'https://example.com/route' }],
 }
 
 function collectForbiddenIdFields(value: unknown, ids = new Set<string>()): Set<string> {
@@ -394,7 +399,27 @@ export function IdeaEditor({
                       return
                     }
 
-                    const references = ReferenceSchema.omit({ referenceId: true }).array().safeParse(payload.references)
+                    const normalizedReferences = Array.isArray(payload.references)
+                      ? payload.references.map((entry) => {
+                          if (!entry || typeof entry !== 'object') return entry
+                          const reference = entry as Record<string, unknown>
+                          return {
+                            ...reference,
+                            description:
+                              typeof reference.description === 'string' && !reference.description.trim()
+                                ? undefined
+                                : reference.description,
+                            previewImageUrl:
+                              typeof reference.previewImageUrl === 'string' && !reference.previewImageUrl.trim()
+                                ? undefined
+                                : reference.previewImageUrl,
+                          }
+                        })
+                      : payload.references
+
+                    const references = ReferenceSchema.omit({ referenceId: true })
+                      .array()
+                      .safeParse(normalizedReferences)
                     const planningState = PlanningStateSchema.safeParse(payload.planningState)
                     const difficulty = DifficultySchema.safeParse(payload.difficulty)
 
@@ -486,225 +511,242 @@ export function IdeaEditor({
           )}
           {(!addMode || mode === 'form') && (
             <>
-          {errorMessage && <Alert severity="error">{errorMessage}</Alert>}
-          <TextField
-            label="Title"
-            value={title}
-            onChange={(event) => setTitle(event.target.value)}
-            error={Boolean(errors.title)}
-            helperText={errors.title}
-          />
-          <TextField label="Description" value={description} onChange={(event) => setDescription(event.target.value)} />
-          <TextField
-            label="Notes"
-            value={notes}
-            onChange={(event) => setNotes(event.target.value)}
-            multiline
-            minRows={4}
-          />
-          <FormControl>
-            <InputLabel id="planning-state-label">Planning state</InputLabel>
-            <Select
-              labelId="planning-state-label"
-              label="Planning state"
-              value={planningState}
-              onChange={(event) => setPlanningState(event.target.value as Idea['planningState'])}
-            >
-              {planningStates.map((state) => (
-                <MenuItem key={state} value={state}>
-                  {planningStateLabels[state]}
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
-          {planningState === 'rejected' && (
-            <TextField
-              label="Rejection reason"
-              value={rejectionReason}
-              onChange={(event) => setRejectionReason(event.target.value)}
-              error={Boolean(errors.rejectionReason)}
-              helperText={errors.rejectionReason}
-            />
-          )}
-          <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
-            <Typography variant="body2" color="text.secondary">
-              Difficulty guidance
-            </Typography>
-            <Tooltip title="Difficulty reflects overall commitment and complexity, not just physical effort. Use judgement.">
-              <IconButton aria-label="Difficulty guidance" size="small">
-                <InfoOutlinedIcon fontSize="small" />
-              </IconButton>
-            </Tooltip>
-          </Stack>
-          <FormControl>
-            <InputLabel id="difficulty-label">Difficulty</InputLabel>
-            <Select
-              labelId="difficulty-label"
-              label="Difficulty"
-              value={difficulty}
-              onChange={(event) => setDifficulty(Number(event.target.value) as Idea['difficulty'])}
-              aria-describedby={difficultyHelpId}
-            >
-              {difficulties.map((level) => (
-                <MenuItem key={level} value={level}>
-                  {difficultyLabels[level]}
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
-          <Typography id={difficultyHelpId} color="text.secondary">
-            {difficultyLabels[difficulty]}: {difficultyDescriptions[difficulty]}
-          </Typography>
-          <Typography color="text.secondary">
-            Difficulty scale: Easy, Moderate, Involved, and Ambitious. One factor may outweigh the others.
-          </Typography>
-          <Autocomplete
-            multiple
-            options={data.waypoints}
-            value={data.waypoints.filter((waypoint) => waypointIds.includes(waypoint.waypointId))}
-            isOptionEqualToValue={(option, value) => option.waypointId === value.waypointId}
-            getOptionLabel={(option) => option.title}
-            onChange={(_, values) => setWaypointIds(values.map((value) => value.waypointId))}
-            renderInput={(params) => <TextField {...params} label="Linked waypoints" />}
-          />
-          <Stack spacing={1}>
-            <Typography variant="h6">Location (optional)</Typography>
-            <TextField label="Place name" value={placeName} onChange={(event) => setPlaceName(event.target.value)} />
-            <TextField
-              label="Address or region"
-              value={addressOrRegion}
-              onChange={(event) => setAddressOrRegion(event.target.value)}
-            />
-            <TextField label="Source" value={source} onChange={(event) => setSource(event.target.value)} />
-            <TextField label="Latitude" value={latitude} onChange={(event) => setLatitude(event.target.value)} />
-            <TextField label="Longitude" value={longitude} onChange={(event) => setLongitude(event.target.value)} />
-            {errors.coordinates && <Typography color="error">{errors.coordinates}</Typography>}
-            <FormControlLabel
-              control={<Checkbox checked={approximate} onChange={(event) => setApproximate(event.target.checked)} />}
-              label="Approximate location"
-            />
-          </Stack>
-          <Stack spacing={1}>
-            <Typography variant="h6">References</Typography>
-            {references.map((reference, index) => (
-              <Box
-                key={reference.referenceId ?? `reference-${index}`}
-                sx={{ border: 1, borderColor: 'divider', borderRadius: 1, p: 2 }}
-              >
-                <Stack spacing={1}>
-                  <TextField
-                    label="Reference title"
-                    value={reference.title}
-                    onChange={(event) =>
-                      setReferences((current) =>
-                        current.map((item, itemIndex) =>
-                          itemIndex === index ? { ...item, title: event.target.value } : item,
-                        ),
-                      )
+              {errorMessage && <Alert severity="error">{errorMessage}</Alert>}
+              <TextField
+                label="Title"
+                value={title}
+                onChange={(event) => setTitle(event.target.value)}
+                error={Boolean(errors.title)}
+                helperText={errors.title}
+              />
+              <TextField
+                label="Description"
+                value={description}
+                onChange={(event) => setDescription(event.target.value)}
+              />
+              <TextField
+                label="Notes"
+                value={notes}
+                onChange={(event) => setNotes(event.target.value)}
+                multiline
+                minRows={4}
+              />
+              <FormControl>
+                <InputLabel id="planning-state-label">Planning state</InputLabel>
+                <Select
+                  labelId="planning-state-label"
+                  label="Planning state"
+                  value={planningState}
+                  onChange={(event) => setPlanningState(event.target.value as Idea['planningState'])}
+                >
+                  {planningStates.map((state) => (
+                    <MenuItem key={state} value={state}>
+                      {planningStateLabels[state]}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+              {planningState === 'rejected' && (
+                <TextField
+                  label="Rejection reason"
+                  value={rejectionReason}
+                  onChange={(event) => setRejectionReason(event.target.value)}
+                  error={Boolean(errors.rejectionReason)}
+                  helperText={errors.rejectionReason}
+                />
+              )}
+              <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
+                <Typography variant="body2" color="text.secondary">
+                  Difficulty guidance
+                </Typography>
+                <Tooltip title="Difficulty reflects overall commitment and complexity, not just physical effort. Use judgement.">
+                  <IconButton aria-label="Difficulty guidance" size="small">
+                    <InfoOutlinedIcon fontSize="small" />
+                  </IconButton>
+                </Tooltip>
+              </Stack>
+              <FormControl>
+                <InputLabel id="difficulty-label">Difficulty</InputLabel>
+                <Select
+                  labelId="difficulty-label"
+                  label="Difficulty"
+                  value={difficulty}
+                  onChange={(event) => setDifficulty(Number(event.target.value) as Idea['difficulty'])}
+                  aria-describedby={difficultyHelpId}
+                >
+                  {difficulties.map((level) => (
+                    <MenuItem key={level} value={level}>
+                      {difficultyLabels[level]}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+              <Typography id={difficultyHelpId} color="text.secondary">
+                {difficultyLabels[difficulty]}: {difficultyDescriptions[difficulty]}
+              </Typography>
+              <Typography color="text.secondary">
+                Difficulty scale: Easy, Moderate, Involved, and Ambitious. One factor may outweigh the others.
+              </Typography>
+              <Autocomplete
+                multiple
+                options={data.waypoints}
+                value={data.waypoints.filter((waypoint) => waypointIds.includes(waypoint.waypointId))}
+                isOptionEqualToValue={(option, value) => option.waypointId === value.waypointId}
+                getOptionLabel={(option) => option.title}
+                onChange={(_, values) => setWaypointIds(values.map((value) => value.waypointId))}
+                renderInput={(params) => <TextField {...params} label="Linked waypoints" />}
+              />
+              <Stack spacing={1}>
+                <Typography variant="h6">Location (optional)</Typography>
+                <TextField
+                  label="Place name"
+                  value={placeName}
+                  onChange={(event) => setPlaceName(event.target.value)}
+                />
+                <TextField
+                  label="Address or region"
+                  value={addressOrRegion}
+                  onChange={(event) => setAddressOrRegion(event.target.value)}
+                />
+                <TextField label="Source" value={source} onChange={(event) => setSource(event.target.value)} />
+                <TextField label="Latitude" value={latitude} onChange={(event) => setLatitude(event.target.value)} />
+                <TextField label="Longitude" value={longitude} onChange={(event) => setLongitude(event.target.value)} />
+                {errors.coordinates && <Typography color="error">{errors.coordinates}</Typography>}
+                <FormControlLabel
+                  control={
+                    <Checkbox checked={approximate} onChange={(event) => setApproximate(event.target.checked)} />
+                  }
+                  label="Approximate location"
+                />
+              </Stack>
+              <Stack spacing={1}>
+                <Typography variant="h6">References</Typography>
+                {references.map((reference, index) => (
+                  <Box
+                    key={reference.referenceId ?? `reference-${index}`}
+                    sx={{ border: 1, borderColor: 'divider', borderRadius: 1, p: 2 }}
+                  >
+                    <Stack spacing={1}>
+                      <TextField
+                        label="Reference title"
+                        value={reference.title}
+                        onChange={(event) =>
+                          setReferences((current) =>
+                            current.map((item, itemIndex) =>
+                              itemIndex === index ? { ...item, title: event.target.value } : item,
+                            ),
+                          )
+                        }
+                        error={Boolean(errors[`reference-${index}-title`])}
+                        helperText={errors[`reference-${index}-title`]}
+                      />
+                      <TextField
+                        label="Reference URL"
+                        value={reference.url}
+                        onChange={(event) =>
+                          setReferences((current) =>
+                            current.map((item, itemIndex) =>
+                              itemIndex === index ? { ...item, url: event.target.value } : item,
+                            ),
+                          )
+                        }
+                        error={Boolean(errors[`reference-${index}-url`])}
+                        helperText={errors[`reference-${index}-url`]}
+                      />
+                      <TextField
+                        label="Reference description"
+                        value={reference.description}
+                        onChange={(event) =>
+                          setReferences((current) =>
+                            current.map((item, itemIndex) =>
+                              itemIndex === index ? { ...item, description: event.target.value } : item,
+                            ),
+                          )
+                        }
+                      />
+                      <TextField
+                        label="Preview image URL"
+                        value={reference.previewImageUrl}
+                        onChange={(event) =>
+                          setReferences((current) =>
+                            current.map((item, itemIndex) =>
+                              itemIndex === index ? { ...item, previewImageUrl: event.target.value } : item,
+                            ),
+                          )
+                        }
+                        error={Boolean(errors[`reference-${index}-preview`])}
+                        helperText={errors[`reference-${index}-preview`]}
+                      />
+                      <Stack direction="row" spacing={1}>
+                        <IconButton
+                          aria-label={`Move reference ${index + 1} up`}
+                          onClick={() =>
+                            setReferences((current) => {
+                              if (index === 0) return current
+                              const next = [...current]
+                              ;[next[index - 1], next[index]] = [next[index], next[index - 1]]
+                              return next
+                            })
+                          }
+                        >
+                          <ArrowUpwardIcon />
+                        </IconButton>
+                        <IconButton
+                          aria-label={`Move reference ${index + 1} down`}
+                          onClick={() =>
+                            setReferences((current) => {
+                              if (index === current.length - 1) return current
+                              const next = [...current]
+                              ;[next[index + 1], next[index]] = [next[index], next[index + 1]]
+                              return next
+                            })
+                          }
+                        >
+                          <ArrowDownwardIcon />
+                        </IconButton>
+                        <IconButton
+                          aria-label={`Remove reference ${index + 1}`}
+                          onClick={() =>
+                            setReferences((current) => current.filter((_, itemIndex) => itemIndex !== index))
+                          }
+                        >
+                          <DeleteIcon />
+                        </IconButton>
+                      </Stack>
+                    </Stack>
+                  </Box>
+                ))}
+                <Button
+                  onClick={() =>
+                    setReferences((current) => [
+                      ...current,
+                      { title: '', description: '', url: '', previewImageUrl: '' },
+                    ])
+                  }
+                >
+                  Add reference
+                </Button>
+              </Stack>
+              <Stack direction="row" spacing={1}>
+                <Button type="submit" variant="contained">
+                  {submitLabel}
+                </Button>
+                {onCancel && (
+                  <Button
+                    onClick={() =>
+                      (!dirty || window.confirm('You have unsaved changes. Leave this page?')) && onCancel()
                     }
-                    error={Boolean(errors[`reference-${index}-title`])}
-                    helperText={errors[`reference-${index}-title`]}
-                  />
-                  <TextField
-                    label="Reference URL"
-                    value={reference.url}
-                    onChange={(event) =>
-                      setReferences((current) =>
-                        current.map((item, itemIndex) =>
-                          itemIndex === index ? { ...item, url: event.target.value } : item,
-                        ),
-                      )
-                    }
-                    error={Boolean(errors[`reference-${index}-url`])}
-                    helperText={errors[`reference-${index}-url`]}
-                  />
-                  <TextField
-                    label="Reference description"
-                    value={reference.description}
-                    onChange={(event) =>
-                      setReferences((current) =>
-                        current.map((item, itemIndex) =>
-                          itemIndex === index ? { ...item, description: event.target.value } : item,
-                        ),
-                      )
-                    }
-                  />
-                  <TextField
-                    label="Preview image URL"
-                    value={reference.previewImageUrl}
-                    onChange={(event) =>
-                      setReferences((current) =>
-                        current.map((item, itemIndex) =>
-                          itemIndex === index ? { ...item, previewImageUrl: event.target.value } : item,
-                        ),
-                      )
-                    }
-                    error={Boolean(errors[`reference-${index}-preview`])}
-                    helperText={errors[`reference-${index}-preview`]}
-                  />
-                  <Stack direction="row" spacing={1}>
-                    <IconButton
-                      aria-label={`Move reference ${index + 1} up`}
-                      onClick={() =>
-                        setReferences((current) => {
-                          if (index === 0) return current
-                          const next = [...current]
-                          ;[next[index - 1], next[index]] = [next[index], next[index - 1]]
-                          return next
-                        })
-                      }
-                    >
-                      <ArrowUpwardIcon />
-                    </IconButton>
-                    <IconButton
-                      aria-label={`Move reference ${index + 1} down`}
-                      onClick={() =>
-                        setReferences((current) => {
-                          if (index === current.length - 1) return current
-                          const next = [...current]
-                          ;[next[index + 1], next[index]] = [next[index], next[index + 1]]
-                          return next
-                        })
-                      }
-                    >
-                      <ArrowDownwardIcon />
-                    </IconButton>
-                    <IconButton
-                      aria-label={`Remove reference ${index + 1}`}
-                      onClick={() => setReferences((current) => current.filter((_, itemIndex) => itemIndex !== index))}
-                    >
-                      <DeleteIcon />
-                    </IconButton>
-                  </Stack>
-                </Stack>
-              </Box>
-            ))}
-            <Button
-              onClick={() =>
-                setReferences((current) => [...current, { title: '', description: '', url: '', previewImageUrl: '' }])
-              }
-            >
-              Add reference
-            </Button>
-          </Stack>
-          <Stack direction="row" spacing={1}>
-            <Button type="submit" variant="contained">
-              {submitLabel}
-            </Button>
-            {onCancel && (
-              <Button
-                onClick={() => (!dirty || window.confirm('You have unsaved changes. Leave this page?')) && onCancel()}
-              >
-                Cancel
-              </Button>
-            )}
-            {onDelete && (
-              <Button color="error" onClick={onDelete}>
-                Delete idea
-              </Button>
-            )}
-          </Stack>
-          </>
+                  >
+                    Cancel
+                  </Button>
+                )}
+                {onDelete && (
+                  <Button color="error" onClick={onDelete}>
+                    Delete idea
+                  </Button>
+                )}
+              </Stack>
+            </>
           )}
         </Stack>
       </CardContent>
