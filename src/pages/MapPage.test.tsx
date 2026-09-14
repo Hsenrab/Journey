@@ -24,6 +24,7 @@ const mapEvents = vi.hoisted(() => ({
   sourceAdd: vi.fn(),
   clusterExpansionZoom: vi.fn(() => Promise.resolve(12)),
   setCamera: vi.fn(),
+  resize: vi.fn(),
   popupClose: undefined as (() => void) | undefined,
   popupContent: undefined as HTMLElement | undefined,
 }))
@@ -73,7 +74,7 @@ vi.mock('azure-maps-control', () => ({
     getCamera = vi.fn(() => ({ zoom: 8 }))
     setCamera = mapEvents.setCamera
     dispose = vi.fn()
-    resize = vi.fn()
+    resize = mapEvents.resize
   },
   Popup: class {
     setOptions = vi.fn((options: { content?: HTMLElement }) => {
@@ -122,6 +123,7 @@ describe('MapPage', () => {
     mapEvents.sourceAdd.mockClear()
     mapEvents.clusterExpansionZoom.mockClear()
     mapEvents.setCamera.mockClear()
+    mapEvents.resize.mockClear()
     mapEvents.popupClose = undefined
     mapEvents.popupContent = undefined
   })
@@ -405,7 +407,7 @@ describe('MapPage', () => {
       </MemoryRouter>,
     )
     await vi.waitFor(() => expect(mapEvents.sourceAdd).toHaveBeenCalled())
-    mapEvents.setCamera.mockClear()
+    mapEvents.resize.mockClear()
 
     const mapBox = screen.getByLabelText('Azure Maps interactive map').parentElement as HTMLElement
     vi.spyOn(mapBox, 'getBoundingClientRect').mockReturnValue({ top: 200 } as DOMRect)
@@ -414,6 +416,7 @@ describe('MapPage', () => {
     act(() => window.dispatchEvent(new Event('resize')))
 
     expect(getComputedStyle(mapBox).height).toBe('676px')
+    expect(mapEvents.resize).toHaveBeenCalledOnce()
   })
 
   it('recomputes the map height via ResizeObserver when the filters area changes size', async () => {
@@ -439,6 +442,7 @@ describe('MapPage', () => {
     )
     await vi.waitFor(() => expect(mapEvents.sourceAdd).toHaveBeenCalled())
     expect(capturedCallback).toBeDefined()
+    mapEvents.resize.mockClear()
 
     const mapBox = screen.getByLabelText('Azure Maps interactive map').parentElement as HTMLElement
     vi.spyOn(mapBox, 'getBoundingClientRect').mockReturnValue({ top: 150 } as DOMRect)
@@ -447,6 +451,7 @@ describe('MapPage', () => {
     act(() => capturedCallback!())
 
     expect(getComputedStyle(mapBox).height).toBe('626px')
+    expect(mapEvents.resize).toHaveBeenCalledOnce()
     vi.unstubAllGlobals()
   })
 
