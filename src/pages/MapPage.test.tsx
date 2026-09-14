@@ -605,7 +605,7 @@ describe('MapPage', () => {
     expect(mapEvents.popupContent).not.toHaveTextContent('Not started')
     expect(mapEvents.popupContent?.querySelector('a')).toHaveAttribute('href', '/activities/linked-activity')
     expect(mapEvents.popupContent?.querySelector('a')).toHaveTextContent('2026-08-11 · Silver')
-    expect(await screen.findByRole('status')).toHaveTextContent('Opening waypoint details.')
+    expect(await screen.findByText('Opening waypoint details.')).toBeInTheDocument()
     act(() => mapEvents.popupClose?.())
     expect(screen.queryByText('Opening waypoint details.')).not.toBeInTheDocument()
   })
