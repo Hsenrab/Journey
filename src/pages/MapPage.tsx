@@ -193,7 +193,7 @@ export default function MapPage() {
       window.removeEventListener('resize', updateHeight)
       observer?.disconnect()
     }
-  }, [])
+  }, [error])
 
   useEffect(() => {
     if (!mapReady) return
