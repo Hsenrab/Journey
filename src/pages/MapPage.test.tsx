@@ -31,16 +31,26 @@ const mapEvents = vi.hoisted(() => ({
 function setViewport(width: number) {
   Object.defineProperty(window, 'matchMedia', {
     writable: true,
-    value: vi.fn().mockImplementation((query: string) => ({
-      matches: query.includes('max-width') ? width < 600 : false,
-      media: query,
-      onchange: null,
-      addListener: vi.fn(),
-      removeListener: vi.fn(),
-      addEventListener: vi.fn(),
-      removeEventListener: vi.fn(),
-      dispatchEvent: vi.fn(),
-    })),
+    value: vi.fn().mockImplementation((query: string) => {
+      let matches = false
+      if (query.includes('max-width')) {
+        const match = query.match(/max-width:\s*([0-9.]+)px/)
+        matches = match ? width <= Number(match[1]!) : false
+      } else if (query.includes('min-width')) {
+        const match = query.match(/min-width:\s*([0-9.]+)px/)
+        matches = match ? width >= Number(match[1]!) : false
+      }
+      return {
+        matches,
+        media: query,
+        onchange: null,
+        addListener: vi.fn(),
+        removeListener: vi.fn(),
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+        dispatchEvent: vi.fn(),
+      }
+    }),
   })
 }
 
@@ -216,13 +226,13 @@ describe('MapPage', () => {
       </MemoryRouter>,
     )
 
-    expect(screen.getByRole('tab', { name: 'Map', selected: true })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Map' })).toHaveAttribute('aria-pressed', 'true')
     expect(screen.getByLabelText('Azure Maps interactive map')).toBeInTheDocument()
     expect(screen.queryByRole('heading', { name: 'Nearest visible waypoints' })).not.toBeInTheDocument()
 
-    await user.click(screen.getByRole('tab', { name: 'List' }))
+    await user.click(screen.getByRole('button', { name: 'List' }))
     expect(screen.getByRole('heading', { name: 'Nearest visible waypoints' })).toBeInTheDocument()
-    expect(screen.queryByLabelText('Azure Maps interactive map')).not.toBeInTheDocument()
+    expect(screen.getByLabelText('Azure Maps interactive map')).not.toBeVisible()
   })
 
   it('explains that the Maps API is missing when the environment has no linked API', async () => {

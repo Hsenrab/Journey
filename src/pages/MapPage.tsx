@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import {
   Accordion,
   AccordionDetails,
@@ -15,19 +15,22 @@ import {
   FormControlLabel,
   Stack,
   Tab,
-  Tabs,
   TextField,
+  ToggleButton,
+  ToggleButtonGroup,
+  Tabs,
   Typography,
   useMediaQuery,
 } from '@mui/material'
+import { useTheme } from '@mui/material/styles'
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
 import * as atlas from 'azure-maps-control'
 import 'azure-maps-control/dist/atlas.min.css'
 import {
   activityCoordinates,
   completionStateForWaypoint,
-  distanceMiles,
   filterWaypointsByStatus,
+  orderNearbyActivities,
   orderNearbyWaypoints,
   waypointCoordinates,
 } from '../domain/map'
@@ -83,9 +86,10 @@ type PopupContent = {
   metadata?: string[]
   summary: string
   href: string
+  onNavigate?: (href: string) => void
 }
 
-function buildPopupContent({ eyebrow, title, metadata = [], summary, href }: PopupContent) {
+function buildPopupContent({ eyebrow, title, metadata = [], summary, href, onNavigate }: PopupContent) {
   const content = document.createElement('article')
   content.className = 'journey-map-popup'
 
@@ -113,6 +117,12 @@ function buildPopupContent({ eyebrow, title, metadata = [], summary, href }: Pop
   link.className = 'journey-map-popup__action'
   link.href = href
   link.textContent = 'View details'
+  if (onNavigate) {
+    link.addEventListener('click', (event) => {
+      event.preventDefault()
+      onNavigate(href)
+    })
+  }
 
   content.append(eyebrowElement, titleElement)
   if (metadata.length > 0) content.append(metadataElement)
@@ -123,6 +133,7 @@ function buildPopupContent({ eyebrow, title, metadata = [], summary, href }: Pop
 function buildWaypointPopupContent(
   waypointTitle: string,
   activities: Array<{ activityId: string; label: string }>,
+  onNavigate?: (href: string) => void,
 ): HTMLElement {
   const content = document.createElement('article')
   content.className = 'journey-map-popup'
@@ -153,6 +164,12 @@ function buildWaypointPopupContent(
     link.className = 'journey-map-popup__list-link'
     link.href = `/activities/${activity.activityId}`
     link.textContent = activity.label
+    if (onNavigate) {
+      link.addEventListener('click', (event) => {
+        event.preventDefault()
+        onNavigate(link.getAttribute('href') ?? '')
+      })
+    }
     item.append(link)
     list.append(item)
   }
@@ -185,6 +202,7 @@ async function getMapsToken(): Promise<MapsToken> {
 }
 
 export default function MapPage() {
+  const navigate = useNavigate()
   const { data, statusFor } = useWaypoints()
   const container = useRef<HTMLDivElement>(null)
   const map = useRef<atlas.Map | null>(null)
@@ -202,7 +220,8 @@ export default function MapPage() {
   const [originQuery, setOriginQuery] = useState('Brockworth, Gloucestershire')
   const [origin, setOrigin] = useState(brockworth)
   const [originResults, setOriginResults] = useState<SearchResult[]>([])
-  const isMobile = useMediaQuery('(max-width:599.95px)')
+  const theme = useTheme()
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'), { noSsr: true })
 
   useEffect(() => {
     void getMapsToken()
@@ -319,7 +338,7 @@ export default function MapPage() {
             activityId: activity.activityId,
             label: activity.category ? `${activity.date} · ${statusLabels[activity.category]}` : activity.date,
           }))
-        const content = buildWaypointPopupContent(waypoint.title, waypointActivities)
+        const content = buildWaypointPopupContent(waypoint.title, waypointActivities, (href) => navigate(href))
         const coordinates = waypointCoordinates(waypoint)
         if (!coordinates) return
         popup.setOptions({ content, position: [coordinates.longitude, coordinates.latitude] })
@@ -344,6 +363,7 @@ export default function MapPage() {
           metadata: [activity.category ? statusLabels[activity.category] : 'Uncategorised'],
           summary: waypoint?.title ?? 'No linked waypoint',
           href: `/activities/${activity.activityId}`,
+          onNavigate: (href) => navigate(href),
         })
         popup.setOptions({ content, position: [coordinates.longitude, coordinates.latitude] })
         popup.open(instance)
@@ -363,7 +383,7 @@ export default function MapPage() {
       mapPopup.current = null
       setMapReady(false)
     }
-  }, [data.activities, data.waypoints, origin.latitude, origin.longitude, token])
+  }, [data.activities, data.waypoints, navigate, origin.latitude, origin.longitude, token])
 
   const visibleWaypoints = useMemo(
     () => filterWaypointsByStatus(data.waypoints, statuses, statusFor),
@@ -371,14 +391,7 @@ export default function MapPage() {
   )
   const nearby = useMemo(() => orderNearbyWaypoints(visibleWaypoints, origin).slice(0, 10), [origin, visibleWaypoints])
   const nearbyActivities = useMemo(
-    () =>
-      data.activities
-        .flatMap((activity) => {
-          const coordinates = activityCoordinates(activity)
-          return coordinates ? [{ activity, distanceMiles: distanceMiles(origin, coordinates) }] : []
-        })
-        .sort((a, b) => a.distanceMiles - b.distanceMiles || a.activity.date.localeCompare(b.activity.date))
-        .slice(0, 10),
+    () => orderNearbyActivities(data.activities, origin).slice(0, 10),
     [data.activities, origin],
   )
   const waypointWithoutCoordinates = data.waypoints.filter((waypoint) => !waypointCoordinates(waypoint)).length
@@ -516,125 +529,131 @@ export default function MapPage() {
       </PageHeader>
       {error && <Alert severity="error">{error}</Alert>}
       {isMobile && (
-        <Tabs value={mobilePanel} onChange={(_, value: 'map' | 'list') => setMobilePanel(value)} aria-label="Map view">
-          <Tab value="map" label="Map" />
-          <Tab value="list" label="List" />
-        </Tabs>
+        <ToggleButtonGroup
+          exclusive
+          value={mobilePanel}
+          onChange={(_, value: 'map' | 'list' | null) => {
+            if (value) setMobilePanel(value)
+          }}
+          aria-label="Map view"
+          size="small"
+        >
+          <ToggleButton value="map">Map</ToggleButton>
+          <ToggleButton value="list">List</ToggleButton>
+        </ToggleButtonGroup>
       )}
-      <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} sx={{ alignItems: 'stretch' }}>
-        {(!isMobile || mobilePanel === 'list') && (
-          <Box
-            sx={{
-              border: '1px solid',
-              borderColor: 'divider',
-              borderRadius: 1,
-              bgcolor: 'white',
-              p: { xs: 1.5, sm: 2 },
-              width: { md: 360 },
-              flexShrink: 0,
-            }}
-          >
-            <Stack spacing={1}>
-              <Typography variant="h6">
-                {mode === 'waypoints' ? 'Nearest visible waypoints' : 'Nearest activities'}
-              </Typography>
-              {mode === 'waypoints'
-                ? nearby.map(({ waypoint, distanceMiles: miles }) => (
-                    <Button
-                      key={waypoint.waypointId}
-                      component={Link}
-                      to={`/waypoints/${waypoint.waypointId}`}
-                      onClick={() => setSelectedWaypointId(waypoint.waypointId)}
-                    >
-                      {statusLabels[statusFor(waypoint.waypointId)]}: {waypoint.title} — {miles.toFixed(1)} miles
-                    </Button>
-                  ))
-                : nearbyActivities.map(({ activity, distanceMiles: miles }) => (
-                    <Button key={activity.activityId} component={Link} to={`/activities/${activity.activityId}`}>
-                      {activity.category ? `${statusLabels[activity.category]}: ` : ''}
-                      {activity.date} — {miles.toFixed(1)} miles
-                    </Button>
-                  ))}
-              {mode === 'waypoints' && nearby.length === 0 && (
-                <Typography color="text.secondary">No visible waypoints.</Typography>
-              )}
-              {mode === 'activities' && nearbyActivities.length === 0 && (
-                <Typography color="text.secondary">No mapped activities yet.</Typography>
-              )}
-              {selectedWaypointId && <Typography role="status">Opening waypoint details.</Typography>}
-            </Stack>
-          </Box>
-        )}
-        {(!isMobile || mobilePanel === 'map') && (
-          <Box
-            sx={{
-              overflow: 'hidden',
-              border: '1px solid',
-              borderColor: 'divider',
-              borderRadius: 1,
-              bgcolor: 'white',
-              flex: 1,
-            }}
-          >
-            <Box id="map-panel" role="tabpanel" aria-labelledby={`${mode}-tab`} tabIndex={0}>
-              <Stack spacing={1.5} sx={{ p: { xs: 1.5, sm: 2 }, borderBottom: '1px solid', borderColor: 'divider' }}>
-                {mode === 'waypoints' && (
-                  <Accordion disableGutters elevation={0} sx={{ '&::before': { display: 'none' } }}>
-                    <AccordionSummary expandIcon={<ExpandMoreIcon />} sx={{ px: 0, minHeight: 40 }}>
-                      Waypoint filters ({statuses.length} of {statusOrder.length} statuses selected)
-                    </AccordionSummary>
-                    <AccordionDetails sx={{ px: 0, pb: 0 }}>
-                      <Stack direction="row" useFlexGap sx={{ flexWrap: 'wrap' }}>
-                        {statusOrder.map((status) => (
-                          <FormControlLabel
-                            key={status}
-                            control={
-                              <Checkbox
-                                checked={statuses.includes(status)}
-                                onChange={(event) =>
-                                  setStatuses((current) =>
-                                    event.target.checked
-                                      ? [...current, status]
-                                      : current.filter((item) => item !== status),
-                                  )
-                                }
-                              />
-                            }
-                            label={statusLabels[status]}
-                          />
-                        ))}
-                      </Stack>
-                    </AccordionDetails>
-                  </Accordion>
-                )}
-                <Typography variant="caption" color="text.secondary">
-                  Select a marker for details
-                </Typography>
-              </Stack>
-              <Box sx={{ position: 'relative', height: { xs: 360, sm: 480 } }}>
-                <Box ref={container} aria-label="Azure Maps interactive map" sx={{ height: '100%', width: '100%' }} />
-                {!mapReady && !error && (
-                  <Stack
-                    role="status"
-                    spacing={1}
-                    sx={{
-                      position: 'absolute',
-                      inset: 0,
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      bgcolor: 'rgba(255, 255, 255, 0.88)',
-                    }}
+      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} sx={{ alignItems: 'stretch' }}>
+        <Box
+          sx={{
+            border: '1px solid',
+            borderColor: 'divider',
+            borderRadius: 1,
+            bgcolor: 'white',
+            p: { xs: 1.5, sm: 2 },
+            width: { sm: 360 },
+            flexShrink: 0,
+            display: isMobile && mobilePanel !== 'list' ? 'none' : 'block',
+          }}
+        >
+          <Stack spacing={1}>
+            <Typography variant="h6">
+              {mode === 'waypoints' ? 'Nearest visible waypoints' : 'Nearest activities'}
+            </Typography>
+            {mode === 'waypoints'
+              ? nearby.map(({ waypoint, distanceMiles: miles }) => (
+                  <Button
+                    key={waypoint.waypointId}
+                    component={Link}
+                    to={`/waypoints/${waypoint.waypointId}`}
+                    onClick={() => setSelectedWaypointId(waypoint.waypointId)}
                   >
-                    <CircularProgress size={30} color="primary" />
-                    <Typography variant="body2" color="text.secondary">
-                      Loading map
-                    </Typography>
-                  </Stack>
-                )}
-              </Box>
+                    {statusLabels[statusFor(waypoint.waypointId)]}: {waypoint.title} — {miles.toFixed(1)} miles
+                  </Button>
+                ))
+              : nearbyActivities.map(({ activity, distanceMiles: miles }) => (
+                  <Button key={activity.activityId} component={Link} to={`/activities/${activity.activityId}`}>
+                    {activity.category ? `${statusLabels[activity.category]}: ` : ''}
+                    {activity.date} — {miles.toFixed(1)} miles
+                  </Button>
+                ))}
+            {mode === 'waypoints' && nearby.length === 0 && (
+              <Typography color="text.secondary">No visible waypoints.</Typography>
+            )}
+            {mode === 'activities' && nearbyActivities.length === 0 && (
+              <Typography color="text.secondary">No mapped activities yet.</Typography>
+            )}
+            {selectedWaypointId && <Typography role="status">Opening waypoint details.</Typography>}
+          </Stack>
+        </Box>
+        <Box
+          sx={{
+            overflow: 'hidden',
+            border: '1px solid',
+            borderColor: 'divider',
+            borderRadius: 1,
+            bgcolor: 'white',
+            flex: 1,
+            display: isMobile && mobilePanel !== 'map' ? 'none' : 'block',
+          }}
+        >
+          <Box id="map-panel" role="tabpanel" aria-labelledby={`${mode}-tab`} tabIndex={0}>
+            <Stack spacing={1.5} sx={{ p: { xs: 1.5, sm: 2 }, borderBottom: '1px solid', borderColor: 'divider' }}>
+              {mode === 'waypoints' && (
+                <Accordion disableGutters elevation={0} sx={{ '&::before': { display: 'none' } }}>
+                  <AccordionSummary expandIcon={<ExpandMoreIcon />} sx={{ px: 0, minHeight: 40 }}>
+                    Waypoint filters ({statuses.length} of {statusOrder.length} statuses selected)
+                  </AccordionSummary>
+                  <AccordionDetails sx={{ px: 0, pb: 0 }}>
+                    <Stack direction="row" useFlexGap sx={{ flexWrap: 'wrap' }}>
+                      {statusOrder.map((status) => (
+                        <FormControlLabel
+                          key={status}
+                          control={
+                            <Checkbox
+                              checked={statuses.includes(status)}
+                              onChange={(event) =>
+                                setStatuses((current) =>
+                                  event.target.checked
+                                    ? [...current, status]
+                                    : current.filter((item) => item !== status),
+                                )
+                              }
+                            />
+                          }
+                          label={statusLabels[status]}
+                        />
+                      ))}
+                    </Stack>
+                  </AccordionDetails>
+                </Accordion>
+              )}
+              <Typography variant="caption" color="text.secondary">
+                Select a marker for details
+              </Typography>
+            </Stack>
+            <Box sx={{ position: 'relative', height: { xs: 360, sm: 480 } }}>
+              <Box ref={container} aria-label="Azure Maps interactive map" sx={{ height: '100%', width: '100%' }} />
+              {!mapReady && !error && (
+                <Stack
+                  role="status"
+                  spacing={1}
+                  sx={{
+                    position: 'absolute',
+                    inset: 0,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    bgcolor: 'rgba(255, 255, 255, 0.88)',
+                  }}
+                >
+                  <CircularProgress size={30} color="primary" />
+                  <Typography variant="body2" color="text.secondary">
+                    Loading map
+                  </Typography>
+                </Stack>
+              )}
             </Box>
           </Box>
-        )}
+        </Box>
       </Stack>
       <Card>
         <CardContent>
