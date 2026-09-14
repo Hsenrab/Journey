@@ -455,9 +455,9 @@ export default function MapPage() {
           <Tab id="activities-tab" aria-controls="map-panel" value="activities" label="Activities" />
         </Tabs>
       </PageHeader>
+      {error && <Alert severity="error">{error}</Alert>}
       <Box sx={{ overflow: 'hidden', border: '1px solid', borderColor: 'divider', borderRadius: 1, bgcolor: 'white' }}>
         <Box id="map-panel" role="tabpanel" aria-labelledby={`${mode}-tab`} tabIndex={0}>
-          {error && <Alert severity="error">{error}</Alert>}
           <Stack spacing={1.5} sx={{ p: { xs: 1.5, sm: 2 }, borderBottom: '1px solid', borderColor: 'divider' }}>
             {mode === 'waypoints' && (
               <Accordion disableGutters elevation={0} sx={{ '&::before': { display: 'none' } }}>
