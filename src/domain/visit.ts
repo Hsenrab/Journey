@@ -161,6 +161,7 @@ export const ExternalPhotoReferenceSchema = z.object({
 export const ActivitySchema = z
   .object({
     activityId: z.string().min(1),
+    name: z.string().trim().min(1, 'Activity name is required').optional(),
     waypointId: z.string().min(1).optional(),
     challengeId: z.string().min(1).optional(),
     ideaIds: distinctIds('Activity idea links must be distinct'),
