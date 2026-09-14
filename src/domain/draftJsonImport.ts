@@ -211,20 +211,25 @@ export function parseActivityDraftJson(value: string): ParseResult<ActivityJsonI
   const payload = keys.value
   if (payload.location && typeof payload.location === 'object' && !Array.isArray(payload.location)) {
     const location = payload.location as Record<string, unknown>
+    if (location.kind !== 'postcode' && location.kind !== 'coordinates') {
+      return {
+        ok: false,
+        error: 'JSON does not match the activity draft shape.',
+        issues: [
+          location.kind === undefined
+            ? 'location.kind: Required.'
+            : "location.kind: Expected 'postcode' or 'coordinates'.",
+        ],
+      }
+    }
     const allowedLocationFields =
-      location.kind === 'postcode'
-        ? activityPostcodeLocationAllowedFields
-        : location.kind === 'coordinates'
-          ? activityCoordinateLocationAllowedFields
-          : undefined
-    if (allowedLocationFields) {
-      const unknownLocationFields = Object.keys(location).filter((key) => !allowedLocationFields.has(key))
-      if (unknownLocationFields.length > 0) {
-        return {
-          ok: false,
-          error: 'JSON does not match the activity draft shape.',
-          issues: [unknownFieldsError('location', unknownLocationFields)],
-        }
+      location.kind === 'postcode' ? activityPostcodeLocationAllowedFields : activityCoordinateLocationAllowedFields
+    const unknownLocationFields = Object.keys(location).filter((key) => !allowedLocationFields.has(key))
+    if (unknownLocationFields.length > 0) {
+      return {
+        ok: false,
+        error: 'JSON does not match the activity draft shape.',
+        issues: [unknownFieldsError('location', unknownLocationFields)],
       }
     }
   }

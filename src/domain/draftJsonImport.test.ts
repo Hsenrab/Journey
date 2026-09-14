@@ -75,6 +75,25 @@ describe('draftJsonImport', () => {
     }
   })
 
+  it('rejects activity locations with invalid kind values', () => {
+    const result = parseActivityDraftJson(
+      JSON.stringify({
+        date: '2026-09-01',
+        notes: '',
+        ideaIds: [],
+        location: { kind: 'post-code', postcode: 'GL1 1AA' },
+        references: [],
+        photoReferences: [],
+      }),
+    )
+
+    expect(result.ok).toBe(false)
+    if (!result.ok) {
+      expect(result.error).toBe('JSON does not match the activity draft shape.')
+      expect(result.issues).toContain("location.kind: Expected 'postcode' or 'coordinates'.")
+    }
+  })
+
   it('parses a valid idea payload', () => {
     const result = parseIdeaDraftJson(
       JSON.stringify({
