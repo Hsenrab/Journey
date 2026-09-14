@@ -118,7 +118,7 @@ function buildPopupContent({ eyebrow, title, metadata, summary, href }: PopupCon
 
 type ClusterItem = { title: string; summary: string; href: string }
 
-function buildClusterPopupContent(eyebrow: string, items: ClusterItem[]) {
+function buildClusterPopupContent(eyebrow: string, total: number, items: ClusterItem[]) {
   const content = document.createElement('article')
   content.className = 'journey-map-popup'
 
@@ -128,7 +128,7 @@ function buildClusterPopupContent(eyebrow: string, items: ClusterItem[]) {
 
   const titleElement = document.createElement('h2')
   titleElement.className = 'journey-map-popup__title'
-  titleElement.textContent = `${items.length} in this group`
+  titleElement.textContent = `${total} in this group`
 
   const list = document.createElement('ul')
   list.className = 'journey-map-popup__list'
@@ -149,10 +149,16 @@ function buildClusterPopupContent(eyebrow: string, items: ClusterItem[]) {
   }
 
   content.append(eyebrowElement, titleElement, list)
+  if (items.length < total) {
+    const note = document.createElement('p')
+    note.className = 'journey-map-popup__summary'
+    note.textContent = `Showing the first ${items.length}. Zoom in to see the rest.`
+    content.append(note)
+  }
   return content
 }
 
-function clusterItem(properties: Record<string, unknown> | undefined): ClusterItem | undefined {
+function toClusterItem(properties: Record<string, unknown> | undefined): ClusterItem | undefined {
   if (!properties) return undefined
   const title = properties.label as string
   if (properties.waypointId) {
@@ -343,15 +349,16 @@ export default function MapPage() {
         const properties = shape.getProperties()
         const clusterId = properties?.cluster_id as number | undefined
         if (clusterId === undefined) return
+        const total = properties.point_count as number
         const position = shape.getCoordinates() as atlas.data.Position
         void source.getClusterLeaves(clusterId, CLUSTER_LIST_LIMIT, 0).then((leaves) => {
           const items = leaves.flatMap((leaf) => {
             const leafProperties = 'getProperties' in leaf ? leaf.getProperties() : leaf.properties
-            const item = clusterItem(leafProperties as Record<string, unknown> | undefined)
+            const item = toClusterItem(leafProperties as Record<string, unknown> | undefined)
             return item ? [item] : []
           })
           if (items.length === 0) return
-          popup.setOptions({ content: buildClusterPopupContent(eyebrow, items), position })
+          popup.setOptions({ content: buildClusterPopupContent(eyebrow, total, items), position })
           popup.open(instance)
           setSelectedWaypointId(null)
           setSelectedActivityId(null)

@@ -580,12 +580,13 @@ describe('MapPage', () => {
       mapEvents.clusterClick!({})
       mapEvents.clusterClick!({ shapes: [{ getCoordinates: () => [-2.2, 51.8] }] })
       mapEvents.clusterClick!({
-        shapes: [{ getCoordinates: () => [-2.2, 51.8], getProperties: () => ({ cluster_id: 42 }) }],
+        shapes: [{ getCoordinates: () => [-2.2, 51.8], getProperties: () => ({ cluster_id: 42, point_count: 30 }) }],
       })
     }).not.toThrow()
     await vi.waitFor(() => expect(mapEvents.clusterLeaves).toHaveBeenCalledWith(42, 25, 0))
     await vi.waitFor(() => expect(mapEvents.popupContent).toBeDefined())
-    expect(mapEvents.popupContent).toHaveTextContent('Waypoints here2 in this group')
+    expect(mapEvents.popupContent).toHaveTextContent('Waypoints here30 in this group')
+    expect(mapEvents.popupContent).toHaveTextContent('Showing the first 2. Zoom in to see the rest.')
     const links = mapEvents.popupContent!.querySelectorAll('a')
     expect(links).toHaveLength(2)
     expect(links[0]).toHaveAttribute('href', '/waypoints/waypoint-1')
@@ -608,7 +609,7 @@ describe('MapPage', () => {
     )
     await vi.waitFor(() => expect(mapEvents.clusterClick).toBeDefined())
     mapEvents.clusterClick!({
-      shapes: [{ getCoordinates: () => [-2.2, 51.8], getProperties: () => ({ cluster_id: 7 }) }],
+      shapes: [{ getCoordinates: () => [-2.2, 51.8], getProperties: () => ({ cluster_id: 7, point_count: 1 }) }],
     })
     await vi.waitFor(() => expect(mapEvents.clusterLeaves).toHaveBeenCalledWith(7, 25, 0))
     expect(mapEvents.popupContent).toBeUndefined()
