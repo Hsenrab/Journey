@@ -294,7 +294,8 @@ export function IdeaEditor({
                       return
                     }
                     void clipboard.writeText(JSON.stringify(ideaImportExample, null, 2)).catch((error) => {
-                      setJsonError(error instanceof Error ? error.message : String(error))
+                      const message = error instanceof Error ? error.message : String(error)
+                      setJsonError(`Could not copy example JSON: ${message}`)
                       setJsonIssues([])
                     })
                   }}

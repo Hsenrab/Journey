@@ -333,7 +333,8 @@ export function ActivityEditor({
                       return
                     }
                     void clipboard.writeText(JSON.stringify(activityImportExample, null, 2)).catch((error) => {
-                      setJsonError(error instanceof Error ? error.message : String(error))
+                      const message = error instanceof Error ? error.message : String(error)
+                      setJsonError(`Could not copy example JSON: ${message}`)
                       setJsonIssues([])
                     })
                   }}
