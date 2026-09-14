@@ -809,7 +809,7 @@ export default function MapPage() {
                     key={activity.activityId}
                     to={`/activities/${activity.activityId}`}
                     name={activityDisplayName(activity)}
-                    complete={Boolean(activity.category)}
+complete={true}
                     tier={activity.category}
                     distance={formatMiles(miles)}
                     date={activity.date}
