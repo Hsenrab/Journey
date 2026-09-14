@@ -28,6 +28,22 @@ const mapEvents = vi.hoisted(() => ({
   popupContent: undefined as HTMLElement | undefined,
 }))
 
+function setViewport(width: number) {
+  Object.defineProperty(window, 'matchMedia', {
+    writable: true,
+    value: vi.fn().mockImplementation((query: string) => ({
+      matches: query.includes('max-width') ? width < 600 : false,
+      media: query,
+      onchange: null,
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+    })),
+  })
+}
+
 function jsonResponse(body: unknown) {
   return {
     ok: true,
@@ -112,6 +128,7 @@ import MapPage from './MapPage'
 describe('MapPage', () => {
   beforeEach(() => {
     localStorage.clear()
+    setViewport(1200)
     mapEvents.click = undefined
     mapEvents.activityClick = undefined
     mapEvents.clusterClick = undefined
@@ -137,6 +154,8 @@ describe('MapPage', () => {
     expect(screen.getByRole('heading', { name: 'Map' })).toBeInTheDocument()
     expect(screen.getByRole('tab', { name: 'Waypoints' })).toHaveAttribute('aria-selected', 'true')
     expect(screen.getByRole('tab', { name: 'Activities' })).toHaveAttribute('aria-selected', 'false')
+    expect(screen.getByRole('heading', { name: 'Nearest visible waypoints' })).toBeInTheDocument()
+    expect(screen.getByLabelText('Azure Maps interactive map')).toBeInTheDocument()
     expect(screen.getByRole('tabpanel')).toHaveAttribute('aria-labelledby', 'waypoints-tab')
     expect(screen.getByRole('group', { name: 'Marker colour legend' })).toBeInTheDocument()
     const user = userEvent.setup()
@@ -181,7 +200,29 @@ describe('MapPage', () => {
     await user.click(screen.getByRole('tab', { name: 'Activities' }))
     expect(screen.getByRole('tab', { name: 'Waypoints' })).toHaveAttribute('aria-selected', 'false')
     expect(screen.getByRole('tab', { name: 'Activities' })).toHaveAttribute('aria-selected', 'true')
+    expect(screen.getByRole('heading', { name: 'Nearest activities' })).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /Waypoint filters/ })).not.toBeInTheDocument()
+  })
+
+  it('defaults to the map view on small screens and lets the user switch to the list', async () => {
+    setViewport(400)
+    const user = userEvent.setup()
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, text: () => Promise.resolve('Sign in required') }))
+    render(
+      <MemoryRouter>
+        <WaypointsProvider>
+          <MapPage />
+        </WaypointsProvider>
+      </MemoryRouter>,
+    )
+
+    expect(screen.getByRole('tab', { name: 'Map', selected: true })).toBeInTheDocument()
+    expect(screen.getByLabelText('Azure Maps interactive map')).toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: 'Nearest visible waypoints' })).not.toBeInTheDocument()
+
+    await user.click(screen.getByRole('tab', { name: 'List' }))
+    expect(screen.getByRole('heading', { name: 'Nearest visible waypoints' })).toBeInTheDocument()
+    expect(screen.queryByLabelText('Azure Maps interactive map')).not.toBeInTheDocument()
   })
 
   it('explains that the Maps API is missing when the environment has no linked API', async () => {
@@ -429,6 +470,21 @@ describe('MapPage', () => {
     const data = createDefaultData()
     const waypoint = data.waypoints[0]!
     waypoint.location = { ...waypoint.location, latitude: 51.84, longitude: -2.15 }
+    data.activities = [
+      {
+        activityId: 'linked-activity',
+        ideaIds: [],
+        waypointId: waypoint.waypointId,
+        date: '2026-08-11',
+        category: 'silver',
+        location: { kind: 'coordinates', latitude: 51.85, longitude: -2.14 },
+        notes: '',
+        referenceIds: [],
+        photoReferenceIds: [],
+        createdAt: '2026-08-11T00:00:00.000Z',
+        updatedAt: '2026-08-11T00:00:00.000Z',
+      },
+    ]
     localStorage.setItem('waypoints-v1', JSON.stringify(data))
     vi.stubGlobal(
       'fetch',
@@ -448,12 +504,36 @@ describe('MapPage', () => {
       mapEvents.click!({ shapes: [{ properties: { waypointId: 'unknown' } }] })
       mapEvents.click!({ shapes: [{ getProperties: () => ({ waypointId: waypoint.waypointId }) }] })
     }).not.toThrow()
-    expect(mapEvents.popupContent).toHaveTextContent(`Waypoint${waypoint.title}Not started`)
-    expect(mapEvents.popupContent?.querySelector('a')).toHaveAttribute('href', `/waypoints/${waypoint.waypointId}`)
-    expect(mapEvents.popupContent?.querySelector('a')).toHaveTextContent('View details')
+    expect(mapEvents.popupContent).toHaveTextContent(`Waypoint${waypoint.title}Recorded activities`)
+    expect(mapEvents.popupContent).not.toHaveTextContent('Not started')
+    expect(mapEvents.popupContent?.querySelector('a')).toHaveAttribute('href', '/activities/linked-activity')
+    expect(mapEvents.popupContent?.querySelector('a')).toHaveTextContent('2026-08-11 · Silver')
     expect(await screen.findByRole('status')).toHaveTextContent('Opening waypoint details.')
     act(() => mapEvents.popupClose?.())
     expect(screen.queryByText('Opening waypoint details.')).not.toBeInTheDocument()
+  })
+
+  it('shows an empty-state popup when a waypoint has no recorded activities', async () => {
+    const data = createDefaultData()
+    const waypoint = data.waypoints[0]!
+    waypoint.location = { ...waypoint.location, latitude: 51.84, longitude: -2.15 }
+    data.activities = []
+    localStorage.setItem('waypoints-v1', JSON.stringify(data))
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(jsonResponse({ token: 'entra', expiresOn: '2026-01-01', clientId: 'maps-client-id' })),
+    )
+    render(
+      <MemoryRouter>
+        <WaypointsProvider>
+          <MapPage />
+        </WaypointsProvider>
+      </MemoryRouter>,
+    )
+    await vi.waitFor(() => expect(mapEvents.click).toBeDefined())
+    mapEvents.click!({ shapes: [{ getProperties: () => ({ waypointId: waypoint.waypointId }) }] })
+    expect(mapEvents.popupContent).toHaveTextContent('No recorded activities yet')
+    expect(mapEvents.popupContent?.querySelector('a')).toBeNull()
   })
 
   it('shows activity marker details for linked and unlinked activities', async () => {
