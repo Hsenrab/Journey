@@ -31,6 +31,37 @@ describe('WaypointsContext', () => {
     expect(load().activities).toContainEqual(expect.objectContaining({ waypointId: lacockId, category: 'silver' }))
   })
 
+  it('adds a waypoint with its references and challenge links', () => {
+    const { result } = renderHook(() => useWaypoints(), { wrapper: WaypointsProvider })
+
+    act(() => {
+      result.current.addWaypoint({
+        title: 'New viewpoint',
+        description: 'A quiet viewpoint',
+        category: 'Scenic',
+        tags: ['sunrise'],
+        challengeIds: ['national-trust'],
+        completion: { mode: 'count', target: 2 },
+        location: { placeName: 'Brockworth' },
+        references: [{ title: 'Guide', url: 'https://example.com/guide' }],
+        photoReferences: [{ title: 'Photo', url: 'https://example.com/photo.jpg' }],
+      })
+    })
+
+    const waypoint = result.current.data.waypoints.find((item) => item.title === 'New viewpoint')
+    expect(waypoint).toEqual(
+      expect.objectContaining({
+        challengeIds: ['national-trust'],
+        completion: { mode: 'count', target: 2 },
+        referenceIds: [expect.any(String)],
+        photoReferenceIds: [expect.any(String)],
+      }),
+    )
+    expect(
+      result.current.data.challenges.find((challenge) => challenge.challengeId === 'national-trust')?.waypointIds,
+    ).toContain(waypoint?.waypointId)
+  })
+
   it('updates and deletes while preserving cleanup of unreferenced records', () => {
     const { result } = renderHook(() => useWaypoints(), { wrapper: WaypointsProvider })
 
