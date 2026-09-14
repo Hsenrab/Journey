@@ -100,3 +100,29 @@ body {
   outline: 3px solid #8a6d3b;
   outline-offset: 3px;
 }
+
+.journey-map-popup__list {
+  margin: 8px 0 0;
+  padding-left: 18px;
+}
+
+.journey-map-popup__list li + li {
+  margin-top: 4px;
+}
+
+.journey-map-popup__list-link {
+  color: #2e5339;
+  font-size: 0.86rem;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.journey-map-popup__list-link:hover {
+  text-decoration: underline;
+}
+
+.journey-map-popup__list-link:focus-visible {
+  border-radius: 2px;
+  outline: 3px solid #8a6d3b;
+  outline-offset: 2px;
+}

@@ -4,6 +4,7 @@ import {
   completionStateForWaypoint,
   distanceMiles,
   filterWaypointsByStatus,
+  orderNearbyActivities,
   orderNearbyWaypoints,
 } from './map'
 import type { Activity, Waypoint } from './visit'
@@ -56,6 +57,28 @@ describe('map domain helpers', () => {
     expect(results.map(({ waypoint: item }) => item.waypointId)).toEqual(['near', 'far'])
     expect(results[0]?.distanceMiles).toBeGreaterThan(0)
     expect(distanceMiles({ latitude: 51.4, longitude: -2 }, { latitude: 51.4, longitude: -2 })).toBe(0)
+  })
+
+  it('orders nearby activities in miles, omitting records without coordinates', () => {
+    const activity = (activityId: string, date: string, latitude?: number): Activity => ({
+      activityId,
+      ideaIds: [],
+      date,
+      location:
+        latitude === undefined
+          ? { kind: 'postcode', postcode: 'SN15 2LG' }
+          : { kind: 'coordinates', latitude, longitude: -2 },
+      notes: '',
+      referenceIds: [],
+      photoReferenceIds: [],
+      createdAt: '2026-08-01T00:00:00.000Z',
+      updatedAt: '2026-08-01T00:00:00.000Z',
+    })
+    const results = orderNearbyActivities(
+      [activity('far', '2026-08-03', 52), activity('missing', '2026-08-02'), activity('near', '2026-08-01', 51.5)],
+      { latitude: 51.4, longitude: -2 },
+    )
+    expect(results.map(({ activity: item }) => item.activityId)).toEqual(['near', 'far'])
   })
 
   it('derives completion from the waypoint rule, not activity award categories', () => {
