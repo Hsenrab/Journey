@@ -2,7 +2,9 @@ import { describe, expect, it } from 'vitest'
 import {
   ActivitySchema,
   IdeaSchema,
+  activitiesForWaypoint,
   activitiesUsingIdea,
+  awardableStatuses,
   completedWaypointCount,
   createActivity,
   createDemoData,
@@ -109,10 +111,13 @@ describe('demo data', () => {
       'demo-bramblewick-gardens',
       'demo-cindercombe-mill',
       'demo-lantern-hill-fort',
+      'demo-thistledown-priory',
+      'demo-marlpit-water-garden',
       'demo-wychwood-night-walk',
       'demo-puddlebrook-paddle',
       'demo-copper-kettle-trail',
       'demo-glasshouse-workshop',
+      'demo-tannery-lane-pottery',
     ])
     expect(data.waypoints.every((waypoint) => waypoint.tags.includes('Fictional'))).toBe(true)
     expect(
@@ -124,14 +129,89 @@ describe('demo data', () => {
 
   it('limits Bronze, Silver and Gold categories to the National Trust-style challenge', () => {
     const data = createDemoData()
+    const categorized = data.activities.filter((activity) => activity.category)
 
     expect(data.challenges.filter((challenge) => challenge.supportsActivityCategories)).toEqual([
       expect.objectContaining({ challengeId: 'national-trust' }),
     ])
-    expect(data.activities.find((activity) => activity.waypointId === 'demo-foxglove-manor')?.category).toBe('silver')
+    expect(categorized.every((activity) => waypointSupportsActivityCategory(data, activity.waypointId))).toBe(true)
+    for (const category of awardableStatuses) {
+      expect(categorized.filter((activity) => activity.category === category).length).toBeGreaterThan(1)
+    }
     expect(
       data.activities.find((activity) => activity.waypointId === 'demo-wychwood-night-walk')?.category,
     ).toBeUndefined()
+  })
+
+  it('mixes repeat visits, single visits and unvisited waypoints across several years', () => {
+    const data = createDemoData()
+    const visitCounts = data.waypoints.map(
+      (waypoint) => activitiesForWaypoint(data.activities, waypoint.waypointId).length,
+    )
+    const years = new Set(data.activities.map((activity) => activity.date.slice(0, 4)))
+
+    expect(activitiesForWaypoint(data.activities, 'demo-foxglove-manor')).toHaveLength(2)
+    expect(activitiesForWaypoint(data.activities, 'demo-puddlebrook-paddle')).toHaveLength(2)
+    expect(activitiesForWaypoint(data.activities, 'demo-lantern-hill-fort')).toEqual([])
+    expect(visitCounts.filter((count) => count > 1).length).toBe(2)
+    expect(visitCounts.filter((count) => count === 1).length).toBe(6)
+    expect(visitCounts.filter((count) => count === 0).length).toBe(3)
+    expect([...years].sort()).toEqual(['2024', '2025', '2026'])
+    expect(new Set(data.activities.map((activity) => activity.date.slice(0, 7))).size).toBe(8)
+  })
+
+  it('shows partial progress for every challenge that has waypoints', () => {
+    const data = createDemoData()
+    const waypointsById = new Map(data.waypoints.map((waypoint) => [waypoint.waypointId, waypoint]))
+
+    for (const challenge of data.challenges) {
+      const challengeWaypoints = challenge.waypointIds.map((waypointId) => {
+        const waypoint = waypointsById.get(waypointId)
+        if (!waypoint)
+          throw new Error(`Challenge "${challenge.challengeId}" references missing waypoint "${waypointId}"`)
+        return waypoint
+      })
+      const completed = completedWaypointCount(challengeWaypoints, data.activities)
+      if (challenge.waypointIds.length === 0) {
+        expect(completed).toBe(0)
+        continue
+      }
+      expect(completed).toBeGreaterThan(0)
+      expect(completed).toBeLessThan(challenge.waypointIds.length)
+    }
+    expect(data.challenges.filter((challenge) => challenge.waypointIds.length === 0)).toEqual([
+      expect.objectContaining({ challengeId: 'future-shortlist' }),
+    ])
+  })
+
+  it('links photo references to some waypoints and activities but not all', () => {
+    const data = createDemoData()
+    const photoIds = new Set(data.photoReferences.map((photo) => photo.photoReferenceId))
+    const linked = [...data.waypoints, ...data.activities].flatMap((entity) => entity.photoReferenceIds)
+
+    expect(photoIds.size).toBeGreaterThan(5)
+    expect(linked.every((photoReferenceId) => photoIds.has(photoReferenceId))).toBe(true)
+    expect(new Set(linked)).toEqual(photoIds)
+    expect(data.activities.filter((activity) => activity.photoReferenceIds.length > 0).length).toBeGreaterThan(3)
+    expect(data.activities.some((activity) => activity.photoReferenceIds.length === 0)).toBe(true)
+    expect(data.waypoints.some((waypoint) => waypoint.photoReferenceIds.length > 1)).toBe(true)
+    expect(data.waypoints.some((waypoint) => waypoint.photoReferenceIds.length === 0)).toBe(true)
+  })
+
+  it('shares references and categories across several waypoints', () => {
+    const data = createDemoData()
+    const referenceUse = new Map<string, number>()
+    const categoryUse = new Map<string, number>()
+    for (const waypoint of data.waypoints) {
+      for (const referenceId of waypoint.referenceIds)
+        referenceUse.set(referenceId, (referenceUse.get(referenceId) ?? 0) + 1)
+      categoryUse.set(waypoint.category, (categoryUse.get(waypoint.category) ?? 0) + 1)
+    }
+
+    expect([...referenceUse.values()].some((count) => count > 1)).toBe(true)
+    expect(data.waypoints.some((waypoint) => waypoint.referenceIds.length > 1)).toBe(true)
+    expect(data.waypoints.some((waypoint) => waypoint.referenceIds.length === 0)).toBe(true)
+    expect([...categoryUse.values()].filter((count) => count > 1).length).toBeGreaterThan(2)
   })
 })
 
@@ -239,10 +319,20 @@ describe('idea and activity relationships', () => {
   it('uses the replacement schema for demo ideas', () => {
     const data = createDemoData()
     const shared = data.ideas.find((item) => item.ideaId === 'demo-idea-orangery-tour')
+    const stateCounts = new Map<Idea['planningState'], number>()
+    for (const item of data.ideas) stateCounts.set(item.planningState, (stateCounts.get(item.planningState) ?? 0) + 1)
 
     expect(shared?.waypointIds).toEqual(['demo-foxglove-manor', 'demo-bramblewick-gardens'])
-    expect(ideaUsageCount(data.activities, 'demo-idea-orangery-tour')).toBe(2)
+    expect(ideaUsageCount(data.activities, 'demo-idea-orangery-tour')).toBe(3)
+    expect(ideaUsageCount(data.activities, 'demo-idea-heritage-open-day')).toBe(2)
+    expect(ideaUsageCount(data.activities, 'demo-idea-canal-cycle-loop')).toBe(0)
     expect(ideaUsageCount(data.activities, 'demo-idea-railway-picnic')).toBe(0)
-    expect(data.ideas.find((item) => item.planningState === 'rejected')?.rejectionReason).toBeTruthy()
+    expect(ideaUsageCount(data.activities, 'demo-idea-winter-lantern-trail')).toBe(0)
+    expect(data.ideas.filter((item) => ideaUsageCount(data.activities, item.ideaId) === 0)).toHaveLength(3)
+    for (const state of ['active', 'someday', 'rejected'] as const)
+      expect(stateCounts.get(state) ?? 0).toBeGreaterThan(1)
+    expect(data.ideas.filter((item) => item.planningState === 'rejected').every((item) => item.rejectionReason)).toBe(
+      true,
+    )
   })
 })

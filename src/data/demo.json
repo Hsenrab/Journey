@@ -18,8 +18,8 @@
         "source": "Fabricated demo data",
         "approximate": true
       },
-      "referenceIds": ["reference-demo-foxglove-manor"],
-      "photoReferenceIds": []
+      "referenceIds": ["reference-demo-foxglove-manor", "reference-demo-heritage-guide"],
+      "photoReferenceIds": ["photo-demo-foxglove-orangery"]
     },
     {
       "waypointId": "demo-bramblewick-gardens",
@@ -40,7 +40,7 @@
         "approximate": true
       },
       "referenceIds": ["reference-demo-bramblewick-gardens"],
-      "photoReferenceIds": []
+      "photoReferenceIds": ["photo-demo-bramblewick-topiary", "photo-demo-bramblewick-borders"]
     },
     {
       "waypointId": "demo-cindercombe-mill",
@@ -61,7 +61,7 @@
         "approximate": true
       },
       "referenceIds": ["reference-demo-cindercombe-mill"],
-      "photoReferenceIds": []
+      "photoReferenceIds": ["photo-demo-cindercombe-gears"]
     },
     {
       "waypointId": "demo-lantern-hill-fort",
@@ -81,7 +81,49 @@
         "source": "Fabricated demo data",
         "approximate": true
       },
-      "referenceIds": ["reference-demo-lantern-hill-fort"],
+      "referenceIds": [],
+      "photoReferenceIds": []
+    },
+    {
+      "waypointId": "demo-thistledown-priory",
+      "title": "Thistledown Priory (Demo)",
+      "description": "A fictional ruined priory with a restored cloister garden and a beekeeping demonstration.",
+      "category": "House and garden",
+      "tags": ["Fictional", "Gloucestershire-inspired", "National Trust-style", "Ruins"],
+      "challengeIds": ["national-trust", "heritage-weekend"],
+      "completion": {
+        "mode": "once"
+      },
+      "location": {
+        "placeName": "Thistledown Priory (Demo)",
+        "addressOrRegion": "Fictional Severn Vale",
+        "latitude": 51.9,
+        "longitude": -2.31,
+        "source": "Fabricated demo data",
+        "approximate": true
+      },
+      "referenceIds": ["reference-demo-thistledown-priory", "reference-demo-heritage-guide"],
+      "photoReferenceIds": ["photo-demo-thistledown-cloister"]
+    },
+    {
+      "waypointId": "demo-marlpit-water-garden",
+      "title": "Marlpit Water Garden (Demo)",
+      "description": "A fictional flooded quarry replanted as a water garden with boardwalks and dragonfly hides.",
+      "category": "Garden",
+      "tags": ["Fictional", "Gloucestershire-inspired", "National Trust-style", "Wildlife"],
+      "challengeIds": ["national-trust"],
+      "completion": {
+        "mode": "once"
+      },
+      "location": {
+        "placeName": "Marlpit Water Garden (Demo)",
+        "addressOrRegion": "Fictional Forest edge",
+        "latitude": 51.77,
+        "longitude": -2.44,
+        "source": "Fabricated demo data",
+        "approximate": true
+      },
+      "referenceIds": [],
       "photoReferenceIds": []
     },
     {
@@ -90,7 +132,7 @@
       "description": "A fictional guided woodland walk ending with hot chocolate beneath the old observatory.",
       "category": "Countryside",
       "tags": ["Fictional", "Gloucestershire-inspired", "Walking", "Evening"],
-      "challengeIds": ["local-adventures"],
+      "challengeIds": ["local-adventures", "family-days"],
       "completion": {
         "mode": "once"
       },
@@ -113,7 +155,8 @@
       "tags": ["Fictional", "Gloucestershire-inspired", "Watersports", "Family"],
       "challengeIds": ["local-adventures", "family-days"],
       "completion": {
-        "mode": "once"
+        "mode": "count",
+        "target": 3
       },
       "location": {
         "placeName": "Puddlebrook Paddle Club (Demo)",
@@ -124,7 +167,7 @@
         "approximate": true
       },
       "referenceIds": ["reference-demo-puddlebrook-paddle"],
-      "photoReferenceIds": []
+      "photoReferenceIds": ["photo-demo-puddlebrook-lake"]
     },
     {
       "waypointId": "demo-copper-kettle-trail",
@@ -132,7 +175,7 @@
       "description": "A fictional self-guided trail linking a bakery, a tiny roastery and a hilltop picnic stop.",
       "category": "Village",
       "tags": ["Fictional", "Gloucestershire-inspired", "Food", "Day trip"],
-      "challengeIds": ["local-adventures", "food-and-craft"],
+      "challengeIds": ["local-adventures", "family-days", "food-and-craft"],
       "completion": {
         "mode": "once"
       },
@@ -151,7 +194,7 @@
       "waypointId": "demo-glasshouse-workshop",
       "title": "Old Glasshouse Workshop (Demo)",
       "description": "A fictional stained-glass workshop in a converted railway goods shed.",
-      "category": "Industrial heritage",
+      "category": "Craft workshop",
       "tags": ["Fictional", "Gloucestershire-inspired", "Arts", "Workshop"],
       "challengeIds": ["food-and-craft"],
       "completion": {
@@ -166,6 +209,27 @@
         "approximate": true
       },
       "referenceIds": ["reference-demo-glasshouse-workshop"],
+      "photoReferenceIds": ["photo-demo-glasshouse-panel"]
+    },
+    {
+      "waypointId": "demo-tannery-lane-pottery",
+      "title": "Tannery Lane Pottery (Demo)",
+      "description": "A fictional riverside pottery running evening wheel-throwing tasters.",
+      "category": "Craft workshop",
+      "tags": ["Fictional", "Gloucestershire-inspired", "Arts", "Evening"],
+      "challengeIds": ["food-and-craft"],
+      "completion": {
+        "mode": "once"
+      },
+      "location": {
+        "placeName": "Tannery Lane Pottery (Demo)",
+        "addressOrRegion": "Fictional Stroud Valleys",
+        "latitude": 51.75,
+        "longitude": -2.21,
+        "source": "Fabricated demo data",
+        "approximate": true
+      },
+      "referenceIds": ["reference-demo-tannery-lane-pottery"],
       "photoReferenceIds": []
     }
   ],
@@ -173,24 +237,27 @@
     {
       "challengeId": "national-trust",
       "title": "National Trust Demo Collection (Fictional)",
-      "description": "Four wholly fabricated heritage places used to demonstrate Bronze, Silver and Gold progress.",
+      "description": "Six wholly fabricated heritage places used to demonstrate Bronze, Silver and Gold progress.",
       "waypointIds": [
         "demo-foxglove-manor",
         "demo-bramblewick-gardens",
         "demo-cindercombe-mill",
-        "demo-lantern-hill-fort"
+        "demo-lantern-hill-fort",
+        "demo-thistledown-priory",
+        "demo-marlpit-water-garden"
       ],
       "supportsActivityCategories": true
     },
     {
       "challengeId": "heritage-weekend",
       "title": "Heritage Weekend (Demo)",
-      "description": "Visit the fictional manor, garden, mill and hillfort without category scoring.",
+      "description": "Visit the fictional manor, garden, mill, hillfort and priory without category scoring.",
       "waypointIds": [
         "demo-foxglove-manor",
         "demo-bramblewick-gardens",
         "demo-cindercombe-mill",
-        "demo-lantern-hill-fort"
+        "demo-lantern-hill-fort",
+        "demo-thistledown-priory"
       ],
       "supportsActivityCategories": false
     },
@@ -205,14 +272,14 @@
       "challengeId": "family-days",
       "title": "Family Days (Demo)",
       "description": "A small fictional family activity collection.",
-      "waypointIds": ["demo-puddlebrook-paddle"],
+      "waypointIds": ["demo-wychwood-night-walk", "demo-puddlebrook-paddle", "demo-copper-kettle-trail"],
       "supportsActivityCategories": false
     },
     {
       "challengeId": "food-and-craft",
       "title": "Food and Craft (Demo)",
-      "description": "Two fictional creative day trips with no medal categories.",
-      "waypointIds": ["demo-copper-kettle-trail", "demo-glasshouse-workshop"],
+      "description": "Three fictional creative day trips with no medal categories.",
+      "waypointIds": ["demo-copper-kettle-trail", "demo-glasshouse-workshop", "demo-tannery-lane-pottery"],
       "supportsActivityCategories": false
     },
     {
@@ -243,7 +310,7 @@
     {
       "ideaId": "demo-idea-orangery-tour",
       "title": "Orangery and kitchen garden tour (Demo idea)",
-      "description": "A fabricated idea linked to two demo waypoints and already used by a demo activity.",
+      "description": "A fabricated idea linked to two demo waypoints and used by several demo activities.",
       "notes": "",
       "waypointIds": ["demo-foxglove-manor", "demo-bramblewick-gardens"],
       "planningState": "active",
@@ -264,32 +331,188 @@
       "referenceIds": [],
       "createdAt": "2026-06-03T09:00:00.000Z",
       "updatedAt": "2026-06-03T09:00:00.000Z"
+    },
+    {
+      "ideaId": "demo-idea-heritage-open-day",
+      "title": "Heritage open day (Demo idea)",
+      "description": "A fabricated idea linked to three demo waypoints and used by two demo activities.",
+      "notes": "Arrive early for the fictional guided tour at each place.",
+      "waypointIds": ["demo-cindercombe-mill", "demo-thistledown-priory", "demo-marlpit-water-garden"],
+      "planningState": "active",
+      "difficulty": 2,
+      "referenceIds": ["reference-demo-heritage-guide"],
+      "createdAt": "2026-01-12T09:00:00.000Z",
+      "updatedAt": "2026-03-22T09:00:00.000Z"
+    },
+    {
+      "ideaId": "demo-idea-winter-lantern-trail",
+      "title": "Winter lantern trail (Demo idea)",
+      "description": "A fabricated idea kept for a future winter, not yet used by any activity.",
+      "notes": "",
+      "waypointIds": ["demo-lantern-hill-fort"],
+      "planningState": "someday",
+      "difficulty": 2,
+      "referenceIds": [],
+      "createdAt": "2026-02-02T09:00:00.000Z",
+      "updatedAt": "2026-02-02T09:00:00.000Z"
+    },
+    {
+      "ideaId": "demo-idea-canal-cycle-loop",
+      "title": "Canal cycle loop (Demo idea)",
+      "description": "A fabricated idea with no waypoint links that was ruled out.",
+      "notes": "",
+      "waypointIds": [],
+      "planningState": "rejected",
+      "rejectionReason": "The fictional towpath is closed for repairs all year.",
+      "difficulty": 3,
+      "referenceIds": [],
+      "createdAt": "2026-04-04T09:00:00.000Z",
+      "updatedAt": "2026-04-04T09:00:00.000Z"
+    },
+    {
+      "ideaId": "demo-idea-craft-taster",
+      "title": "Evening craft taster (Demo idea)",
+      "description": "A fabricated idea linked to two craft waypoints and used by one demo activity.",
+      "notes": "",
+      "waypointIds": ["demo-tannery-lane-pottery", "demo-glasshouse-workshop"],
+      "planningState": "active",
+      "difficulty": 1,
+      "referenceIds": [],
+      "createdAt": "2026-05-05T09:00:00.000Z",
+      "updatedAt": "2026-07-16T09:00:00.000Z"
     }
   ],
   "activities": [
     {
-      "activityId": "activity-demo-foxglove",
+      "activityId": "activity-demo-thistledown-autumn",
+      "waypointId": "demo-thistledown-priory",
+      "challengeId": "national-trust",
+      "ideaIds": [],
+      "date": "2024-10-12",
+      "category": "bronze",
+      "location": {
+        "kind": "coordinates",
+        "latitude": 51.9,
+        "longitude": -2.31
+      },
+      "notes": "Demo autumn visit to the fictional priory cloister.",
+      "referenceIds": ["reference-demo-thistledown-priory"],
+      "photoReferenceIds": ["photo-demo-thistledown-cloister"],
+      "createdAt": "2024-10-12T15:30:00.000Z",
+      "updatedAt": "2024-10-12T15:30:00.000Z"
+    },
+    {
+      "activityId": "activity-demo-foxglove-spring",
       "waypointId": "demo-foxglove-manor",
       "challengeId": "national-trust",
       "ideaIds": ["demo-idea-orangery-tour"],
-      "date": "2026-07-01",
+      "date": "2025-04-18",
       "category": "silver",
       "location": {
         "kind": "coordinates",
         "latitude": 51.86,
         "longitude": -2.22
       },
-      "notes": "Demo visit to the fictional manor and orangery.",
+      "notes": "Demo spring visit to the fictional manor and orangery.",
       "referenceIds": ["reference-demo-foxglove-manor"],
+      "photoReferenceIds": ["photo-demo-foxglove-orangery"],
+      "createdAt": "2025-04-18T10:00:00.000Z",
+      "updatedAt": "2025-04-18T10:00:00.000Z"
+    },
+    {
+      "activityId": "activity-demo-puddlebrook-summer",
+      "waypointId": "demo-puddlebrook-paddle",
+      "challengeId": "local-adventures",
+      "ideaIds": [],
+      "date": "2025-08-23",
+      "location": {
+        "kind": "coordinates",
+        "latitude": 51.66,
+        "longitude": -1.91
+      },
+      "notes": "Demo first paddleboarding session on the fictional quarry lake.",
+      "referenceIds": [],
+      "photoReferenceIds": ["photo-demo-puddlebrook-lake"],
+      "createdAt": "2025-08-23T11:45:00.000Z",
+      "updatedAt": "2025-08-23T11:45:00.000Z"
+    },
+    {
+      "activityId": "activity-demo-bramblewick-autumn",
+      "waypointId": "demo-bramblewick-gardens",
+      "challengeId": "national-trust",
+      "ideaIds": ["demo-idea-orangery-tour"],
+      "date": "2025-09-27",
+      "category": "bronze",
+      "location": {
+        "kind": "coordinates",
+        "latitude": 51.79,
+        "longitude": -2.08
+      },
+      "notes": "Demo walk around the fictional topiary teapots.",
+      "referenceIds": ["reference-demo-bramblewick-gardens"],
+      "photoReferenceIds": ["photo-demo-bramblewick-topiary", "photo-demo-bramblewick-borders"],
+      "createdAt": "2025-09-27T14:20:00.000Z",
+      "updatedAt": "2025-09-27T14:20:00.000Z"
+    },
+    {
+      "activityId": "activity-demo-cindercombe-spring",
+      "waypointId": "demo-cindercombe-mill",
+      "challengeId": "national-trust",
+      "ideaIds": ["demo-idea-heritage-open-day"],
+      "date": "2026-03-21",
+      "category": "gold",
+      "location": {
+        "kind": "coordinates",
+        "latitude": 51.74,
+        "longitude": -2.27
+      },
+      "notes": "Demo working machinery day at the fictional watermill.",
+      "referenceIds": ["reference-demo-cindercombe-mill"],
+      "photoReferenceIds": ["photo-demo-cindercombe-gears"],
+      "createdAt": "2026-03-21T09:40:00.000Z",
+      "updatedAt": "2026-03-21T09:40:00.000Z"
+    },
+    {
+      "activityId": "activity-demo-foxglove-return",
+      "waypointId": "demo-foxglove-manor",
+      "challengeId": "national-trust",
+      "ideaIds": ["demo-idea-orangery-tour"],
+      "date": "2026-05-30",
+      "category": "gold",
+      "location": {
+        "kind": "coordinates",
+        "latitude": 51.86,
+        "longitude": -2.22
+      },
+      "notes": "Demo repeat visit a year later, this time for the fictional clockwork orangery tour.",
+      "referenceIds": ["reference-demo-foxglove-manor", "reference-demo-heritage-guide"],
       "photoReferenceIds": [],
-      "createdAt": "2026-07-01T08:00:00.000Z",
-      "updatedAt": "2026-07-01T08:00:00.000Z"
+      "createdAt": "2026-05-30T16:05:00.000Z",
+      "updatedAt": "2026-05-30T16:05:00.000Z"
+    },
+    {
+      "activityId": "activity-demo-marlpit-june",
+      "waypointId": "demo-marlpit-water-garden",
+      "challengeId": "national-trust",
+      "ideaIds": ["demo-idea-heritage-open-day"],
+      "date": "2026-06-06",
+      "category": "silver",
+      "location": {
+        "kind": "coordinates",
+        "latitude": 51.77,
+        "longitude": -2.44
+      },
+      "notes": "Demo boardwalk circuit of the fictional water garden.",
+      "referenceIds": [],
+      "photoReferenceIds": [],
+      "createdAt": "2026-06-06T12:10:00.000Z",
+      "updatedAt": "2026-06-06T12:10:00.000Z"
     },
     {
       "activityId": "activity-demo-wychwood",
       "waypointId": "demo-wychwood-night-walk",
       "challengeId": "local-adventures",
-      "ideaIds": ["demo-idea-orangery-tour", "demo-idea-midnight-swim"],
+      "ideaIds": ["demo-idea-midnight-swim"],
       "date": "2026-07-08",
       "location": {
         "kind": "coordinates",
@@ -303,10 +526,27 @@
       "updatedAt": "2026-07-08T18:15:00.000Z"
     },
     {
+      "activityId": "activity-demo-puddlebrook-return",
+      "waypointId": "demo-puddlebrook-paddle",
+      "challengeId": "local-adventures",
+      "ideaIds": [],
+      "date": "2026-07-11",
+      "location": {
+        "kind": "coordinates",
+        "latitude": 51.66,
+        "longitude": -1.91
+      },
+      "notes": "Demo second paddleboarding session; this waypoint needs a set number of visits to count as complete.",
+      "referenceIds": ["reference-demo-puddlebrook-paddle"],
+      "photoReferenceIds": ["photo-demo-puddlebrook-lake"],
+      "createdAt": "2026-07-11T10:30:00.000Z",
+      "updatedAt": "2026-07-11T10:30:00.000Z"
+    },
+    {
       "activityId": "activity-demo-glasshouse",
       "waypointId": "demo-glasshouse-workshop",
       "challengeId": "food-and-craft",
-      "ideaIds": [],
+      "ideaIds": ["demo-idea-craft-taster"],
       "date": "2026-07-16",
       "location": {
         "kind": "coordinates",
@@ -315,7 +555,7 @@
       },
       "notes": "Demo stained-glass workshop with no medal category.",
       "referenceIds": ["reference-demo-glasshouse-workshop"],
-      "photoReferenceIds": [],
+      "photoReferenceIds": ["photo-demo-glasshouse-panel"],
       "createdAt": "2026-07-16T13:00:00.000Z",
       "updatedAt": "2026-07-16T13:00:00.000Z"
     }
@@ -340,10 +580,16 @@
       "url": "https://example.com/demo/cindercombe-mill"
     },
     {
-      "referenceId": "reference-demo-lantern-hill-fort",
-      "title": "Lantern Hill Fort demo listing",
+      "referenceId": "reference-demo-thistledown-priory",
+      "title": "Thistledown Priory demo listing",
       "description": "Fabricated reference for demonstration only.",
-      "url": "https://example.com/demo/lantern-hill-fort"
+      "url": "https://example.com/demo/thistledown-priory"
+    },
+    {
+      "referenceId": "reference-demo-heritage-guide",
+      "title": "Fictional heritage guide shared by several demo places",
+      "description": "Fabricated reference for demonstration only.",
+      "url": "https://example.com/demo/heritage-guide"
     },
     {
       "referenceId": "reference-demo-wychwood-night-walk",
@@ -370,11 +616,60 @@
       "url": "https://example.com/demo/glasshouse-workshop"
     },
     {
+      "referenceId": "reference-demo-tannery-lane-pottery",
+      "title": "Tannery Lane Pottery demo listing",
+      "description": "Fabricated reference for demonstration only.",
+      "url": "https://example.com/demo/tannery-lane-pottery"
+    },
+    {
       "referenceId": "reference-demo-railway-picnic",
       "title": "Steam railway demo listing",
       "description": "Fabricated reference for demonstration only.",
       "url": "https://example.com/demo/steam-railway"
     }
   ],
-  "photoReferences": []
+  "photoReferences": [
+    {
+      "photoReferenceId": "photo-demo-foxglove-orangery",
+      "title": "Foxglove Manor orangery (Demo photo)",
+      "altText": "Fabricated illustration of a fictional clockwork orangery.",
+      "url": "https://example.com/demo/photos/foxglove-orangery.jpg"
+    },
+    {
+      "photoReferenceId": "photo-demo-bramblewick-topiary",
+      "title": "Bramblewick topiary teapots (Demo photo)",
+      "altText": "Fabricated illustration of fictional teapot-shaped topiary.",
+      "url": "https://example.com/demo/photos/bramblewick-topiary.jpg"
+    },
+    {
+      "photoReferenceId": "photo-demo-bramblewick-borders",
+      "title": "Bramblewick late borders (Demo photo)",
+      "altText": "Fabricated illustration of fictional autumn flower borders.",
+      "url": "https://example.com/demo/photos/bramblewick-borders.jpg"
+    },
+    {
+      "photoReferenceId": "photo-demo-cindercombe-gears",
+      "title": "Cindercombe Mill gears (Demo photo)",
+      "altText": "Fabricated illustration of fictional wooden mill gears.",
+      "url": "https://example.com/demo/photos/cindercombe-gears.jpg"
+    },
+    {
+      "photoReferenceId": "photo-demo-thistledown-cloister",
+      "title": "Thistledown Priory cloister (Demo photo)",
+      "altText": "Fabricated illustration of a fictional cloister garden.",
+      "url": "https://example.com/demo/photos/thistledown-cloister.jpg"
+    },
+    {
+      "photoReferenceId": "photo-demo-puddlebrook-lake",
+      "title": "Puddlebrook quarry lake (Demo photo)",
+      "altText": "Fabricated illustration of a fictional paddleboarding lake.",
+      "url": "https://example.com/demo/photos/puddlebrook-lake.jpg"
+    },
+    {
+      "photoReferenceId": "photo-demo-glasshouse-panel",
+      "title": "Old Glasshouse stained-glass panel (Demo photo)",
+      "altText": "Fabricated illustration of a fictional stained-glass panel.",
+      "url": "https://example.com/demo/photos/glasshouse-panel.jpg"
+    }
+  ]
 }
