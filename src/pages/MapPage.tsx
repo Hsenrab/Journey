@@ -116,6 +116,58 @@ function buildPopupContent({ eyebrow, title, metadata, summary, href }: PopupCon
   return content
 }
 
+type ClusterItem = { title: string; summary: string; href: string }
+
+function buildClusterPopupContent(eyebrow: string, items: ClusterItem[]) {
+  const content = document.createElement('article')
+  content.className = 'journey-map-popup'
+
+  const eyebrowElement = document.createElement('p')
+  eyebrowElement.className = 'journey-map-popup__eyebrow'
+  eyebrowElement.textContent = eyebrow
+
+  const titleElement = document.createElement('h2')
+  titleElement.className = 'journey-map-popup__title'
+  titleElement.textContent = `${items.length} in this group`
+
+  const list = document.createElement('ul')
+  list.className = 'journey-map-popup__list'
+  for (const item of items) {
+    const entry = document.createElement('li')
+
+    const link = document.createElement('a')
+    link.className = 'journey-map-popup__link'
+    link.href = item.href
+    link.textContent = item.title
+
+    const summary = document.createElement('p')
+    summary.className = 'journey-map-popup__summary'
+    summary.textContent = item.summary
+
+    entry.append(link, summary)
+    list.append(entry)
+  }
+
+  content.append(eyebrowElement, titleElement, list)
+  return content
+}
+
+function clusterItem(properties: Record<string, unknown> | undefined): ClusterItem | undefined {
+  if (!properties) return undefined
+  const title = properties.label as string
+  if (properties.waypointId) {
+    return { title, summary: properties.award as string, href: `/waypoints/${properties.waypointId as string}` }
+  }
+  if (properties.activityId) {
+    return {
+      title,
+      summary: properties.description as string,
+      href: `/activities/${properties.activityId as string}`,
+    }
+  }
+  return undefined
+}
+
 async function requestApi(path: string, operation: string): Promise<Response> {
   const response = await fetch(path)
   if (response.status === 404) {
@@ -142,6 +194,7 @@ async function getMapsToken(): Promise<MapsToken> {
 
 const MIN_MAP_HEIGHT = 320
 const MAP_BOTTOM_MARGIN = 24
+const CLUSTER_LIST_LIMIT = 25
 
 export default function MapPage() {
   const { data, statusFor } = useWaypoints()
@@ -232,10 +285,10 @@ export default function MapPage() {
       instance.sources.add([waypoints, activities])
       const waypointLayer = new atlas.layer.SymbolLayer(waypoints, 'waypoints', {
         filter: ['!', ['has', 'point_count']],
-        iconOptions: { image: ['get', 'icon'], allowOverlap: true, size: 1 },
+        iconOptions: { image: ['get', 'icon'], allowOverlap: true, size: 0.5 },
         textOptions: {
           textField: ['get', 'label'],
-          offset: [0, 1.35],
+          offset: [0, 0.9],
           allowOverlap: false,
           minZoom: 11,
           color: '#263238',
@@ -245,14 +298,14 @@ export default function MapPage() {
       })
       const waypointClusterLayer = new atlas.layer.SymbolLayer(waypoints, 'waypoint-cluster-labels', {
         filter: ['has', 'point_count'],
-        textOptions: { textField: ['get', 'point_count_abbreviated'], color: '#fff', size: 14 },
+        textOptions: { textField: ['get', 'point_count_abbreviated'], color: '#fff', size: 12 },
       })
       const activityLayer = new atlas.layer.SymbolLayer(activities, 'activities', {
         filter: ['!', ['has', 'point_count']],
-        iconOptions: { image: ['get', 'icon'], allowOverlap: true, size: 1 },
+        iconOptions: { image: ['get', 'icon'], allowOverlap: true, size: 0.5 },
         textOptions: {
           textField: ['get', 'label'],
-          offset: [0, 1.35],
+          offset: [0, 0.9],
           allowOverlap: false,
           minZoom: 11,
           color: '#263238',
@@ -262,19 +315,19 @@ export default function MapPage() {
       })
       const activityClusterLayer = new atlas.layer.SymbolLayer(activities, 'activity-cluster-labels', {
         filter: ['has', 'point_count'],
-        textOptions: { textField: ['get', 'point_count_abbreviated'], color: '#fff', size: 14 },
+        textOptions: { textField: ['get', 'point_count_abbreviated'], color: '#fff', size: 12 },
       })
       instance.layers.add([
         new atlas.layer.BubbleLayer(waypoints, 'waypoint-clusters', {
           filter: ['has', 'point_count'],
-          radius: 20,
+          radius: 10,
           color: markerColors.notStarted,
           strokeColor: '#fff',
           strokeWidth: 2,
         }),
         new atlas.layer.BubbleLayer(activities, 'activity-clusters', {
           filter: ['has', 'point_count'],
-          radius: 20,
+          radius: 10,
           color: markerColors.activity,
           strokeColor: '#fff',
           strokeWidth: 2,
@@ -284,18 +337,28 @@ export default function MapPage() {
         activityLayer,
         activityClusterLayer,
       ])
-      const zoomIntoCluster = (source: atlas.source.DataSource) => (event: atlas.MapMouseEvent) => {
+      const listCluster = (source: atlas.source.DataSource, eyebrow: string) => (event: atlas.MapMouseEvent) => {
         const shape = event.shapes?.[0]
         if (!shape || !('getCoordinates' in shape) || !('getProperties' in shape)) return
         const properties = shape.getProperties()
         const clusterId = properties?.cluster_id as number | undefined
         if (clusterId === undefined) return
-        void source.getClusterExpansionZoom(clusterId).then((zoom) => {
-          instance.setCamera({ center: shape.getCoordinates(), zoom })
+        const position = shape.getCoordinates() as atlas.data.Position
+        void source.getClusterLeaves(clusterId, CLUSTER_LIST_LIMIT, 0).then((leaves) => {
+          const items = leaves.flatMap((leaf) => {
+            const leafProperties = 'getProperties' in leaf ? leaf.getProperties() : leaf.properties
+            const item = clusterItem(leafProperties as Record<string, unknown> | undefined)
+            return item ? [item] : []
+          })
+          if (items.length === 0) return
+          popup.setOptions({ content: buildClusterPopupContent(eyebrow, items), position })
+          popup.open(instance)
+          setSelectedWaypointId(null)
+          setSelectedActivityId(null)
         })
       }
-      instance.events.add('click', waypointClusterLayer, zoomIntoCluster(waypoints))
-      instance.events.add('click', activityClusterLayer, zoomIntoCluster(activities))
+      instance.events.add('click', waypointClusterLayer, listCluster(waypoints, 'Waypoints here'))
+      instance.events.add('click', activityClusterLayer, listCluster(activities, 'Activities here'))
       instance.events.add('click', waypointLayer, (event) => {
         const shape = event.shapes?.[0]
         const properties = shape && 'getProperties' in shape ? shape.getProperties() : shape?.properties

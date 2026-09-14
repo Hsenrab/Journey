@@ -52,6 +52,34 @@ body {
   line-height: 1.45;
 }
 
+.journey-map-popup__list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-height: 220px;
+  overflow-y: auto;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.journey-map-popup__link {
+  color: #2e5339;
+  font-size: 0.92rem;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.journey-map-popup__link:hover {
+  text-decoration: underline;
+}
+
+.journey-map-popup__link:focus-visible {
+  border-radius: 2px;
+  outline: 3px solid #8a6d3b;
+  outline-offset: 3px;
+}
+
 .journey-map-popup__action {
   display: block;
   margin-top: 14px;

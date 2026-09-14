@@ -22,8 +22,13 @@ const mapEvents = vi.hoisted(() => ({
   tokenGetter: undefined as TokenGetter | undefined,
   deferReady: false,
   sourceAdd: vi.fn(),
-  clusterExpansionZoom: vi.fn(() => Promise.resolve(12)),
-  setCamera: vi.fn(),
+  clusterLeaves: vi.fn(() =>
+    Promise.resolve([
+      { getProperties: () => ({ label: 'Clustered waypoint', award: 'Bronze', waypointId: 'waypoint-1' }) },
+      { properties: { label: '2026-08-10', description: 'Clustered activity', activityId: 'activity-1' } },
+      { properties: {} },
+    ]),
+  ),
   resize: vi.fn(),
   popupClose: undefined as (() => void) | undefined,
   popupContent: undefined as HTMLElement | undefined,
@@ -72,7 +77,6 @@ vi.mock('azure-maps-control', () => ({
     layers = { add: vi.fn() }
     imageSprite = { add: vi.fn() }
     getCamera = vi.fn(() => ({ zoom: 8 }))
-    setCamera = mapEvents.setCamera
     dispose = vi.fn()
     resize = mapEvents.resize
   },
@@ -87,7 +91,7 @@ vi.mock('azure-maps-control', () => ({
     DataSource: class {
       add = mapEvents.sourceAdd
       clear = vi.fn()
-      getClusterExpansionZoom = mapEvents.clusterExpansionZoom
+      getClusterLeaves = mapEvents.clusterLeaves
     },
   },
   layer: {
@@ -121,8 +125,7 @@ describe('MapPage', () => {
     mapEvents.tokenGetter = undefined
     mapEvents.deferReady = false
     mapEvents.sourceAdd.mockClear()
-    mapEvents.clusterExpansionZoom.mockClear()
-    mapEvents.setCamera.mockClear()
+    mapEvents.clusterLeaves.mockClear()
     mapEvents.resize.mockClear()
     mapEvents.popupClose = undefined
     mapEvents.popupContent = undefined
@@ -560,7 +563,7 @@ describe('MapPage', () => {
     expect(mapEvents.popupContent?.querySelector('a')).toHaveAttribute('href', '/activities/unlinked')
   })
 
-  it('zooms into an activated cluster', async () => {
+  it('lists the items inside an activated cluster', async () => {
     vi.stubGlobal(
       'fetch',
       vi.fn().mockResolvedValue(jsonResponse({ token: 'entra', expiresOn: '2026-01-01', clientId: 'maps-client-id' })),
@@ -580,7 +583,34 @@ describe('MapPage', () => {
         shapes: [{ getCoordinates: () => [-2.2, 51.8], getProperties: () => ({ cluster_id: 42 }) }],
       })
     }).not.toThrow()
-    await vi.waitFor(() => expect(mapEvents.clusterExpansionZoom).toHaveBeenCalledWith(42))
-    expect(mapEvents.setCamera).toHaveBeenCalledWith({ center: [-2.2, 51.8], zoom: 12 })
+    await vi.waitFor(() => expect(mapEvents.clusterLeaves).toHaveBeenCalledWith(42, 25, 0))
+    await vi.waitFor(() => expect(mapEvents.popupContent).toBeDefined())
+    expect(mapEvents.popupContent).toHaveTextContent('Waypoints here2 in this group')
+    const links = mapEvents.popupContent!.querySelectorAll('a')
+    expect(links).toHaveLength(2)
+    expect(links[0]).toHaveAttribute('href', '/waypoints/waypoint-1')
+    expect(links[0]).toHaveTextContent('Clustered waypoint')
+    expect(links[1]).toHaveAttribute('href', '/activities/activity-1')
+  })
+
+  it('leaves the popup closed when a cluster holds no identifiable items', async () => {
+    mapEvents.clusterLeaves.mockResolvedValueOnce([{ properties: {} }])
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(jsonResponse({ token: 'entra', expiresOn: '2026-01-01', clientId: 'maps-client-id' })),
+    )
+    render(
+      <MemoryRouter>
+        <WaypointsProvider>
+          <MapPage />
+        </WaypointsProvider>
+      </MemoryRouter>,
+    )
+    await vi.waitFor(() => expect(mapEvents.clusterClick).toBeDefined())
+    mapEvents.clusterClick!({
+      shapes: [{ getCoordinates: () => [-2.2, 51.8], getProperties: () => ({ cluster_id: 7 }) }],
+    })
+    await vi.waitFor(() => expect(mapEvents.clusterLeaves).toHaveBeenCalledWith(7, 25, 0))
+    expect(mapEvents.popupContent).toBeUndefined()
   })
 })
