@@ -418,20 +418,8 @@ export default function MapPage() {
 
   return (
     <Stack spacing={2}>
+      {error && <Alert severity="error">{error}</Alert>}
       <PageHeader title="Map">
-        <Tabs
-          value={mode}
-          onChange={(_, nextMode: MapMode) => {
-            mapPopup.current?.close()
-            setSelectedWaypointId(null)
-            setSelectedActivityId(null)
-            setMode(nextMode)
-          }}
-          aria-label="Map mode"
-        >
-          <Tab id="waypoints-tab" aria-controls="map-panel" value="waypoints" label="Waypoints" />
-          <Tab id="activities-tab" aria-controls="map-panel" value="activities" label="Activities" />
-        </Tabs>
         <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: 'wrap' }} aria-label="Map legend">
           {mode === 'waypoints' ? (
             <>
@@ -454,8 +442,20 @@ export default function MapPage() {
             />
           )}
         </Stack>
+        <Tabs
+          value={mode}
+          onChange={(_, nextMode: MapMode) => {
+            mapPopup.current?.close()
+            setSelectedWaypointId(null)
+            setSelectedActivityId(null)
+            setMode(nextMode)
+          }}
+          aria-label="Map mode"
+        >
+          <Tab id="waypoints-tab" aria-controls="map-panel" value="waypoints" label="Waypoints" />
+          <Tab id="activities-tab" aria-controls="map-panel" value="activities" label="Activities" />
+        </Tabs>
       </PageHeader>
-      {error && <Alert severity="error">{error}</Alert>}
       <Box sx={{ overflow: 'hidden', border: '1px solid', borderColor: 'divider', borderRadius: 1, bgcolor: 'white' }}>
         <Box id="map-panel" role="tabpanel" aria-labelledby={`${mode}-tab`} tabIndex={0}>
           <Stack spacing={1.5} sx={{ p: { xs: 1.5, sm: 2 }, borderBottom: '1px solid', borderColor: 'divider' }}>

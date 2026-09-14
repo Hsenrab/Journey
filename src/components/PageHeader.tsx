@@ -11,7 +11,7 @@ export function PageHeader({ title, children }: PageHeaderProps) {
     <Box
       data-testid="page-header"
       sx={{
-        alignItems: { sm: 'center' },
+        alignItems: 'center',
         display: 'flex',
         flexWrap: 'wrap',
         gap: 1,

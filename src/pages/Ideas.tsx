@@ -122,22 +122,24 @@ export default function Ideas() {
             Add idea
           </Button>
         )}
-        {planningStates.map((state) => (
-          <Button
-            key={state}
-            variant={selectedState === state ? 'contained' : 'outlined'}
-            onClick={() =>
-              setSearchParams((previous) => {
-                const next = new URLSearchParams(previous)
-                next.set('state', state)
-                return next
-              })
-            }
-            aria-label={`${planningStateLabels[state]} ideas (${counts[state]})`}
-          >
-            {planningStateLabels[state]} ({counts[state]})
-          </Button>
-        ))}
+        <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: 'wrap' }}>
+          {planningStates.map((state) => (
+            <Button
+              key={state}
+              variant={selectedState === state ? 'contained' : 'outlined'}
+              onClick={() =>
+                setSearchParams((previous) => {
+                  const next = new URLSearchParams(previous)
+                  next.set('state', state)
+                  return next
+                })
+              }
+              aria-label={`${planningStateLabels[state]} ideas (${counts[state]})`}
+            >
+              {planningStateLabels[state]} ({counts[state]})
+            </Button>
+          ))}
+        </Stack>
       </PageHeader>
       <FilterBar>
         <TextField
