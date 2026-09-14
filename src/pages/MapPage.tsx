@@ -757,9 +757,7 @@ export default function MapPage() {
                         checked={statuses.includes(status)}
                         onChange={(event) =>
                           setStatuses((current) =>
-                            event.target.checked
-                              ? [...current, status]
-                              : current.filter((item) => item !== status),
+                            event.target.checked ? [...current, status] : current.filter((item) => item !== status),
                           )
                         }
                       />
