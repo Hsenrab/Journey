@@ -196,10 +196,10 @@ describe('MapPage', () => {
     expect(screen.getByRole('tabpanel')).toHaveAttribute('aria-labelledby', 'waypoints-tab')
     expect(screen.queryByRole('group', { name: 'Marker colour legend' })).not.toBeInTheDocument()
     const user = userEvent.setup()
-    await user.click(screen.getByRole('button', { name: 'Waypoint filters (4 of 4 statuses selected)' }))
+    expect(screen.getByRole('group', { name: 'Waypoint filters' })).toBeInTheDocument()
     expect(screen.getByRole('checkbox', { name: 'Gold' })).toBeChecked()
     await user.click(screen.getByRole('checkbox', { name: 'Gold' }))
-    expect(screen.getByRole('button', { name: 'Waypoint filters (3 of 4 statuses selected)' })).toBeInTheDocument()
+    expect(screen.getByRole('checkbox', { name: 'Gold' })).not.toBeChecked()
     expect(screen.getByLabelText('Nearby origin')).toHaveValue('Brockworth, Gloucestershire')
     expect(await screen.findByText('Map access failed: Sign in required')).toBeInTheDocument()
   })
@@ -238,7 +238,7 @@ describe('MapPage', () => {
     expect(screen.getByRole('tab', { name: 'Waypoints' })).toHaveAttribute('aria-selected', 'false')
     expect(screen.getByRole('tab', { name: 'Activities' })).toHaveAttribute('aria-selected', 'true')
     expect(screen.getByLabelText('Nearest activities')).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: /Waypoint filters/ })).not.toBeInTheDocument()
+    expect(screen.queryByRole('group', { name: 'Waypoint filters' })).not.toBeInTheDocument()
   })
 
   it('defaults to the map view on small screens and lets the user switch to the list', async () => {
@@ -290,7 +290,6 @@ describe('MapPage', () => {
         </WaypointsProvider>
       </MemoryRouter>,
     )
-    await user.click(screen.getByRole('button', { name: /Waypoint filters/ }))
     await user.click(screen.getByRole('checkbox', { name: 'Gold' }))
     await user.click(screen.getByRole('button', { name: 'Search' }))
     expect(await screen.findByText(/No places matched that search/)).toBeInTheDocument()
@@ -417,7 +416,6 @@ describe('MapPage', () => {
         </WaypointsProvider>
       </MemoryRouter>,
     )
-    await user.click(screen.getByRole('button', { name: /Waypoint filters/ }))
     await user.click(screen.getByRole('checkbox', { name: 'Gold' }))
     await user.click(screen.getByRole('tab', { name: 'Activities' }))
     const activityLink = screen.getByRole('link', { name: /Canal loop.*\d+\.\d miles.*2026-08-10/ })

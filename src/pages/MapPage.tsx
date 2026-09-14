@@ -1,9 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import {
-  Accordion,
-  AccordionDetails,
-  AccordionSummary,
   Alert,
   Box,
   Button,
@@ -25,7 +22,6 @@ import { useTheme } from '@mui/material/styles'
 import CheckBoxIcon from '@mui/icons-material/CheckBox'
 import CheckBoxOutlineBlankIcon from '@mui/icons-material/CheckBoxOutlineBlank'
 import CircleIcon from '@mui/icons-material/Circle'
-import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
 import * as atlas from 'azure-maps-control'
 import 'azure-maps-control/dist/atlas.min.css'
 import {
@@ -728,7 +724,7 @@ export default function MapPage() {
         </Tabs>
       </PageHeader>
       {error && <Alert severity="error">{error}</Alert>}
-      <Card>
+      <Card ref={filters}>
         <CardContent>
           <Stack
             component="form"
@@ -744,7 +740,6 @@ export default function MapPage() {
                 label="Nearby origin"
                 value={originQuery}
                 onChange={(event) => setOriginQuery(event.target.value)}
-                helperText="Temporary origin; results use straight-line distance."
                 size="small"
                 sx={{ flex: { sm: 1 }, minWidth: 0 }}
               />
@@ -752,6 +747,28 @@ export default function MapPage() {
                 Search
               </Button>
             </Stack>
+            {mode === 'waypoints' && (
+              <Stack direction="row" useFlexGap sx={{ flexWrap: 'wrap' }} role="group" aria-label="Waypoint filters">
+                {statusOrder.map((status) => (
+                  <FormControlLabel
+                    key={status}
+                    control={
+                      <Checkbox
+                        checked={statuses.includes(status)}
+                        onChange={(event) =>
+                          setStatuses((current) =>
+                            event.target.checked
+                              ? [...current, status]
+                              : current.filter((item) => item !== status),
+                          )
+                        }
+                      />
+                    }
+                    label={statusLabels[status]}
+                  />
+                ))}
+              </Stack>
+            )}
           </Stack>
           {originResults.length > 0 && (
             <Stack spacing={1} sx={{ mt: 2 }}>
@@ -847,44 +864,6 @@ export default function MapPage() {
           }}
         >
           <Box id="map-panel" role="tabpanel" aria-labelledby={`${mode}-tab`} tabIndex={0}>
-            <Stack
-              ref={filters}
-              spacing={1.5}
-              sx={{ p: { xs: 1.5, sm: 2 }, borderBottom: '1px solid', borderColor: 'divider' }}
-            >
-              {mode === 'waypoints' && (
-                <Accordion disableGutters elevation={0} sx={{ '&::before': { display: 'none' } }}>
-                  <AccordionSummary expandIcon={<ExpandMoreIcon />} sx={{ px: 0, minHeight: 40 }}>
-                    Waypoint filters ({statuses.length} of {statusOrder.length} statuses selected)
-                  </AccordionSummary>
-                  <AccordionDetails sx={{ px: 0, pb: 0 }}>
-                    <Stack direction="row" useFlexGap sx={{ flexWrap: 'wrap' }}>
-                      {statusOrder.map((status) => (
-                        <FormControlLabel
-                          key={status}
-                          control={
-                            <Checkbox
-                              checked={statuses.includes(status)}
-                              onChange={(event) =>
-                                setStatuses((current) =>
-                                  event.target.checked
-                                    ? [...current, status]
-                                    : current.filter((item) => item !== status),
-                                )
-                              }
-                            />
-                          }
-                          label={statusLabels[status]}
-                        />
-                      ))}
-                    </Stack>
-                  </AccordionDetails>
-                </Accordion>
-              )}
-              <Typography variant="caption" color="text.secondary">
-                Select a marker for details
-              </Typography>
-            </Stack>
             <Box ref={mapBox} sx={{ position: 'relative', height: mapHeight }}>
               <Box ref={container} aria-label="Azure Maps interactive map" sx={{ height: '100%', width: '100%' }} />
               {!mapReady && !error && (
