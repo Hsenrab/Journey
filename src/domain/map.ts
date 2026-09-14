@@ -57,3 +57,15 @@ export function orderNearbyWaypoints(
     })
     .sort((a, b) => a.distanceMiles - b.distanceMiles || a.waypoint.title.localeCompare(b.waypoint.title))
 }
+
+export function orderNearbyActivities(
+  activities: Activity[],
+  origin: Coordinates,
+): Array<{ activity: Activity; distanceMiles: number }> {
+  return activities
+    .flatMap((activity) => {
+      const coordinates = activityCoordinates(activity)
+      return coordinates ? [{ activity, distanceMiles: distanceMiles(origin, coordinates) }] : []
+    })
+    .sort((a, b) => a.distanceMiles - b.distanceMiles || a.activity.date.localeCompare(b.activity.date))
+}
