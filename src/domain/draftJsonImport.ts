@@ -209,6 +209,13 @@ export function parseActivityDraftJson(value: string): ParseResult<ActivityJsonI
   if (!keys.ok) return keys
 
   const payload = keys.value
+  if (Array.isArray(payload.location)) {
+    return {
+      ok: false,
+      error: 'JSON does not match the activity draft shape.',
+      issues: ['location: Invalid input: expected object, received array'],
+    }
+  }
   if (payload.location && typeof payload.location === 'object' && !Array.isArray(payload.location)) {
     const location = payload.location as Record<string, unknown>
     if (location.kind !== 'postcode' && location.kind !== 'coordinates') {
@@ -274,6 +281,7 @@ export function parseActivityDraftJson(value: string): ParseResult<ActivityJsonI
       ideaIds: payload.ideaIds as string[],
       category,
       location: payload.location as ActivityLocation,
+      // Placeholder IDs are only used to validate the draft against persisted-entity schemas.
       referenceIds: references.success ? references.data.map((_, index) => `reference-${index}`) : [],
       photoReferenceIds: photoReferences.success
         ? photoReferences.data.map((_, index) => `photo-reference-${index}`)
@@ -320,6 +328,13 @@ export function parseIdeaDraftJson(value: string): ParseResult<IdeaJsonImportDra
   if (!keys.ok) return keys
 
   const payload = keys.value
+  if (Array.isArray(payload.location)) {
+    return {
+      ok: false,
+      error: 'JSON does not match the idea draft shape.',
+      issues: ['location: Invalid input: expected object, received array'],
+    }
+  }
   if (payload.location && typeof payload.location === 'object' && !Array.isArray(payload.location)) {
     const location = payload.location as Record<string, unknown>
     const unknownLocationFields = Object.keys(location).filter((key) => !ideaLocationAllowedFields.has(key))
@@ -378,6 +393,7 @@ export function parseIdeaDraftJson(value: string): ParseResult<IdeaJsonImportDra
       rejectionReason,
       difficulty: payload.difficulty as Idea['difficulty'],
       location,
+      // Placeholder IDs are only used to validate the draft against persisted-entity schemas.
       referenceIds: references.success ? references.data.map((_, index) => `reference-${index}`) : [],
     })
   } catch (error) {

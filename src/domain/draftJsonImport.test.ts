@@ -38,6 +38,11 @@ describe('draftJsonImport', () => {
       error: 'Paste a single object, not an array.',
       issues: [],
     })
+    expect(parseActivityDraftJson('42')).toEqual({
+      ok: false,
+      error: 'Paste a single object, not a primitive value.',
+      issues: [],
+    })
 
     const withId = parseActivityDraftJson(
       JSON.stringify({
@@ -138,6 +143,27 @@ describe('draftJsonImport', () => {
     if (!result.ok) {
       expect(result.error).toBe('JSON does not match the idea draft shape.')
       expect(result.issues).toContain('location: Unexpected field: placename.')
+    }
+  })
+
+  it('rejects idea location arrays', () => {
+    const result = parseIdeaDraftJson(
+      JSON.stringify({
+        title: 'Sunrise walk',
+        description: 'Try a short route',
+        notes: 'Bring snacks',
+        waypointIds: [],
+        planningState: 'active',
+        difficulty: 1,
+        location: [],
+        references: [],
+      }),
+    )
+
+    expect(result.ok).toBe(false)
+    if (!result.ok) {
+      expect(result.error).toBe('JSON does not match the idea draft shape.')
+      expect(result.issues).toContain('location: Invalid input: expected object, received array')
     }
   })
 })

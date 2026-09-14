@@ -237,6 +237,7 @@ export function IdeaEditor({
           spacing={2}
           onSubmit={(event) => {
             event.preventDefault()
+            // Save controls are hidden in JSON mode; submission remains form-only.
             if (addMode && mode === 'json') return
             const result = validate()
             if (Object.keys(result.errors).length > 0) {
