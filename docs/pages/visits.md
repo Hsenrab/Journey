@@ -20,6 +20,24 @@ Activities can be linked to a waypoint or left unlinked.
 - Idea selections are independent from waypoint selection. Changing or clearing waypoint does not clear selected ideas.
 - Invalid input keeps entered values and shows field-level messages.
 - Unsaved edits show a leave warning on page unload and when cancelling the form.
+- Add mode includes **Form** and **Paste JSON** tabs. Paste JSON accepts one activity draft object,
+  rejects arrays, and rejects ID fields (`activityId`, `referenceId`, `photoReferenceId`).
+- **Copy example JSON** copies a representative draft shape. **Load into form** validates the pasted
+  JSON, keeps the pasted text on errors, and on success populates the existing form state before save.
+
+### Activity Paste JSON draft example
+
+```json
+{
+  "date": "2026-01-15",
+  "notes": "A short summary of the activity.",
+  "waypointId": "",
+  "ideaIds": [],
+  "location": { "kind": "postcode", "postcode": "GL1 1AA" },
+  "references": [{ "title": "Trip notes", "url": "https://example.com/notes" }],
+  "photoReferences": [{ "title": "Viewpoint photo", "url": "https://example.com/photo.jpg" }]
+}
+```
 
 ## Activity list (`/activities`)
 

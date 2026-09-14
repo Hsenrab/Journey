@@ -5,20 +5,20 @@ import SearchOffIcon from '@mui/icons-material/SearchOff'
 import { EmptyState } from '../components/EmptyState'
 import { FilterBar } from '../components/FilterBar'
 import { PageHeader } from '../components/PageHeader'
+import { WaypointEditor } from '../components/WaypointEditor'
 import { locations } from '../data/locations'
 import { lastActivityDates, statusLabels, statusOrder } from '../domain/visit'
 import { useWaypoints } from '../features/journey/JourneyContext'
 
 const locationById = new Map(locations.map((location) => [location.locationId, location]))
-const areas = Array.from(new Set(locations.map((location) => location.area))).sort()
-const categories = Array.from(new Set(locations.map((location) => location.category))).sort()
 
 type SortKey = 'name' | 'travel' | 'distance' | 'status' | 'lastActivity'
 
 export default function Locations() {
-  const { data, statusFor } = useWaypoints()
+  const { addWaypoint, data, statusFor } = useWaypoints()
   const activities = data.activities
   const [searchParams, setSearchParams] = useSearchParams()
+  const showEditor = searchParams.get('mode') === 'add'
   const status = searchParams.get('status') ?? 'all'
   const setStatus = (value: string) => {
     setSearchParams(
@@ -36,6 +36,32 @@ export default function Locations() {
   const [maxDistance, setMaxDistance] = useState('all')
   const [area, setArea] = useState('all')
   const [category, setCategory] = useState('all')
+  const [message, setMessage] = useState<{ severity: 'success' | 'error'; text: string } | null>(null)
+
+  const areas = useMemo(
+    () =>
+      Array.from(
+        new Set(
+          data.waypoints.map((waypoint) => {
+            const source = locationById.get(waypoint.waypointId)
+            return source?.area ?? 'Custom'
+          }),
+        ),
+      ).sort(),
+    [data.waypoints],
+  )
+  const categories = useMemo(
+    () =>
+      Array.from(
+        new Set(
+          data.waypoints.map((waypoint) => {
+            const source = locationById.get(waypoint.waypointId)
+            return source?.category ?? waypoint.category
+          }),
+        ),
+      ).sort(),
+    [data.waypoints],
+  )
 
   const list = useMemo(() => {
     const dates = lastActivityDates(activities)
@@ -43,24 +69,32 @@ export default function Locations() {
       .filter((waypoint) => waypoint.challengeIds.includes('national-trust'))
       .filter((waypoint) => {
         const source = locationById.get(waypoint.waypointId)
-        if (!source) return false
+        const waypointArea = source?.area ?? 'Custom'
+        const waypointCategory = source?.category ?? waypoint.category
         const waypointStatus = statusFor(waypoint.waypointId)
+        const withinDistance =
+          maxDistance === 'all' || (source ? source.travel.distanceMiles <= Number(maxDistance) : false)
         return (
           (status === 'all' || waypointStatus === status) &&
-          (maxDistance === 'all' || source.travel.distanceMiles <= Number(maxDistance)) &&
-          (area === 'all' || source.area === area) &&
-          (category === 'all' || source.category === category) &&
-          `${waypoint.title} ${source.area} ${source.category}`.toLowerCase().includes(query.toLowerCase())
+          withinDistance &&
+          (area === 'all' || waypointArea === area) &&
+          (category === 'all' || waypointCategory === category) &&
+          `${waypoint.title} ${waypointArea} ${waypointCategory}`.toLowerCase().includes(query.toLowerCase())
         )
       })
       .sort((a, b) => {
         const sourceA = locationById.get(a.waypointId)
         const sourceB = locationById.get(b.waypointId)
-        if (!sourceA || !sourceB) return a.title.localeCompare(b.title)
         switch (sort) {
           case 'travel':
+            if (!sourceA && !sourceB) return a.title.localeCompare(b.title)
+            if (!sourceA) return 1
+            if (!sourceB) return -1
             return sourceA.travel.driveTimeMinutes - sourceB.travel.driveTimeMinutes
           case 'distance':
+            if (!sourceA && !sourceB) return a.title.localeCompare(b.title)
+            if (!sourceA) return 1
+            if (!sourceB) return -1
             return sourceA.travel.distanceMiles - sourceB.travel.distanceMiles
           case 'status':
             return statusOrder.indexOf(statusFor(b.waypointId)) - statusOrder.indexOf(statusFor(a.waypointId))
@@ -74,7 +108,57 @@ export default function Locations() {
 
   return (
     <Stack spacing={2}>
-      <PageHeader title="Waypoints" />
+      <PageHeader title="Waypoints">
+        {!showEditor && (
+          <Button
+            variant="contained"
+            onClick={() => {
+              setMessage(null)
+              setSearchParams((previous) => {
+                const next = new URLSearchParams(previous)
+                next.set('mode', 'add')
+                return next
+              })
+            }}
+          >
+            Add waypoint
+          </Button>
+        )}
+      </PageHeader>
+      {!showEditor && message && (
+        <Typography color={message.severity === 'error' ? 'error' : 'success.main'}>{message.text}</Typography>
+      )}
+      {showEditor && (
+        <WaypointEditor
+          data={data}
+          submitLabel="Save waypoint"
+          onSubmit={async (draft) => {
+            try {
+              await addWaypoint(draft)
+              setMessage({ severity: 'success', text: 'Waypoint saved.' })
+              setSearchParams((previous) => {
+                const next = new URLSearchParams(previous)
+                next.delete('mode')
+                return next
+              })
+            } catch (error) {
+              setMessage({
+                severity: 'error',
+                text: error instanceof Error ? error.message : 'Failed to save waypoint.',
+              })
+            }
+          }}
+          onCancel={() => {
+            setMessage(null)
+            setSearchParams((previous) => {
+              const next = new URLSearchParams(previous)
+              next.delete('mode')
+              return next
+            })
+          }}
+          errorMessage={message?.severity === 'error' ? message.text : null}
+        />
+      )}
       <FilterBar>
         <TextField
           label="Search waypoints"
@@ -165,19 +249,24 @@ export default function Locations() {
         >
           {list.map((waypoint) => {
             const source = locationById.get(waypoint.waypointId)
-            if (!source) return null
             return (
               <Card key={waypoint.waypointId}>
                 <CardContent>
                   <Stack spacing={1}>
                     <Typography variant="h6">{waypoint.title}</Typography>
                     <Typography color="text.secondary">
-                      {source.area} · {source.category}
+                      {(source?.area ?? 'Custom') + ' · ' + (source?.category ?? waypoint.category)}
                     </Typography>
-                    <Typography variant="body2" color="text.secondary">
-                      Driving distance: {source.travel.distanceMiles} miles from Brockworth (~
-                      {source.travel.driveTimeMinutes} min drive)
-                    </Typography>
+                    {source ? (
+                      <Typography variant="body2" color="text.secondary">
+                        Driving distance: {source.travel.distanceMiles} miles from Brockworth (~
+                        {source.travel.driveTimeMinutes} min drive)
+                      </Typography>
+                    ) : (
+                      <Typography variant="body2" color="text.secondary">
+                        Driving distance unavailable for custom waypoints.
+                      </Typography>
+                    )}
                     <Chip
                       label={statusLabels[statusFor(waypoint.waypointId)]}
                       color={statusFor(waypoint.waypointId) === 'gold' ? 'success' : 'default'}

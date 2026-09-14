@@ -325,6 +325,133 @@ describe('ActivityEditor', () => {
 
     expect(onDelete).toHaveBeenCalled()
   })
+
+  it('loads valid pasted JSON into the form before submit', async () => {
+    const user = userEvent.setup()
+    const { onSubmit, data } = renderEditor()
+    const payload = {
+      date: '2026-09-01',
+      notes: 'Loaded from JSON',
+      waypointId: data.waypoints[0]!.waypointId,
+      ideaIds: [],
+      category: 'gold',
+      location: { kind: 'postcode', postcode: 'GL2 2BB' },
+      references: [{ title: 'Guide', url: 'https://example.com/guide', description: '', previewImageUrl: '' }],
+      photoReferences: [{ title: 'Photo', url: 'https://example.com/photo.jpg', altText: '' }],
+    }
+
+    await user.click(screen.getByRole('tab', { name: 'Paste JSON' }))
+    await user.click(screen.getByLabelText('Activity JSON'))
+    await user.paste(JSON.stringify(payload))
+    await user.click(screen.getByRole('button', { name: 'Load into form' }))
+    await user.click(screen.getByRole('button', { name: 'Save' }))
+
+    expect(onSubmit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        date: payload.date,
+        notes: payload.notes,
+        waypointId: payload.waypointId,
+        category: payload.category,
+        location: payload.location,
+        references: [expect.objectContaining({ title: 'Guide' })],
+        photoReferences: [expect.objectContaining({ title: 'Photo' })],
+      }),
+    )
+  })
+
+  it('keeps pasted JSON and shows malformed and schema errors', async () => {
+    const user = userEvent.setup()
+    renderEditor()
+
+    await user.click(screen.getByRole('tab', { name: 'Paste JSON' }))
+    const input = screen.getByLabelText('Activity JSON')
+
+    await user.click(input)
+    await user.paste('{bad')
+    await user.click(screen.getByRole('button', { name: 'Load into form' }))
+    expect(screen.getByText('Invalid JSON. Paste a valid JSON object.')).toBeInTheDocument()
+    expect(input).toHaveValue('{bad')
+
+    await user.clear(input)
+    await user.click(input)
+    await user.paste(
+      JSON.stringify({
+        date: '2026-09-01',
+        notes: 123,
+        ideaIds: [],
+        location: { kind: 'postcode', postcode: 'GL1 1AA' },
+        references: [],
+        photoReferences: [],
+      }),
+    )
+    await user.click(screen.getByRole('button', { name: 'Load into form' }))
+    expect(screen.getByText('JSON does not match the activity draft shape.')).toBeInTheDocument()
+    expect(screen.getByText(/notes: Invalid input/)).toBeInTheDocument()
+  })
+
+  it('rejects array input and forbidden id fields in pasted JSON', async () => {
+    const user = userEvent.setup()
+    renderEditor()
+
+    await user.click(screen.getByRole('tab', { name: 'Paste JSON' }))
+    const input = screen.getByLabelText('Activity JSON')
+
+    await user.click(input)
+    await user.paste('[]')
+    await user.click(screen.getByRole('button', { name: 'Load into form' }))
+    expect(screen.getByText('Paste a single object, not an array.')).toBeInTheDocument()
+
+    await user.clear(input)
+    await user.click(input)
+    await user.paste(
+      JSON.stringify({
+        activityId: 'activity-1',
+        date: '2026-09-01',
+        notes: '',
+        ideaIds: [],
+        location: { kind: 'postcode', postcode: 'GL1 1AA' },
+        references: [],
+        photoReferences: [],
+      }),
+    )
+    await user.click(screen.getByRole('button', { name: 'Load into form' }))
+    expect(screen.getByText(/Remove 'activityId' — IDs are assigned automatically./)).toBeInTheDocument()
+  })
+
+  it('shows an inline error when clipboard write is unavailable', async () => {
+    const user = userEvent.setup()
+    renderEditor()
+    const originalClipboard = navigator.clipboard
+    Object.defineProperty(navigator, 'clipboard', {
+      configurable: true,
+      value: undefined,
+    })
+
+    try {
+      await user.click(screen.getByRole('tab', { name: 'Paste JSON' }))
+      await user.click(screen.getByLabelText('Activity JSON'))
+      await user.paste(
+        JSON.stringify({
+          date: '2026-09-01',
+          notes: 123,
+          ideaIds: [],
+          location: { kind: 'postcode', postcode: 'GL1 1AA' },
+          references: [],
+          photoReferences: [],
+        }),
+      )
+      await user.click(screen.getByRole('button', { name: 'Load into form' }))
+      expect(screen.getByText(/notes: Invalid input/)).toBeInTheDocument()
+      await user.click(screen.getByRole('button', { name: 'Copy example JSON' }))
+      expect(screen.getByText('Clipboard is unavailable in this browser.')).toBeInTheDocument()
+      expect(screen.queryByText(/notes: Invalid input/)).not.toBeInTheDocument()
+    } finally {
+      Object.defineProperty(navigator, 'clipboard', {
+        configurable: true,
+        value: originalClipboard,
+      })
+    }
+  })
 })
 
 function dataWaypointId(data: ReturnType<typeof createDefaultData>) {
