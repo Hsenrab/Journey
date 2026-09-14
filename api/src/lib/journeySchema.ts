@@ -86,7 +86,7 @@ const schemas = {
   activity: z
     .object({
       activityId: identifier,
-      name: identifier.optional(),
+      name: text.optional(),
       waypointId: identifier.optional(),
       challengeId: identifier.optional(),
       ideaIds: distinctIds('Activity idea links must be distinct'),
