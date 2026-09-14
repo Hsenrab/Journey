@@ -20,7 +20,7 @@ import {
   type Waypoint,
   type WaypointsData,
 } from './visit'
-import { completionStateForWaypoint, waypointCoordinates } from './map'
+import { waypointCoordinates } from './map'
 import { locations } from '../data/locations'
 
 function waypoint(waypointId: string): Waypoint {
@@ -156,7 +156,7 @@ describe('demo data', () => {
     expect(visitCounts.filter((count) => count > 1).length).toBe(2)
     expect(visitCounts.filter((count) => count === 1).length).toBe(6)
     expect(visitCounts.filter((count) => count === 0).length).toBe(3)
-    expect([...years]).toEqual(['2024', '2025', '2026'])
+    expect([...years].sort()).toEqual(['2024', '2025', '2026'])
     expect(new Set(data.activities.map((activity) => activity.date.slice(0, 7))).size).toBe(8)
   })
 
@@ -165,12 +165,13 @@ describe('demo data', () => {
     const waypointsById = new Map(data.waypoints.map((waypoint) => [waypoint.waypointId, waypoint]))
 
     for (const challenge of data.challenges) {
-      let completed = 0
-      for (const waypointId of challenge.waypointIds) {
+      const challengeWaypoints = challenge.waypointIds.map((waypointId) => {
         const waypoint = waypointsById.get(waypointId)
-        expect(waypoint).toBeDefined()
-        if (waypoint && completionStateForWaypoint(waypoint, data.activities) === 'complete') completed += 1
-      }
+        if (!waypoint)
+          throw new Error(`Challenge "${challenge.challengeId}" references missing waypoint "${waypointId}"`)
+        return waypoint
+      })
+      const completed = completedWaypointCount(challengeWaypoints, data.activities)
       if (challenge.waypointIds.length === 0) {
         expect(completed).toBe(0)
         continue
@@ -200,12 +201,12 @@ describe('demo data', () => {
   it('shares references and categories across several waypoints', () => {
     const data = createDemoData()
     const referenceUse = new Map<string, number>()
-    for (const waypoint of data.waypoints)
+    const categoryUse = new Map<string, number>()
+    for (const waypoint of data.waypoints) {
       for (const referenceId of waypoint.referenceIds)
         referenceUse.set(referenceId, (referenceUse.get(referenceId) ?? 0) + 1)
-    const categoryUse = new Map<string, number>()
-    for (const waypoint of data.waypoints)
       categoryUse.set(waypoint.category, (categoryUse.get(waypoint.category) ?? 0) + 1)
+    }
 
     expect([...referenceUse.values()].some((count) => count > 1)).toBe(true)
     expect(data.waypoints.some((waypoint) => waypoint.referenceIds.length > 1)).toBe(true)

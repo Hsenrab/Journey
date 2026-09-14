@@ -132,7 +132,7 @@
       "description": "A fictional guided woodland walk ending with hot chocolate beneath the old observatory.",
       "category": "Countryside",
       "tags": ["Fictional", "Gloucestershire-inspired", "Walking", "Evening"],
-      "challengeIds": ["local-adventures"],
+      "challengeIds": ["local-adventures", "family-days"],
       "completion": {
         "mode": "once"
       },
