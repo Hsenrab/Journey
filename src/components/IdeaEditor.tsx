@@ -285,8 +285,10 @@ export function IdeaEditor({
               />
               <Stack direction="row" spacing={1}>
                 <Button
-                  onClick={async () => {
-                    await navigator.clipboard.writeText(JSON.stringify(ideaImportExample, null, 2))
+                  onClick={() => {
+                    void navigator.clipboard.writeText(JSON.stringify(ideaImportExample, null, 2)).catch((error) => {
+                      setJsonError(error instanceof Error ? error.message : String(error))
+                    })
                   }}
                 >
                   Copy example JSON

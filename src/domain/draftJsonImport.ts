@@ -72,6 +72,16 @@ const ideaAllowedImportFields = new Set([
   'location',
   'references',
 ])
+const ideaLocationAllowedFields = new Set([
+  'placeName',
+  'latitude',
+  'longitude',
+  'addressOrRegion',
+  'source',
+  'approximate',
+])
+const activityPostcodeLocationAllowedFields = new Set(['kind', 'postcode', 'latitude', 'longitude'])
+const activityCoordinateLocationAllowedFields = new Set(['kind', 'latitude', 'longitude'])
 
 export const activityImportExample: ActivityJsonImportDraft = {
   date: '2026-01-15',
@@ -178,6 +188,10 @@ function zodIssues(error: ZodError): string[] {
   return error.issues.map((issue) => `${issue.path.join('.')}: ${issue.message}`)
 }
 
+function unknownFieldsError(path: string, fields: string[]): string {
+  return `${path}: Unexpected field${fields.length === 1 ? '' : 's'}: ${fields.join(', ')}.`
+}
+
 export function parseActivityDraftJson(value: string): ParseResult<ActivityJsonImportDraft> {
   const parsedObject = parseObject(value)
   if (!parsedObject.ok) return parsedObject
@@ -195,6 +209,26 @@ export function parseActivityDraftJson(value: string): ParseResult<ActivityJsonI
   if (!keys.ok) return keys
 
   const payload = keys.value
+  if (payload.location && typeof payload.location === 'object' && !Array.isArray(payload.location)) {
+    const location = payload.location as Record<string, unknown>
+    const allowedLocationFields =
+      location.kind === 'postcode'
+        ? activityPostcodeLocationAllowedFields
+        : location.kind === 'coordinates'
+          ? activityCoordinateLocationAllowedFields
+          : undefined
+    if (allowedLocationFields) {
+      const unknownLocationFields = Object.keys(location).filter((key) => !allowedLocationFields.has(key))
+      if (unknownLocationFields.length > 0) {
+        return {
+          ok: false,
+          error: 'JSON does not match the activity draft shape.',
+          issues: [unknownFieldsError('location', unknownLocationFields)],
+        }
+      }
+    }
+  }
+
   const normalizedReferences = normalizeReferences(payload.references)
   const normalizedPhotoReferences = Array.isArray(payload.photoReferences)
     ? payload.photoReferences.map((entry) => {
@@ -281,6 +315,18 @@ export function parseIdeaDraftJson(value: string): ParseResult<IdeaJsonImportDra
   if (!keys.ok) return keys
 
   const payload = keys.value
+  if (payload.location && typeof payload.location === 'object' && !Array.isArray(payload.location)) {
+    const location = payload.location as Record<string, unknown>
+    const unknownLocationFields = Object.keys(location).filter((key) => !ideaLocationAllowedFields.has(key))
+    if (unknownLocationFields.length > 0) {
+      return {
+        ok: false,
+        error: 'JSON does not match the idea draft shape.',
+        issues: [unknownFieldsError('location', unknownLocationFields)],
+      }
+    }
+  }
+
   const normalizedReferences = normalizeReferences(payload.references)
   const references = ReferenceSchema.omit({ referenceId: true }).array().safeParse(normalizedReferences)
   const planningState = PlanningStateSchema.safeParse(payload.planningState)
