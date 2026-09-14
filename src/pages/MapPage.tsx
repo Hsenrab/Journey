@@ -193,7 +193,7 @@ export default function MapPage() {
       window.removeEventListener('resize', updateHeight)
       observer?.disconnect()
     }
-  }, [mode])
+  }, [])
 
   useEffect(() => {
     if (!mapReady) return
@@ -537,7 +537,7 @@ export default function MapPage() {
               Select a marker for details
             </Typography>
           </Stack>
-          <Box ref={mapBox} sx={{ position: 'relative' }} style={{ height: mapHeight }}>
+          <Box ref={mapBox} sx={{ position: 'relative', height: mapHeight }}>
             <Box ref={container} aria-label="Azure Maps interactive map" sx={{ height: '100%', width: '100%' }} />
             {!mapReady && !error && (
               <Stack

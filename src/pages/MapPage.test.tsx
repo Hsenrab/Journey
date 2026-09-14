@@ -413,7 +413,7 @@ describe('MapPage', () => {
 
     act(() => window.dispatchEvent(new Event('resize')))
 
-    expect(mapBox.style.height).toBe('676px')
+    expect(getComputedStyle(mapBox).height).toBe('676px')
   })
 
   it('refreshes the Maps token after the initial token is consumed', async () => {
