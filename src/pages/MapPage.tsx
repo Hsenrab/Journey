@@ -37,7 +37,14 @@ import {
   orderNearbyWaypoints,
   waypointCoordinates,
 } from '../domain/map'
-import { statusLabels, statusOrder, type Activity, type AwardedStatus, type Status, type Waypoint } from '../domain/visit'
+import {
+  statusLabels,
+  statusOrder,
+  type Activity,
+  type AwardedStatus,
+  type Status,
+  type Waypoint,
+} from '../domain/visit'
 import { PageHeader } from '../components/PageHeader'
 import { useWaypoints } from '../features/journey/JourneyContext'
 
@@ -147,8 +154,7 @@ function CompactMapListItem({
         <Typography
           component="span"
           variant="body2"
-          fontWeight={500}
-          sx={{ display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+          sx={{ display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: 500 }}
         >
           {name}
         </Typography>

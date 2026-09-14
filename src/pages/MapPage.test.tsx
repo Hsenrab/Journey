@@ -743,7 +743,13 @@ describe('MapPage', () => {
       createdAt: '2026-08-10T00:00:00.000Z',
       updatedAt: '2026-08-10T00:00:00.000Z',
     }
-    const unlinked = { ...activity, activityId: 'unlinked', name: undefined, waypointId: undefined, category: undefined }
+    const unlinked = {
+      ...activity,
+      activityId: 'unlinked',
+      name: undefined,
+      waypointId: undefined,
+      category: undefined,
+    }
     data.activities = [activity, unlinked]
     localStorage.setItem('waypoints-v1', JSON.stringify(data))
     vi.stubGlobal(
