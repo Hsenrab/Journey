@@ -34,10 +34,8 @@ Activities can be linked to a waypoint or left unlinked.
   "waypointId": "",
   "ideaIds": [],
   "location": { "kind": "postcode", "postcode": "GL1 1AA" },
-  "references": [
-    { "title": "Trip notes", "url": "https://example.com/notes", "description": "", "previewImageUrl": "" }
-  ],
-  "photoReferences": [{ "title": "Viewpoint photo", "url": "https://example.com/photo.jpg", "altText": "" }]
+  "references": [{ "title": "Trip notes", "url": "https://example.com/notes" }],
+  "photoReferences": [{ "title": "Viewpoint photo", "url": "https://example.com/photo.jpg" }]
 }
 ```
 

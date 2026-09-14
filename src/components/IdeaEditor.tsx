@@ -25,12 +25,7 @@ import DeleteIcon from '@mui/icons-material/Delete'
 import ArrowUpwardIcon from '@mui/icons-material/ArrowUpward'
 import ArrowDownwardIcon from '@mui/icons-material/ArrowDownward'
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined'
-import { ZodError } from 'zod'
 import {
-  DifficultySchema,
-  PlanningStateSchema,
-  ReferenceSchema,
-  createIdea,
   difficulties,
   difficultyDescriptions,
   difficultyLabels,
@@ -40,6 +35,7 @@ import {
   type Reference,
   type WaypointsData,
 } from '../domain/visit'
+import { ideaImportExample, parseIdeaDraftJson } from '../domain/draftJsonImport'
 import type { IdeaDraft } from '../features/journey/JourneyContext'
 
 type Props = {
@@ -64,48 +60,6 @@ type EditorReference = {
 
 type Errors = Record<string, string>
 type EditorMode = 'form' | 'json'
-
-const forbiddenImportIdFields = new Set(['ideaId', 'referenceId'])
-const requiredImportFields = [
-  'title',
-  'description',
-  'notes',
-  'waypointIds',
-  'planningState',
-  'difficulty',
-  'references',
-] as const
-const ideaImportExample = {
-  title: 'Plan a sunrise walk',
-  description: 'Try a nearby route before breakfast.',
-  notes: 'Bring a flask and check weather first.',
-  waypointIds: [],
-  planningState: 'active',
-  difficulty: 1,
-  location: {
-    placeName: 'Brockworth',
-    addressOrRegion: 'Gloucestershire',
-    source: 'Manual research',
-    approximate: true,
-  },
-  references: [{ title: 'Route ideas', url: 'https://example.com/route' }],
-}
-
-function collectForbiddenIdFields(value: unknown, ids = new Set<string>()): Set<string> {
-  if (Array.isArray(value)) {
-    value.forEach((entry) => {
-      collectForbiddenIdFields(entry, ids)
-    })
-    return ids
-  }
-  if (!value || typeof value !== 'object') return ids
-
-  Object.entries(value).forEach(([key, entry]) => {
-    if (forbiddenImportIdFields.has(key)) ids.add(key)
-    collectForbiddenIdFields(entry, ids)
-  })
-  return ids
-}
 
 export function IdeaEditor({
   data,
@@ -332,11 +286,7 @@ export function IdeaEditor({
               <Stack direction="row" spacing={1}>
                 <Button
                   onClick={async () => {
-                    try {
-                      await navigator.clipboard.writeText(JSON.stringify(ideaImportExample, null, 2))
-                    } catch {
-                      setJsonError('Clipboard copy failed.')
-                    }
+                    await navigator.clipboard.writeText(JSON.stringify(ideaImportExample, null, 2))
                   }}
                 >
                   Copy example JSON
@@ -344,138 +294,21 @@ export function IdeaEditor({
                 <Button
                   variant="contained"
                   onClick={() => {
-                    let parsed: unknown
-                    try {
-                      parsed = JSON.parse(jsonInput)
-                    } catch {
-                      setJsonError('Invalid JSON. Paste a valid JSON object.')
-                      setJsonIssues([])
-                      return
-                    }
-                    if (Array.isArray(parsed)) {
-                      setJsonError('Paste a single object, not an array.')
-                      setJsonIssues([])
-                      return
-                    }
-                    if (!parsed || typeof parsed !== 'object') {
-                      setJsonError('Paste a single object, not a primitive value.')
-                      setJsonIssues([])
+                    const parsed = parseIdeaDraftJson(jsonInput)
+                    if (!parsed.ok) {
+                      setJsonError(parsed.error)
+                      setJsonIssues(parsed.issues)
                       return
                     }
 
-                    const foundIds = Array.from(collectForbiddenIdFields(parsed))
-                    if (foundIds.length > 0) {
-                      setJsonError(foundIds.map((id) => `Remove '${id}' — IDs are assigned automatically.`).join(' '))
-                      setJsonIssues([])
-                      return
-                    }
-
-                    const payload = parsed as Record<string, unknown>
-                    const missing = requiredImportFields.filter((key) => !(key in payload))
-                    if (missing.length > 0) {
-                      setJsonError(`Missing required field${missing.length === 1 ? '' : 's'}: ${missing.join(', ')}.`)
-                      setJsonIssues([])
-                      return
-                    }
-                    const unknownFields = Object.keys(payload).filter(
-                      (key) =>
-                        ![
-                          'title',
-                          'description',
-                          'notes',
-                          'waypointIds',
-                          'planningState',
-                          'rejectionReason',
-                          'difficulty',
-                          'location',
-                          'references',
-                        ].includes(key),
-                    )
-                    if (unknownFields.length > 0) {
-                      setJsonError(
-                        `Unexpected field${unknownFields.length === 1 ? '' : 's'}: ${unknownFields.join(', ')}.`,
-                      )
-                      setJsonIssues([])
-                      return
-                    }
-
-                    const normalizedReferences = Array.isArray(payload.references)
-                      ? payload.references.map((entry) => {
-                          if (!entry || typeof entry !== 'object') return entry
-                          const reference = entry as Record<string, unknown>
-                          return {
-                            ...reference,
-                            description:
-                              typeof reference.description === 'string' && !reference.description.trim()
-                                ? undefined
-                                : reference.description,
-                            previewImageUrl:
-                              typeof reference.previewImageUrl === 'string' && !reference.previewImageUrl.trim()
-                                ? undefined
-                                : reference.previewImageUrl,
-                          }
-                        })
-                      : payload.references
-
-                    const references = ReferenceSchema.omit({ referenceId: true })
-                      .array()
-                      .safeParse(normalizedReferences)
-                    const planningState = PlanningStateSchema.safeParse(payload.planningState)
-                    const difficulty = DifficultySchema.safeParse(payload.difficulty)
-
-                    const nextIssues: string[] = []
-                    if (!references.success) {
-                      references.error.issues.forEach((issue) => {
-                        nextIssues.push(`references.${issue.path.join('.')}: ${issue.message}`)
-                      })
-                    }
-                    if (!planningState.success) {
-                      planningState.error.issues.forEach((issue) => {
-                        nextIssues.push(`planningState: ${issue.message}`)
-                      })
-                    }
-                    if (!difficulty.success) {
-                      difficulty.error.issues.forEach((issue) => {
-                        nextIssues.push(`difficulty: ${issue.message}`)
-                      })
-                    }
-
-                    try {
-                      createIdea({
-                        title: payload.title as string,
-                        description: payload.description as string,
-                        notes: payload.notes as string,
-                        waypointIds: payload.waypointIds as string[],
-                        planningState: payload.planningState as Idea['planningState'],
-                        rejectionReason: payload.rejectionReason as string | undefined,
-                        difficulty: payload.difficulty as Idea['difficulty'],
-                        location: payload.location as Idea['location'],
-                        referenceIds: references.success ? references.data.map((_, index) => `reference-${index}`) : [],
-                      })
-                    } catch (error) {
-                      if (error instanceof ZodError) {
-                        error.issues.forEach((issue) => {
-                          nextIssues.push(`${issue.path.join('.')}: ${issue.message}`)
-                        })
-                      } else {
-                        throw error
-                      }
-                    }
-
-                    if (nextIssues.length > 0 || !references.success || !planningState.success || !difficulty.success) {
-                      setJsonError('JSON does not match the idea draft shape.')
-                      setJsonIssues(nextIssues)
-                      return
-                    }
-
-                    setTitle(payload.title as string)
-                    setDescription(payload.description as string)
-                    setNotes(payload.notes as string)
-                    setPlanningState(payload.planningState as Idea['planningState'])
-                    setRejectionReason((payload.rejectionReason as string | undefined) ?? '')
-                    setDifficulty(payload.difficulty as Idea['difficulty'])
-                    setWaypointIds(payload.waypointIds as string[])
-                    const location = payload.location as Idea['location'] | undefined
+                    setTitle(parsed.value.title)
+                    setDescription(parsed.value.description)
+                    setNotes(parsed.value.notes)
+                    setPlanningState(parsed.value.planningState)
+                    setRejectionReason(parsed.value.rejectionReason ?? '')
+                    setDifficulty(parsed.value.difficulty)
+                    setWaypointIds(parsed.value.waypointIds)
+                    const location = parsed.value.location
                     setPlaceName(location?.placeName ?? '')
                     setAddressOrRegion(location?.addressOrRegion ?? '')
                     setSource(location?.source ?? '')
@@ -483,7 +316,7 @@ export function IdeaEditor({
                     setLongitude(location?.longitude === undefined ? '' : String(location.longitude))
                     setApproximate(location?.approximate ?? false)
                     setReferences(
-                      references.data.map((reference) => ({
+                      parsed.value.references.map((reference) => ({
                         title: reference.title,
                         description: reference.description ?? '',
                         url: reference.url,
@@ -502,8 +335,8 @@ export function IdeaEditor({
               {jsonError && <Alert severity="error">{jsonError}</Alert>}
               {jsonIssues.length > 0 && (
                 <Alert severity="error">
-                  {jsonIssues.map((issue) => (
-                    <div key={issue}>{issue}</div>
+                  {jsonIssues.map((issue, index) => (
+                    <div key={`${index}-${issue}`}>{issue}</div>
                   ))}
                 </Alert>
               )}

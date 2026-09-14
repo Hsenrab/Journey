@@ -51,9 +51,7 @@ more activities through activity `ideaIds`.
     "source": "Manual research",
     "approximate": true
   },
-  "references": [
-    { "title": "Route ideas", "url": "https://example.com/route", "description": "", "previewImageUrl": "" }
-  ]
+  "references": [{ "title": "Route ideas", "url": "https://example.com/route" }]
 }
 ```
 
