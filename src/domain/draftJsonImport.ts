@@ -16,6 +16,7 @@ import {
 } from './visit'
 
 export type ActivityJsonImportDraft = {
+  name?: string
   date: string
   notes: string
   waypointId?: string
@@ -55,6 +56,7 @@ type ParseResult<T> = { ok: true; value: T } | { ok: false; error: string; issue
 const activityForbiddenIdFields = new Set(['activityId', 'referenceId', 'photoReferenceId'])
 const activityRequiredImportFields = ['date', 'notes', 'ideaIds', 'location', 'references', 'photoReferences'] as const
 const activityAllowedImportFields = new Set([
+  'name',
   'date',
   'notes',
   'waypointId',
@@ -128,6 +130,7 @@ const waypointAllowedImportFields = new Set([
 ])
 
 export const activityImportExample: ActivityJsonImportDraft = {
+  name: 'Morning walk',
   date: '2026-01-15',
   notes: 'A short summary of the activity.',
   waypointId: '',
@@ -336,6 +339,7 @@ export function parseActivityDraftJson(value: string): ParseResult<ActivityJsonI
 
   try {
     createActivity({
+      name: payload.name as string | undefined,
       date: payload.date as string,
       notes: payload.notes as string,
       waypointId,
@@ -360,6 +364,7 @@ export function parseActivityDraftJson(value: string): ParseResult<ActivityJsonI
   return {
     ok: true,
     value: {
+      name: payload.name as string | undefined,
       date: payload.date as string,
       notes: payload.notes as string,
       waypointId,

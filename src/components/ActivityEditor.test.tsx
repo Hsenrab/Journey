@@ -330,6 +330,7 @@ describe('ActivityEditor', () => {
     const user = userEvent.setup()
     const { onSubmit, data } = renderEditor()
     const payload = {
+      name: 'Imported activity',
       date: '2026-09-01',
       notes: 'Loaded from JSON',
       waypointId: data.waypoints[0]!.waypointId,
@@ -349,6 +350,7 @@ describe('ActivityEditor', () => {
     expect(onSubmit).toHaveBeenCalledWith(
       expect.objectContaining({
         date: payload.date,
+        name: payload.name,
         notes: payload.notes,
         waypointId: payload.waypointId,
         category: payload.category,

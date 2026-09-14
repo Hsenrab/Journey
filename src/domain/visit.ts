@@ -263,6 +263,7 @@ export function validateActivityCategory(data: WaypointsData, activity: Activity
 
 export function createActivity(input: {
   activityId?: string
+  name?: string
   waypointId?: string
   challengeId?: string
   ideaIds?: string[]
@@ -278,6 +279,7 @@ export function createActivity(input: {
   const now = new Date().toISOString()
   return ActivitySchema.parse({
     activityId: input.activityId ?? crypto.randomUUID(),
+    name: input.name?.trim() || undefined,
     waypointId: input.waypointId,
     challengeId: input.challengeId,
     ideaIds: input.ideaIds ?? [],
