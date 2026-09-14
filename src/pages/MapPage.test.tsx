@@ -24,6 +24,7 @@ const mapEvents = vi.hoisted(() => ({
   sourceAdd: vi.fn(),
   clusterExpansionZoom: vi.fn(() => Promise.resolve(12)),
   setCamera: vi.fn(),
+  resize: vi.fn(),
   popupClose: undefined as (() => void) | undefined,
   popupContent: undefined as HTMLElement | undefined,
 }))
@@ -73,6 +74,7 @@ vi.mock('azure-maps-control', () => ({
     getCamera = vi.fn(() => ({ zoom: 8 }))
     setCamera = mapEvents.setCamera
     dispose = vi.fn()
+    resize = mapEvents.resize
   },
   Popup: class {
     setOptions = vi.fn((options: { content?: HTMLElement }) => {
@@ -121,6 +123,7 @@ describe('MapPage', () => {
     mapEvents.sourceAdd.mockClear()
     mapEvents.clusterExpansionZoom.mockClear()
     mapEvents.setCamera.mockClear()
+    mapEvents.resize.mockClear()
     mapEvents.popupClose = undefined
     mapEvents.popupContent = undefined
   })
@@ -389,6 +392,67 @@ describe('MapPage', () => {
 
     await vi.waitFor(() => expect(mapEvents.sourceAdd).toHaveBeenCalled())
     expect(screen.queryByText('Loading map')).not.toBeInTheDocument()
+  })
+
+  it('sizes the map to fill the viewport below it and resizes on window resize', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(jsonResponse({ token: 'entra', expiresOn: '2026-01-01', clientId: 'maps-client-id' })),
+    )
+    render(
+      <MemoryRouter>
+        <WaypointsProvider>
+          <MapPage />
+        </WaypointsProvider>
+      </MemoryRouter>,
+    )
+    await vi.waitFor(() => expect(mapEvents.sourceAdd).toHaveBeenCalled())
+    mapEvents.resize.mockClear()
+
+    const mapBox = screen.getByLabelText('Azure Maps interactive map').parentElement as HTMLElement
+    vi.spyOn(mapBox, 'getBoundingClientRect').mockReturnValue({ top: 200 } as DOMRect)
+    vi.spyOn(window, 'innerHeight', 'get').mockReturnValue(900)
+
+    act(() => window.dispatchEvent(new Event('resize')))
+
+    expect(getComputedStyle(mapBox).height).toBe('676px')
+    expect(mapEvents.resize).toHaveBeenCalledOnce()
+  })
+
+  it('recomputes the map height via ResizeObserver when the filters area changes size', async () => {
+    let capturedCallback: (() => void) | undefined
+    class FakeResizeObserver {
+      constructor(callback: () => void) {
+        capturedCallback = callback
+      }
+      observe = vi.fn()
+      disconnect = vi.fn()
+    }
+    vi.stubGlobal('ResizeObserver', FakeResizeObserver)
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(jsonResponse({ token: 'entra', expiresOn: '2026-01-01', clientId: 'maps-client-id' })),
+    )
+    render(
+      <MemoryRouter>
+        <WaypointsProvider>
+          <MapPage />
+        </WaypointsProvider>
+      </MemoryRouter>,
+    )
+    await vi.waitFor(() => expect(mapEvents.sourceAdd).toHaveBeenCalled())
+    expect(capturedCallback).toBeDefined()
+    mapEvents.resize.mockClear()
+
+    const mapBox = screen.getByLabelText('Azure Maps interactive map').parentElement as HTMLElement
+    vi.spyOn(mapBox, 'getBoundingClientRect').mockReturnValue({ top: 150 } as DOMRect)
+    vi.spyOn(window, 'innerHeight', 'get').mockReturnValue(800)
+
+    act(() => capturedCallback!())
+
+    expect(getComputedStyle(mapBox).height).toBe('626px')
+    expect(mapEvents.resize).toHaveBeenCalledOnce()
+    vi.unstubAllGlobals()
   })
 
   it('refreshes the Maps token after the initial token is consumed', async () => {
