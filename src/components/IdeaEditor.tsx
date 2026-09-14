@@ -15,6 +15,8 @@ import {
   MenuItem,
   Select,
   Stack,
+  Tab,
+  Tabs,
   TextField,
   Tooltip,
   Typography,
@@ -23,7 +25,12 @@ import DeleteIcon from '@mui/icons-material/Delete'
 import ArrowUpwardIcon from '@mui/icons-material/ArrowUpward'
 import ArrowDownwardIcon from '@mui/icons-material/ArrowDownward'
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined'
+import { ZodError } from 'zod'
 import {
+  DifficultySchema,
+  PlanningStateSchema,
+  ReferenceSchema,
+  createIdea,
   difficulties,
   difficultyDescriptions,
   difficultyLabels,
@@ -56,6 +63,44 @@ type EditorReference = {
 }
 
 type Errors = Record<string, string>
+type EditorMode = 'form' | 'json'
+
+const forbiddenImportIdFields = new Set(['ideaId', 'referenceId'])
+const requiredImportFields = [
+  'title',
+  'description',
+  'notes',
+  'waypointIds',
+  'planningState',
+  'difficulty',
+  'references',
+] as const
+const ideaImportExample = {
+  title: 'Plan a sunrise walk',
+  description: 'Try a nearby route before breakfast.',
+  notes: 'Bring a flask and check weather first.',
+  waypointIds: [],
+  planningState: 'active',
+  difficulty: 1,
+  location: { placeName: 'Brockworth', addressOrRegion: 'Gloucestershire', source: 'Manual research', approximate: true },
+  references: [{ title: 'Route ideas', url: 'https://example.com/route', description: '', previewImageUrl: '' }],
+}
+
+function collectForbiddenIdFields(value: unknown, ids = new Set<string>()): Set<string> {
+  if (Array.isArray(value)) {
+    value.forEach((entry) => {
+      collectForbiddenIdFields(entry, ids)
+    })
+    return ids
+  }
+  if (!value || typeof value !== 'object') return ids
+
+  Object.entries(value).forEach(([key, entry]) => {
+    if (forbiddenImportIdFields.has(key)) ids.add(key)
+    collectForbiddenIdFields(entry, ids)
+  })
+  return ids
+}
 
 export function IdeaEditor({
   data,
@@ -97,6 +142,11 @@ export function IdeaEditor({
     })),
   )
   const [errors, setErrors] = useState<Errors>({})
+  const [mode, setMode] = useState<EditorMode>('form')
+  const [jsonInput, setJsonInput] = useState('')
+  const [jsonError, setJsonError] = useState<string | null>(null)
+  const [jsonIssues, setJsonIssues] = useState<string[]>([])
+  const addMode = !initialIdea
 
   const dirty = useMemo(
     () =>
@@ -228,6 +278,7 @@ export function IdeaEditor({
           spacing={2}
           onSubmit={(event) => {
             event.preventDefault()
+            if (addMode && mode === 'json') return
             const result = validate()
             if (Object.keys(result.errors).length > 0) {
               setErrors(result.errors)
@@ -253,6 +304,188 @@ export function IdeaEditor({
             })
           }}
         >
+          {addMode && (
+            <Tabs
+              value={mode}
+              onChange={(_, next: EditorMode) => setMode(next)}
+              aria-label="Idea input mode"
+              sx={{ borderBottom: 1, borderColor: 'divider' }}
+            >
+              <Tab label="Form" value="form" />
+              <Tab label="Paste JSON" value="json" />
+            </Tabs>
+          )}
+          {addMode && mode === 'json' && (
+            <Stack spacing={1.5}>
+              <TextField
+                label="Idea JSON"
+                value={jsonInput}
+                onChange={(event) => setJsonInput(event.target.value)}
+                multiline
+                minRows={10}
+              />
+              <Stack direction="row" spacing={1}>
+                <Button
+                  onClick={async () => {
+                    try {
+                      await navigator.clipboard.writeText(JSON.stringify(ideaImportExample, null, 2))
+                    } catch {
+                      setJsonError('Clipboard copy failed.')
+                    }
+                  }}
+                >
+                  Copy example JSON
+                </Button>
+                <Button
+                  variant="contained"
+                  onClick={() => {
+                    let parsed: unknown
+                    try {
+                      parsed = JSON.parse(jsonInput)
+                    } catch {
+                      setJsonError('Invalid JSON. Paste a valid JSON object.')
+                      setJsonIssues([])
+                      return
+                    }
+                    if (Array.isArray(parsed)) {
+                      setJsonError('Paste a single object, not an array.')
+                      setJsonIssues([])
+                      return
+                    }
+                    if (!parsed || typeof parsed !== 'object') {
+                      setJsonError('Paste a single object, not a primitive value.')
+                      setJsonIssues([])
+                      return
+                    }
+
+                    const foundIds = Array.from(collectForbiddenIdFields(parsed))
+                    if (foundIds.length > 0) {
+                      setJsonError(foundIds.map((id) => `Remove '${id}' — IDs are assigned automatically.`).join(' '))
+                      setJsonIssues([])
+                      return
+                    }
+
+                    const payload = parsed as Record<string, unknown>
+                    const missing = requiredImportFields.filter((key) => !(key in payload))
+                    if (missing.length > 0) {
+                      setJsonError(`Missing required field${missing.length === 1 ? '' : 's'}: ${missing.join(', ')}.`)
+                      setJsonIssues([])
+                      return
+                    }
+                    const unknownFields = Object.keys(payload).filter(
+                      (key) =>
+                        ![
+                          'title',
+                          'description',
+                          'notes',
+                          'waypointIds',
+                          'planningState',
+                          'rejectionReason',
+                          'difficulty',
+                          'location',
+                          'references',
+                        ].includes(key),
+                    )
+                    if (unknownFields.length > 0) {
+                      setJsonError(
+                        `Unexpected field${unknownFields.length === 1 ? '' : 's'}: ${unknownFields.join(', ')}.`,
+                      )
+                      setJsonIssues([])
+                      return
+                    }
+
+                    const references = ReferenceSchema.omit({ referenceId: true }).array().safeParse(payload.references)
+                    const planningState = PlanningStateSchema.safeParse(payload.planningState)
+                    const difficulty = DifficultySchema.safeParse(payload.difficulty)
+
+                    const nextIssues: string[] = []
+                    if (!references.success) {
+                      references.error.issues.forEach((issue) => {
+                        nextIssues.push(`references.${issue.path.join('.')}: ${issue.message}`)
+                      })
+                    }
+                    if (!planningState.success) {
+                      planningState.error.issues.forEach((issue) => {
+                        nextIssues.push(`planningState: ${issue.message}`)
+                      })
+                    }
+                    if (!difficulty.success) {
+                      difficulty.error.issues.forEach((issue) => {
+                        nextIssues.push(`difficulty: ${issue.message}`)
+                      })
+                    }
+
+                    try {
+                      createIdea({
+                        title: payload.title as string,
+                        description: payload.description as string,
+                        notes: payload.notes as string,
+                        waypointIds: payload.waypointIds as string[],
+                        planningState: payload.planningState as Idea['planningState'],
+                        rejectionReason: payload.rejectionReason as string | undefined,
+                        difficulty: payload.difficulty as Idea['difficulty'],
+                        location: payload.location as Idea['location'],
+                        referenceIds: references.success ? references.data.map((_, index) => `reference-${index}`) : [],
+                      })
+                    } catch (error) {
+                      if (error instanceof ZodError) {
+                        error.issues.forEach((issue) => {
+                          nextIssues.push(`${issue.path.join('.')}: ${issue.message}`)
+                        })
+                      } else {
+                        throw error
+                      }
+                    }
+
+                    if (nextIssues.length > 0 || !references.success || !planningState.success || !difficulty.success) {
+                      setJsonError('JSON does not match the idea draft shape.')
+                      setJsonIssues(nextIssues)
+                      return
+                    }
+
+                    setTitle(payload.title as string)
+                    setDescription(payload.description as string)
+                    setNotes(payload.notes as string)
+                    setPlanningState(payload.planningState as Idea['planningState'])
+                    setRejectionReason((payload.rejectionReason as string | undefined) ?? '')
+                    setDifficulty(payload.difficulty as Idea['difficulty'])
+                    setWaypointIds(payload.waypointIds as string[])
+                    const location = payload.location as Idea['location'] | undefined
+                    setPlaceName(location?.placeName ?? '')
+                    setAddressOrRegion(location?.addressOrRegion ?? '')
+                    setSource(location?.source ?? '')
+                    setLatitude(location?.latitude === undefined ? '' : String(location.latitude))
+                    setLongitude(location?.longitude === undefined ? '' : String(location.longitude))
+                    setApproximate(location?.approximate ?? false)
+                    setReferences(
+                      references.data.map((reference) => ({
+                        title: reference.title,
+                        description: reference.description ?? '',
+                        url: reference.url,
+                        previewImageUrl: reference.previewImageUrl ?? '',
+                      })),
+                    )
+                    setErrors({})
+                    setJsonError(null)
+                    setJsonIssues([])
+                    setMode('form')
+                  }}
+                >
+                  Load into form
+                </Button>
+              </Stack>
+              {jsonError && <Alert severity="error">{jsonError}</Alert>}
+              {jsonIssues.length > 0 && (
+                <Alert severity="error">
+                  {jsonIssues.map((issue) => (
+                    <div key={issue}>{issue}</div>
+                  ))}
+                </Alert>
+              )}
+            </Stack>
+          )}
+          {(!addMode || mode === 'form') && (
+            <>
           {errorMessage && <Alert severity="error">{errorMessage}</Alert>}
           <TextField
             label="Title"
@@ -471,6 +704,8 @@ export function IdeaEditor({
               </Button>
             )}
           </Stack>
+          </>
+          )}
         </Stack>
       </CardContent>
     </Card>

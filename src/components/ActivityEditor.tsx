@@ -13,13 +13,19 @@ import {
   MenuItem,
   Select,
   Stack,
+  Tab,
+  Tabs,
   TextField,
   Typography,
 } from '@mui/material'
 import ArrowDownwardIcon from '@mui/icons-material/ArrowDownward'
 import ArrowUpwardIcon from '@mui/icons-material/ArrowUpward'
 import DeleteIcon from '@mui/icons-material/Delete'
+import { ZodError } from 'zod'
 import {
+  createActivity,
+  ExternalPhotoReferenceSchema,
+  ReferenceSchema,
   awardableStatuses,
   statusLabels,
   waypointSupportsActivityCategory,
@@ -58,6 +64,19 @@ type EditorPhotoReference = {
   altText: string
   url: string
 }
+type EditorMode = 'form' | 'json'
+
+const forbiddenImportIdFields = new Set(['activityId', 'referenceId', 'photoReferenceId'])
+const requiredImportFields = ['date', 'notes', 'ideaIds', 'location', 'references', 'photoReferences'] as const
+const activityImportExample = {
+  date: '2026-01-15',
+  notes: 'A short summary of the activity.',
+  waypointId: '',
+  ideaIds: [],
+  location: { kind: 'postcode', postcode: 'GL1 1AA' },
+  references: [{ title: 'Trip notes', url: 'https://example.com/notes', description: '', previewImageUrl: '' }],
+  photoReferences: [{ title: 'Viewpoint photo', url: 'https://example.com/photo.jpg', altText: '' }],
+}
 
 function isValidDate(value: string): boolean {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false
@@ -69,6 +88,22 @@ function waypointInitialLocation(data: WaypointsData, waypointId: string | undef
   const location = data.waypoints.find((item) => item.waypointId === waypointId)?.location
   if (typeof location?.latitude !== 'number' || typeof location.longitude !== 'number') return undefined
   return { kind: 'coordinates', latitude: location.latitude, longitude: location.longitude }
+}
+
+function collectForbiddenIdFields(value: unknown, ids = new Set<string>()): Set<string> {
+  if (Array.isArray(value)) {
+    value.forEach((entry) => {
+      collectForbiddenIdFields(entry, ids)
+    })
+    return ids
+  }
+  if (!value || typeof value !== 'object') return ids
+
+  Object.entries(value).forEach(([key, entry]) => {
+    if (forbiddenImportIdFields.has(key)) ids.add(key)
+    collectForbiddenIdFields(entry, ids)
+  })
+  return ids
 }
 
 export function ActivityEditor({
@@ -120,6 +155,11 @@ export function ActivityEditor({
   )
   const [errors, setErrors] = useState<Errors>({})
   const [message, setMessage] = useState<string | null>(null)
+  const [mode, setMode] = useState<EditorMode>('form')
+  const [jsonInput, setJsonInput] = useState('')
+  const [jsonError, setJsonError] = useState<string | null>(null)
+  const [jsonIssues, setJsonIssues] = useState<string[]>([])
+  const addMode = !initialActivity
 
   const supportsCategories = waypointSupportsActivityCategory(data, waypointId || undefined)
   const sortedIdeas = useMemo(
@@ -263,6 +303,7 @@ export function ActivityEditor({
           spacing={2}
           onSubmit={(event) => {
             event.preventDefault()
+            if (addMode && mode === 'json') return
             const result = validate()
             if (Object.keys(result.errors).length > 0 || !result.location) {
               setErrors(result.errors)
@@ -292,6 +333,180 @@ export function ActivityEditor({
             })
           }}
         >
+          {addMode && (
+            <Tabs
+              value={mode}
+              onChange={(_, next: EditorMode) => setMode(next)}
+              aria-label="Activity input mode"
+              sx={{ borderBottom: 1, borderColor: 'divider' }}
+            >
+              <Tab label="Form" value="form" />
+              <Tab label="Paste JSON" value="json" />
+            </Tabs>
+          )}
+          {addMode && mode === 'json' && (
+            <Stack spacing={1.5}>
+              <TextField
+                label="Activity JSON"
+                value={jsonInput}
+                onChange={(event) => setJsonInput(event.target.value)}
+                multiline
+                minRows={10}
+              />
+              <Stack direction="row" spacing={1}>
+                <Button
+                  onClick={async () => {
+                    try {
+                      await navigator.clipboard.writeText(JSON.stringify(activityImportExample, null, 2))
+                    } catch {
+                      setJsonError('Clipboard copy failed.')
+                    }
+                  }}
+                >
+                  Copy example JSON
+                </Button>
+                <Button
+                  variant="contained"
+                  onClick={() => {
+                    let parsed: unknown
+                    try {
+                      parsed = JSON.parse(jsonInput)
+                    } catch {
+                      setJsonError('Invalid JSON. Paste a valid JSON object.')
+                      setJsonIssues([])
+                      return
+                    }
+                    if (Array.isArray(parsed)) {
+                      setJsonError('Paste a single object, not an array.')
+                      setJsonIssues([])
+                      return
+                    }
+                    if (!parsed || typeof parsed !== 'object') {
+                      setJsonError('Paste a single object, not a primitive value.')
+                      setJsonIssues([])
+                      return
+                    }
+
+                    const foundIds = Array.from(collectForbiddenIdFields(parsed))
+                    if (foundIds.length > 0) {
+                      setJsonError(foundIds.map((id) => `Remove '${id}' — IDs are assigned automatically.`).join(' '))
+                      setJsonIssues([])
+                      return
+                    }
+
+                    const payload = parsed as Record<string, unknown>
+                    const missing = requiredImportFields.filter((key) => !(key in payload))
+                    if (missing.length > 0) {
+                      setJsonError(`Missing required field${missing.length === 1 ? '' : 's'}: ${missing.join(', ')}.`)
+                      setJsonIssues([])
+                      return
+                    }
+                    const unknownFields = Object.keys(payload).filter(
+                      (key) => !['date', 'notes', 'waypointId', 'ideaIds', 'category', 'location', 'references', 'photoReferences'].includes(key),
+                    )
+                    if (unknownFields.length > 0) {
+                      setJsonError(
+                        `Unexpected field${unknownFields.length === 1 ? '' : 's'}: ${unknownFields.join(', ')}.`,
+                      )
+                      setJsonIssues([])
+                      return
+                    }
+
+                    const references = ReferenceSchema.omit({ referenceId: true }).array().safeParse(payload.references)
+                    const photoReferences = ExternalPhotoReferenceSchema.omit({ photoReferenceId: true })
+                      .array()
+                      .safeParse(payload.photoReferences)
+                    const nextIssues: string[] = []
+                    if (!references.success) {
+                      references.error.issues.forEach((issue) => {
+                        nextIssues.push(`references.${issue.path.join('.')}: ${issue.message}`)
+                      })
+                    }
+                    if (!photoReferences.success) {
+                      photoReferences.error.issues.forEach((issue) => {
+                        nextIssues.push(`photoReferences.${issue.path.join('.')}: ${issue.message}`)
+                      })
+                    }
+                    try {
+                      createActivity({
+                        date: payload.date as string,
+                        notes: payload.notes as string,
+                        waypointId: payload.waypointId as string | undefined,
+                        ideaIds: payload.ideaIds as string[],
+                        category: payload.category as AwardedStatus | undefined,
+                        location: payload.location as ActivityLocation,
+                        referenceIds: references.success ? references.data.map((_, index) => `reference-${index}`) : [],
+                        photoReferenceIds: photoReferences.success
+                          ? photoReferences.data.map((_, index) => `photo-reference-${index}`)
+                          : [],
+                      })
+                    } catch (error) {
+                      if (error instanceof ZodError) {
+                        error.issues.forEach((issue) => {
+                          nextIssues.push(`${issue.path.join('.')}: ${issue.message}`)
+                        })
+                      } else {
+                        throw error
+                      }
+                    }
+                    if (nextIssues.length > 0 || !references.success || !photoReferences.success) {
+                      setJsonError('JSON does not match the activity draft shape.')
+                      setJsonIssues(nextIssues)
+                      return
+                    }
+
+                    setDate(payload.date as string)
+                    setNotes(payload.notes as string)
+                    setWaypointId((payload.waypointId as string | undefined) ?? '')
+                    setIdeaIds(payload.ideaIds as string[])
+                    setCategory((payload.category as AwardedStatus | undefined) ?? '')
+                    const location = payload.location as ActivityLocation
+                    setLocationKind(location.kind)
+                    if (location.kind === 'postcode') {
+                      setPostcode(location.postcode)
+                      setLatitude('')
+                      setLongitude('')
+                    } else {
+                      setLatitude(String(location.latitude))
+                      setLongitude(String(location.longitude))
+                      setPostcode('')
+                    }
+                    setReferences(
+                      references.data.map((reference) => ({
+                        title: reference.title,
+                        url: reference.url,
+                        description: reference.description ?? '',
+                        previewImageUrl: reference.previewImageUrl ?? '',
+                      })),
+                    )
+                    setPhotoReferences(
+                      photoReferences.data.map((photoReference) => ({
+                        title: photoReference.title,
+                        altText: photoReference.altText ?? '',
+                        url: photoReference.url,
+                      })),
+                    )
+                    setErrors({})
+                    setJsonError(null)
+                    setJsonIssues([])
+                    setMode('form')
+                  }}
+                >
+                  Load into form
+                </Button>
+              </Stack>
+              {jsonError && <Alert severity="error">{jsonError}</Alert>}
+              {jsonIssues.length > 0 && (
+                <Alert severity="error">
+                  {jsonIssues.map((issue) => (
+                    <div key={issue}>{issue}</div>
+                  ))}
+                </Alert>
+              )}
+            </Stack>
+          )}
+          {(!addMode || mode === 'form') && (
+            <>
           {message && <Alert severity="info">{message}</Alert>}
           <TextField
             label="Activity date"
@@ -615,6 +830,8 @@ export function ActivityEditor({
               </Button>
             )}
           </Stack>
+          </>
+          )}
         </Stack>
       </CardContent>
     </Card>
