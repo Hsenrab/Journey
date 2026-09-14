@@ -43,7 +43,14 @@ export function AiPromptButton({ label, prompt }: Props) {
             material describing the real place, activity, or idea (a website, notes, etc.). Paste the AI&apos;s JSON
             response into the Paste JSON input.
           </DialogContentText>
-          <TextField value={prompt} multiline minRows={12} fullWidth slotProps={{ htmlInput: { readOnly: true } }} />
+          <TextField
+            label="AI prompt text"
+            value={prompt}
+            multiline
+            minRows={12}
+            fullWidth
+            slotProps={{ htmlInput: { readOnly: true } }}
+          />
           {copyError && (
             <Alert severity="error" sx={{ mt: 2 }}>
               {copyError}
@@ -53,6 +60,7 @@ export function AiPromptButton({ label, prompt }: Props) {
         <DialogActions>
           <Button
             onClick={() => {
+              setCopyError(null)
               const clipboard = navigator.clipboard
               if (!clipboard?.writeText) {
                 setCopyError('Clipboard is unavailable in this browser.')

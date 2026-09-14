@@ -3,7 +3,7 @@
 
 export const activityJsonAiPrompt = `You are helping me create a single JSON object describing a real-world Activity for a personal travel/adventure log app. Use any source material I provide (a website, notes, itinerary, etc.) to fill in the fields. Return ONLY a single JSON object matching the shape below — not an array, not markdown, no commentary.
 
-Do NOT include any ID fields. Never output "activityId", "referenceId", or "photoReferenceId" — these are assigned automatically by the app.
+Do NOT output generated entity or nested-item IDs: never include "activityId", "referenceId", or "photoReferenceId", because the app assigns those automatically. Link IDs ("ideaIds" and optional "waypointId") are allowed only when I provide existing IDs.
 
 Required top-level fields:
 - "date" (string, required): the calendar date the activity happened or is planned for, in "YYYY-MM-DD" format.
@@ -48,7 +48,7 @@ Now, using the source material I provide below (or that I paste after this promp
 
 export const ideaJsonAiPrompt = `You are helping me create a single JSON object describing a real-world Idea (a planned or considered activity) for a personal travel/adventure log app. Use any source material I provide (a website, notes, itinerary, etc.) to fill in the fields. Return ONLY a single JSON object matching the shape below — not an array, not markdown, no commentary.
 
-Do NOT include any ID fields. Never output "ideaId" or "referenceId" — these are assigned automatically by the app.
+Do NOT output generated entity or nested-item IDs: never include "ideaId" or "referenceId", because the app assigns those automatically. Link IDs ("waypointIds") are allowed only when I provide existing IDs.
 
 Required top-level fields:
 - "title" (string, required): a short name for the idea, a few words.
@@ -101,7 +101,7 @@ Now, using the source material I provide below (or that I paste after this promp
 
 export const waypointJsonAiPrompt = `You are helping me create a single JSON object describing a real-world Waypoint (a place of interest) for a personal travel/adventure log app. Use any source material I provide (a website, notes, itinerary, etc.) to fill in the fields. Return ONLY a single JSON object matching the shape below — not an array, not markdown, no commentary.
 
-Do NOT include any ID fields. Never output "waypointId", "referenceId", or "photoReferenceId" — these are assigned automatically by the app.
+Do NOT output generated entity or nested-item IDs: never include "waypointId", "referenceId", or "photoReferenceId", because the app assigns those automatically. Link IDs ("challengeIds") are allowed only when I provide existing IDs.
 
 Required top-level fields:
 - "title" (string, required): the name of the place, a few words.

@@ -16,7 +16,7 @@ describe('AiPromptButton', () => {
 
     await user.click(screen.getByRole('button', { name: 'Widget JSON AI prompt' }))
     expect(screen.getByRole('heading', { name: 'Widget JSON AI prompt' })).toBeInTheDocument()
-    expect(screen.getByDisplayValue('Example prompt text')).toBeInTheDocument()
+    expect(screen.getByRole('textbox', { name: 'AI prompt text' })).toHaveValue('Example prompt text')
 
     await user.click(screen.getByRole('button', { name: 'Copy prompt' }))
     expect(writeText).toHaveBeenCalledWith('Example prompt text')
@@ -34,5 +34,23 @@ describe('AiPromptButton', () => {
     await user.click(screen.getByRole('button', { name: 'Widget JSON AI prompt' }))
     await user.click(screen.getByRole('button', { name: 'Copy prompt' }))
     expect(screen.getByText('Clipboard is unavailable in this browser.')).toBeInTheDocument()
+  })
+
+  it('clears a prior copy error when retrying', async () => {
+    const user = userEvent.setup()
+    const writeText = vi.fn().mockRejectedValueOnce(new Error('Permission denied')).mockResolvedValueOnce(undefined)
+    Object.defineProperty(navigator, 'clipboard', {
+      configurable: true,
+      value: { writeText },
+    })
+
+    render(<AiPromptButton label="Widget JSON" prompt="Example prompt text" />)
+
+    await user.click(screen.getByRole('button', { name: 'Widget JSON AI prompt' }))
+    await user.click(screen.getByRole('button', { name: 'Copy prompt' }))
+    expect(await screen.findByText('Could not copy prompt: Permission denied')).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Copy prompt' }))
+    expect(screen.queryByText('Could not copy prompt: Permission denied')).not.toBeInTheDocument()
   })
 })
