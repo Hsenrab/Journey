@@ -292,9 +292,7 @@ export function IdeaEditor({
                       setJsonError('Clipboard is unavailable in this browser.')
                       return
                     }
-                    void clipboard.writeText(JSON.stringify(ideaImportExample, null, 2)).catch((error) => {
-                      setJsonError(error instanceof Error ? error.message : String(error))
-                    })
+                    void clipboard.writeText(JSON.stringify(ideaImportExample, null, 2))
                   }}
                 >
                   Copy example JSON
