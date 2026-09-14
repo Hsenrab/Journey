@@ -281,7 +281,9 @@ export default function MapPage() {
     instance.events.add('ready', () => {
       for (const [id, icon] of Object.entries(markerIcons)) void instance.imageSprite.add(id, icon)
       const popup = new atlas.Popup({ pixelOffset: [0, -20] })
+      let activeClusterRequest = 0
       instance.events.add('close', popup, () => {
+        activeClusterRequest += 1
         setSelectedWaypointId(null)
         setSelectedActivityId(null)
       })
@@ -323,21 +325,23 @@ export default function MapPage() {
         filter: ['has', 'point_count'],
         textOptions: { textField: ['get', 'point_count_abbreviated'], color: '#fff', size: 12 },
       })
+      const waypointClusterBubbleLayer = new atlas.layer.BubbleLayer(waypoints, 'waypoint-clusters', {
+        filter: ['has', 'point_count'],
+        radius: 10,
+        color: markerColors.notStarted,
+        strokeColor: '#fff',
+        strokeWidth: 2,
+      })
+      const activityClusterBubbleLayer = new atlas.layer.BubbleLayer(activities, 'activity-clusters', {
+        filter: ['has', 'point_count'],
+        radius: 10,
+        color: markerColors.activity,
+        strokeColor: '#fff',
+        strokeWidth: 2,
+      })
       instance.layers.add([
-        new atlas.layer.BubbleLayer(waypoints, 'waypoint-clusters', {
-          filter: ['has', 'point_count'],
-          radius: 10,
-          color: markerColors.notStarted,
-          strokeColor: '#fff',
-          strokeWidth: 2,
-        }),
-        new atlas.layer.BubbleLayer(activities, 'activity-clusters', {
-          filter: ['has', 'point_count'],
-          radius: 10,
-          color: markerColors.activity,
-          strokeColor: '#fff',
-          strokeWidth: 2,
-        }),
+        waypointClusterBubbleLayer,
+        activityClusterBubbleLayer,
         waypointLayer,
         waypointClusterLayer,
         activityLayer,
@@ -351,7 +355,9 @@ export default function MapPage() {
         if (clusterId === undefined) return
         const total = properties.point_count as number
         const position = shape.getCoordinates() as atlas.data.Position
+        const request = ++activeClusterRequest
         void source.getClusterLeaves(clusterId, CLUSTER_LIST_LIMIT, 0).then((leaves) => {
+          if (request !== activeClusterRequest) return
           const items = leaves.flatMap((leaf) => {
             const leafProperties = 'getProperties' in leaf ? leaf.getProperties() : leaf.properties
             const item = toClusterItem(leafProperties as Record<string, unknown> | undefined)
@@ -364,9 +370,14 @@ export default function MapPage() {
           setSelectedActivityId(null)
         })
       }
-      instance.events.add('click', waypointClusterLayer, listCluster(waypoints, 'Waypoints here'))
-      instance.events.add('click', activityClusterLayer, listCluster(activities, 'Activities here'))
+      const listWaypointCluster = listCluster(waypoints, 'Waypoints here')
+      const listActivityCluster = listCluster(activities, 'Activities here')
+      instance.events.add('click', waypointClusterBubbleLayer, listWaypointCluster)
+      instance.events.add('click', waypointClusterLayer, listWaypointCluster)
+      instance.events.add('click', activityClusterBubbleLayer, listActivityCluster)
+      instance.events.add('click', activityClusterLayer, listActivityCluster)
       instance.events.add('click', waypointLayer, (event) => {
+        activeClusterRequest += 1
         const shape = event.shapes?.[0]
         const properties = shape && 'getProperties' in shape ? shape.getProperties() : shape?.properties
         const waypointId = properties?.waypointId as string | undefined
@@ -393,6 +404,7 @@ export default function MapPage() {
         setSelectedWaypointId(waypointId)
       })
       instance.events.add('click', activityLayer, (event) => {
+        activeClusterRequest += 1
         const shape = event.shapes?.[0]
         const properties = shape && 'getProperties' in shape ? shape.getProperties() : shape?.properties
         const activityId = properties?.activityId as string | undefined
