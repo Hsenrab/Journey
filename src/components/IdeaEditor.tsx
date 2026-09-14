@@ -36,6 +36,8 @@ import {
   type WaypointsData,
 } from '../domain/visit'
 import { ideaImportExample, parseIdeaDraftJson } from '../domain/draftJsonImport'
+import { ideaJsonAiPrompt } from '../domain/aiPrompts'
+import { AiPromptButton } from './AiPromptButton'
 import type { IdeaDraft } from '../features/journey/JourneyContext'
 
 type Props = {
@@ -277,6 +279,12 @@ export function IdeaEditor({
           )}
           {addMode && mode === 'json' && (
             <Stack spacing={1.5}>
+              <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
+                <Typography variant="body2" color="text.secondary">
+                  Generate with AI
+                </Typography>
+                <AiPromptButton label="Idea JSON" prompt={ideaJsonAiPrompt} />
+              </Stack>
               <TextField
                 label="Idea JSON"
                 value={jsonInput}

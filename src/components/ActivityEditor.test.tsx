@@ -452,6 +452,15 @@ describe('ActivityEditor', () => {
       })
     }
   })
+  it('shows an AI prompt button that opens the Activity JSON prompt dialog', async () => {
+    const user = userEvent.setup()
+    renderEditor()
+
+    await user.click(screen.getByRole('tab', { name: 'Paste JSON' }))
+    await user.click(screen.getByRole('button', { name: 'Activity JSON AI prompt' }))
+    expect(screen.getByRole('heading', { name: 'Activity JSON AI prompt' })).toBeInTheDocument()
+    expect(screen.getByDisplayValue(/activityId/)).toBeInTheDocument()
+  })
 })
 
 function dataWaypointId(data: ReturnType<typeof createDefaultData>) {

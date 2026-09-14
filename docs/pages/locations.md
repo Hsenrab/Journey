@@ -38,7 +38,11 @@ review a visit.
    rejects arrays, and rejects ID fields (`waypointId`, `referenceId`, `photoReferenceId`).
 5. **Copy example JSON** copies a representative draft shape. **Load into form** validates the pasted
    JSON, keeps the pasted text on errors, and on success populates the existing form state before save.
-6. Each card links to `/waypoints/:id`, where the id is the stable identifier used as the storage
+6. An info icon next to the Waypoint JSON field opens a dialog with a ready-to-copy AI prompt describing
+   the exact draft shape. Copy the prompt into an external AI tool (for example GitHub Copilot Chat or
+   ChatGPT) alongside source material about the waypoint, then paste the AI's JSON response into Paste
+   JSON.
+7. Each card links to `/waypoints/:id`, where the id is the stable identifier used as the storage
    key.
 
 ### Waypoint Paste JSON draft example
