@@ -162,7 +162,7 @@ export default function MapPage() {
   const [originQuery, setOriginQuery] = useState('Brockworth, Gloucestershire')
   const [origin, setOrigin] = useState(brockworth)
   const [originResults, setOriginResults] = useState<SearchResult[]>([])
-  const [mapHeight, setMapHeight] = useState(480)
+  const [mapHeight, setMapHeight] = useState(MIN_MAP_HEIGHT)
 
   useEffect(() => {
     void getMapsToken()
