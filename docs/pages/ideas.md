@@ -34,6 +34,9 @@ more activities through activity `ideaIds`.
   rejects arrays, and rejects ID fields (`ideaId`, `referenceId`).
 - **Copy example JSON** copies a representative draft shape. **Load into form** validates the pasted
   JSON, keeps the pasted text on errors, and on success populates the existing form state before save.
+- An info icon next to the Idea JSON field opens a dialog with a ready-to-copy AI prompt describing
+  the exact draft shape. Copy the prompt into an external AI tool (for example GitHub Copilot Chat or
+  ChatGPT) alongside source material about the idea, then paste the AI's JSON response into Paste JSON.
 
 ### Idea Paste JSON draft example
 

@@ -364,4 +364,14 @@ describe('IdeaEditor', () => {
       })
     }
   })
+
+  it('shows an AI prompt button that opens the Idea JSON prompt dialog', async () => {
+    const user = userEvent.setup()
+    renderEditor()
+
+    await user.click(screen.getByRole('tab', { name: 'Paste JSON' }))
+    await user.click(screen.getByRole('button', { name: 'Idea JSON AI prompt' }))
+    expect(screen.getByRole('heading', { name: 'Idea JSON AI prompt' })).toBeInTheDocument()
+    expect(screen.getByDisplayValue(/ideaId/)).toBeInTheDocument()
+  })
 })

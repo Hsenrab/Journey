@@ -33,6 +33,8 @@ import {
   type WaypointsData,
 } from '../domain/visit'
 import { activityImportExample, parseActivityDraftJson } from '../domain/draftJsonImport'
+import { activityJsonAiPrompt } from '../domain/aiPrompts'
+import { AiPromptButton } from './AiPromptButton'
 import type { ActivityDraft } from '../features/journey/JourneyContext'
 
 type Props = {
@@ -316,6 +318,12 @@ export function ActivityEditor({
           )}
           {addMode && mode === 'json' && (
             <Stack spacing={1.5}>
+              <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
+                <Typography variant="body2" color="text.secondary">
+                  Generate with AI
+                </Typography>
+                <AiPromptButton label="Activity JSON" prompt={activityJsonAiPrompt} />
+              </Stack>
               <TextField
                 label="Activity JSON"
                 value={jsonInput}

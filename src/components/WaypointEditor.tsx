@@ -14,10 +14,13 @@ import {
   Tab,
   Tabs,
   TextField,
+  Typography,
 } from '@mui/material'
 import DeleteIcon from '@mui/icons-material/Delete'
 import type { Waypoint, WaypointsData } from '../domain/visit'
 import { parseWaypointDraftJson, waypointImportExample } from '../domain/draftJsonImport'
+import { waypointJsonAiPrompt } from '../domain/aiPrompts'
+import { AiPromptButton } from './AiPromptButton'
 import type { WaypointDraft } from '../features/journey/JourneyContext'
 
 type Props = {
@@ -266,6 +269,12 @@ export function WaypointEditor({ data, submitLabel, onSubmit, onCancel, errorMes
 
           {mode === 'json' && (
             <Stack spacing={1.5}>
+              <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
+                <Typography variant="body2" color="text.secondary">
+                  Generate with AI
+                </Typography>
+                <AiPromptButton label="Waypoint JSON" prompt={waypointJsonAiPrompt} />
+              </Stack>
               <TextField
                 label="Waypoint JSON"
                 value={jsonInput}

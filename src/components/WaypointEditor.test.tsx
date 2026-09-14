@@ -231,4 +231,14 @@ describe('WaypointEditor', () => {
       Object.defineProperty(navigator, 'clipboard', { configurable: true, value: originalClipboard })
     }
   })
+
+  it('shows an AI prompt button that opens the Waypoint JSON prompt dialog', async () => {
+    const user = userEvent.setup()
+    renderEditor()
+
+    await user.click(screen.getByRole('tab', { name: 'Paste JSON' }))
+    await user.click(screen.getByRole('button', { name: 'Waypoint JSON AI prompt' }))
+    expect(screen.getByRole('heading', { name: 'Waypoint JSON AI prompt' })).toBeInTheDocument()
+    expect(screen.getByDisplayValue(/waypointId/)).toBeInTheDocument()
+  })
 })
