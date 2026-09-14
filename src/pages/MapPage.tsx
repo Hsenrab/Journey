@@ -419,7 +419,14 @@ export default function MapPage() {
   return (
     <Stack spacing={2}>
       <PageHeader title="Map">
-        <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: 'wrap' }} aria-label="Map legend" role="group">
+        <Stack
+          direction="row"
+          spacing={1}
+          useFlexGap
+          sx={{ flexWrap: 'wrap' }}
+          aria-label="Marker colour legend"
+          role="group"
+        >
           {mode === 'waypoints' ? (
             <>
               <Chip
