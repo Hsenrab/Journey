@@ -272,7 +272,7 @@
       "challengeId": "family-days",
       "title": "Family Days (Demo)",
       "description": "A small fictional family activity collection.",
-      "waypointIds": ["demo-puddlebrook-paddle", "demo-copper-kettle-trail"],
+      "waypointIds": ["demo-wychwood-night-walk", "demo-puddlebrook-paddle", "demo-copper-kettle-trail"],
       "supportsActivityCategories": false
     },
     {

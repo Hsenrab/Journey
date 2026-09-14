@@ -20,7 +20,7 @@ import {
   type Waypoint,
   type WaypointsData,
 } from './visit'
-import { waypointCoordinates } from './map'
+import { completionStateForWaypoint, waypointCoordinates } from './map'
 import { locations } from '../data/locations'
 
 function waypoint(waypointId: string): Waypoint {
@@ -162,16 +162,21 @@ describe('demo data', () => {
 
   it('shows partial progress for every challenge that has waypoints', () => {
     const data = createDemoData()
-    const visited = new Set(data.activities.map((activity) => activity.waypointId))
+    const waypointsById = new Map(data.waypoints.map((waypoint) => [waypoint.waypointId, waypoint]))
 
     for (const challenge of data.challenges) {
-      const completed = challenge.waypointIds.filter((waypointId) => visited.has(waypointId))
+      let completed = 0
+      for (const waypointId of challenge.waypointIds) {
+        const waypoint = waypointsById.get(waypointId)
+        expect(waypoint).toBeDefined()
+        if (waypoint && completionStateForWaypoint(waypoint, data.activities) === 'complete') completed += 1
+      }
       if (challenge.waypointIds.length === 0) {
-        expect(completed).toEqual([])
+        expect(completed).toBe(0)
         continue
       }
-      expect(completed.length).toBeGreaterThan(0)
-      expect(completed.length).toBeLessThan(challenge.waypointIds.length)
+      expect(completed).toBeGreaterThan(0)
+      expect(completed).toBeLessThan(challenge.waypointIds.length)
     }
     expect(data.challenges.filter((challenge) => challenge.waypointIds.length === 0)).toEqual([
       expect.objectContaining({ challengeId: 'future-shortlist' }),
@@ -319,8 +324,10 @@ describe('idea and activity relationships', () => {
     expect(shared?.waypointIds).toEqual(['demo-foxglove-manor', 'demo-bramblewick-gardens'])
     expect(ideaUsageCount(data.activities, 'demo-idea-orangery-tour')).toBe(3)
     expect(ideaUsageCount(data.activities, 'demo-idea-heritage-open-day')).toBe(2)
+    expect(ideaUsageCount(data.activities, 'demo-idea-canal-cycle-loop')).toBe(0)
     expect(ideaUsageCount(data.activities, 'demo-idea-railway-picnic')).toBe(0)
     expect(ideaUsageCount(data.activities, 'demo-idea-winter-lantern-trail')).toBe(0)
+    expect(data.ideas.filter((item) => ideaUsageCount(data.activities, item.ideaId) === 0)).toHaveLength(3)
     for (const state of ['active', 'someday', 'rejected'] as const)
       expect(stateCounts.get(state) ?? 0).toBeGreaterThan(1)
     expect(data.ideas.filter((item) => item.planningState === 'rejected').every((item) => item.rejectionReason)).toBe(
