@@ -808,7 +808,7 @@ export default function MapPage() {
             borderRadius: 1,
             bgcolor: 'white',
             p: { xs: 1.5, sm: 2 },
-            width: { sm: 360 },
+            width: { sm: 280 },
             flexShrink: 0,
             display: isMobile && mobilePanel !== 'list' ? 'none' : 'block',
           }}
