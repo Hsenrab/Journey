@@ -1,16 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import {
-  Accordion,
-  AccordionDetails,
-  AccordionSummary,
   Alert,
   Box,
   Button,
   Card,
   CardContent,
   Checkbox,
-  Chip,
   CircularProgress,
   FormControlLabel,
   Stack,
@@ -23,7 +19,9 @@ import {
   useMediaQuery,
 } from '@mui/material'
 import { useTheme } from '@mui/material/styles'
-import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
+import CheckBoxIcon from '@mui/icons-material/CheckBox'
+import CheckBoxOutlineBlankIcon from '@mui/icons-material/CheckBoxOutlineBlank'
+import CircleIcon from '@mui/icons-material/Circle'
 import * as atlas from 'azure-maps-control'
 import 'azure-maps-control/dist/atlas.min.css'
 import {
@@ -34,13 +32,21 @@ import {
   orderNearbyWaypoints,
   waypointCoordinates,
 } from '../domain/map'
-import { statusLabels, statusOrder, type Status } from '../domain/visit'
+import {
+  statusLabels,
+  statusOrder,
+  type Activity,
+  type AwardedStatus,
+  type Status,
+  type Waypoint,
+} from '../domain/visit'
 import { PageHeader } from '../components/PageHeader'
 import { useWaypoints } from '../features/journey/JourneyContext'
 
 const brockworth = { latitude: 51.844, longitude: -2.153 }
 type MapMode = 'waypoints' | 'activities'
 const markerColors = { notStarted: '#455a64', complete: '#2e7d32', activity: '#007c83' }
+const tierColors: Record<AwardedStatus, string> = { gold: '#b7791f', silver: '#757575', bronze: '#a05a2c' }
 const markerIcon = (color: string, symbol: string, selected = false) =>
   `data:image/svg+xml,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="${selected ? 54 : 48}" height="${selected ? 64 : 58}" viewBox="0 0 28 34">${selected ? '<path d="M14 3C8.5 3 4 7.5 4 13c0 7.2 10 17.7 10 17.7S24 20.2 24 13C24 7.5 19.5 3 14 3Z" fill="none" stroke="#fff" stroke-width="5" stroke-linejoin="round" opacity=".96"/>' : ''}<path d="M14 3C8.5 3 4 7.5 4 13c0 7.2 10 17.7 10 17.7S24 20.2 24 13C24 7.5 19.5 3 14 3Z" fill="${color}" stroke="#263238" stroke-width="1.4" stroke-linejoin="round"/><circle cx="14" cy="13" r="6.8" fill="#fff"/>${symbol}</svg>`)}`
 const markerIcons = {
@@ -71,6 +77,105 @@ const markerIcons = {
     `<path d="M14 9.6 17.4 13 14 16.4 10.6 13Z" fill="${markerColors.activity}"/>`,
     true,
   ),
+}
+
+function waypointDisplayName(waypoint: Pick<Waypoint, 'title'>): string {
+  return waypoint.title.trim() || 'Unnamed waypoint'
+}
+
+function activityDisplayName(activity: Pick<Activity, 'name'>): string {
+  return activity.name?.trim() || 'Unnamed activity'
+}
+
+function formatMiles(miles: number): string {
+  return `${miles.toFixed(1)} miles`
+}
+
+function CompletionIcon({ complete }: { complete: boolean }) {
+  const label = complete ? 'Completed' : 'Not completed'
+  const Icon = complete ? CheckBoxIcon : CheckBoxOutlineBlankIcon
+  return (
+    <Box component="span" role="img" aria-label={label} title={label} sx={{ display: 'inline-flex' }}>
+      <Icon fontSize="small" color={complete ? 'success' : 'action'} />
+    </Box>
+  )
+}
+
+function TierIcon({ tier }: { tier: AwardedStatus }) {
+  const label = `${statusLabels[tier]} tier`
+  return (
+    <Box component="span" role="img" aria-label={label} title={label} sx={{ display: 'inline-flex' }}>
+      <CircleIcon fontSize="small" sx={{ color: tierColors[tier], fontSize: 12 }} />
+    </Box>
+  )
+}
+
+function CompactMapListItem({
+  to,
+  name,
+  complete,
+  tier,
+  distance,
+  date,
+  onClick,
+}: {
+  to: string
+  name: string
+  complete: boolean
+  tier?: AwardedStatus
+  distance: string
+  date?: string
+  onClick?: () => void
+}) {
+  return (
+    <Button
+      component={Link}
+      to={to}
+      onClick={onClick}
+      title={name}
+      sx={{
+        width: 1,
+        justifyContent: 'flex-start',
+        borderBottom: '1px solid',
+        borderColor: 'divider',
+        borderRadius: 0,
+        px: 0.5,
+        py: 0.75,
+        textAlign: 'left',
+        textTransform: 'none',
+      }}
+    >
+      <Stack component="span" spacing={0.25} sx={{ minWidth: 0, width: 1 }}>
+        <Typography
+          component="span"
+          variant="body2"
+          sx={{ display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: 500 }}
+        >
+          {name}
+        </Typography>
+        <Box
+          component="span"
+          sx={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 0.75,
+            minWidth: 0,
+            color: 'text.secondary',
+            typography: 'caption',
+          }}
+        >
+          <CompletionIcon complete={complete} />
+          {tier && <TierIcon tier={tier} />}
+          <Box component="span">{distance}</Box>
+          {date && (
+            <Box component="span" sx={{ color: 'text.disabled' }}>
+              {date}
+            </Box>
+          )}
+        </Box>
+      </Stack>
+    </Button>
+  )
 }
 
 type MapsToken = { token: string; expiresOn: string; clientId: string }
@@ -453,9 +558,11 @@ export default function MapPage() {
           .filter((activity) => activity.waypointId === waypoint.waypointId)
           .map((activity) => ({
             activityId: activity.activityId,
-            label: activity.category ? `${activity.date} · ${statusLabels[activity.category]}` : activity.date,
+            label: activityDisplayName(activity),
           }))
-        const content = buildWaypointPopupContent(waypoint.title, waypointActivities, (href) => navigate(href))
+        const content = buildWaypointPopupContent(waypointDisplayName(waypoint), waypointActivities, (href) =>
+          navigate(href),
+        )
         const coordinates = waypointCoordinates(waypoint)
         if (!coordinates) return
         popup.setOptions({ content, position: [coordinates.longitude, coordinates.latitude] })
@@ -477,9 +584,9 @@ export default function MapPage() {
           : undefined
         const content = buildPopupContent({
           eyebrow: 'Activity',
-          title: activity.date,
+          title: activityDisplayName(activity),
           metadata: [activity.category ? statusLabels[activity.category] : 'Uncategorised'],
-          summary: waypoint?.title ?? 'No linked waypoint',
+          summary: waypoint ? waypointDisplayName(waypoint) : 'No linked waypoint',
           href: `/activities/${activity.activityId}`,
           onNavigate: (href) => navigate(href),
         })
@@ -527,7 +634,7 @@ export default function MapPage() {
           const status = statusFor(waypoint.waypointId)
           return [
             new atlas.data.Feature(new atlas.data.Point([coordinates.longitude, coordinates.latitude]), {
-              label: waypoint.title,
+              label: waypointDisplayName(waypoint),
               icon:
                 selectedWaypointId === waypoint.waypointId
                   ? completionStateForWaypoint(waypoint, data.activities) === 'complete'
@@ -557,10 +664,10 @@ export default function MapPage() {
           const waypoint = data.waypoints.find((item) => item.waypointId === activity.waypointId)
           return [
             new atlas.data.Feature(new atlas.data.Point([coordinates.longitude, coordinates.latitude]), {
-              label: activity.date,
+              label: activityDisplayName(activity),
               icon: selectedActivityId === activity.activityId ? 'activity-selected' : 'activity',
               activityId: activity.activityId,
-              description: `${waypoint?.title ?? 'No linked waypoint'} · ${activity.category ? statusLabels[activity.category] : 'Uncategorised'}`,
+              description: `${waypoint ? waypointDisplayName(waypoint) : 'No linked waypoint'} · ${activity.category ? statusLabels[activity.category] : 'Uncategorised'}`,
             }),
           ]
         }),
@@ -600,37 +707,8 @@ export default function MapPage() {
   }
 
   return (
-    <Stack spacing={2}>
+    <Stack spacing={1}>
       <PageHeader title="Map">
-        <Stack
-          direction="row"
-          spacing={1}
-          useFlexGap
-          sx={{ flexWrap: 'wrap' }}
-          aria-label="Marker colour legend"
-          role="group"
-        >
-          {mode === 'waypoints' ? (
-            <>
-              <Chip
-                size="small"
-                label="Not started"
-                sx={{ border: `2px solid ${markerColors.notStarted}`, bgcolor: 'white' }}
-              />
-              <Chip
-                size="small"
-                label="Complete"
-                sx={{ border: `2px solid ${markerColors.complete}`, bgcolor: 'white' }}
-              />
-            </>
-          ) : (
-            <Chip
-              size="small"
-              label="Activity"
-              sx={{ border: `2px solid ${markerColors.activity}`, bgcolor: 'white' }}
-            />
-          )}
-        </Stack>
         <Tabs
           value={mode}
           onChange={(_, nextMode: MapMode) => {
@@ -646,6 +724,68 @@ export default function MapPage() {
         </Tabs>
       </PageHeader>
       {error && <Alert severity="error">{error}</Alert>}
+      <Card ref={filters}>
+        <CardContent>
+          <Stack
+            component="form"
+            spacing={1}
+            aria-label="Find nearby waypoints"
+            onSubmit={(event) => {
+              event.preventDefault()
+              void findNearby()
+            }}
+          >
+            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
+              <TextField
+                label="Nearby origin"
+                value={originQuery}
+                onChange={(event) => setOriginQuery(event.target.value)}
+                size="small"
+                sx={{ flex: { sm: 1 }, minWidth: 0 }}
+              />
+              <Button type="submit" variant="contained" sx={{ alignSelf: { sm: 'flex-start' } }}>
+                Search
+              </Button>
+            </Stack>
+            {mode === 'waypoints' && (
+              <Stack direction="row" useFlexGap sx={{ flexWrap: 'wrap' }} role="group" aria-label="Waypoint filters">
+                {statusOrder.map((status) => (
+                  <FormControlLabel
+                    key={status}
+                    control={
+                      <Checkbox
+                        checked={statuses.includes(status)}
+                        onChange={(event) =>
+                          setStatuses((current) =>
+                            event.target.checked ? [...current, status] : current.filter((item) => item !== status),
+                          )
+                        }
+                      />
+                    }
+                    label={statusLabels[status]}
+                  />
+                ))}
+              </Stack>
+            )}
+          </Stack>
+          {originResults.length > 0 && (
+            <Stack spacing={1} sx={{ mt: 2 }}>
+              <Typography variant="h6">Choose a nearby origin</Typography>
+              <Typography color="text.secondary">
+                Azure Maps found multiple approximate matches. Select the intended place.
+              </Typography>
+              {originResults.map((result, index) => (
+                <Button
+                  key={`${result.address?.freeformAddress ?? 'result'}-${index}`}
+                  onClick={() => selectOrigin(result)}
+                >
+                  {result.address?.freeformAddress ?? 'Unnamed Azure Maps result'}
+                </Button>
+              ))}
+            </Stack>
+          )}
+        </CardContent>
+      </Card>
       {isMobile && (
         <ToggleButtonGroup
           exclusive
@@ -668,31 +808,38 @@ export default function MapPage() {
             borderRadius: 1,
             bgcolor: 'white',
             p: { xs: 1.5, sm: 2 },
-            width: { sm: 360 },
+            width: { sm: 280 },
             flexShrink: 0,
             display: isMobile && mobilePanel !== 'list' ? 'none' : 'block',
           }}
+          aria-label={mode === 'waypoints' ? 'Nearest visible waypoints' : 'Nearest activities'}
         >
-          <Stack spacing={1}>
-            <Typography variant="h6">
-              {mode === 'waypoints' ? 'Nearest visible waypoints' : 'Nearest activities'}
-            </Typography>
+          <Stack spacing={0}>
             {mode === 'waypoints'
-              ? nearby.map(({ waypoint, distanceMiles: miles }) => (
-                  <Button
-                    key={waypoint.waypointId}
-                    component={Link}
-                    to={`/waypoints/${waypoint.waypointId}`}
-                    onClick={() => setSelectedWaypointId(waypoint.waypointId)}
-                  >
-                    {statusLabels[statusFor(waypoint.waypointId)]}: {waypoint.title} — {miles.toFixed(1)} miles
-                  </Button>
-                ))
+              ? nearby.map(({ waypoint, distanceMiles: miles }) => {
+                  const status = statusFor(waypoint.waypointId)
+                  return (
+                    <CompactMapListItem
+                      key={waypoint.waypointId}
+                      to={`/waypoints/${waypoint.waypointId}`}
+                      name={waypointDisplayName(waypoint)}
+                      complete={completionStateForWaypoint(waypoint, data.activities) === 'complete'}
+                      tier={status === 'not-started' ? undefined : status}
+                      distance={formatMiles(miles)}
+                      onClick={() => setSelectedWaypointId(waypoint.waypointId)}
+                    />
+                  )
+                })
               : nearbyActivities.map(({ activity, distanceMiles: miles }) => (
-                  <Button key={activity.activityId} component={Link} to={`/activities/${activity.activityId}`}>
-                    {activity.category ? `${statusLabels[activity.category]}: ` : ''}
-                    {activity.date} — {miles.toFixed(1)} miles
-                  </Button>
+                  <CompactMapListItem
+                    key={activity.activityId}
+                    to={`/activities/${activity.activityId}`}
+                    name={activityDisplayName(activity)}
+                    complete={true}
+                    tier={activity.category}
+                    distance={formatMiles(miles)}
+                    date={activity.date}
+                  />
                 ))}
             {mode === 'waypoints' && nearby.length === 0 && (
               <Typography color="text.secondary">No visible waypoints.</Typography>
@@ -715,44 +862,6 @@ export default function MapPage() {
           }}
         >
           <Box id="map-panel" role="tabpanel" aria-labelledby={`${mode}-tab`} tabIndex={0}>
-            <Stack
-              ref={filters}
-              spacing={1.5}
-              sx={{ p: { xs: 1.5, sm: 2 }, borderBottom: '1px solid', borderColor: 'divider' }}
-            >
-              {mode === 'waypoints' && (
-                <Accordion disableGutters elevation={0} sx={{ '&::before': { display: 'none' } }}>
-                  <AccordionSummary expandIcon={<ExpandMoreIcon />} sx={{ px: 0, minHeight: 40 }}>
-                    Waypoint filters ({statuses.length} of {statusOrder.length} statuses selected)
-                  </AccordionSummary>
-                  <AccordionDetails sx={{ px: 0, pb: 0 }}>
-                    <Stack direction="row" useFlexGap sx={{ flexWrap: 'wrap' }}>
-                      {statusOrder.map((status) => (
-                        <FormControlLabel
-                          key={status}
-                          control={
-                            <Checkbox
-                              checked={statuses.includes(status)}
-                              onChange={(event) =>
-                                setStatuses((current) =>
-                                  event.target.checked
-                                    ? [...current, status]
-                                    : current.filter((item) => item !== status),
-                                )
-                              }
-                            />
-                          }
-                          label={statusLabels[status]}
-                        />
-                      ))}
-                    </Stack>
-                  </AccordionDetails>
-                </Accordion>
-              )}
-              <Typography variant="caption" color="text.secondary">
-                Select a marker for details
-              </Typography>
-            </Stack>
             <Box ref={mapBox} sx={{ position: 'relative', height: mapHeight }}>
               <Box ref={container} aria-label="Azure Maps interactive map" sx={{ height: '100%', width: '100%' }} />
               {!mapReady && !error && (
@@ -777,49 +886,6 @@ export default function MapPage() {
           </Box>
         </Box>
       </Stack>
-      <Card>
-        <CardContent>
-          <Stack
-            component="form"
-            spacing={2}
-            onSubmit={(event) => {
-              event.preventDefault()
-              void findNearby()
-            }}
-          >
-            <Typography variant="h6">Find nearby waypoints</Typography>
-            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
-              <TextField
-                label="Nearby origin"
-                value={originQuery}
-                onChange={(event) => setOriginQuery(event.target.value)}
-                helperText="Temporary origin; results use straight-line distance."
-                size="small"
-                sx={{ flex: { sm: 1 }, minWidth: 0 }}
-              />
-              <Button type="submit" variant="contained" sx={{ alignSelf: { sm: 'flex-start' } }}>
-                Search
-              </Button>
-            </Stack>
-          </Stack>
-          {originResults.length > 0 && (
-            <Stack spacing={1} sx={{ mt: 2 }}>
-              <Typography variant="h6">Choose a nearby origin</Typography>
-              <Typography color="text.secondary">
-                Azure Maps found multiple approximate matches. Select the intended place.
-              </Typography>
-              {originResults.map((result, index) => (
-                <Button
-                  key={`${result.address?.freeformAddress ?? 'result'}-${index}`}
-                  onClick={() => selectOrigin(result)}
-                >
-                  {result.address?.freeformAddress ?? 'Unnamed Azure Maps result'}
-                </Button>
-              ))}
-            </Stack>
-          )}
-        </CardContent>
-      </Card>
       {waypointWithoutCoordinates + activityWithoutCoordinates > 0 && (
         <Alert severity="info">
           {waypointWithoutCoordinates} waypoint{waypointWithoutCoordinates === 1 ? '' : 's'} and{' '}

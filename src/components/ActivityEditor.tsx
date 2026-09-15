@@ -94,6 +94,7 @@ export function ActivityEditor({
       waypointInitialLocation(data, initialWaypointId) ?? { kind: 'postcode', postcode: '' },
     [data, initialActivity?.location, initialWaypointId],
   )
+  const [name, setName] = useState(initialActivity?.name ?? '')
   const [date, setDate] = useState(initialActivity?.date ?? new Date().toISOString().slice(0, 10))
   const [notes, setNotes] = useState(initialActivity?.notes ?? '')
   const [waypointId, setWaypointId] = useState(initialActivity?.waypointId ?? initialWaypointId ?? '')
@@ -153,6 +154,7 @@ export function ActivityEditor({
 
   const dirty = useMemo(() => {
     const initial = {
+      name: initialActivity?.name ?? '',
       date: initialActivity?.date ?? new Date().toISOString().slice(0, 10),
       notes: initialActivity?.notes ?? '',
       waypointId: initialActivity?.waypointId ?? initialWaypointId ?? '',
@@ -180,6 +182,7 @@ export function ActivityEditor({
     return (
       JSON.stringify(initial) !==
       JSON.stringify({
+        name,
         date,
         notes,
         waypointId,
@@ -201,6 +204,7 @@ export function ActivityEditor({
     latitude,
     locationKind,
     longitude,
+    name,
     notes,
     photoReferences,
     postcode,
@@ -283,6 +287,7 @@ export function ActivityEditor({
             }
             setErrors({})
             onSubmit({
+              name: name.trim() || undefined,
               waypointId: waypointId || undefined,
               ideaIds,
               date,
@@ -360,6 +365,7 @@ export function ActivityEditor({
                     }
 
                     setDate(parsed.value.date)
+                    setName(parsed.value.name ?? '')
                     setNotes(parsed.value.notes)
                     setWaypointId(parsed.value.waypointId ?? '')
                     setIdeaIds(parsed.value.ideaIds)
@@ -412,6 +418,7 @@ export function ActivityEditor({
           {(!addMode || mode === 'form') && (
             <>
               {message && <Alert severity="info">{message}</Alert>}
+              <TextField label="Activity name" value={name} onChange={(event) => setName(event.target.value)} />
               <TextField
                 label="Activity date"
                 type="date"
