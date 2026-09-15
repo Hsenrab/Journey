@@ -7,8 +7,6 @@ describe('draftJsonImport', () => {
       JSON.stringify({
         date: '2026-09-01',
         notes: 'Loaded from JSON',
-        waypointId: '',
-        ideaIds: [],
         location: { kind: 'postcode', postcode: 'GL1 1AA' },
         references: [{ title: 'Guide', url: 'https://example.com/guide', description: '', previewImageUrl: '' }],
         photoReferences: [{ title: 'Photo', url: 'https://example.com/photo.jpg', altText: '' }],
@@ -17,7 +15,6 @@ describe('draftJsonImport', () => {
 
     expect(result.ok).toBe(true)
     if (result.ok) {
-      expect(result.value.waypointId).toBeUndefined()
       expect(result.value.references[0]).toEqual({
         title: 'Guide',
         url: 'https://example.com/guide',
@@ -49,7 +46,6 @@ describe('draftJsonImport', () => {
         activityId: 'activity-1',
         date: '2026-09-01',
         notes: '',
-        ideaIds: [],
         location: { kind: 'postcode', postcode: 'GL1 1AA' },
         references: [],
         photoReferences: [],
@@ -66,7 +62,6 @@ describe('draftJsonImport', () => {
       JSON.stringify({
         date: '2026-09-01',
         notes: '',
-        ideaIds: [],
         location: { kind: 'postcode', postcode: 'GL1 1AA', placename: 'Typo field' },
         references: [],
         photoReferences: [],
@@ -85,7 +80,6 @@ describe('draftJsonImport', () => {
       JSON.stringify({
         date: '2026-09-01',
         notes: '',
-        ideaIds: [],
         location: { kind: 'post-code', postcode: 'GL1 1AA' },
         references: [],
         photoReferences: [],
@@ -105,7 +99,6 @@ describe('draftJsonImport', () => {
         title: 'Sunrise walk',
         description: 'Try a short route',
         notes: 'Bring snacks',
-        waypointIds: [],
         planningState: 'active',
         difficulty: 1,
         location: { placeName: 'Brockworth', source: '' },
@@ -131,7 +124,6 @@ describe('draftJsonImport', () => {
         title: 'Sunrise walk',
         description: 'Try a short route',
         notes: 'Bring snacks',
-        waypointIds: [],
         planningState: 'active',
         difficulty: 1,
         location: { placename: 'Typo field' },
@@ -152,7 +144,6 @@ describe('draftJsonImport', () => {
         title: 'Sunrise walk',
         description: 'Try a short route',
         notes: 'Bring snacks',
-        waypointIds: [],
         planningState: 'active',
         difficulty: 1,
         location: [],
@@ -174,7 +165,6 @@ describe('draftJsonImport', () => {
         description: 'A local spot for early walks.',
         category: 'Scenic',
         tags: ['sunrise'],
-        challengeIds: ['national-trust'],
         completion: { mode: 'count', target: 2 },
         location: { placeName: 'Brockworth', source: '' },
         references: [{ title: 'Guide', url: 'https://example.com/guide', description: '', previewImageUrl: '' }],
@@ -218,7 +208,6 @@ describe('draftJsonImport', () => {
         description: 'A local spot for early walks.',
         category: 'Scenic',
         tags: [],
-        challengeIds: ['national-trust'],
         completion: { mode: 'once' },
         references: [],
         photoReferences: [],

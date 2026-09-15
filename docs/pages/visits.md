@@ -20,10 +20,11 @@ Activities can be linked to a waypoint or left unlinked.
 - Idea selections are independent from waypoint selection. Changing or clearing waypoint does not clear selected ideas.
 - Invalid input keeps entered values and shows field-level messages.
 - Unsaved edits show a leave warning on page unload and when cancelling the form.
-- Add mode includes **Form** and **Paste JSON** tabs. Paste JSON accepts one activity draft object,
-  rejects arrays, and rejects ID fields (`activityId`, `referenceId`, `photoReferenceId`).
+- Add mode includes **Form** and **Paste JSON** tabs. Paste JSON accepts one activity content object
+  without entity links or generated identifiers and rejects arrays and unlisted fields.
 - **Copy example JSON** copies a representative draft shape. **Load into form** validates the pasted
-  JSON, keeps the pasted text on errors, and on success populates the existing form state before save.
+  JSON, keeps the pasted text on errors, and on success populates the content fields while preserving
+  waypoint and idea selections already made in the form.
 - An info icon next to the Activity JSON field opens a dialog with a ready-to-copy AI prompt describing
   the exact draft shape. Copy the prompt into an external AI tool (for example GitHub Copilot Chat or
   ChatGPT) alongside source material about the activity, then paste the AI's JSON response into Paste JSON.
@@ -32,13 +33,11 @@ Activities can be linked to a waypoint or left unlinked.
 
 ```json
 {
-  "date": "2026-01-15",
-  "notes": "A short summary of the activity.",
-  "waypointId": "",
-  "ideaIds": [],
-  "location": { "kind": "postcode", "postcode": "GL1 1AA" },
-  "references": [{ "title": "Trip notes", "url": "https://example.com/notes" }],
-  "photoReferences": [{ "title": "Viewpoint photo", "url": "https://example.com/photo.jpg" }]
+  "date": "2026-08-16",
+  "notes": "Took an early-morning balloon flight over the Cotswolds and watched the sunrise above the fields.",
+  "location": { "kind": "postcode", "postcode": "GL54 2EN" },
+  "references": [{ "title": "Flight details", "url": "https://example.com/flight" }],
+  "photoReferences": [{ "title": "Sunrise balloon flight", "url": "https://example.com/balloon.jpg" }]
 }
 ```
 

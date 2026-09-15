@@ -238,12 +238,11 @@ describe('IdeaEditor', () => {
 
   it('loads valid pasted JSON into the form before submit', async () => {
     const user = userEvent.setup()
-    const { onSubmit } = renderEditor()
+    const { onSubmit } = renderEditor({ initialWaypointId: 'stourhead' })
     const payload = {
       title: 'Load from JSON',
       description: 'A plan loaded from pasted JSON',
       notes: 'Extra notes',
-      waypointIds: ['stourhead'],
       planningState: 'active',
       difficulty: 2,
       location: { placeName: 'Stourhead', approximate: true },
@@ -261,6 +260,7 @@ describe('IdeaEditor', () => {
         title: payload.title,
         description: payload.description,
         notes: payload.notes,
+        waypointIds: ['stourhead'],
         planningState: payload.planningState,
         difficulty: payload.difficulty,
         references: [expect.objectContaining({ title: 'Guide' })],
@@ -288,7 +288,6 @@ describe('IdeaEditor', () => {
         title: 'Bad draft',
         description: 'x',
         notes: 123,
-        waypointIds: [],
         planningState: 'active',
         difficulty: 1,
         references: [],
@@ -319,7 +318,6 @@ describe('IdeaEditor', () => {
         title: 'Bad draft',
         description: '',
         notes: '',
-        waypointIds: [],
         planningState: 'active',
         difficulty: 1,
         references: [],
@@ -346,7 +344,6 @@ describe('IdeaEditor', () => {
           title: 'Bad draft',
           description: 'x',
           notes: 123,
-          waypointIds: [],
           planningState: 'active',
           difficulty: 1,
           references: [],
@@ -372,6 +369,6 @@ describe('IdeaEditor', () => {
     await user.click(screen.getByRole('tab', { name: 'Paste JSON' }))
     await user.click(screen.getByRole('button', { name: 'Idea JSON AI prompt' }))
     expect(screen.getByRole('heading', { name: 'Idea JSON AI prompt' })).toBeInTheDocument()
-    expect(screen.getByDisplayValue(/ideaId/)).toBeInTheDocument()
+    expect(screen.getByDisplayValue(/planning or research record/)).toBeInTheDocument()
   })
 })
