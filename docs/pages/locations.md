@@ -34,10 +34,11 @@ review a visit.
    orders by status value, sorting by distance orders by road miles from Brockworth, sorting by
    travel time orders by estimated drive minutes, and sorting by last visit date shows newest visits
    first.
-4. Add mode includes **Form** and **Paste JSON** tabs. Paste JSON accepts one waypoint draft object,
-   rejects arrays, and rejects ID fields (`waypointId`, `referenceId`, `photoReferenceId`).
+4. Add mode includes **Form** and **Paste JSON** tabs. Paste JSON accepts one waypoint content object
+   without entity links or generated identifiers and rejects arrays and unlisted fields.
 5. **Copy example JSON** copies a representative draft shape. **Load into form** validates the pasted
-   JSON, keeps the pasted text on errors, and on success populates the existing form state before save.
+   JSON, keeps the pasted text on errors, and on success populates the content fields while preserving
+   challenge selections already made in the form.
 6. An info icon next to the Waypoint JSON field opens a dialog with a ready-to-copy AI prompt describing
    the exact draft shape. Copy the prompt into an external AI tool (for example GitHub Copilot Chat or
    ChatGPT) alongside source material about the waypoint, then paste the AI's JSON response into Paste
@@ -49,20 +50,18 @@ review a visit.
 
 ```json
 {
-  "title": "Sunrise viewpoint",
-  "description": "A local spot for early walks.",
-  "category": "Scenic",
-  "tags": ["sunrise"],
-  "challengeIds": ["national-trust"],
+  "title": "Take a hot-air balloon ride",
+  "description": "Experience a sunrise flight in a hot-air balloon and see the landscape from above.",
+  "category": "Adventure",
+  "tags": ["ballooning", "flight", "bucket list"],
   "completion": { "mode": "once" },
   "location": {
-    "placeName": "Brockworth",
-    "addressOrRegion": "Gloucestershire",
+    "addressOrRegion": "Cotswolds",
     "source": "Manual research",
     "approximate": true
   },
-  "references": [{ "title": "Waypoint guide", "url": "https://example.com/guide" }],
-  "photoReferences": [{ "title": "Waypoint photo", "url": "https://example.com/photo.jpg" }]
+  "references": [{ "title": "Balloon ride details", "url": "https://example.com/balloon-ride" }],
+  "photoReferences": [{ "title": "Balloon flight", "url": "https://example.com/balloon.jpg" }]
 }
 ```
 

@@ -361,8 +361,6 @@ export function ActivityEditor({
 
                     setDate(parsed.value.date)
                     setNotes(parsed.value.notes)
-                    setWaypointId(parsed.value.waypointId ?? '')
-                    setIdeaIds(parsed.value.ideaIds)
                     setCategory(parsed.value.category ?? '')
                     const location = parsed.value.location
                     setLocationKind(location.kind)

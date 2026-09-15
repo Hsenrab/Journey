@@ -328,12 +328,11 @@ describe('ActivityEditor', () => {
 
   it('loads valid pasted JSON into the form before submit', async () => {
     const user = userEvent.setup()
-    const { onSubmit, data } = renderEditor()
+    const initialWaypointId = dataWaypointId(createDefaultData())
+    const { onSubmit } = renderEditor({ initialWaypointId })
     const payload = {
       date: '2026-09-01',
       notes: 'Loaded from JSON',
-      waypointId: data.waypoints[0]!.waypointId,
-      ideaIds: [],
       category: 'gold',
       location: { kind: 'postcode', postcode: 'GL2 2BB' },
       references: [{ title: 'Guide', url: 'https://example.com/guide', description: '', previewImageUrl: '' }],
@@ -350,7 +349,7 @@ describe('ActivityEditor', () => {
       expect.objectContaining({
         date: payload.date,
         notes: payload.notes,
-        waypointId: payload.waypointId,
+        waypointId: initialWaypointId,
         category: payload.category,
         location: payload.location,
         references: [expect.objectContaining({ title: 'Guide' })],
@@ -378,7 +377,6 @@ describe('ActivityEditor', () => {
       JSON.stringify({
         date: '2026-09-01',
         notes: 123,
-        ideaIds: [],
         location: { kind: 'postcode', postcode: 'GL1 1AA' },
         references: [],
         photoReferences: [],
@@ -408,7 +406,6 @@ describe('ActivityEditor', () => {
         activityId: 'activity-1',
         date: '2026-09-01',
         notes: '',
-        ideaIds: [],
         location: { kind: 'postcode', postcode: 'GL1 1AA' },
         references: [],
         photoReferences: [],
@@ -434,7 +431,6 @@ describe('ActivityEditor', () => {
         JSON.stringify({
           date: '2026-09-01',
           notes: 123,
-          ideaIds: [],
           location: { kind: 'postcode', postcode: 'GL1 1AA' },
           references: [],
           photoReferences: [],
@@ -459,7 +455,7 @@ describe('ActivityEditor', () => {
     await user.click(screen.getByRole('tab', { name: 'Paste JSON' }))
     await user.click(screen.getByRole('button', { name: 'Activity JSON AI prompt' }))
     expect(screen.getByRole('heading', { name: 'Activity JSON AI prompt' })).toBeInTheDocument()
-    expect(screen.getByDisplayValue(/activityId/)).toBeInTheDocument()
+    expect(screen.getByDisplayValue(/dated historical record/)).toBeInTheDocument()
   })
 })
 

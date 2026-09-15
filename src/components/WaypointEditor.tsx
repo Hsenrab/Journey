@@ -314,7 +314,6 @@ export function WaypointEditor({ data, submitLabel, onSubmit, onCancel, errorMes
                     setDescription(parsed.value.description)
                     setCategory(parsed.value.category)
                     setTagsInput(parsed.value.tags.join(', '))
-                    setChallengeIds(parsed.value.challengeIds)
                     setCompletionMode(parsed.value.completion.mode)
                     setCompletionTarget(
                       parsed.value.completion.mode === 'count' ? String(parsed.value.completion.target) : '1',
