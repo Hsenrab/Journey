@@ -1,7 +1,7 @@
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
-import { render, screen } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import Ideas from './Ideas'
 import { WaypointsProvider } from '../features/journey/JourneyContext'
 import { createDefaultData, load, save } from '../services/storage'
@@ -20,6 +20,10 @@ function renderIdeas(path = '/ideas') {
 
 describe('Ideas', () => {
   beforeEach(() => localStorage.clear())
+  afterEach(() => {
+    vi.unstubAllEnvs()
+    vi.restoreAllMocks()
+  })
 
   it('creates an idea with required fields and a linked waypoint', async () => {
     const user = userEvent.setup()
@@ -54,7 +58,10 @@ describe('Ideas', () => {
     const seed = createDefaultData()
     save({
       ...seed,
-      references: [...seed.references, { referenceId: 'ref-1', ownerId: 'owner-1', title: 'Trail', url: 'https://example.com/trail' }],
+      references: [
+        ...seed.references,
+        { referenceId: 'ref-1', ownerId: 'owner-1', title: 'Trail', url: 'https://example.com/trail' },
+      ],
       ideas: [
         {
           ideaId: 'idea-1',
@@ -123,6 +130,30 @@ describe('Ideas', () => {
 
     expect(screen.queryByRole('button', { name: 'Save idea' })).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Add idea' })).toBeInTheDocument()
+  })
+
+  it('does not render the add editor for viewers who open add mode directly', async () => {
+    vi.stubEnv('MODE', 'production')
+    const fetch = vi.fn(async (input: RequestInfo | URL) => {
+      if (String(input) === '/.auth/me')
+        return new Response(
+          JSON.stringify({
+            clientPrincipal: {
+              identityProvider: 'aad',
+              userId: 'viewer-1',
+              userDetails: 'viewer-1',
+              userRoles: ['viewer'],
+            },
+          }),
+        )
+      return new Response(JSON.stringify({ data: createDefaultData(), etags: {} }))
+    })
+    vi.stubGlobal('fetch', fetch)
+
+    renderIdeas('/ideas?mode=add')
+    await waitFor(() => expect(fetch).toHaveBeenCalledWith('/.auth/me'))
+
+    expect(screen.queryByRole('button', { name: 'Save idea' })).not.toBeInTheDocument()
   })
 
   it('switches planning-state tabs and supports updated and difficulty sorting', async () => {

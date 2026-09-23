@@ -18,7 +18,7 @@ import {
   replaceDataset,
   savedDocument,
 } from '../lib/cosmos.js'
-import { JourneyMutationSchema, type EntityType } from '../lib/journeySchema.js'
+import { JourneyMutationSchema, type EntityType, type JourneyData } from '../lib/journeySchema.js'
 import { GeocodeError, resolveEntityCoordinates } from '../lib/geocode.js'
 import { DefaultAzureCredential } from '@azure/identity'
 import { entityId, entityKey, referenceIntegrityError, upsertEntity } from '../lib/journeyGraph.js'
@@ -71,6 +71,51 @@ async function geocodedEntity(type: EntityType, entity: Record<string, unknown>)
   }
 }
 
+function withStoredOwnerIds(data: JourneyData, stored: JourneyData): JourneyData {
+  const preserveOwners = <T extends { ownerId: string }>(incoming: T[], existing: T[], id: (entity: T) => string) => {
+    const ownerIds = new Map(existing.map((entity) => [id(entity), entity.ownerId]))
+    return incoming.map((entity) => ({ ...entity, ownerId: ownerIds.get(id(entity)) ?? entity.ownerId }))
+  }
+
+  return {
+    waypoints: preserveOwners(data.waypoints, stored.waypoints, (entity) => entity.waypointId),
+    challenges: preserveOwners(data.challenges, stored.challenges, (entity) => entity.challengeId),
+    ideas: preserveOwners(data.ideas, stored.ideas, (entity) => entity.ideaId),
+    activities: preserveOwners(data.activities, stored.activities, (entity) => entity.activityId),
+    references: preserveOwners(data.references, stored.references, (entity) => entity.referenceId),
+    photoReferences: preserveOwners(data.photoReferences, stored.photoReferences, (entity) => entity.photoReferenceId),
+  }
+}
+
+function canReplaceOwned<T extends { ownerId: string }>(
+  stored: T[],
+  incoming: T[],
+  id: (entity: T) => string,
+  ownerId: string,
+) {
+  const incomingById = new Map(incoming.map((entity) => [id(entity), entity]))
+  return (
+    stored.every((entity) => {
+      const replacement = incomingById.get(id(entity))
+      return (
+        entity.ownerId === ownerId ||
+        (replacement !== undefined && JSON.stringify(entity) === JSON.stringify(replacement))
+      )
+    }) && incoming.every((entity) => stored.some((current) => id(current) === id(entity)) || entity.ownerId === ownerId)
+  )
+}
+
+function replacementIsOwnedBy(data: JourneyData, stored: JourneyData, ownerId: string) {
+  return (
+    canReplaceOwned(stored.waypoints, data.waypoints, (entity) => entity.waypointId, ownerId) &&
+    canReplaceOwned(stored.challenges, data.challenges, (entity) => entity.challengeId, ownerId) &&
+    canReplaceOwned(stored.ideas, data.ideas, (entity) => entity.ideaId, ownerId) &&
+    canReplaceOwned(stored.activities, data.activities, (entity) => entity.activityId, ownerId) &&
+    canReplaceOwned(stored.references, data.references, (entity) => entity.referenceId, ownerId) &&
+    canReplaceOwned(stored.photoReferences, data.photoReferences, (entity) => entity.photoReferenceId, ownerId)
+  )
+}
+
 export async function journey(request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> {
   try {
     const { role, ownerId } = auth(request)
@@ -101,11 +146,16 @@ export async function journey(request: HttpRequest, context: InvocationContext):
       await replaceDataset(cosmos, datasetId, documentsFor(datasetId, parsed.data.data), {})
       return { status: 200, jsonBody: await loadDataset(cosmos, datasetId) }
     }
-    if (parsed.data.operation === 'replace') {
-      if (role !== 'owner') throw new ResponseError(403, 'forbidden')
-      const invalid = referenceIntegrityError(parsed.data.data)
+    if (parsed.data.operation === 'replace' || parsed.data.operation === 'replaceOwned') {
+      if (parsed.data.operation === 'replace' && role !== 'owner') throw new ResponseError(403, 'forbidden')
+      if (parsed.data.operation === 'replaceOwned' && role !== 'editor') throw new ResponseError(403, 'forbidden')
+      const loaded = await loadDataset(cosmos, datasetId)
+      const data = withStoredOwnerIds(parsed.data.data, loaded.data)
+      if (parsed.data.operation === 'replaceOwned' && !replacementIsOwnedBy(data, loaded.data, ownerId))
+        throw new ResponseError(403, 'forbidden')
+      const invalid = referenceIntegrityError(data)
       if (invalid) return { status: 400, jsonBody: { error: invalid } }
-      await replaceDataset(cosmos, datasetId, documentsFor(datasetId, parsed.data.data), parsed.data.etags)
+      await replaceDataset(cosmos, datasetId, documentsFor(datasetId, data), parsed.data.etags)
       return { status: 200, jsonBody: await loadDataset(cosmos, datasetId) }
     }
     if (parsed.data.operation === 'create' || parsed.data.operation === 'update') {
@@ -118,6 +168,7 @@ export async function journey(request: HttpRequest, context: InvocationContext):
       let existing: (typeof entities)[number] | undefined
       if (parsed.data.operation === 'update') {
         const id = parsed.data.id
+        if (entityId(type, parsed.data.entity) !== id) throw new ResponseError(400, 'invalid_entity_id')
         existing = entities.find((item) => entityId(type, item) === id)
         if (!existing) throw new ResponseError(404, 'not_found')
       }

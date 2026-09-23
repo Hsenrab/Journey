@@ -94,6 +94,18 @@ export async function replaceJourney(
   return { data: DataSchema.parse(result.data), etags: result.etags }
 }
 
+export async function replaceOwnedJourney(
+  container: JourneyContainer,
+  data: WaypointsData,
+  etags: Record<string, string>,
+): Promise<{ data: WaypointsData; etags: Record<string, string> }> {
+  const result = await request<{ data: unknown; etags: Record<string, string> }>(container, {
+    method: 'POST',
+    body: JSON.stringify({ operation: 'replaceOwned', data, etags }),
+  })
+  return { data: DataSchema.parse(result.data), etags: result.etags }
+}
+
 export async function clearJourney(
   container: JourneyContainer,
 ): Promise<{ data: WaypointsData; etags: Record<string, string> }> {

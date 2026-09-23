@@ -152,5 +152,51 @@ export function deletionPlan(data: JourneyData, type: EntityType, id: string): D
     return { deletes: [id, ...newlyUnreferencedIds(data, remaining)], updates: [] }
   }
 
+  if (type === 'challenge') {
+    return {
+      deletes: [id],
+      updates: [
+        ...data.waypoints
+          .filter((waypoint) => waypoint.challengeIds.includes(id))
+          .map((waypoint) => ({
+            type: 'waypoint' as const,
+            entity: { ...waypoint, challengeIds: waypoint.challengeIds.filter((challengeId) => challengeId !== id) },
+          })),
+        ...data.activities
+          .filter((activity) => activity.challengeId === id)
+          .map(({ challengeId: _removed, ...activity }) => ({ type: 'activity' as const, entity: { ...activity } })),
+      ],
+    }
+  }
+
+  if (type === 'reference' || type === 'photoReference') {
+    const key = type === 'reference' ? 'referenceIds' : 'photoReferenceIds'
+    return {
+      deletes: [id],
+      updates: [
+        ...data.waypoints
+          .filter((waypoint) => waypoint[key].includes(id))
+          .map((waypoint) => ({
+            type: 'waypoint' as const,
+            entity: { ...waypoint, [key]: waypoint[key].filter((item) => item !== id) },
+          })),
+        ...(type === 'reference'
+          ? data.ideas
+              .filter((idea) => idea.referenceIds.includes(id))
+              .map((idea) => ({
+                type: 'idea' as const,
+                entity: { ...idea, referenceIds: idea.referenceIds.filter((item) => item !== id) },
+              }))
+          : []),
+        ...data.activities
+          .filter((activity) => activity[key].includes(id))
+          .map((activity) => ({
+            type: 'activity' as const,
+            entity: { ...activity, [key]: activity[key].filter((item) => item !== id) },
+          })),
+      ],
+    }
+  }
+
   return { deletes: [id], updates: [] }
 }

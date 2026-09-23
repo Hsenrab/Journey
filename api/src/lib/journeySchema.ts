@@ -182,4 +182,5 @@ export const JourneyMutationSchema = z.discriminatedUnion('operation', [
   z.object({ operation: z.literal('clear') }),
   z.object({ operation: z.literal('import'), data: JourneyDataSchema }),
   z.object({ operation: z.literal('replace'), data: JourneyDataSchema, etags: z.record(identifier, identifier) }),
+  z.object({ operation: z.literal('replaceOwned'), data: JourneyDataSchema, etags: z.record(identifier, identifier) }),
 ])

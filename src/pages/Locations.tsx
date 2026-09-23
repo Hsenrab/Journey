@@ -19,7 +19,8 @@ export default function Locations() {
   const { addWaypoint, canMutate, data, principal, statusFor } = useWaypoints()
   const activities = data.activities
   const [searchParams, setSearchParams] = useSearchParams()
-  const showEditor = searchParams.get('mode') === 'add'
+  const canAdd = principal !== null && principal.role !== 'viewer'
+  const showEditor = searchParams.get('mode') === 'add' && canAdd
   const status = searchParams.get('status') ?? 'all'
   const setStatus = (value: string) => {
     setSearchParams(
@@ -110,7 +111,7 @@ export default function Locations() {
   return (
     <Stack spacing={2}>
       <PageHeader title="Waypoints">
-        {!showEditor && principal?.role !== 'viewer' && (
+        {!showEditor && canAdd && (
           <Button
             variant="contained"
             onClick={() => {

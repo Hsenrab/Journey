@@ -44,7 +44,8 @@ export default function Ideas() {
   const selectedState = planningStates.includes(stateParam as Idea['planningState'])
     ? (stateParam as Idea['planningState'])
     : 'active'
-  const showEditor = searchParams.get('mode') === 'add'
+  const canAdd = principal !== null && principal.role !== 'viewer'
+  const showEditor = searchParams.get('mode') === 'add' && canAdd
   const [query, setQuery] = useState('')
   const [usage, setUsage] = useState<UsageFilter>('all')
   const [sort, setSort] = useState<SortKey>('distance')
@@ -108,7 +109,7 @@ export default function Ideas() {
   return (
     <Stack spacing={2}>
       <PageHeader title="Ideas">
-        {!showEditor && principal?.role !== 'viewer' && (
+        {!showEditor && canAdd && (
           <Button
             variant="contained"
             onClick={() => {

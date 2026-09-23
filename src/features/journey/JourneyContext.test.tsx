@@ -33,7 +33,14 @@ type MutableCollection = typeof entityCollections
 type EntityType = keyof MutableCollection
 
 function entityIdValue(entity: Record<string, unknown>) {
-  return [entity.waypointId, entity.challengeId, entity.ideaId, entity.activityId, entity.referenceId, entity.photoReferenceId]
+  return [
+    entity.waypointId,
+    entity.challengeId,
+    entity.ideaId,
+    entity.activityId,
+    entity.referenceId,
+    entity.photoReferenceId,
+  ]
 }
 
 function etagsFor(data: WaypointsData): Record<string, string> {
@@ -43,7 +50,9 @@ function etagsFor(data: WaypointsData): Record<string, string> {
     ...Object.fromEntries(data.ideas.map((entity) => [entity.ideaId, `etag-${entity.ideaId}`])),
     ...Object.fromEntries(data.activities.map((entity) => [entity.activityId, `etag-${entity.activityId}`])),
     ...Object.fromEntries(data.references.map((entity) => [entity.referenceId, `etag-${entity.referenceId}`])),
-    ...Object.fromEntries(data.photoReferences.map((entity) => [entity.photoReferenceId, `etag-${entity.photoReferenceId}`])),
+    ...Object.fromEntries(
+      data.photoReferences.map((entity) => [entity.photoReferenceId, `etag-${entity.photoReferenceId}`]),
+    ),
   }
 }
 
@@ -92,9 +101,7 @@ function stubJourneyApi({
     const url = String(input)
     if (url === '/.auth/me') {
       return json({
-        clientPrincipal: role
-          ? { identityProvider: 'aad', userId, userDetails: userId, userRoles: [role] }
-          : null,
+        clientPrincipal: role ? { identityProvider: 'aad', userId, userDetails: userId, userRoles: [role] } : null,
       })
     }
 
@@ -106,17 +113,24 @@ function stubJourneyApi({
 
     switch (body.operation) {
       case 'create':
-        setEntity(state, body.type as EntityType, body.entity as Record<string, unknown>, String(body.type === 'waypoint'
-          ? (body.entity as Record<string, unknown>).waypointId
-          : body.type === 'challenge'
-            ? (body.entity as Record<string, unknown>).challengeId
-            : body.type === 'idea'
-              ? (body.entity as Record<string, unknown>).ideaId
-              : body.type === 'activity'
-                ? (body.entity as Record<string, unknown>).activityId
-                : body.type === 'reference'
-                  ? (body.entity as Record<string, unknown>).referenceId
-                  : (body.entity as Record<string, unknown>).photoReferenceId))
+        setEntity(
+          state,
+          body.type as EntityType,
+          body.entity as Record<string, unknown>,
+          String(
+            body.type === 'waypoint'
+              ? (body.entity as Record<string, unknown>).waypointId
+              : body.type === 'challenge'
+                ? (body.entity as Record<string, unknown>).challengeId
+                : body.type === 'idea'
+                  ? (body.entity as Record<string, unknown>).ideaId
+                  : body.type === 'activity'
+                    ? (body.entity as Record<string, unknown>).activityId
+                    : body.type === 'reference'
+                      ? (body.entity as Record<string, unknown>).referenceId
+                      : (body.entity as Record<string, unknown>).photoReferenceId,
+          ),
+        )
         return json({ etag: 'created' })
       case 'update':
         setEntity(state, body.type as EntityType, body.entity as Record<string, unknown>, String(body.id))
@@ -125,6 +139,7 @@ function stubJourneyApi({
         deleteEntity(state, body.type as EntityType, String(body.id))
         return new Response(null, { status: 204 })
       case 'replace':
+      case 'replaceOwned':
         state = structuredClone(body.data as WaypointsData)
         return json({ data: state, etags: etagsFor(state) })
       case 'clear':
@@ -146,10 +161,8 @@ async function renderProductionWaypoints(options: { role: JourneyRole | null; us
   const server = stubJourneyApi(options)
   const hook = renderHook(() => useWaypoints(), { wrapper: WaypointsProvider })
   await waitFor(() => expect(hook.result.current.activeDataMode).toBe('production'))
-  await waitFor(() => expect(hook.result.current.readOnly).toBe(false))
-  await waitFor(() =>
-    expect(hook.result.current.principal?.role ?? null).toBe(options.role),
-  )
+  await waitFor(() => expect(hook.result.current.principal?.role ?? null).toBe(options.role))
+  await waitFor(() => expect(hook.result.current.readOnly).toBe(options.role === null || options.role === 'viewer'))
   return { ...server, ...hook }
 }
 
@@ -344,9 +357,24 @@ describe('WaypointsContext in production mode', () => {
     })
     seeded.activities = [activity]
     seeded.ideas = [idea]
-    const fetch = vi
-      .fn()
-      .mockImplementation(() => new Response(JSON.stringify({ data: seeded, etags: {} }), { status: 200 }))
+    const fetch = vi.fn(
+      (input: RequestInfo | URL) =>
+        new Response(
+          JSON.stringify(
+            String(input) === '/.auth/me'
+              ? {
+                  clientPrincipal: {
+                    identityProvider: 'aad',
+                    userId: 'owner-1',
+                    userDetails: 'owner-1',
+                    userRoles: ['owner'],
+                  },
+                }
+              : { data: seeded, etags: {} },
+          ),
+          { status: 200 },
+        ),
+    )
     vi.stubGlobal('fetch', fetch)
 
     const { result } = renderHook(() => useWaypoints(), { wrapper: WaypointsProvider })
@@ -394,9 +422,24 @@ describe('WaypointsContext in production mode', () => {
   it('loads Demo Cosmos and routes mutations to the demo container', async () => {
     setDataMode('demo-cosmos')
     const seeded = createDefaultData()
-    const fetch = vi
-      .fn()
-      .mockImplementation(() => new Response(JSON.stringify({ data: seeded, etags: {} }), { status: 200 }))
+    const fetch = vi.fn(
+      (input: RequestInfo | URL) =>
+        new Response(
+          JSON.stringify(
+            String(input) === '/.auth/me'
+              ? {
+                  clientPrincipal: {
+                    identityProvider: 'aad',
+                    userId: 'owner-1',
+                    userDetails: 'owner-1',
+                    userRoles: ['owner'],
+                  },
+                }
+              : { data: seeded, etags: {} },
+          ),
+          { status: 200 },
+        ),
+    )
     vi.stubGlobal('fetch', fetch)
 
     const { result } = renderHook(() => useWaypoints(), { wrapper: WaypointsProvider })
@@ -504,312 +547,22 @@ describe('WaypointsContext editor mutations in production mode', () => {
     expect(owner.result.current.canMutate('someone-else')).toBe(true)
   })
 
-  it('routes editor add-waypoint through create calls and updates owned challenges', async () => {
-    const seeded = createDefaultData()
-    seeded.challenges = seeded.challenges.map((challenge) =>
-      challenge.challengeId === 'national-trust' ? { ...challenge, ownerId: 'editor-1' } : challenge,
-    )
-
-    const { result, mutations } = await renderProductionWaypoints({ role: 'editor', userId: 'editor-1', data: seeded })
-
-    await act(async () => {
-      await result.current.addWaypoint({
-        title: 'New viewpoint',
-        description: 'Quiet and scenic',
-        category: 'Scenic',
-        tags: ['sunrise'],
-        challengeIds: ['national-trust'],
-        completion: { mode: 'count', target: 2 },
-        location: { placeName: 'Brockworth' },
-        references: [{ title: 'Guide', url: 'https://example.com/guide' }],
-        photoReferences: [{ title: 'Photo', url: 'https://example.com/photo.jpg' }],
-      })
-    })
-
-    expect(mutations.some(({ body }) => body.operation === 'replace')).toBe(false)
-    expect(mutations).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({ method: 'POST', body: expect.objectContaining({ operation: 'create', type: 'reference' }) }),
-        expect.objectContaining({
-          method: 'POST',
-          body: expect.objectContaining({ operation: 'create', type: 'photoReference' }),
-        }),
-        expect.objectContaining({ method: 'POST', body: expect.objectContaining({ operation: 'create', type: 'waypoint' }) }),
-        expect.objectContaining({ method: 'PUT', body: expect.objectContaining({ operation: 'update', type: 'challenge' }) }),
-      ]),
-    )
-  })
-
-  it('skips challenge updates when the editor does not own the challenge', async () => {
-    const seeded = createDefaultData()
-    seeded.challenges = seeded.challenges.map((challenge) =>
-      challenge.challengeId === 'national-trust' ? { ...challenge, ownerId: 'other-owner' } : challenge,
-    )
-
-    const { result, mutations } = await renderProductionWaypoints({ role: 'editor', userId: 'editor-1', data: seeded })
-
-    await act(async () => {
-      await result.current.addWaypoint({
-        title: 'Shared viewpoint',
-        description: 'Shared challenge test',
-        category: 'Scenic',
-        tags: [],
-        challengeIds: ['national-trust'],
-        completion: { mode: 'once' },
-        references: [],
-        photoReferences: [],
-      })
-    })
-
-    expect(mutations.some(({ body }) => body.operation === 'replace')).toBe(false)
-    expect(mutations.some(({ body }) => body.operation === 'update' && body.type === 'challenge')).toBe(false)
-    expect(mutations.some(({ body }) => body.operation === 'create' && body.type === 'waypoint')).toBe(true)
-  })
-
-  it('routes editor add-activity through targeted create calls', async () => {
+  it('routes editor mutations through transactional replacement', async () => {
     const { result, mutations } = await renderProductionWaypoints({ role: 'editor', userId: 'editor-1' })
 
     await act(async () => {
       await result.current.addActivity(draft)
     })
 
-    expect(mutations.some(({ body }) => body.operation === 'replace')).toBe(false)
-    expect(mutations).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({ method: 'POST', body: expect.objectContaining({ operation: 'create', type: 'reference' }) }),
-        expect.objectContaining({
-          method: 'POST',
-          body: expect.objectContaining({ operation: 'create', type: 'photoReference' }),
-        }),
-        expect.objectContaining({ method: 'POST', body: expect.objectContaining({ operation: 'create', type: 'activity' }) }),
-      ]),
-    )
+    expect(mutations).toEqual([
+      expect.objectContaining({ method: 'POST', body: expect.objectContaining({ operation: 'replaceOwned' }) }),
+    ])
   })
 
-  it('updates an owned activity and only mutates owned linked records', async () => {
-    const seeded = createDefaultData()
-    seeded.references = [
-      { referenceId: 'ref-owned-update', ownerId: 'editor-1', title: 'Owned update', url: 'https://example.com/owned-update' },
-      { referenceId: 'ref-owned-delete', ownerId: 'editor-1', title: 'Owned delete', url: 'https://example.com/owned-delete' },
-      { referenceId: 'ref-shared', ownerId: 'other-owner', title: 'Shared ref', url: 'https://example.com/shared' },
-    ]
-    seeded.photoReferences = [
-      { photoReferenceId: 'photo-owned-update', ownerId: 'editor-1', title: 'Owned photo', url: 'https://example.com/owned.jpg' },
-      { photoReferenceId: 'photo-owned-delete', ownerId: 'editor-1', title: 'Owned remove', url: 'https://example.com/remove.jpg' },
-      { photoReferenceId: 'photo-shared', ownerId: 'other-owner', title: 'Shared photo', url: 'https://example.com/shared.jpg' },
-    ]
-    seeded.activities = [
-      createActivity({
-        activityId: 'activity-1',
-        ownerId: 'editor-1',
-        waypointId: lacockId,
-        ideaIds: [],
-        date: '2026-08-01',
-        category: 'silver',
-        location: draft.location,
-        notes: 'Original',
-        referenceIds: ['ref-owned-update', 'ref-owned-delete', 'ref-shared'],
-        photoReferenceIds: ['photo-owned-update', 'photo-owned-delete', 'photo-shared'],
-      }),
-    ]
+  it('fails closed until the principal resolves', async () => {
+    const { result } = await renderProductionWaypoints({ role: null })
 
-    const { result, mutations } = await renderProductionWaypoints({ role: 'editor', userId: 'editor-1', data: seeded })
-
-    await act(async () => {
-      await result.current.updateActivity('activity-1', {
-        ...draft,
-        notes: 'Updated',
-        references: [
-          {
-            referenceId: 'ref-owned-update',
-            title: 'Owned update revised',
-            url: 'https://example.com/owned-update',
-          },
-        ],
-        photoReferences: [
-          {
-            photoReferenceId: 'photo-owned-update',
-            title: 'Owned photo revised',
-            url: 'https://example.com/owned.jpg',
-          },
-        ],
-      })
-    })
-
-    expect(mutations.some(({ body }) => body.operation === 'replace')).toBe(false)
-    expect(mutations).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({ method: 'PUT', body: expect.objectContaining({ operation: 'update', type: 'reference', id: 'ref-owned-update' }) }),
-        expect.objectContaining({
-          method: 'PUT',
-          body: expect.objectContaining({ operation: 'update', type: 'photoReference', id: 'photo-owned-update' }),
-        }),
-        expect.objectContaining({ method: 'PUT', body: expect.objectContaining({ operation: 'update', type: 'activity', id: 'activity-1' }) }),
-        expect.objectContaining({ method: 'DELETE', body: expect.objectContaining({ operation: 'delete', type: 'reference', id: 'ref-owned-delete' }) }),
-        expect.objectContaining({
-          method: 'DELETE',
-          body: expect.objectContaining({ operation: 'delete', type: 'photoReference', id: 'photo-owned-delete' }),
-        }),
-      ]),
-    )
-    expect(
-      mutations.some(({ body }) => body.operation === 'delete' && body.type === 'reference' && body.id === 'ref-shared'),
-    ).toBe(false)
-    expect(
-      mutations.some(
-        ({ body }) => body.operation === 'delete' && body.type === 'photoReference' && body.id === 'photo-shared',
-      ),
-    ).toBe(false)
-  })
-
-  it('throws when an editor tries to update a shared reference through an activity', async () => {
-    const seeded = createDefaultData()
-    seeded.references = [{ referenceId: 'shared-ref', ownerId: 'other-owner', title: 'Shared', url: 'https://example.com/shared' }]
-    seeded.activities = [
-      createActivity({
-        activityId: 'activity-1',
-        ownerId: 'editor-1',
-        waypointId: lacockId,
-        ideaIds: [],
-        date: '2026-08-01',
-        category: 'silver',
-        location: draft.location,
-        notes: 'Original',
-        referenceIds: ['shared-ref'],
-        photoReferenceIds: [],
-      }),
-    ]
-
-    const { result, mutations } = await renderProductionWaypoints({ role: 'editor', userId: 'editor-1', data: seeded })
-
-    await expect(
-      result.current.updateActivity('activity-1', {
-        ...draft,
-        references: [{ referenceId: 'shared-ref', title: 'Changed', url: 'https://example.com/shared' }],
-        photoReferences: [],
-      }),
-    ).rejects.toThrow('You can only edit references you created.')
-
-    expect(mutations.some(({ body }) => body.operation === 'update' && body.type === 'activity')).toBe(false)
-  })
-
-  it('throws when an editor tries to update a shared photo reference through an activity', async () => {
-    const seeded = createDefaultData()
-    seeded.photoReferences = [
-      { photoReferenceId: 'shared-photo', ownerId: 'other-owner', title: 'Shared photo', url: 'https://example.com/shared.jpg' },
-    ]
-    seeded.activities = [
-      createActivity({
-        activityId: 'activity-1',
-        ownerId: 'editor-1',
-        waypointId: lacockId,
-        ideaIds: [],
-        date: '2026-08-01',
-        category: 'silver',
-        location: draft.location,
-        notes: 'Original',
-        referenceIds: [],
-        photoReferenceIds: ['shared-photo'],
-      }),
-    ]
-
-    const { result, mutations } = await renderProductionWaypoints({ role: 'editor', userId: 'editor-1', data: seeded })
-
-    await expect(
-      result.current.updateActivity('activity-1', {
-        ...draft,
-        references: [],
-        photoReferences: [{ photoReferenceId: 'shared-photo', title: 'Changed', url: 'https://example.com/shared.jpg' }],
-      }),
-    ).rejects.toThrow('You can only edit photo references you created.')
-
-    expect(mutations.some(({ body }) => body.operation === 'update' && body.type === 'activity')).toBe(false)
-  })
-
-  it('routes editor delete-activity through targeted delete calls', async () => {
-    const seeded = createDefaultData()
-    seeded.activities = [
-      createActivity({
-        activityId: 'activity-1',
-        ownerId: 'editor-1',
-        waypointId: lacockId,
-        ideaIds: [],
-        date: '2026-08-01',
-        category: 'silver',
-        location: draft.location,
-        notes: 'Original',
-      }),
-    ]
-
-    const { result, mutations } = await renderProductionWaypoints({ role: 'editor', userId: 'editor-1', data: seeded })
-
-    await act(async () => {
-      await result.current.deleteActivity('activity-1')
-    })
-
-    expect(mutations).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({ method: 'DELETE', body: expect.objectContaining({ operation: 'delete', type: 'activity', id: 'activity-1' }) }),
-      ]),
-    )
-    expect(mutations.some(({ body }) => body.operation === 'replace')).toBe(false)
-  })
-
-  it('routes editor add-idea, update-idea, and delete-idea through targeted calls', async () => {
-    const seeded = createDefaultData()
-    seeded.references = [{ referenceId: 'idea-ref', ownerId: 'editor-1', title: 'Guide', url: 'https://example.com/guide' }]
-    seeded.ideas = [
-      createIdea({
-        ideaId: 'idea-1',
-        ownerId: 'editor-1',
-        title: 'Existing idea',
-        description: '',
-        notes: '',
-        waypointIds: [lacockId],
-        planningState: 'active',
-        difficulty: 1,
-        referenceIds: ['idea-ref'],
-      }),
-    ]
-
-    const { result, mutations } = await renderProductionWaypoints({ role: 'editor', userId: 'editor-1', data: seeded })
-
-    await act(async () => {
-      await result.current.addIdea({
-        title: 'New idea',
-        description: '',
-        notes: '',
-        waypointIds: [lacockId],
-        planningState: 'active',
-        difficulty: 2,
-        references: [{ title: 'Guide', url: 'https://example.com/new' }],
-      })
-    })
-    await act(async () => {
-      await result.current.updateIdea('idea-1', {
-        title: 'Existing idea updated',
-        description: '',
-        notes: '',
-        waypointIds: [],
-        planningState: 'rejected',
-        rejectionReason: 'Done',
-        difficulty: 3,
-        references: [{ referenceId: 'idea-ref', title: 'Guide updated', url: 'https://example.com/guide' }],
-      })
-    })
-    await act(async () => {
-      await result.current.deleteIdea('idea-1')
-    })
-
-    expect(mutations.some(({ body }) => body.operation === 'replace')).toBe(false)
-    expect(mutations).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({ method: 'POST', body: expect.objectContaining({ operation: 'create', type: 'reference' }) }),
-        expect.objectContaining({ method: 'POST', body: expect.objectContaining({ operation: 'create', type: 'idea' }) }),
-        expect.objectContaining({ method: 'PUT', body: expect.objectContaining({ operation: 'update', type: 'reference', id: 'idea-ref' }) }),
-        expect.objectContaining({ method: 'PUT', body: expect.objectContaining({ operation: 'update', type: 'idea', id: 'idea-1' }) }),
-        expect.objectContaining({ method: 'DELETE', body: expect.objectContaining({ operation: 'delete', type: 'idea', id: 'idea-1' }) }),
-      ]),
-    )
+    expect(result.current.readOnly).toBe(true)
+    await expect(result.current.addActivity(draft)).rejects.toThrow('Journey principal is not available')
   })
 })

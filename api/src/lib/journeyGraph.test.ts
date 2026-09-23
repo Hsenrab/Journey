@@ -122,7 +122,38 @@ describe('deletionPlan', () => {
     expect(plan.updates).toEqual([])
   })
 
-  it('deletes other entity types on their own', () => {
-    expect(deletionPlan(data(), 'reference', 'reference-1')).toEqual({ deletes: ['reference-1'], updates: [] })
+  it('detaches challenge, reference, and photo-reference links before deletion', () => {
+    const linked = data()
+    linked.waypoints[0]!.challengeIds = ['challenge-1']
+    linked.waypoints[0]!.referenceIds = ['reference-1']
+    linked.waypoints[0]!.photoReferenceIds = ['photo-1']
+    linked.activities[0]!.challengeId = 'challenge-1'
+    linked.activities[0]!.referenceIds = ['reference-1', 'reference-2']
+
+    expect(deletionPlan(linked, 'challenge', 'challenge-1')).toEqual({
+      deletes: ['challenge-1'],
+      updates: [
+        { type: 'waypoint', entity: expect.objectContaining({ waypointId: 'waypoint-1', challengeIds: [] }) },
+        { type: 'activity', entity: expect.not.objectContaining({ challengeId: expect.anything() }) },
+      ],
+    })
+    expect(deletionPlan(linked, 'reference', 'reference-1')).toEqual({
+      deletes: ['reference-1'],
+      updates: [
+        { type: 'waypoint', entity: expect.objectContaining({ waypointId: 'waypoint-1', referenceIds: [] }) },
+        { type: 'idea', entity: expect.objectContaining({ ideaId: 'idea-1', referenceIds: [] }) },
+        {
+          type: 'activity',
+          entity: expect.objectContaining({ activityId: 'activity-1', referenceIds: ['reference-2'] }),
+        },
+      ],
+    })
+    expect(deletionPlan(linked, 'photoReference', 'photo-1')).toEqual({
+      deletes: ['photo-1'],
+      updates: [
+        { type: 'waypoint', entity: expect.objectContaining({ waypointId: 'waypoint-1', photoReferenceIds: [] }) },
+        { type: 'activity', entity: expect.objectContaining({ activityId: 'activity-1', photoReferenceIds: [] }) },
+      ],
+    })
   })
 })

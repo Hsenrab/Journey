@@ -45,11 +45,7 @@ function principal(role: 'viewer' | 'editor' | 'owner', userId = `${role}-user`)
 
 function request(
   container: string,
-  {
-    method = 'GET',
-    body,
-    header = principal('owner'),
-  }: { method?: string; body?: unknown; header?: string } = {},
+  { method = 'GET', body, header = principal('owner') }: { method?: string; body?: unknown; header?: string } = {},
 ) {
   return {
     method,
@@ -127,9 +123,18 @@ describe('journey', () => {
       { method: 'POST', body: { operation: 'create', type: 'activity', entity: ownedActivity } },
       {
         method: 'PUT',
-        body: { operation: 'update', type: 'activity', id: ownedActivity.activityId, entity: ownedActivity, ifMatch: 'etag' },
+        body: {
+          operation: 'update',
+          type: 'activity',
+          id: ownedActivity.activityId,
+          entity: ownedActivity,
+          ifMatch: 'etag',
+        },
       },
-      { method: 'DELETE', body: { operation: 'delete', type: 'activity', id: ownedActivity.activityId, ifMatch: 'etag' } },
+      {
+        method: 'DELETE',
+        body: { operation: 'delete', type: 'activity', id: ownedActivity.activityId, ifMatch: 'etag' },
+      },
       { method: 'POST', body: { operation: 'clear' } },
       { method: 'POST', body: { operation: 'import', data: emptyData } },
       { method: 'POST', body: { operation: 'replace', data: emptyData, etags: {} } },
@@ -191,7 +196,13 @@ describe('journey', () => {
         request('production', {
           method: 'PUT',
           header: principal('editor', 'editor-user'),
-          body: { operation: 'update', type: 'activity', id: ownedActivity.activityId, entity: updated, ifMatch: 'etag-1' },
+          body: {
+            operation: 'update',
+            type: 'activity',
+            id: ownedActivity.activityId,
+            entity: updated,
+            ifMatch: 'etag-1',
+          },
         }),
         context() as InvocationContext,
       ),
@@ -262,7 +273,10 @@ describe('journey', () => {
       await journey(request('production', { method: 'POST', header, body: { operation: 'clear' } }), context()),
     ).toEqual({ status: 403, jsonBody: { error: 'forbidden' } })
     expect(
-      await journey(request('production', { method: 'POST', header, body: { operation: 'import', data: emptyData } }), context()),
+      await journey(
+        request('production', { method: 'POST', header, body: { operation: 'import', data: emptyData } }),
+        context(),
+      ),
     ).toEqual({ status: 403, jsonBody: { error: 'forbidden' } })
     expect(
       await journey(
@@ -349,6 +363,65 @@ describe('journey', () => {
     )
   })
 
+  it('preserves stored ownerIds during owner replacement', async () => {
+    loadDataset.mockResolvedValue({
+      data: { ...emptyData, activities: [otherOwnedActivity] },
+      etags: { [otherOwnedActivity.activityId]: 'etag-1' },
+    })
+    const { journey } = await import('./journey.js')
+
+    await expect(
+      journey(
+        request('production', {
+          method: 'POST',
+          body: {
+            operation: 'replace',
+            data: { ...emptyData, activities: [{ ...otherOwnedActivity, ownerId: 'malicious-user' }] },
+            etags: { [otherOwnedActivity.activityId]: 'etag-1' },
+          },
+        }),
+        context() as InvocationContext,
+      ),
+    ).resolves.toMatchObject({ status: 200 })
+
+    expect(replaceDataset).toHaveBeenCalledWith(
+      {},
+      'production',
+      expect.objectContaining({
+        [otherOwnedActivity.activityId]: expect.objectContaining({
+          entity: expect.objectContaining({ ownerId: 'other-user' }),
+        }),
+      }),
+      { [otherOwnedActivity.activityId]: 'etag-1' },
+    )
+  })
+
+  it('rejects updates whose request and entity identifiers differ', async () => {
+    loadDataset.mockResolvedValue({
+      data: { ...emptyData, activities: [ownedActivity, otherOwnedActivity] },
+      etags: { [ownedActivity.activityId]: 'etag-1', [otherOwnedActivity.activityId]: 'etag-2' },
+    })
+    const { journey } = await import('./journey.js')
+
+    await expect(
+      journey(
+        request('production', {
+          method: 'PUT',
+          header: principal('editor', 'editor-user'),
+          body: {
+            operation: 'update',
+            type: 'activity',
+            id: ownedActivity.activityId,
+            entity: { ...otherOwnedActivity, notes: 'Attempted overwrite' },
+            ifMatch: 'etag-2',
+          },
+        }),
+        context() as InvocationContext,
+      ),
+    ).resolves.toEqual({ status: 400, jsonBody: { error: 'invalid_entity_id' } })
+    expect(replaceDocument).not.toHaveBeenCalled()
+  })
+
   it('returns 404 when updating or deleting an entity that does not exist', async () => {
     loadDataset.mockResolvedValue({ data: emptyData, etags: {} })
     const { journey } = await import('./journey.js')
@@ -359,7 +432,13 @@ describe('journey', () => {
         request('production', {
           method: 'PUT',
           header,
-          body: { operation: 'update', type: 'activity', id: 'missing-activity', entity: ownedActivity, ifMatch: 'etag-1' },
+          body: {
+            operation: 'update',
+            type: 'activity',
+            id: 'missing-activity',
+            entity: { ...ownedActivity, activityId: 'missing-activity' },
+            ifMatch: 'etag-1',
+          },
         }),
         context() as InvocationContext,
       ),

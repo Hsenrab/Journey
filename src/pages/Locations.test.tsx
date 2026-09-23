@@ -186,6 +186,14 @@ describe('Locations', () => {
     expect(screen.getAllByText('You can view and link to this entity, but cannot modify it.').length).toBeGreaterThan(0)
   })
 
+  it('does not render the add editor for viewers who open add mode directly', async () => {
+    stubProductionFetch('viewer', 'viewer-1')
+    renderLocations(['/waypoints?mode=add'])
+    await screen.findByText('Stourhead')
+
+    expect(screen.queryByRole('button', { name: 'Save waypoint' })).not.toBeInTheDocument()
+  })
+
   it('shows add controls for editors and explains non-owned waypoints', async () => {
     await renderProductionLocations('editor', 'editor-1')
 
