@@ -162,6 +162,13 @@ Tests live alongside the file they cover (`*.test.ts`/`*.test.tsx`).
   to stale data. The account uses Session consistency, periodic backup, and one typed
   document per entity with `id`, `datasetId`, `type`, and `schemaVersion`, partitioned
   by `/datasetId`.
+- Static Web Apps access uses the assigned `viewer`, `editor`, and `owner` roles.
+  Viewers are read-only. Editors can create entities and links, and can update or
+  delete only entities whose immutable `ownerId` matches their authenticated
+  principal. Owners can mutate anything. All roles can view everything and link to
+  anything. Every mutation must enforce role and ownership server-side; existence
+  validation for links checks referenced IDs only, never ownership. Deleting an
+  entity must keep using the existing transactional broken-link cleanup.
 - The `production`, `test`, and `demo` containers are separate. Production starts
   empty and is the only mutable real-data container. Test runs use a unique
   `datasetId`, clean it unconditionally, verify it is empty, and never access

@@ -21,7 +21,8 @@ import type { Waypoint, WaypointsData } from '../domain/visit'
 import { parseWaypointDraftJson, waypointImportExample } from '../domain/draftJsonImport'
 import { waypointJsonAiPrompt } from '../domain/aiPrompts'
 import { AiPromptButton } from './AiPromptButton'
-import type { WaypointDraft } from '../features/journey/JourneyContext'
+import { OwnerBadge } from './OwnerBadge'
+import { useWaypoints, type WaypointDraft } from '../features/journey/JourneyContext'
 
 type Props = {
   data: WaypointsData
@@ -50,6 +51,7 @@ type Errors = Record<string, string>
 type EditorMode = 'form' | 'json'
 
 export function WaypointEditor({ data, submitLabel, onSubmit, onCancel, errorMessage }: Props) {
+  const { principal } = useWaypoints()
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
   const [category, setCategory] = useState('')
@@ -257,6 +259,9 @@ export function WaypointEditor({ data, submitLabel, onSubmit, onCancel, errorMes
             })
           }}
         >
+          {principal && (
+            <OwnerBadge ownerId={principal.userId} currentUserId={principal.userId} role={principal.role} canMutate />
+          )}
           <Tabs
             value={mode}
             onChange={(_, next: EditorMode) => setMode(next)}

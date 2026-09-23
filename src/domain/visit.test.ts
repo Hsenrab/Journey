@@ -26,6 +26,7 @@ import { locations } from '../data/locations'
 function waypoint(waypointId: string): Waypoint {
   return {
     waypointId,
+    ownerId: 'owner-1',
     title: waypointId.toUpperCase(),
     description: `${waypointId} description`,
     category: 'Historic building',
@@ -41,6 +42,7 @@ function waypoint(waypointId: string): Waypoint {
 describe('activity rules', () => {
   it('creates an activity with stable id/timestamps', () => {
     const activity = createActivity({
+      ownerId: 'owner-1',
       waypointId: 'lacock-abbey',
       date: '2026-08-01',
       category: 'bronze',
@@ -53,6 +55,7 @@ describe('activity rules', () => {
   it('rejects invalid postcode/coordinate payloads', () => {
     expect(() =>
       createActivity({
+        ownerId: 'owner-1',
         date: '2026-08-01',
         location: { kind: 'postcode', postcode: '   ' },
       }),
@@ -60,6 +63,7 @@ describe('activity rules', () => {
 
     expect(() =>
       createActivity({
+        ownerId: 'owner-1',
         date: '2026-08-01',
         location: { kind: 'coordinates', latitude: 120, longitude: 0 },
       }),
@@ -73,6 +77,7 @@ describe('activity rules', () => {
     expect(waypointSupportsActivityCategory(data, waypointId)).toBe(true)
 
     const activity = createActivity({
+      ownerId: 'owner-1',
       waypointId,
       date: '2026-08-01',
       category: 'gold',
@@ -92,6 +97,7 @@ describe('activity rules', () => {
   it('counts completion independently from category summaries', () => {
     const waypoints = [waypoint('a')]
     const uncategorized = createActivity({
+      ownerId: 'owner-1',
       waypointId: 'a',
       date: '2026-08-01',
       location: { kind: 'postcode', postcode: 'GL3 4AQ' },
@@ -218,6 +224,7 @@ describe('demo data', () => {
 function idea(overrides: Partial<Idea> = {}): Idea {
   return IdeaSchema.parse({
     ideaId: 'idea-1',
+    ownerId: 'owner-1',
     title: 'Kitchen garden tour',
     description: '',
     notes: '',
@@ -269,6 +276,7 @@ describe('idea schema', () => {
 describe('idea and activity relationships', () => {
   const activity = (activityId: string, ideaIds: string[], waypointId?: string, date = '2026-08-02') =>
     createActivity({
+      ownerId: 'owner-1',
       activityId,
       waypointId,
       ideaIds,

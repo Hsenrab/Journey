@@ -60,18 +60,21 @@ describe('mapsToken', () => {
     expect(result.status).toBe(403)
   })
 
-  it('returns 403 for a principal missing the owner role', async () => {
+  it('returns 403 for a principal missing a Journey role', async () => {
     const { mapsToken } = await import('./mapsToken.js')
     const header = ownerHeader({ userRoles: ['anonymous', 'authenticated'] })
     const result = await mapsToken(requestWithPrincipal(header), fakeContext())
     expect(result.status).toBe(403)
   })
 
-  it('returns a Maps Entra token and client ID for the assigned owner', async () => {
+  it('returns a Maps Entra token and client ID for an assigned viewer', async () => {
     acquireMapsAccessToken.mockResolvedValueOnce({ token: 'entra-token-value', expiresOn: '2024-01-01T00:15:00.000Z' })
 
     const { mapsToken } = await import('./mapsToken.js')
-    const result = await mapsToken(requestWithPrincipal(ownerHeader()), fakeContext())
+    const result = await mapsToken(
+      requestWithPrincipal(ownerHeader({ userRoles: ['authenticated', 'viewer'] })),
+      fakeContext(),
+    )
 
     expect(result.status).toBe(200)
     expect(result.jsonBody).toEqual({
@@ -87,6 +90,6 @@ describe('mapsToken', () => {
 
     const { mapsToken } = await import('./mapsToken.js')
 
-    await expect(mapsToken(requestWithPrincipal(ownerHeader()), fakeContext())).rejects.toThrow(/AZURE_MAPS_CLIENT_ID/)
+    await expect(mapsToken(requestWithPrincipal(ownerHeader({ userRoles: ['authenticated', 'editor'] })), fakeContext())).rejects.toThrow(/AZURE_MAPS_CLIENT_ID/)
   })
 })

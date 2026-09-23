@@ -15,6 +15,7 @@ import {
 import InboxOutlinedIcon from '@mui/icons-material/InboxOutlined'
 import { EmptyState } from '../components/EmptyState'
 import { IdeaEditor } from '../components/IdeaEditor'
+import { OwnerBadge } from '../components/OwnerBadge'
 import {
   activitiesUsingIdea,
   difficultyDescriptions,
@@ -29,7 +30,7 @@ import { useWaypoints } from '../features/journey/JourneyContext'
 export default function IdeaDetails() {
   const navigate = useNavigate()
   const { ideaId = '' } = useParams()
-  const { data, updateIdea, deleteIdea } = useWaypoints()
+  const { canMutate, data, deleteIdea, principal, updateIdea } = useWaypoints()
   const [editing, setEditing] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
@@ -54,6 +55,7 @@ export default function IdeaDetails() {
     .filter((reference): reference is NonNullable<typeof reference> => Boolean(reference))
   const activities = activitiesUsingIdea(data.activities, idea.ideaId)
   const usage = ideaUsageCount(data.activities, idea.ideaId)
+  const mayMutate = canMutate(idea.ownerId)
 
   return (
     <Stack spacing={3}>
@@ -62,6 +64,12 @@ export default function IdeaDetails() {
       </Button>
       <Typography variant="h4">{idea.title}</Typography>
       {!editing && error && <Alert severity="error">{error}</Alert>}
+      <OwnerBadge
+        ownerId={idea.ownerId}
+        currentUserId={principal?.userId}
+        role={principal?.role}
+        canMutate={mayMutate}
+      />
       <Typography color="text.secondary">{idea.description || 'No description'}</Typography>
       <Typography sx={{ whiteSpace: 'pre-wrap' }}>{idea.notes || 'No notes'}</Typography>
       <Typography>Planning state: {planningStateLabels[idea.planningState]}</Typography>
@@ -125,7 +133,7 @@ export default function IdeaDetails() {
           </>
         )}
       </Stack>
-      {editing ? (
+      {editing && mayMutate ? (
         <IdeaEditor
           data={data}
           initialIdea={idea}
@@ -143,7 +151,7 @@ export default function IdeaDetails() {
           onDelete={() => setShowDeleteDialog(true)}
           errorMessage={error}
         />
-      ) : (
+      ) : mayMutate ? (
         <Stack direction="row" spacing={1}>
           <Button variant="contained" onClick={() => setEditing(true)}>
             Edit idea
@@ -152,7 +160,7 @@ export default function IdeaDetails() {
             Delete idea
           </Button>
         </Stack>
-      )}
+      ) : null}
       <Dialog open={showDeleteDialog} onClose={() => setShowDeleteDialog(false)}>
         <DialogTitle>Delete idea?</DialogTitle>
         <DialogContent>

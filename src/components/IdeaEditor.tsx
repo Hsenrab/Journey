@@ -38,7 +38,8 @@ import {
 import { ideaImportExample, parseIdeaDraftJson } from '../domain/draftJsonImport'
 import { ideaJsonAiPrompt } from '../domain/aiPrompts'
 import { AiPromptButton } from './AiPromptButton'
-import type { IdeaDraft } from '../features/journey/JourneyContext'
+import { OwnerBadge } from './OwnerBadge'
+import { useWaypoints, type IdeaDraft } from '../features/journey/JourneyContext'
 
 type Props = {
   data: WaypointsData
@@ -74,6 +75,7 @@ export function IdeaEditor({
   onDelete,
   errorMessage,
 }: Props) {
+  const { canMutate, principal } = useWaypoints()
   const [title, setTitle] = useState(initialIdea?.title ?? '')
   const [description, setDescription] = useState(initialIdea?.description ?? '')
   const [notes, setNotes] = useState(initialIdea?.notes ?? '')
@@ -108,6 +110,8 @@ export function IdeaEditor({
   const [jsonError, setJsonError] = useState<string | null>(null)
   const [jsonIssues, setJsonIssues] = useState<string[]>([])
   const addMode = !initialIdea
+  const ownerId = initialIdea?.ownerId ?? principal?.userId
+  const mayMutate = ownerId ? canMutate(ownerId) : true
 
   const dirty = useMemo(
     () =>
@@ -266,6 +270,14 @@ export function IdeaEditor({
             })
           }}
         >
+          {ownerId && (
+            <OwnerBadge
+              ownerId={ownerId}
+              currentUserId={principal?.userId}
+              role={principal?.role}
+              canMutate={mayMutate}
+            />
+          )}
           {addMode && (
             <Tabs
               value={mode}
@@ -592,7 +604,7 @@ export function IdeaEditor({
                     Cancel
                   </Button>
                 )}
-                {onDelete && (
+                {onDelete && mayMutate && (
                   <Button color="error" onClick={onDelete}>
                     Delete idea
                   </Button>

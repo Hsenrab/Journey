@@ -320,8 +320,8 @@ export function parseActivityDraftJson(value: string): ParseResult<ActivityJsonI
       })
     : payload.photoReferences
 
-  const references = ReferenceSchema.omit({ referenceId: true }).array().safeParse(normalizedReferences)
-  const photoReferences = ExternalPhotoReferenceSchema.omit({ photoReferenceId: true })
+  const references = ReferenceSchema.omit({ referenceId: true, ownerId: true }).array().safeParse(normalizedReferences)
+  const photoReferences = ExternalPhotoReferenceSchema.omit({ photoReferenceId: true, ownerId: true })
     .array()
     .safeParse(normalizedPhotoReferences)
   const issues: string[] = []
@@ -339,6 +339,7 @@ export function parseActivityDraftJson(value: string): ParseResult<ActivityJsonI
 
   try {
     createActivity({
+      ownerId: 'draft-owner',
       name: payload.name as string | undefined,
       date: payload.date as string,
       notes: payload.notes as string,
@@ -414,7 +415,7 @@ export function parseIdeaDraftJson(value: string): ParseResult<IdeaJsonImportDra
   }
 
   const normalizedReferences = normalizeReferences(payload.references)
-  const references = ReferenceSchema.omit({ referenceId: true }).array().safeParse(normalizedReferences)
+  const references = ReferenceSchema.omit({ referenceId: true, ownerId: true }).array().safeParse(normalizedReferences)
   const planningState = PlanningStateSchema.safeParse(payload.planningState)
   const difficulty = DifficultySchema.safeParse(payload.difficulty)
   const issues: string[] = []
@@ -451,6 +452,7 @@ export function parseIdeaDraftJson(value: string): ParseResult<IdeaJsonImportDra
 
   try {
     createIdea({
+      ownerId: 'draft-owner',
       title: payload.title as string,
       description: payload.description as string,
       notes: payload.notes as string,
@@ -538,8 +540,8 @@ export function parseWaypointDraftJson(value: string): ParseResult<WaypointJsonI
       })
     : payload.photoReferences
 
-  const references = ReferenceSchema.omit({ referenceId: true }).array().safeParse(normalizedReferences)
-  const photoReferences = ExternalPhotoReferenceSchema.omit({ photoReferenceId: true })
+  const references = ReferenceSchema.omit({ referenceId: true, ownerId: true }).array().safeParse(normalizedReferences)
+  const photoReferences = ExternalPhotoReferenceSchema.omit({ photoReferenceId: true, ownerId: true })
     .array()
     .safeParse(normalizedPhotoReferences)
   const issues: string[] = []
@@ -571,6 +573,7 @@ export function parseWaypointDraftJson(value: string): ParseResult<WaypointJsonI
 
   const waypoint = WaypointSchema.safeParse({
     waypointId: 'waypoint-import',
+    ownerId: 'draft-owner',
     title: payload.title as string,
     description: payload.description as string,
     category: payload.category as string,

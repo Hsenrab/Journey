@@ -14,6 +14,7 @@ import { type Activity, type WaypointsData } from '../domain/visit'
 
 const activity: Activity = {
   activityId: 'a1',
+  ownerId: 'owner-1',
   ideaIds: [],
   waypointId: 'dyrham-park',
   challengeId: 'national-trust',

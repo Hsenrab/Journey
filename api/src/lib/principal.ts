@@ -13,6 +13,8 @@ export interface ClientPrincipal {
   userRoles: string[]
 }
 
+export type JourneyRole = 'viewer' | 'editor' | 'owner'
+
 export class PrincipalValidationError extends Error {
   constructor(message: string) {
     super(message)
@@ -56,22 +58,15 @@ export function parseClientPrincipalHeader(headerValue: string | null): ClientPr
   }
 }
 
-/**
- * Validates that a parsed principal is the single, explicitly assigned owner
- * work identity: signed in via Microsoft Entra ID (`aad`) and assigned the
- * invited `owner` role by Static Web Apps.
- *
- * Throws {@link PrincipalValidationError} with a specific reason on any
- * mismatch; it never silently downgrades to an anonymous or degraded result.
- */
-export function assertOwnerPrincipal(principal: ClientPrincipal): void {
+export function assertJourneyPrincipal(principal: ClientPrincipal): { role: JourneyRole; ownerId: string } {
   if (principal.identityProvider !== 'aad') {
     throw new PrincipalValidationError(
       `Unsupported identity provider "${principal.identityProvider}"; only aad is permitted.`,
     )
   }
 
-  if (!principal.userRoles.includes('owner')) {
-    throw new PrincipalValidationError('Principal is not assigned the owner role.')
-  }
+  const role = (['owner', 'editor', 'viewer'] as const).find((candidate) => principal.userRoles.includes(candidate))
+  if (!role) throw new PrincipalValidationError('Principal is not assigned a viewer, editor, or owner role.')
+
+  return { role, ownerId: principal.userId }
 }

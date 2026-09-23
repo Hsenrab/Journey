@@ -35,7 +35,8 @@ import {
 import { activityImportExample, parseActivityDraftJson } from '../domain/draftJsonImport'
 import { activityJsonAiPrompt } from '../domain/aiPrompts'
 import { AiPromptButton } from './AiPromptButton'
-import type { ActivityDraft } from '../features/journey/JourneyContext'
+import { OwnerBadge } from './OwnerBadge'
+import { useWaypoints, type ActivityDraft } from '../features/journey/JourneyContext'
 
 type Props = {
   data: WaypointsData
@@ -88,6 +89,7 @@ export function ActivityEditor({
   onCancel,
   onDelete,
 }: Props) {
+  const { canMutate, principal } = useWaypoints()
   const initialLocation = useMemo<ActivityLocation>(
     () =>
       initialActivity?.location ??
@@ -132,6 +134,8 @@ export function ActivityEditor({
   const [jsonError, setJsonError] = useState<string | null>(null)
   const [jsonIssues, setJsonIssues] = useState<string[]>([])
   const addMode = !initialActivity
+  const ownerId = initialActivity?.ownerId ?? principal?.userId
+  const mayMutate = ownerId ? canMutate(ownerId) : true
 
   const supportsCategories = waypointSupportsActivityCategory(data, waypointId || undefined)
   const sortedIdeas = useMemo(
@@ -310,6 +314,14 @@ export function ActivityEditor({
             })
           }}
         >
+          {ownerId && (
+            <OwnerBadge
+              ownerId={ownerId}
+              currentUserId={principal?.userId}
+              role={principal?.role}
+              canMutate={mayMutate}
+            />
+          )}
           {addMode && (
             <Tabs
               value={mode}
@@ -742,7 +754,7 @@ export function ActivityEditor({
                     Cancel
                   </Button>
                 )}
-                {onDelete && (
+                {onDelete && mayMutate && (
                   <Button color="error" onClick={onDelete}>
                     Delete activity
                   </Button>

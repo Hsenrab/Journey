@@ -1,5 +1,10 @@
 import { app, type HttpRequest, type HttpResponseInit, type InvocationContext } from '@azure/functions'
-import { assertOwnerPrincipal, parseClientPrincipalHeader, PrincipalValidationError } from '../lib/principal.js'
+import {
+  assertJourneyPrincipal,
+  parseClientPrincipalHeader,
+  PrincipalValidationError,
+  type JourneyRole,
+} from '../lib/principal.js'
 import {
   createDocument,
   datasetIdFor,
@@ -16,7 +21,7 @@ import {
 import { JourneyMutationSchema, type EntityType } from '../lib/journeySchema.js'
 import { GeocodeError, resolveEntityCoordinates } from '../lib/geocode.js'
 import { DefaultAzureCredential } from '@azure/identity'
-import { referenceIntegrityError, upsertEntity } from '../lib/journeyGraph.js'
+import { entityId, entityKey, referenceIntegrityError, upsertEntity } from '../lib/journeyGraph.js'
 import { ZodError } from 'zod'
 
 type ContainerName = 'production' | 'demo'
@@ -27,9 +32,9 @@ function containerName(request: HttpRequest): ContainerName {
   return value
 }
 
-function auth(request: HttpRequest): void {
+function auth(request: HttpRequest): { role: JourneyRole; ownerId: string } {
   try {
-    assertOwnerPrincipal(parseClientPrincipalHeader(request.headers.get('x-ms-client-principal')))
+    return assertJourneyPrincipal(parseClientPrincipalHeader(request.headers.get('x-ms-client-principal')))
   } catch (error) {
     if (error instanceof PrincipalValidationError) throw new ResponseError(403, 'forbidden')
     throw error
@@ -68,7 +73,7 @@ async function geocodedEntity(type: EntityType, entity: Record<string, unknown>)
 
 export async function journey(request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> {
   try {
-    auth(request)
+    const { role, ownerId } = auth(request)
     const container = containerName(request)
     const datasetId = datasetIdFor(container)
     const cosmos = journeyContainer(container)
@@ -82,11 +87,13 @@ export async function journey(request: HttpRequest, context: InvocationContext):
     if (!parsed.success)
       return { status: 400, jsonBody: { error: parsed.error.issues[0]?.message ?? 'Invalid request.' } }
     if (parsed.data.operation === 'clear') {
+      if (role !== 'owner') throw new ResponseError(403, 'forbidden')
       const loaded = await loadDataset(cosmos, datasetId)
       await replaceDataset(cosmos, datasetId, {}, loaded.etags)
       return { status: 200, jsonBody: { data: emptyJourneyData(), etags: {} } }
     }
     if (parsed.data.operation === 'import') {
+      if (role !== 'owner') throw new ResponseError(403, 'forbidden')
       const invalid = referenceIntegrityError(parsed.data.data)
       if (invalid) return { status: 400, jsonBody: { error: invalid } }
       const loaded = await loadDataset(cosmos, datasetId)
@@ -95,17 +102,31 @@ export async function journey(request: HttpRequest, context: InvocationContext):
       return { status: 200, jsonBody: await loadDataset(cosmos, datasetId) }
     }
     if (parsed.data.operation === 'replace') {
+      if (role !== 'owner') throw new ResponseError(403, 'forbidden')
       const invalid = referenceIntegrityError(parsed.data.data)
       if (invalid) return { status: 400, jsonBody: { error: invalid } }
       await replaceDataset(cosmos, datasetId, documentsFor(datasetId, parsed.data.data), parsed.data.etags)
       return { status: 200, jsonBody: await loadDataset(cosmos, datasetId) }
     }
     if (parsed.data.operation === 'create' || parsed.data.operation === 'update') {
+      if (role === 'viewer') throw new ResponseError(403, 'forbidden')
       const method = parsed.data.operation === 'create' ? 'POST' : 'PUT'
       if (request.method !== method) throw new ResponseError(405, 'method_not_allowed')
-      const entity = await geocodedEntity(parsed.data.type, parsed.data.entity)
-      const document = entityDocument(datasetId, parsed.data.type, entity)
       const loaded = await loadDataset(cosmos, datasetId)
+      const type = parsed.data.type
+      const entities = loaded.data[entityKey(type)]
+      let existing: (typeof entities)[number] | undefined
+      if (parsed.data.operation === 'update') {
+        const id = parsed.data.id
+        existing = entities.find((item) => entityId(type, item) === id)
+      }
+      if (existing && role !== 'owner' && existing.ownerId !== ownerId) throw new ResponseError(403, 'forbidden')
+      const sourceEntity =
+        parsed.data.operation === 'create'
+          ? { ...parsed.data.entity, ownerId }
+          : { ...parsed.data.entity, ownerId: existing?.ownerId ?? ownerId }
+      const entity = await geocodedEntity(parsed.data.type, sourceEntity)
+      const document = entityDocument(datasetId, parsed.data.type, entity)
       const invalid = referenceIntegrityError(upsertEntity(loaded.data, document.type, document.entity))
       if (invalid) return { status: 400, jsonBody: { error: invalid } }
       if (parsed.data.operation === 'create') {
@@ -113,8 +134,13 @@ export async function journey(request: HttpRequest, context: InvocationContext):
       }
       return { status: 200, jsonBody: savedDocument(await replaceDocument(cosmos, document, parsed.data.ifMatch)) }
     }
+    if (role === 'viewer') throw new ResponseError(403, 'forbidden')
     if (request.method !== 'DELETE') throw new ResponseError(405, 'method_not_allowed')
     const loaded = await loadDataset(cosmos, datasetId)
+    const deleteType = parsed.data.type
+    const deleteId = parsed.data.id
+    const existing = loaded.data[entityKey(deleteType)].find((item) => entityId(deleteType, item) === deleteId)
+    if (existing && role !== 'owner' && existing.ownerId !== ownerId) throw new ResponseError(403, 'forbidden')
     await deleteEntity(cosmos, datasetId, parsed.data.type, parsed.data.id, parsed.data.ifMatch, loaded)
     return { status: 204 }
   } catch (error) {

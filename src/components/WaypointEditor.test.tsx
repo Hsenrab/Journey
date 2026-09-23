@@ -2,10 +2,12 @@ import type { ComponentProps } from 'react'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { WaypointEditor } from './WaypointEditor'
-import { createDefaultData } from '../services/storage'
+import { WaypointsProvider } from '../features/journey/JourneyContext'
+import { createDefaultData, setDataMode } from '../services/storage'
 import type { WaypointDraft } from '../features/journey/JourneyContext'
+import type { JourneyRole } from '../services/principal'
 
 function renderEditor(overrides: Partial<ComponentProps<typeof WaypointEditor>> = {}) {
   const onSubmit = vi.fn<(draft: WaypointDraft) => void>()
@@ -13,14 +15,44 @@ function renderEditor(overrides: Partial<ComponentProps<typeof WaypointEditor>> 
   const data = createDefaultData()
   render(
     <MemoryRouter>
-      <WaypointEditor data={data} submitLabel="Save waypoint" onSubmit={onSubmit} onCancel={onCancel} {...overrides} />
+      <WaypointsProvider>
+        <WaypointEditor data={data} submitLabel="Save waypoint" onSubmit={onSubmit} onCancel={onCancel} {...overrides} />
+      </WaypointsProvider>
     </MemoryRouter>,
   )
   return { onSubmit, onCancel }
 }
 
+async function renderProductionEditor(role: JourneyRole, userId: string) {
+  vi.stubEnv('MODE', 'production')
+  setDataMode('production')
+  const data = createDefaultData()
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input)
+      if (url === '/.auth/me') {
+        return new Response(
+          JSON.stringify({
+            clientPrincipal: { identityProvider: 'aad', userId, userDetails: userId, userRoles: [role] },
+          }),
+          { status: 200 },
+        )
+      }
+      if (url === '/api/journey/production') return new Response(JSON.stringify({ data, etags: {} }), { status: 200 })
+      return new Response(null, { status: 404 })
+    }),
+  )
+  renderEditor()
+  await screen.findByText('Owner')
+}
+
 describe('WaypointEditor', () => {
   beforeEach(() => {
+    vi.restoreAllMocks()
+  })
+  afterEach(() => {
+    vi.unstubAllEnvs()
     vi.restoreAllMocks()
   })
 
@@ -240,5 +272,19 @@ describe('WaypointEditor', () => {
     await user.click(screen.getByRole('button', { name: 'Waypoint JSON AI prompt' }))
     expect(screen.getByRole('heading', { name: 'Waypoint JSON AI prompt' })).toBeInTheDocument()
     expect(screen.getByDisplayValue(/waypointId/)).toBeInTheDocument()
+  })
+
+  it('shows the viewer ownership note for viewer principals', async () => {
+    await renderProductionEditor('viewer', 'viewer-1')
+
+    expect(screen.getByText('You can view and link to this entity, but cannot modify it.')).toBeInTheDocument()
+  })
+
+  it('shows the current user as owner without a restrictive note for editor principals', async () => {
+    await renderProductionEditor('editor', 'editor-1')
+
+    expect(screen.getByText('You')).toBeInTheDocument()
+    expect(screen.queryByText('You can only edit entities you created.')).not.toBeInTheDocument()
+    expect(screen.queryByText('You can view and link to this entity, but cannot modify it.')).not.toBeInTheDocument()
   })
 })

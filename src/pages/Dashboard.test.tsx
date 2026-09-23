@@ -11,6 +11,7 @@ const lacockId = 'lacock-abbey-fox-talbot-museum-and-village'
 function activity(waypointId: string, category: 'bronze' | 'silver' | 'gold'): Activity {
   return {
     activityId: `${waypointId}-${category}`,
+    ownerId: 'owner-1',
     ideaIds: [],
     waypointId,
     challengeId: 'national-trust',

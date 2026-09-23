@@ -11,6 +11,7 @@ import type { Activity, Waypoint } from './visit'
 
 const waypoint = (waypointId: string, title: string, latitude?: number): Waypoint => ({
   waypointId,
+  ownerId: 'owner-1',
   title,
   description: 'Description',
   category: 'Castle',
@@ -26,6 +27,7 @@ describe('map domain helpers', () => {
   it('reads the coordinates saved with a postcode activity location', () => {
     const activity = (location: Activity['location']): Activity => ({
       activityId: 'activity-1',
+      ownerId: 'owner-1',
       ideaIds: [],
       date: '2026-08-01',
       location,
@@ -62,6 +64,7 @@ describe('map domain helpers', () => {
   it('orders nearby activities in miles, omitting records without coordinates', () => {
     const activity = (activityId: string, date: string, latitude?: number): Activity => ({
       activityId,
+      ownerId: 'owner-1',
       ideaIds: [],
       date,
       location:
@@ -86,6 +89,7 @@ describe('map domain helpers', () => {
     const count = { ...waypoint('count', 'Count'), completion: { mode: 'count' as const, target: 2 } }
     const activity = (waypointId: string, category?: Activity['category']): Activity => ({
       activityId: `${waypointId}-${category ?? 'uncategorised'}`,
+      ownerId: 'owner-1',
       ideaIds: [],
       waypointId,
       date: '2026-08-10',

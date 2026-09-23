@@ -4,13 +4,14 @@ import { Alert, Button, Card, CardContent, Chip, Stack, Typography } from '@mui/
 import InboxOutlinedIcon from '@mui/icons-material/InboxOutlined'
 import { ActivityEditor } from '../components/ActivityEditor'
 import { EmptyState } from '../components/EmptyState'
+import { OwnerBadge } from '../components/OwnerBadge'
 import { PageHeader } from '../components/PageHeader'
 import { locationSummary, statusLabels } from '../domain/visit'
 import { useWaypoints } from '../features/journey/JourneyContext'
 import { JourneyConflictError } from '../services/journeyApi'
 
 export default function Activities() {
-  const { data, addActivity, reload } = useWaypoints()
+  const { addActivity, canMutate, data, principal, reload } = useWaypoints()
   const waypointById = new Map(data.waypoints.map((waypoint) => [waypoint.waypointId, waypoint]))
   const [showEditor, setShowEditor] = useState(false)
   const [message, setMessage] = useState<{ severity: 'success' | 'error'; text: string; conflict?: boolean } | null>(
@@ -33,7 +34,7 @@ export default function Activities() {
   return (
     <Stack spacing={2}>
       <PageHeader title="Activities">
-        {!showEditor && (
+        {!showEditor && principal?.role !== 'viewer' && (
           <Button variant="contained" onClick={() => setShowEditor(true)}>
             Add activity
           </Button>
@@ -108,6 +109,12 @@ export default function Activities() {
                       {activity.photoReferenceIds.length} photo{activity.photoReferenceIds.length === 1 ? '' : 's'} ·{' '}
                       {activity.referenceIds.length} link{activity.referenceIds.length === 1 ? '' : 's'}
                     </Typography>
+                    <OwnerBadge
+                      ownerId={activity.ownerId}
+                      currentUserId={principal?.userId}
+                      role={principal?.role}
+                      canMutate={canMutate(activity.ownerId)}
+                    />
                   </Stack>
                 </CardContent>
               </Card>

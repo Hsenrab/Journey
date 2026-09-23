@@ -4,6 +4,7 @@ import { JourneyDocumentSchema, JourneyMutationSchema } from './journeySchema.js
 function idea() {
   return {
     ideaId: 'idea-1',
+    ownerId: 'owner-1',
     title: 'Idea',
     description: '',
     notes: '',
@@ -36,6 +37,7 @@ describe('Journey document validation', () => {
         schemaVersion: 3,
         entity: {
           activityId: 'activity-1',
+          ownerId: 'owner-1',
           ideaIds: [],
           date: '2026-09-04',
           location: { kind: 'postcode', postcode: 'SN15 2LG', latitude: 51.415, longitude: -2.123 },

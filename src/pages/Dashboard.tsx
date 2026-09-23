@@ -27,7 +27,7 @@ export default function Dashboard() {
     )
   }
 
-  const waypoints = data.waypoints.filter((waypoint) => challenge.waypointIds.includes(waypoint.waypointId))
+  const waypoints = data.waypoints.filter((waypoint) => waypoint.challengeIds.includes(challenge.challengeId))
   const activities = data.activities
   const counts = statusCounts(waypoints, activities)
   const recent = recentlyVisited(waypoints, activities)

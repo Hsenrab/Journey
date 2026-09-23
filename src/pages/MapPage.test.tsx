@@ -377,6 +377,7 @@ describe('MapPage', () => {
     waypoint.location = { ...waypoint.location, latitude: 51.84, longitude: -2.15 }
     data.activities.push({
       activityId: 'activity',
+      ownerId: 'owner-1',
       name: 'Canal loop',
       ideaIds: [],
       waypointId: waypoint.waypointId,
@@ -391,6 +392,7 @@ describe('MapPage', () => {
     })
     data.activities.push({
       activityId: 'postcode-activity',
+      ownerId: 'owner-1',
       ideaIds: [],
       waypointId: 'missing-waypoint',
       date: '2026-08-10',
@@ -434,6 +436,7 @@ describe('MapPage', () => {
     data.activities = [
       {
         activityId: 'unnamed-activity',
+        ownerId: 'owner-1',
         ideaIds: [],
         waypointId: waypoint.waypointId,
         date: '2026-08-10',
@@ -619,6 +622,7 @@ describe('MapPage', () => {
     data.activities = [
       {
         activityId: 'linked-activity',
+        ownerId: 'owner-1',
         name: 'Ridge walk',
         ideaIds: [],
         waypointId: waypoint.waypointId,
@@ -667,6 +671,7 @@ describe('MapPage', () => {
     data.activities = [
       {
         activityId: 'linked-activity',
+        ownerId: 'owner-1',
         name: 'Ridge walk',
         ideaIds: [],
         waypointId: waypoint.waypointId,
@@ -730,6 +735,7 @@ describe('MapPage', () => {
     const data = createDefaultData()
     const activity = {
       activityId: 'linked',
+      ownerId: 'owner-1',
       name: 'Linked garden visit',
       ideaIds: [],
       waypointId: data.waypoints[0]!.waypointId,

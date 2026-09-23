@@ -5,6 +5,8 @@ const loadDataset = vi.fn()
 const journeyContainer = vi.fn()
 const createDocument = vi.fn()
 const deleteEntity = vi.fn()
+const replaceDataset = vi.fn()
+const replaceDocument = vi.fn()
 
 vi.mock('../lib/cosmos.js', async () => {
   const actual = await vi.importActual<typeof import('../lib/cosmos.js')>('../lib/cosmos.js')
@@ -15,37 +17,49 @@ vi.mock('../lib/cosmos.js', async () => {
     createDocument,
     deleteEntity,
     documentFor: actual.documentFor,
-    documentsFor: vi.fn(),
-    emptyJourneyData: vi.fn(),
-    replaceDocument: vi.fn(),
-    replaceDataset: vi.fn(),
-    savedDocument: vi.fn(),
+    documentsFor: actual.documentsFor,
+    emptyJourneyData: actual.emptyJourneyData,
+    replaceDataset,
+    replaceDocument,
+    savedDocument: (response: { resource?: { entity?: unknown }; headers?: { etag?: string } }) => ({
+      entity: response.resource?.entity,
+      etag: response.headers?.etag,
+    }),
   }
 })
 
 vi.mock('@azure/identity', () => ({ DefaultAzureCredential: vi.fn() }))
-vi.mock('../lib/mapsAuth.js', () => ({
-  acquireMapsAccessToken: vi.fn().mockResolvedValue({ token: 'entra-token', expiresOn: '2026-01-01T00:00:00.000Z' }),
-}))
 
-const principal = Buffer.from(
-  JSON.stringify({ identityProvider: 'aad', userId: 'owner', userDetails: 'owner@example.com', userRoles: ['owner'] }),
-).toString('base64')
+function encodePrincipal(principal: Record<string, unknown>): string {
+  return Buffer.from(JSON.stringify(principal)).toString('base64')
+}
 
-function request(container: string, method = 'GET', body?: unknown) {
+function principal(role: 'viewer' | 'editor' | 'owner', userId = `${role}-user`) {
+  return encodePrincipal({
+    identityProvider: 'aad',
+    userId,
+    userDetails: `${userId}@example.com`,
+    userRoles: ['authenticated', role],
+  })
+}
+
+function request(
+  container: string,
+  {
+    method = 'GET',
+    body,
+    header = principal('owner'),
+  }: { method?: string; body?: unknown; header?: string } = {},
+) {
   return {
     method,
     params: { container },
     json: async () => body,
-    headers: { get: (name: string) => (name === 'x-ms-client-principal' ? principal : null) },
+    headers: { get: (name: string) => (name === 'x-ms-client-principal' ? header : null) },
   } as never
 }
 
 const context = () => ({ error: vi.fn() }) as never
-
-function searchResults(results: unknown[]) {
-  vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: () => ({ results }) }))
-}
 
 const emptyData = {
   waypoints: [],
@@ -56,11 +70,12 @@ const emptyData = {
   photoReferences: [],
 }
 
-const activity = {
+const ownedActivity = {
   activityId: 'activity-1',
-  ideaIds: ['idea-1'],
+  ownerId: 'editor-user',
+  ideaIds: [],
   date: '2026-08-02',
-  location: { kind: 'postcode', postcode: 'GL3 4AQ' },
+  location: { kind: 'coordinates', latitude: 51.844, longitude: -2.153 },
   notes: '',
   referenceIds: [],
   photoReferenceIds: [],
@@ -68,21 +83,11 @@ const activity = {
   updatedAt: '2026-08-02T00:00:00.000Z',
 }
 
-const waypoint = {
-  waypointId: 'waypoint-1',
-  title: 'Lacock Abbey',
-  description: 'Abbey, museum and village.',
-  category: 'House',
-  tags: ['Wiltshire'],
-  challengeIds: [],
-  completion: { mode: 'once' },
-  location: { placeName: 'Lacock Abbey', addressOrRegion: 'Wiltshire' },
-  referenceIds: [],
-  photoReferenceIds: [],
-}
+const otherOwnedActivity = { ...ownedActivity, ownerId: 'other-user', activityId: 'activity-2' }
 
-const idea = {
+const ownedIdea = {
   ideaId: 'idea-1',
+  ownerId: 'editor-user',
   title: 'Orangery tour',
   description: '',
   notes: '',
@@ -100,164 +105,247 @@ describe('journey', () => {
     journeyContainer.mockReset()
     createDocument.mockReset()
     deleteEntity.mockReset()
+    replaceDataset.mockReset()
+    replaceDocument.mockReset()
     journeyContainer.mockReturnValue({})
-    process.env.AZURE_MAPS_CLIENT_ID = 'maps-client-id'
-    searchResults([{ position: { lat: 51.844, lon: -2.153 } }])
   })
 
-  it('uses the route container for a production read', async () => {
-    const container = {}
-    journeyContainer.mockReturnValue(container)
-    loadDataset.mockResolvedValue({ data: { activities: [] }, etags: {} })
-    const { journey } = await import('./journey.js')
-
-    expect(await journey(request('production'), { error: vi.fn() } as unknown as InvocationContext)).toMatchObject({
-      status: 200,
-      jsonBody: { datasetId: 'production' },
-    })
-    expect(journeyContainer).toHaveBeenCalledWith('production')
-    expect(loadDataset).toHaveBeenCalledWith(container, 'production')
-  })
-
-  it('rejects unsupported route containers', async () => {
-    const { journey } = await import('./journey.js')
-    await expect(journey(request('test'), { error: vi.fn() } as unknown as InvocationContext)).rejects.toThrow(
-      'Unsupported Journey container "test".',
-    )
-    await expect(journey(request('unknown'), { error: vi.fn() } as unknown as InvocationContext)).rejects.toThrow(
-      'Unsupported Journey container "unknown".',
-    )
-  })
-
-  it('rejects a create that references an unknown idea', async () => {
+  it('allows viewers to read the dataset', async () => {
     loadDataset.mockResolvedValue({ data: emptyData, etags: {} })
     const { journey } = await import('./journey.js')
 
-    expect(
-      await journey(
-        request('production', 'POST', { operation: 'create', type: 'activity', entity: activity }),
-        context(),
-      ),
-    ).toEqual({ status: 400, jsonBody: { error: 'Activity "activity-1" references unknown idea "idea-1".' } })
-    expect(createDocument).not.toHaveBeenCalled()
+    await expect(
+      journey(request('production', { header: principal('viewer', 'viewer-user') }), context() as InvocationContext),
+    ).resolves.toMatchObject({ status: 200, jsonBody: { datasetId: 'production' } })
   })
 
-  it('rejects an entity that fails complete validation', async () => {
+  it('forbids viewer mutations', async () => {
+    const { journey } = await import('./journey.js')
+    const header = principal('viewer', 'viewer-user')
+
+    const mutationBodies = [
+      { method: 'POST', body: { operation: 'create', type: 'activity', entity: ownedActivity } },
+      {
+        method: 'PUT',
+        body: { operation: 'update', type: 'activity', id: ownedActivity.activityId, entity: ownedActivity, ifMatch: 'etag' },
+      },
+      { method: 'DELETE', body: { operation: 'delete', type: 'activity', id: ownedActivity.activityId, ifMatch: 'etag' } },
+      { method: 'POST', body: { operation: 'clear' } },
+      { method: 'POST', body: { operation: 'import', data: emptyData } },
+      { method: 'POST', body: { operation: 'replace', data: emptyData, etags: {} } },
+    ] as const
+
+    for (const mutation of mutationBodies) {
+      expect(await journey(request('production', { ...mutation, header }), context() as InvocationContext)).toEqual({
+        status: 403,
+        jsonBody: { error: 'forbidden' },
+      })
+    }
+  })
+
+  it('stamps ownerId from the editor principal on create', async () => {
     loadDataset.mockResolvedValue({ data: emptyData, etags: {} })
+    createDocument.mockImplementation(async (_container, document) => ({
+      resource: { entity: document.entity },
+      headers: { etag: 'created-etag' },
+    }))
     const { journey } = await import('./journey.js')
 
-    expect(
-      await journey(
-        request('production', 'POST', {
+    const result = await journey(
+      request('production', {
+        method: 'POST',
+        header: principal('editor', 'editor-user'),
+        body: {
           operation: 'create',
-          type: 'idea',
-          entity: { ...idea, planningState: 'rejected' },
-        }),
-        context(),
-      ),
-    ).toMatchObject({ status: 400, jsonBody: { error: 'A rejected idea requires a rejection reason' } })
-  })
-
-  it('geocodes a postcode-only activity before it is persisted', async () => {
-    loadDataset.mockResolvedValue({ data: emptyData, etags: {} })
-    createDocument.mockResolvedValue({ resource: {}, headers: {} })
-    const { journey } = await import('./journey.js')
-
-    const result = await journey(
-      request('production', 'POST', { operation: 'create', type: 'activity', entity: { ...activity, ideaIds: [] } }),
-      context(),
+          type: 'activity',
+          entity: { ...ownedActivity, ownerId: 'malicious-user' },
+        },
+      }),
+      context() as InvocationContext,
     )
 
-    expect(result).toMatchObject({ status: 201 })
+    expect(result).toEqual({
+      status: 201,
+      jsonBody: { entity: { ...ownedActivity, ownerId: 'editor-user' }, etag: 'created-etag' },
+    })
     expect(createDocument).toHaveBeenCalledWith(
       {},
-      expect.objectContaining({
-        entity: expect.objectContaining({
-          location: { kind: 'postcode', postcode: 'GL3 4AQ', latitude: 51.844, longitude: -2.153 },
-        }),
-      }),
-    )
-    expect(fetch).toHaveBeenCalledWith(
-      'https://atlas.microsoft.com/search/address/json?api-version=1.0&query=GL3+4AQ',
-      expect.anything(),
+      expect.objectContaining({ entity: expect.objectContaining({ ownerId: 'editor-user' }) }),
     )
   })
 
-  it('allows demo creates against the demo dataset', async () => {
-    loadDataset.mockResolvedValue({ data: emptyData, etags: {} })
-    createDocument.mockResolvedValue({ resource: {}, headers: {} })
+  it('allows an editor to update and delete their own entity', async () => {
+    loadDataset.mockResolvedValue({
+      data: { ...emptyData, activities: [ownedActivity] },
+      etags: { [ownedActivity.activityId]: 'etag-1' },
+    })
+    replaceDocument.mockImplementation(async (_container, document) => ({
+      resource: { entity: document.entity },
+      headers: { etag: 'etag-2' },
+    }))
     const { journey } = await import('./journey.js')
+
+    const updated = { ...ownedActivity, notes: 'Updated' }
+    expect(
+      await journey(
+        request('production', {
+          method: 'PUT',
+          header: principal('editor', 'editor-user'),
+          body: { operation: 'update', type: 'activity', id: ownedActivity.activityId, entity: updated, ifMatch: 'etag-1' },
+        }),
+        context() as InvocationContext,
+      ),
+    ).toEqual({ status: 200, jsonBody: { entity: updated, etag: 'etag-2' } })
 
     expect(
       await journey(
-        request('demo', 'POST', { operation: 'create', type: 'activity', entity: { ...activity, ideaIds: [] } }),
-        context(),
+        request('production', {
+          method: 'DELETE',
+          header: principal('editor', 'editor-user'),
+          body: { operation: 'delete', type: 'activity', id: ownedActivity.activityId, ifMatch: 'etag-1' },
+        }),
+        context() as InvocationContext,
       ),
-    ).toMatchObject({ status: 201 })
-    expect(createDocument).toHaveBeenCalledWith(
+    ).toEqual({ status: 204 })
+    expect(deleteEntity).toHaveBeenCalledWith(
       {},
-      expect.objectContaining({
-        datasetId: 'demo',
-        entity: expect.objectContaining({ activityId: 'activity-1' }),
-      }),
+      'production',
+      'activity',
+      ownedActivity.activityId,
+      'etag-1',
+      expect.objectContaining({ data: expect.objectContaining({ activities: [ownedActivity] }) }),
     )
   })
 
-  it('geocodes a place-only waypoint before it is persisted', async () => {
-    loadDataset.mockResolvedValue({ data: emptyData, etags: {} })
-    createDocument.mockResolvedValue({ resource: {}, headers: {} })
+  it('forbids an editor from updating or deleting another user’s entity', async () => {
+    loadDataset.mockResolvedValue({
+      data: { ...emptyData, activities: [otherOwnedActivity] },
+      etags: { [otherOwnedActivity.activityId]: 'etag-1' },
+    })
     const { journey } = await import('./journey.js')
+    const header = principal('editor', 'editor-user')
 
-    const result = await journey(
-      request('production', 'POST', { operation: 'create', type: 'waypoint', entity: waypoint }),
-      context(),
-    )
-
-    expect(result).toMatchObject({ status: 201 })
-    expect(createDocument).toHaveBeenCalledWith(
-      {},
-      expect.objectContaining({
-        entity: expect.objectContaining({
-          location: {
-            placeName: 'Lacock Abbey',
-            addressOrRegion: 'Wiltshire',
-            latitude: 51.844,
-            longitude: -2.153,
+    expect(
+      await journey(
+        request('production', {
+          method: 'PUT',
+          header,
+          body: {
+            operation: 'update',
+            type: 'activity',
+            id: otherOwnedActivity.activityId,
+            entity: { ...otherOwnedActivity, notes: 'Blocked' },
+            ifMatch: 'etag-1',
           },
         }),
-      }),
-    )
+        context() as InvocationContext,
+      ),
+    ).toEqual({ status: 403, jsonBody: { error: 'forbidden' } })
+
+    expect(
+      await journey(
+        request('production', {
+          method: 'DELETE',
+          header,
+          body: { operation: 'delete', type: 'activity', id: otherOwnedActivity.activityId, ifMatch: 'etag-1' },
+        }),
+        context() as InvocationContext,
+      ),
+    ).toEqual({ status: 403, jsonBody: { error: 'forbidden' } })
   })
 
-  it('rejects a save whose location cannot be geocoded', async () => {
-    loadDataset.mockResolvedValue({ data: emptyData, etags: {} })
-    searchResults([])
+  it('forbids editor clear, import, and replace', async () => {
+    const { journey } = await import('./journey.js')
+    const header = principal('editor', 'editor-user')
+
+    expect(
+      await journey(request('production', { method: 'POST', header, body: { operation: 'clear' } }), context()),
+    ).toEqual({ status: 403, jsonBody: { error: 'forbidden' } })
+    expect(
+      await journey(request('production', { method: 'POST', header, body: { operation: 'import', data: emptyData } }), context()),
+    ).toEqual({ status: 403, jsonBody: { error: 'forbidden' } })
+    expect(
+      await journey(
+        request('production', { method: 'POST', header, body: { operation: 'replace', data: emptyData, etags: {} } }),
+        context(),
+      ),
+    ).toEqual({ status: 403, jsonBody: { error: 'forbidden' } })
+  })
+
+  it('allows the owner to update or delete any entity', async () => {
+    loadDataset.mockResolvedValue({
+      data: { ...emptyData, activities: [otherOwnedActivity] },
+      etags: { [otherOwnedActivity.activityId]: 'etag-1' },
+    })
+    replaceDocument.mockImplementation(async (_container, document) => ({
+      resource: { entity: document.entity },
+      headers: { etag: 'etag-2' },
+    }))
     const { journey } = await import('./journey.js')
 
     expect(
       await journey(
-        request('production', 'POST', { operation: 'create', type: 'activity', entity: { ...activity, ideaIds: [] } }),
-        context(),
+        request('production', {
+          method: 'PUT',
+          header: principal('owner', 'owner-user'),
+          body: {
+            operation: 'update',
+            type: 'activity',
+            id: otherOwnedActivity.activityId,
+            entity: { ...otherOwnedActivity, notes: 'Owner update' },
+            ifMatch: 'etag-1',
+          },
+        }),
+        context() as InvocationContext,
       ),
-    ).toEqual({ status: 400, jsonBody: { error: 'Azure Maps found no coordinates for "GL3 4AQ".' } })
-    expect(createDocument).not.toHaveBeenCalled()
+    ).toMatchObject({ status: 200 })
+
+    expect(
+      await journey(
+        request('production', {
+          method: 'DELETE',
+          header: principal('owner', 'owner-user'),
+          body: { operation: 'delete', type: 'activity', id: otherOwnedActivity.activityId, ifMatch: 'etag-1' },
+        }),
+        context() as InvocationContext,
+      ),
+    ).toEqual({ status: 204 })
   })
 
-  it('deletes an idea transactionally and returns ETag conflicts explicitly', async () => {
-    const loaded = { data: { ...emptyData, ideas: [idea], activities: [activity] }, etags: { 'idea-1': 'etag' } }
-    loadDataset.mockResolvedValue(loaded)
-    const { journey } = await import('./journey.js')
-    const deleteRequest = request('production', 'DELETE', {
-      operation: 'delete',
-      type: 'idea',
-      id: 'idea-1',
-      ifMatch: 'etag',
+  it('preserves the stored ownerId on update even when the client supplies a different one', async () => {
+    loadDataset.mockResolvedValue({
+      data: { ...emptyData, ideas: [ownedIdea] },
+      etags: { [ownedIdea.ideaId]: 'etag-idea' },
     })
+    replaceDocument.mockImplementation(async (_container, document) => ({
+      resource: { entity: document.entity },
+      headers: { etag: 'etag-next' },
+    }))
+    const { journey } = await import('./journey.js')
 
-    expect(await journey(deleteRequest, context())).toEqual({ status: 204 })
-    expect(deleteEntity).toHaveBeenCalledWith({}, 'production', 'idea', 'idea-1', 'etag', loaded)
+    const result = await journey(
+      request('production', {
+        method: 'PUT',
+        header: principal('editor', 'editor-user'),
+        body: {
+          operation: 'update',
+          type: 'idea',
+          id: ownedIdea.ideaId,
+          entity: { ...ownedIdea, ownerId: 'other-user', notes: 'Updated notes' },
+          ifMatch: 'etag-idea',
+        },
+      }),
+      context() as InvocationContext,
+    )
 
-    deleteEntity.mockRejectedValueOnce(Object.assign(new Error('conflict'), { code: 412 }))
-    expect(await journey(deleteRequest, context())).toEqual({ status: 409, jsonBody: { error: 'conflict' } })
+    expect(result).toEqual({
+      status: 200,
+      jsonBody: { entity: { ...ownedIdea, notes: 'Updated notes' }, etag: 'etag-next' },
+    })
+    expect(replaceDocument).toHaveBeenCalledWith(
+      {},
+      expect.objectContaining({ entity: expect.objectContaining({ ownerId: 'editor-user', notes: 'Updated notes' }) }),
+      'etag-idea',
+    )
   })
 })

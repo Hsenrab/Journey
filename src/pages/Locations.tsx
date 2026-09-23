@@ -4,6 +4,7 @@ import { Box, Button, Card, CardContent, Chip, MenuItem, Stack, TextField, Typog
 import SearchOffIcon from '@mui/icons-material/SearchOff'
 import { EmptyState } from '../components/EmptyState'
 import { FilterBar } from '../components/FilterBar'
+import { OwnerBadge } from '../components/OwnerBadge'
 import { PageHeader } from '../components/PageHeader'
 import { WaypointEditor } from '../components/WaypointEditor'
 import { locations } from '../data/locations'
@@ -15,7 +16,7 @@ const locationById = new Map(locations.map((location) => [location.locationId, l
 type SortKey = 'name' | 'travel' | 'distance' | 'status' | 'lastActivity'
 
 export default function Locations() {
-  const { addWaypoint, data, statusFor } = useWaypoints()
+  const { addWaypoint, canMutate, data, principal, statusFor } = useWaypoints()
   const activities = data.activities
   const [searchParams, setSearchParams] = useSearchParams()
   const showEditor = searchParams.get('mode') === 'add'
@@ -109,7 +110,7 @@ export default function Locations() {
   return (
     <Stack spacing={2}>
       <PageHeader title="Waypoints">
-        {!showEditor && (
+        {!showEditor && principal?.role !== 'viewer' && (
           <Button
             variant="contained"
             onClick={() => {
@@ -270,6 +271,12 @@ export default function Locations() {
                     <Chip
                       label={statusLabels[statusFor(waypoint.waypointId)]}
                       color={statusFor(waypoint.waypointId) === 'gold' ? 'success' : 'default'}
+                    />
+                    <OwnerBadge
+                      ownerId={waypoint.ownerId}
+                      currentUserId={principal?.userId}
+                      role={principal?.role}
+                      canMutate={canMutate(waypoint.ownerId)}
                     />
                     <Button component={Link} to={`/waypoints/${waypoint.waypointId}`}>
                       View waypoint

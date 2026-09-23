@@ -2,10 +2,12 @@ import type { ComponentProps } from 'react'
 import { MemoryRouter } from 'react-router-dom'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { ActivityEditor } from './ActivityEditor'
-import { createDefaultData } from '../services/storage'
+import { WaypointsProvider } from '../features/journey/JourneyContext'
+import { createDefaultData, setDataMode } from '../services/storage'
 import type { ActivityDraft } from '../features/journey/JourneyContext'
+import type { JourneyRole } from '../services/principal'
 
 function renderEditor(overrides: Partial<ComponentProps<typeof ActivityEditor>> = {}) {
   const onSubmit = vi.fn<(draft: ActivityDraft) => void>()
@@ -15,22 +17,56 @@ function renderEditor(overrides: Partial<ComponentProps<typeof ActivityEditor>> 
 
   render(
     <MemoryRouter>
-      <ActivityEditor
-        data={data}
-        submitLabel="Save"
-        onSubmit={onSubmit}
-        onCancel={onCancel}
-        onDelete={onDelete}
-        {...overrides}
-      />
+      <WaypointsProvider>
+        <ActivityEditor
+          data={data}
+          submitLabel="Save"
+          onSubmit={onSubmit}
+          onCancel={onCancel}
+          onDelete={onDelete}
+          {...overrides}
+        />
+      </WaypointsProvider>
     </MemoryRouter>,
   )
 
   return { data, onSubmit, onCancel, onDelete }
 }
 
+async function renderProductionEditor(
+  role: JourneyRole,
+  userId: string,
+  overrides: Partial<ComponentProps<typeof ActivityEditor>> = {},
+) {
+  vi.stubEnv('MODE', 'production')
+  setDataMode('production')
+  const data = overrides.data ?? createDefaultData()
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input)
+      if (url === '/.auth/me') {
+        return new Response(
+          JSON.stringify({
+            clientPrincipal: { identityProvider: 'aad', userId, userDetails: userId, userRoles: [role] },
+          }),
+          { status: 200 },
+        )
+      }
+      if (url === '/api/journey/production') return new Response(JSON.stringify({ data, etags: {} }), { status: 200 })
+      return new Response(null, { status: 404 })
+    }),
+  )
+  renderEditor(overrides)
+  await screen.findByText('Owner')
+}
+
 describe('ActivityEditor', () => {
   beforeEach(() => {
+    vi.restoreAllMocks()
+  })
+  afterEach(() => {
+    vi.unstubAllEnvs()
     vi.restoreAllMocks()
   })
 
@@ -178,6 +214,7 @@ describe('ActivityEditor', () => {
       initialReferences: [
         {
           referenceId: 'r1',
+          ownerId: 'owner-1',
           title: ' Guide ',
           url: 'https://example.com/guide ',
           description: ' Details ',
@@ -185,7 +222,13 @@ describe('ActivityEditor', () => {
         },
       ],
       initialPhotoReferences: [
-        { photoReferenceId: 'p1', title: ' View ', url: 'https://example.com/view.jpg ', altText: ' Alt ' },
+        {
+          photoReferenceId: 'p1',
+          ownerId: 'owner-1',
+          title: ' View ',
+          url: 'https://example.com/view.jpg ',
+          altText: ' Alt ',
+        },
       ],
     })
 
@@ -252,6 +295,7 @@ describe('ActivityEditor', () => {
     data.ideas = [
       {
         ideaId: 'idea-1',
+        ownerId: 'owner-1',
         title: 'Route option',
         description: '',
         notes: '',
@@ -462,6 +506,80 @@ describe('ActivityEditor', () => {
     await user.click(screen.getByRole('button', { name: 'Activity JSON AI prompt' }))
     expect(screen.getByRole('heading', { name: 'Activity JSON AI prompt' })).toBeInTheDocument()
     expect(screen.getByDisplayValue(/activityId/)).toBeInTheDocument()
+  })
+
+  it('shows the viewer ownership note and hides delete for viewers', async () => {
+    const initialActivity = {
+      activityId: 'activity-1',
+      ownerId: 'owner-1',
+      ideaIds: [],
+      date: '2026-08-01',
+      location: { kind: 'postcode' as const, postcode: 'BA12 6QF' },
+      notes: '',
+      referenceIds: [],
+      photoReferenceIds: [],
+      createdAt: '2026-08-01T10:00:00.000Z',
+      updatedAt: '2026-08-01T10:00:00.000Z',
+    }
+    await renderProductionEditor('viewer', 'viewer-1', { initialActivity })
+
+    expect(screen.queryByRole('button', { name: 'Delete activity' })).not.toBeInTheDocument()
+    expect(screen.getByText('You can view and link to this entity, but cannot modify it.')).toBeInTheDocument()
+  })
+
+  it('shows the editor ownership note and hides delete for non-owned activities', async () => {
+    const initialActivity = {
+      activityId: 'activity-1',
+      ownerId: 'owner-1',
+      ideaIds: [],
+      date: '2026-08-01',
+      location: { kind: 'postcode' as const, postcode: 'BA12 6QF' },
+      notes: '',
+      referenceIds: [],
+      photoReferenceIds: [],
+      createdAt: '2026-08-01T10:00:00.000Z',
+      updatedAt: '2026-08-01T10:00:00.000Z',
+    }
+    await renderProductionEditor('editor', 'editor-1', { initialActivity })
+
+    expect(screen.queryByRole('button', { name: 'Delete activity' })).not.toBeInTheDocument()
+    expect(screen.getByText('You can only edit entities you created.')).toBeInTheDocument()
+  })
+
+  it('shows delete for editors on their own activities', async () => {
+    const initialActivity = {
+      activityId: 'activity-1',
+      ownerId: 'editor-1',
+      ideaIds: [],
+      date: '2026-08-01',
+      location: { kind: 'postcode' as const, postcode: 'BA12 6QF' },
+      notes: '',
+      referenceIds: [],
+      photoReferenceIds: [],
+      createdAt: '2026-08-01T10:00:00.000Z',
+      updatedAt: '2026-08-01T10:00:00.000Z',
+    }
+    await renderProductionEditor('editor', 'editor-1', { initialActivity })
+
+    expect(screen.getByRole('button', { name: 'Delete activity' })).toBeInTheDocument()
+  })
+
+  it('shows delete for owners on any activity', async () => {
+    const initialActivity = {
+      activityId: 'activity-1',
+      ownerId: 'other-owner',
+      ideaIds: [],
+      date: '2026-08-01',
+      location: { kind: 'postcode' as const, postcode: 'BA12 6QF' },
+      notes: '',
+      referenceIds: [],
+      photoReferenceIds: [],
+      createdAt: '2026-08-01T10:00:00.000Z',
+      updatedAt: '2026-08-01T10:00:00.000Z',
+    }
+    await renderProductionEditor('owner', 'owner-1', { initialActivity })
+
+    expect(screen.getByRole('button', { name: 'Delete activity' })).toBeInTheDocument()
   })
 })
 

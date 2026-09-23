@@ -17,6 +17,7 @@ import {
 import InboxOutlinedIcon from '@mui/icons-material/InboxOutlined'
 import { ActivityEditor } from '../components/ActivityEditor'
 import { EmptyState } from '../components/EmptyState'
+import { OwnerBadge } from '../components/OwnerBadge'
 import { ideasForActivity, locationSummary, statusLabels } from '../domain/visit'
 import { useWaypoints } from '../features/journey/JourneyContext'
 import { JourneyConflictError } from '../services/journeyApi'
@@ -24,7 +25,7 @@ import { JourneyConflictError } from '../services/journeyApi'
 export default function ActivityDetails() {
   const { activityId = '' } = useParams()
   const navigate = useNavigate()
-  const { data, reload, updateActivity, deleteActivity } = useWaypoints()
+  const { canMutate, data, deleteActivity, principal, reload, updateActivity } = useWaypoints()
   const [editing, setEditing] = useState(false)
   const [photoIndex, setPhotoIndex] = useState(0)
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
@@ -56,6 +57,7 @@ export default function ActivityDetails() {
     activity.photoReferenceIds.includes(photoReference.photoReferenceId),
   )
   const selectedPhoto = photoReferences[photoIndex]
+  const mayMutate = canMutate(activity.ownerId)
 
   const hostname = (url: string) => {
     try {
@@ -103,6 +105,12 @@ export default function ActivityDetails() {
       )}
 
       <Typography variant="h4">{detailHeading}</Typography>
+      <OwnerBadge
+        ownerId={activity.ownerId}
+        currentUserId={principal?.userId}
+        role={principal?.role}
+        canMutate={mayMutate}
+      />
       <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: 'wrap' }}>
         {activity.category && <Chip label={statusLabels[activity.category]} />}
         {waypoint && (
@@ -213,7 +221,7 @@ export default function ActivityDetails() {
         )}
       </Stack>
 
-      {editing ? (
+      {editing && mayMutate ? (
         <ActivityEditor
           data={data}
           initialActivity={activity}
@@ -236,7 +244,7 @@ export default function ActivityDetails() {
           onCancel={() => setEditing(false)}
           onDelete={() => setShowDeleteDialog(true)}
         />
-      ) : (
+      ) : mayMutate ? (
         <Stack direction="row" spacing={1}>
           <Button variant="contained" onClick={() => setEditing(true)}>
             Edit activity
@@ -245,7 +253,7 @@ export default function ActivityDetails() {
             Delete activity
           </Button>
         </Stack>
-      )}
+      ) : null}
 
       <Dialog open={showDeleteDialog} onClose={() => setShowDeleteDialog(false)}>
         <DialogTitle>Delete activity?</DialogTitle>

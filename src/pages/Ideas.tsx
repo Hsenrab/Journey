@@ -4,6 +4,7 @@ import { Box, Button, Card, CardContent, Chip, MenuItem, Stack, TextField, Typog
 import SearchOffIcon from '@mui/icons-material/SearchOff'
 import { EmptyState } from '../components/EmptyState'
 import { FilterBar } from '../components/FilterBar'
+import { OwnerBadge } from '../components/OwnerBadge'
 import { PageHeader } from '../components/PageHeader'
 import { distanceMiles } from '../domain/map'
 import {
@@ -37,7 +38,7 @@ function referenceHostname(url: string): string {
 }
 
 export default function Ideas() {
-  const { data, addIdea } = useWaypoints()
+  const { addIdea, canMutate, data, principal } = useWaypoints()
   const [searchParams, setSearchParams] = useSearchParams()
   const stateParam = searchParams.get('state')
   const selectedState = planningStates.includes(stateParam as Idea['planningState'])
@@ -107,7 +108,7 @@ export default function Ideas() {
   return (
     <Stack spacing={2}>
       <PageHeader title="Ideas">
-        {!showEditor && (
+        {!showEditor && principal?.role !== 'viewer' && (
           <Button
             variant="contained"
             onClick={() => {
@@ -255,6 +256,12 @@ export default function Ideas() {
                     ) : (
                       <Typography color="text.secondary">No references</Typography>
                     )}
+                    <OwnerBadge
+                      ownerId={idea.ownerId}
+                      currentUserId={principal?.userId}
+                      role={principal?.role}
+                      canMutate={canMutate(idea.ownerId)}
+                    />
                     <Button component={Link} to={`/ideas/${idea.ideaId}`}>
                       View idea
                     </Button>

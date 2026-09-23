@@ -62,6 +62,7 @@ const CompletionSchema = z.discriminatedUnion('mode', [
 
 export const WaypointSchema = z.object({
   waypointId: z.string().min(1),
+  ownerId: z.string().min(1),
   title: z.string().min(1),
   description: z.string().min(1),
   category: z.string().min(1),
@@ -75,6 +76,7 @@ export const WaypointSchema = z.object({
 
 export const ChallengeSchema = z.object({
   challengeId: z.string().min(1),
+  ownerId: z.string().min(1),
   title: z.string().min(1),
   description: z.string().min(1),
   waypointIds: z.array(z.string().min(1)),
@@ -113,6 +115,7 @@ const distinctIds = (message: string) =>
 export const IdeaSchema = z
   .object({
     ideaId: z.string().min(1),
+    ownerId: z.string().min(1),
     title: z.string().trim().min(1, 'Idea title is required'),
     description: z.string(),
     notes: z.string(),
@@ -145,6 +148,7 @@ const httpsUrl = z.url('Please enter a valid URL').startsWith('https://', 'URL m
 
 export const ReferenceSchema = z.object({
   referenceId: z.string().min(1),
+  ownerId: z.string().min(1),
   title: z.string().trim().min(1, 'Reference title is required'),
   description: z.string().trim().min(1).optional(),
   url: httpsUrl,
@@ -153,6 +157,7 @@ export const ReferenceSchema = z.object({
 
 export const ExternalPhotoReferenceSchema = z.object({
   photoReferenceId: z.string().min(1),
+  ownerId: z.string().min(1),
   title: z.string().trim().min(1, 'Photo title is required'),
   altText: z.string().trim().min(1).optional(),
   url: httpsUrl,
@@ -161,6 +166,7 @@ export const ExternalPhotoReferenceSchema = z.object({
 export const ActivitySchema = z
   .object({
     activityId: z.string().min(1),
+    ownerId: z.string().min(1),
     name: z.string().trim().min(1, 'Activity name is required').optional(),
     waypointId: z.string().min(1).optional(),
     challengeId: z.string().min(1).optional(),
@@ -201,8 +207,10 @@ export function locationSummary(location: ActivityLocation): string {
 }
 
 export function createSeedData(locations: readonly Location[]): WaypointsData {
+  const ownerId = 'owner-1'
   const waypoints: Waypoint[] = locations.map((location) => ({
     waypointId: location.locationId,
+    ownerId,
     title: location.name,
     description: location.notes,
     category: location.category,
@@ -225,6 +233,7 @@ export function createSeedData(locations: readonly Location[]): WaypointsData {
     challenges: [
       {
         challengeId: 'national-trust',
+        ownerId,
         title: 'National Trust',
         description: 'Visit National Trust properties using the shared Waypoints model.',
         waypointIds: waypoints.map((waypoint) => waypoint.waypointId),
@@ -235,6 +244,7 @@ export function createSeedData(locations: readonly Location[]): WaypointsData {
     activities: [],
     references: locations.map((location) => ({
       referenceId: `reference-${location.locationId}`,
+      ownerId,
       title: `${location.name} visitor information`,
       url: location.url,
     })),
@@ -263,6 +273,7 @@ export function validateActivityCategory(data: WaypointsData, activity: Activity
 
 export function createActivity(input: {
   activityId?: string
+  ownerId: string
   name?: string
   waypointId?: string
   challengeId?: string
@@ -279,6 +290,7 @@ export function createActivity(input: {
   const now = new Date().toISOString()
   return ActivitySchema.parse({
     activityId: input.activityId ?? crypto.randomUUID(),
+    ownerId: input.ownerId,
     name: input.name?.trim() || undefined,
     waypointId: input.waypointId,
     challengeId: input.challengeId,
@@ -296,6 +308,7 @@ export function createActivity(input: {
 
 export function createIdea(input: {
   ideaId?: string
+  ownerId: string
   title: string
   description?: string
   notes?: string
@@ -311,6 +324,7 @@ export function createIdea(input: {
   const now = new Date().toISOString()
   return IdeaSchema.parse({
     ideaId: input.ideaId ?? crypto.randomUUID(),
+    ownerId: input.ownerId,
     title: input.title,
     description: input.description ?? '',
     notes: input.notes ?? '',

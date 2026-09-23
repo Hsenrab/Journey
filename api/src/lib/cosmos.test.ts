@@ -4,6 +4,7 @@ import type { JourneyData, JourneyDocument } from './journeySchema.js'
 
 const activity = {
   activityId: 'activity-1',
+  ownerId: 'owner-1',
   ideaIds: ['idea-1'],
   date: '2026-08-02',
   location: { kind: 'postcode', postcode: 'GL3 4AQ', latitude: 51.844, longitude: -2.153 },
@@ -16,6 +17,7 @@ const activity = {
 
 const idea = {
   ideaId: 'idea-1',
+  ownerId: 'owner-1',
   title: 'Orangery tour',
   description: '',
   notes: '',
@@ -74,6 +76,7 @@ describe('Cosmos Journey persistence', () => {
       schemaVersion: 2,
       entity: {
         ideaId: 'id',
+        ownerId: 'owner-1',
         title: 'Idea',
         description: '',
         notes: '',

@@ -29,6 +29,7 @@ const schemas = {
   waypoint: z
     .object({
       waypointId: identifier,
+      ownerId: identifier,
       title: identifier,
       description: identifier,
       category: identifier,
@@ -46,6 +47,7 @@ const schemas = {
   challenge: z
     .object({
       challengeId: identifier,
+      ownerId: identifier,
       title: identifier,
       description: identifier,
       waypointIds: z.array(identifier),
@@ -56,6 +58,7 @@ const schemas = {
   idea: z
     .object({
       ideaId: identifier,
+      ownerId: identifier,
       title: text,
       description: z.string(),
       notes: z.string(),
@@ -86,6 +89,7 @@ const schemas = {
   activity: z
     .object({
       activityId: identifier,
+      ownerId: identifier,
       name: text.optional(),
       waypointId: identifier.optional(),
       challengeId: identifier.optional(),
@@ -103,6 +107,7 @@ const schemas = {
   reference: z
     .object({
       referenceId: identifier,
+      ownerId: identifier,
       title: identifier,
       description: identifier.optional(),
       url: httpsUrl,
@@ -110,7 +115,13 @@ const schemas = {
     })
     .strict(),
   photoReference: z
-    .object({ photoReferenceId: identifier, title: identifier, altText: identifier.optional(), url: httpsUrl })
+    .object({
+      photoReferenceId: identifier,
+      ownerId: identifier,
+      title: identifier,
+      altText: identifier.optional(),
+      url: httpsUrl,
+    })
     .strict(),
 } as const
 

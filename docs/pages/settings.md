@@ -45,6 +45,13 @@ fallbacks, and document the challenge rules and status definitions.
 7. If Demo Cosmos cannot load, the app shows read-only Demo local fallback data for the
    session. If Production cannot load, it shows an error and no demo data.
 
+## Shared access note
+
+- Viewers can view and link to every entity but cannot edit or delete anything.
+- Editors can create entities and links everywhere, but can edit or delete only the
+  entities they created.
+- The owner can edit or delete any entity.
+
 ## Future improvements
 
 - Confirmation prompt before replacing data on restore

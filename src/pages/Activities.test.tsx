@@ -1,11 +1,12 @@
 import { MemoryRouter } from 'react-router-dom'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import Activities from './Activities'
 import { WaypointsProvider } from '../features/journey/JourneyContext'
-import { createDefaultData, load, save } from '../services/storage'
+import { createDefaultData, load, save, setDataMode } from '../services/storage'
 import type { Activity } from '../domain/visit'
+import type { JourneyRole } from '../services/principal'
 
 function renderActivities() {
   render(
@@ -17,8 +18,56 @@ function renderActivities() {
   )
 }
 
+function stubProductionFetch(role: JourneyRole, userId: string, data: ReturnType<typeof createDefaultData>) {
+  vi.stubEnv('MODE', 'production')
+  setDataMode('production')
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input)
+      if (url === '/.auth/me') {
+        return new Response(
+          JSON.stringify({
+            clientPrincipal: { identityProvider: 'aad', userId, userDetails: userId, userRoles: [role] },
+          }),
+          { status: 200 },
+        )
+      }
+      if (url === '/api/journey/production') return new Response(JSON.stringify({ data, etags: {} }), { status: 200 })
+      return new Response(null, { status: 404 })
+    }),
+  )
+}
+
+async function renderProductionActivities(role: JourneyRole, userId: string) {
+  const data = createDefaultData()
+  data.activities = [
+    {
+      activityId: 'a1',
+      ownerId: 'owner-1',
+      ideaIds: [],
+      waypointId: 'stourhead',
+      date: '2026-08-01',
+      category: 'gold',
+      location: { kind: 'postcode', postcode: 'BA12 6QF' },
+      notes: 'Seeded',
+      referenceIds: [],
+      photoReferenceIds: [],
+      createdAt: '2026-08-01T10:00:00.000Z',
+      updatedAt: '2026-08-01T10:00:00.000Z',
+    },
+  ]
+  stubProductionFetch(role, userId, data)
+  renderActivities()
+  await screen.findByRole('link', { name: '2026-08-01' })
+}
+
 describe('Activities', () => {
   beforeEach(() => localStorage.clear())
+  afterEach(() => {
+    vi.unstubAllEnvs()
+    vi.restoreAllMocks()
+  })
 
   it('shows an empty state when there are no activities', () => {
     renderActivities()
@@ -72,6 +121,7 @@ describe('Activities', () => {
     const seed = createDefaultData()
     const seededActivity: Activity = {
       activityId: 'a1',
+      ownerId: 'owner-1',
       ideaIds: [],
       waypointId: 'stourhead',
       challengeId: 'national-trust',
@@ -89,5 +139,27 @@ describe('Activities', () => {
     renderActivities()
 
     expect(screen.getByText('Waypoint: Stourhead')).toBeInTheDocument()
+  })
+
+  it('hides add controls for viewers and shows the viewer ownership note', async () => {
+    await renderProductionActivities('viewer', 'viewer-1')
+
+    expect(screen.queryByRole('button', { name: 'Add activity' })).not.toBeInTheDocument()
+    expect(screen.getByText('You can view and link to this entity, but cannot modify it.')).toBeInTheDocument()
+  })
+
+  it('shows add controls for editors and explains non-owned activities', async () => {
+    await renderProductionActivities('editor', 'editor-1')
+
+    expect(screen.getByRole('button', { name: 'Add activity' })).toBeInTheDocument()
+    expect(screen.getByText('You can only edit entities you created.')).toBeInTheDocument()
+  })
+
+  it('shows add controls for owners without a restrictive note', async () => {
+    await renderProductionActivities('owner', 'owner-1')
+
+    expect(screen.getByRole('button', { name: 'Add activity' })).toBeInTheDocument()
+    expect(screen.queryByText('You can only edit entities you created.')).not.toBeInTheDocument()
+    expect(screen.queryByText('You can view and link to this entity, but cannot modify it.')).not.toBeInTheDocument()
   })
 })

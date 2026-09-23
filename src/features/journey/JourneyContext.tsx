@@ -19,9 +19,12 @@ import {
 } from '../../services/storage'
 import {
   clearJourney,
+  createJourneyEntity,
+  deleteJourneyEntity,
   importJourney,
   loadJourney,
   replaceJourney,
+  updateJourneyEntity,
   type JourneyContainer,
 } from '../../services/journeyApi'
 import {
@@ -33,6 +36,7 @@ import {
   type Activity,
   type ActivityLocation,
   type AwardedStatus,
+  type Challenge,
   type ExternalPhotoReference,
   type Idea,
   type Reference,
@@ -41,6 +45,7 @@ import {
   type Status,
   type WaypointsData,
 } from '../../domain/visit'
+import { getClientPrincipal, type JourneyPrincipal } from '../../services/principal'
 
 type DraftReference = Pick<Reference, 'title' | 'url' | 'description' | 'previewImageUrl'> & { referenceId?: string }
 type DraftPhotoReference = Pick<ExternalPhotoReference, 'title' | 'url' | 'altText'> & { photoReferenceId?: string }
@@ -81,12 +86,16 @@ export type WaypointDraft = {
   photoReferences: DraftPhotoReference[]
 }
 
+type MutableEntity = Activity | Challenge | ExternalPhotoReference | Idea | Reference | Waypoint
+type EntityType = 'activity' | 'challenge' | 'idea' | 'photoReference' | 'reference' | 'waypoint'
+type PrincipalState = JourneyPrincipal | null
+
 type Action =
-  | { type: 'add-waypoint'; input: WaypointDraft }
-  | { type: 'add-activity'; input: ActivityDraft }
+  | { type: 'add-waypoint'; input: WaypointDraft; ownerId: string }
+  | { type: 'add-activity'; input: ActivityDraft; ownerId: string }
   | { type: 'update-activity'; activityId: string; input: ActivityDraft }
   | { type: 'delete-activity'; activityId: string }
-  | { type: 'add-idea'; input: IdeaDraft }
+  | { type: 'add-idea'; input: IdeaDraft; ownerId: string }
   | { type: 'update-idea'; ideaId: string; input: IdeaDraft }
   | { type: 'delete-idea'; ideaId: string }
   | { type: 'restore'; data: WaypointsData }
@@ -97,6 +106,7 @@ type WaypointsValue = {
   activeDataMode: JourneyDataMode
   readOnly: boolean
   loadError?: string
+  principal: PrincipalState
   setDataMode: (mode: JourneyDataMode) => Promise<void>
   addWaypoint: (input: WaypointDraft) => Promise<void>
   addActivity: (input: ActivityDraft) => Promise<void>
@@ -110,13 +120,38 @@ type WaypointsValue = {
   reload: () => Promise<void>
   activitiesFor: (waypointId: string) => Activity[]
   statusFor: (waypointId: string) => Status
+  canMutate: (ownerId?: string) => boolean
 }
 
 const Context = createContext<WaypointsValue | null>(null)
 
+const entityIdKeys = {
+  waypoint: 'waypointId',
+  challenge: 'challengeId',
+  idea: 'ideaId',
+  activity: 'activityId',
+  reference: 'referenceId',
+  photoReference: 'photoReferenceId',
+} as const satisfies Record<EntityType, string>
+
+function entityId(type: EntityType, entity: MutableEntity): string {
+  return (entity as unknown as Record<string, string>)[entityIdKeys[type]]
+}
+
+function entityOwnerId(entity: MutableEntity): string {
+  return entity.ownerId
+}
+
+function fallbackPrincipalFor(mode: JourneyDataMode, localTestMode: boolean): PrincipalState {
+  if (mode === 'demo-local') return { role: 'owner', userId: 'demo-owner', userDetails: 'Demo owner' }
+  if (localTestMode && mode === 'production') return { role: 'owner', userId: 'owner-1', userDetails: 'Local owner' }
+  return null
+}
+
 function upsertReferences(
   data: WaypointsData,
   items: DraftReference[],
+  ownerId: string,
 ): { references: Reference[]; referenceIds: string[] } {
   const references = [...data.references]
   const referenceIds: string[] = []
@@ -124,8 +159,10 @@ function upsertReferences(
   for (const item of items) {
     const referenceId = item.referenceId ?? crypto.randomUUID()
     referenceIds.push(referenceId)
+    const existing = references.find((reference) => reference.referenceId === referenceId)
     const next: Reference = {
       referenceId,
+      ownerId: existing?.ownerId ?? ownerId,
       title: item.title,
       description: item.description,
       url: item.url,
@@ -142,6 +179,7 @@ function upsertReferences(
 function upsertPhotoReferences(
   data: WaypointsData,
   items: DraftPhotoReference[],
+  ownerId: string,
 ): { photoReferences: ExternalPhotoReference[]; photoReferenceIds: string[] } {
   const photoReferences = [...data.photoReferences]
   const photoReferenceIds: string[] = []
@@ -149,8 +187,10 @@ function upsertPhotoReferences(
   for (const item of items) {
     const photoReferenceId = item.photoReferenceId ?? crypto.randomUUID()
     photoReferenceIds.push(photoReferenceId)
+    const existing = photoReferences.find((photoReference) => photoReference.photoReferenceId === photoReferenceId)
     const next: ExternalPhotoReference = {
       photoReferenceId,
+      ownerId: existing?.ownerId ?? ownerId,
       title: item.title,
       altText: item.altText,
       url: item.url,
@@ -194,8 +234,8 @@ function reducer(data: WaypointsData, action: Action): WaypointsData {
     case 'restore':
       return action.data
     case 'add-waypoint': {
-      const refs = upsertReferences(data, action.input.references)
-      const photos = upsertPhotoReferences(data, action.input.photoReferences)
+      const refs = upsertReferences(data, action.input.references, action.ownerId)
+      const photos = upsertPhotoReferences(data, action.input.photoReferences, action.ownerId)
       const missingChallenges = action.input.challengeIds.filter(
         (challengeId) => !data.challenges.some((challenge) => challenge.challengeId === challengeId),
       )
@@ -205,6 +245,7 @@ function reducer(data: WaypointsData, action: Action): WaypointsData {
       const waypointId = crypto.randomUUID()
       const waypoint = WaypointSchema.parse({
         waypointId,
+        ownerId: action.ownerId,
         title: action.input.title,
         description: action.input.description,
         category: action.input.category,
@@ -234,12 +275,13 @@ function reducer(data: WaypointsData, action: Action): WaypointsData {
       })
     }
     case 'add-activity': {
-      const refs = upsertReferences(data, action.input.references)
-      const photos = upsertPhotoReferences(data, action.input.photoReferences)
+      const refs = upsertReferences(data, action.input.references, action.ownerId)
+      const photos = upsertPhotoReferences(data, action.input.photoReferences, action.ownerId)
       const category = action.input.waypointId ? action.input.category : undefined
       const activity = ensureCategoryEligibility(
         data,
         createActivity({
+          ownerId: action.ownerId,
           name: action.input.name,
           waypointId: action.input.waypointId,
           ideaIds: action.input.ideaIds,
@@ -266,12 +308,13 @@ function reducer(data: WaypointsData, action: Action): WaypointsData {
       const updatedAt =
         now.toISOString() > existing.updatedAt ? now.toISOString() : new Date(now.getTime() + 1).toISOString()
 
-      const refs = upsertReferences(data, action.input.references)
-      const photos = upsertPhotoReferences(data, action.input.photoReferences)
+      const refs = upsertReferences(data, action.input.references, existing.ownerId)
+      const photos = upsertPhotoReferences(data, action.input.photoReferences, existing.ownerId)
       const updated = ensureCategoryEligibility(
         data,
         createActivity({
           activityId: existing.activityId,
+          ownerId: existing.ownerId,
           name: action.input.name,
           createdAt: existing.createdAt,
           updatedAt,
@@ -299,8 +342,9 @@ function reducer(data: WaypointsData, action: Action): WaypointsData {
         activities: data.activities.filter((activity) => activity.activityId !== action.activityId),
       })
     case 'add-idea': {
-      const refs = upsertReferences(data, action.input.references)
+      const refs = upsertReferences(data, action.input.references, action.ownerId)
       const idea = createIdea({
+        ownerId: action.ownerId,
         title: action.input.title,
         description: action.input.description,
         notes: action.input.notes,
@@ -319,9 +363,10 @@ function reducer(data: WaypointsData, action: Action): WaypointsData {
       const now = new Date()
       const updatedAt =
         now.toISOString() > existing.updatedAt ? now.toISOString() : new Date(now.getTime() + 1).toISOString()
-      const refs = upsertReferences(data, action.input.references)
+      const refs = upsertReferences(data, action.input.references, existing.ownerId)
       const updated = createIdea({
         ideaId: existing.ideaId,
+        ownerId: existing.ownerId,
         createdAt: existing.createdAt,
         updatedAt,
         title: action.input.title,
@@ -376,6 +421,7 @@ export function WaypointsProvider({ children }: { children: ReactNode }) {
   const [loadError, setLoadError] = useState<string>()
   const [loading, setLoading] = useState(true)
   const [etags, setEtags] = useState<Record<string, string>>({})
+  const [principal, setPrincipal] = useState<PrincipalState>(() => fallbackPrincipalFor(initialDataMode, localTestMode))
   const loadGeneration = useRef(0)
   const apply = useCallback((loaded: { data: WaypointsData; etags: Record<string, string> }) => {
     dispatch({ type: 'restore', data: loaded.data })
@@ -442,8 +488,33 @@ export function WaypointsProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     void reload()
   }, [reload])
+  useEffect(() => {
+    if (localTestMode) {
+      setPrincipal(fallbackPrincipalFor(dataMode, true))
+      return
+    }
+
+    let cancelled = false
+    void getClientPrincipal()
+      .then((loaded) => {
+        if (cancelled) return
+        setPrincipal(loaded ?? fallbackPrincipalFor(dataMode, false))
+      })
+      .catch(() => {
+        if (cancelled) return
+        setPrincipal(fallbackPrincipalFor(dataMode, false))
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [dataMode, localTestMode])
   const value = useMemo<WaypointsValue>(() => {
     const readOnly = loading || activeDataMode === 'demo-local' || (dataMode === 'production' && Boolean(loadError))
+    const canMutate = (ownerId?: string) => {
+      if (!principal || principal.role === 'viewer') return false
+      if (principal.role === 'owner') return true
+      return ownerId === principal.userId
+    }
     const writableContainer = (): JourneyContainer => {
       if (loading)
         throw new Error('Journey data is still loading. Wait for the selected data mode before making changes.')
@@ -452,9 +523,146 @@ export function WaypointsProvider({ children }: { children: ReactNode }) {
       if (loadError) throw new Error('Production data is not loaded. Reload before making changes.')
       return 'production'
     }
-    const persist = async (container: JourneyContainer, action: Action, next: WaypointsData) => {
+    const persistReplace = async (container: JourneyContainer, action: Action, next: WaypointsData) => {
       if (localTestMode && dataMode === 'production') dispatch(action)
       else apply(await replaceJourney(container, next, etags))
+    }
+    const reloadContainer = async (container: JourneyContainer) => {
+      apply(await loadJourney(container))
+    }
+    const updateOwnedReferences = async (
+      container: JourneyContainer,
+      current: readonly (Reference | ExternalPhotoReference)[],
+      next: readonly (Reference | ExternalPhotoReference)[],
+      type: 'reference' | 'photoReference',
+    ) => {
+      const nextById = new Map(next.map((entity) => [entityId(type, entity), entity]))
+      for (const existing of current) {
+        const id = entityId(type, existing)
+        const updated = nextById.get(id)
+        if (!updated || JSON.stringify(existing) === JSON.stringify(updated)) continue
+        if (!canMutate(entityOwnerId(existing)))
+          throw new Error(`You can only edit ${type === 'reference' ? 'references' : 'photo references'} you created.`)
+        const etag = etags[id]
+        if (!etag) throw new Error(`Missing ETag for ${type} "${id}".`)
+        await updateJourneyEntity(container, type, updated, id, etag)
+      }
+    }
+    const deleteOwnedReferences = async (
+      container: JourneyContainer,
+      current: readonly (Reference | ExternalPhotoReference)[],
+      next: readonly (Reference | ExternalPhotoReference)[],
+      type: 'reference' | 'photoReference',
+    ) => {
+      const nextIds = new Set(next.map((entity) => entityId(type, entity)))
+      for (const existing of current) {
+        const id = entityId(type, existing)
+        if (nextIds.has(id) || !canMutate(entityOwnerId(existing))) continue
+        const etag = etags[id]
+        if (!etag) throw new Error(`Missing ETag for ${type} "${id}".`)
+        await deleteJourneyEntity(container, type, id, etag)
+      }
+    }
+    const createEntities = async (
+      container: JourneyContainer,
+      current: readonly MutableEntity[],
+      next: readonly MutableEntity[],
+      type: EntityType,
+    ) => {
+      const currentIds = new Set(current.map((entity) => entityId(type, entity)))
+      for (const entity of next) {
+        if (!currentIds.has(entityId(type, entity))) await createJourneyEntity(container, type, entity)
+      }
+    }
+    const updateOwnedChallenges = async (container: JourneyContainer, next: WaypointsData) => {
+      const currentChallenges = new Map(data.challenges.map((challenge) => [challenge.challengeId, challenge]))
+      for (const challenge of next.challenges) {
+        const existing = currentChallenges.get(challenge.challengeId)
+        if (!existing || JSON.stringify(existing) === JSON.stringify(challenge) || !canMutate(existing.ownerId)) continue
+        const etag = etags[challenge.challengeId]
+        if (!etag) throw new Error(`Missing ETag for challenge "${challenge.challengeId}".`)
+        await updateJourneyEntity(container, 'challenge', challenge, challenge.challengeId, etag)
+      }
+    }
+    const persistEditorAction = async (container: JourneyContainer, action: Action, next: WaypointsData) => {
+      if (!principal || principal.role !== 'editor') return persistReplace(container, action, next)
+
+      if (action.type === 'delete-activity') {
+        const etag = etags[action.activityId]
+        if (!etag) throw new Error(`Missing ETag for activity "${action.activityId}".`)
+        await deleteJourneyEntity(container, 'activity', action.activityId, etag)
+        await reloadContainer(container)
+        return
+      }
+
+      if (action.type === 'delete-idea') {
+        const etag = etags[action.ideaId]
+        if (!etag) throw new Error(`Missing ETag for idea "${action.ideaId}".`)
+        await deleteJourneyEntity(container, 'idea', action.ideaId, etag)
+        await reloadContainer(container)
+        return
+      }
+
+      if (action.type === 'add-waypoint') {
+        await createEntities(container, data.references, next.references, 'reference')
+        await createEntities(container, data.photoReferences, next.photoReferences, 'photoReference')
+        const waypoint = next.waypoints.find((item) => !data.waypoints.some((current) => current.waypointId === item.waypointId))
+        if (!waypoint) throw new Error('Waypoint not found after creation.')
+        await createJourneyEntity(container, 'waypoint', waypoint)
+        await updateOwnedChallenges(container, next)
+        await reloadContainer(container)
+        return
+      }
+
+      if (action.type === 'add-activity') {
+        await createEntities(container, data.references, next.references, 'reference')
+        await createEntities(container, data.photoReferences, next.photoReferences, 'photoReference')
+        const activity = next.activities.find((item) => !data.activities.some((current) => current.activityId === item.activityId))
+        if (!activity) throw new Error('Activity not found after creation.')
+        await createJourneyEntity(container, 'activity', activity)
+        await reloadContainer(container)
+        return
+      }
+
+      if (action.type === 'update-activity') {
+        await createEntities(container, data.references, next.references, 'reference')
+        await createEntities(container, data.photoReferences, next.photoReferences, 'photoReference')
+        await updateOwnedReferences(container, data.references, next.references, 'reference')
+        await updateOwnedReferences(container, data.photoReferences, next.photoReferences, 'photoReference')
+        const activity = next.activities.find((item) => item.activityId === action.activityId)
+        if (!activity) throw new Error('Activity not found after update.')
+        const etag = etags[action.activityId]
+        if (!etag) throw new Error(`Missing ETag for activity "${action.activityId}".`)
+        await updateJourneyEntity(container, 'activity', activity, action.activityId, etag)
+        await deleteOwnedReferences(container, data.references, next.references, 'reference')
+        await deleteOwnedReferences(container, data.photoReferences, next.photoReferences, 'photoReference')
+        await reloadContainer(container)
+        return
+      }
+
+      if (action.type === 'add-idea') {
+        await createEntities(container, data.references, next.references, 'reference')
+        const idea = next.ideas.find((item) => !data.ideas.some((current) => current.ideaId === item.ideaId))
+        if (!idea) throw new Error('Idea not found after creation.')
+        await createJourneyEntity(container, 'idea', idea)
+        await reloadContainer(container)
+        return
+      }
+
+      if (action.type === 'update-idea') {
+        await createEntities(container, data.references, next.references, 'reference')
+        await updateOwnedReferences(container, data.references, next.references, 'reference')
+        const idea = next.ideas.find((item) => item.ideaId === action.ideaId)
+        if (!idea) throw new Error('Idea not found after update.')
+        const etag = etags[action.ideaId]
+        if (!etag) throw new Error(`Missing ETag for idea "${action.ideaId}".`)
+        await updateJourneyEntity(container, 'idea', idea, action.ideaId, etag)
+        await deleteOwnedReferences(container, data.references, next.references, 'reference')
+        await reloadContainer(container)
+        return
+      }
+
+      await persistReplace(container, action, next)
     }
 
     return {
@@ -463,48 +671,47 @@ export function WaypointsProvider({ children }: { children: ReactNode }) {
       activeDataMode,
       readOnly,
       loadError,
+      principal,
       setDataMode: changeDataMode,
       addWaypoint: async (input) => {
         const container = writableContainer()
-        const action = { type: 'add-waypoint' as const, input }
+        const action = { type: 'add-waypoint' as const, input, ownerId: principal?.userId ?? 'owner-1' }
         const next = reducer(data, action)
-        await persist(container, action, next)
+        await persistEditorAction(container, action, next)
       },
       addActivity: async (input) => {
         const container = writableContainer()
-        const action = { type: 'add-activity' as const, input }
+        const action = { type: 'add-activity' as const, input, ownerId: principal?.userId ?? 'owner-1' }
         const next = reducer(data, action)
-        await persist(container, action, next)
+        await persistEditorAction(container, action, next)
       },
       updateActivity: async (activityId, input) => {
         const container = writableContainer()
         const action = { type: 'update-activity' as const, activityId, input }
         const next = reducer(data, action)
-        await persist(container, action, next)
+        await persistEditorAction(container, action, next)
       },
       deleteActivity: async (activityId) => {
         const container = writableContainer()
         const action = { type: 'delete-activity' as const, activityId }
-        const next = reducer(data, action)
-        await persist(container, action, next)
+        await persistEditorAction(container, action, reducer(data, action))
       },
       addIdea: async (input) => {
         const container = writableContainer()
-        const action = { type: 'add-idea' as const, input }
+        const action = { type: 'add-idea' as const, input, ownerId: principal?.userId ?? 'owner-1' }
         const next = reducer(data, action)
-        await persist(container, action, next)
+        await persistEditorAction(container, action, next)
       },
       updateIdea: async (ideaId, input) => {
         const container = writableContainer()
         const action = { type: 'update-idea' as const, ideaId, input }
         const next = reducer(data, action)
-        await persist(container, action, next)
+        await persistEditorAction(container, action, next)
       },
       deleteIdea: async (ideaId) => {
         const container = writableContainer()
         const action = { type: 'delete-idea' as const, ideaId }
-        const next = reducer(data, action)
-        await persist(container, action, next)
+        await persistEditorAction(container, action, reducer(data, action))
       },
       restore: async (newData) => {
         if (localTestMode && dataMode === 'production') dispatch({ type: 'restore', data: newData })
@@ -517,8 +724,9 @@ export function WaypointsProvider({ children }: { children: ReactNode }) {
       reload,
       activitiesFor: (waypointId) => activitiesForWaypoint(data.activities, waypointId),
       statusFor: (waypointId) => statusForWaypoint(data.activities, waypointId),
+      canMutate,
     }
-  }, [activeDataMode, apply, changeDataMode, data, dataMode, etags, loadError, loading, localTestMode, reload])
+  }, [activeDataMode, apply, changeDataMode, data, dataMode, etags, loadError, loading, localTestMode, principal, reload])
   return <Context.Provider value={value}>{children}</Context.Provider>
 }
 

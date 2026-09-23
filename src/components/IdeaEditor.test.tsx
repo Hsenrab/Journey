@@ -2,10 +2,12 @@ import type { ComponentProps } from 'react'
 import { MemoryRouter } from 'react-router-dom'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { IdeaEditor } from './IdeaEditor'
-import { createDefaultData } from '../services/storage'
+import { WaypointsProvider } from '../features/journey/JourneyContext'
+import { createDefaultData, setDataMode } from '../services/storage'
 import type { IdeaDraft } from '../features/journey/JourneyContext'
+import type { JourneyRole } from '../services/principal'
 
 function renderEditor(overrides: Partial<ComponentProps<typeof IdeaEditor>> = {}) {
   const onSubmit = vi.fn<(draft: IdeaDraft) => void>()
@@ -15,22 +17,56 @@ function renderEditor(overrides: Partial<ComponentProps<typeof IdeaEditor>> = {}
 
   render(
     <MemoryRouter>
-      <IdeaEditor
-        data={data}
-        submitLabel="Save"
-        onSubmit={onSubmit}
-        onCancel={onCancel}
-        onDelete={onDelete}
-        {...overrides}
-      />
+      <WaypointsProvider>
+        <IdeaEditor
+          data={data}
+          submitLabel="Save"
+          onSubmit={onSubmit}
+          onCancel={onCancel}
+          onDelete={onDelete}
+          {...overrides}
+        />
+      </WaypointsProvider>
     </MemoryRouter>,
   )
 
   return { onSubmit, onCancel, onDelete }
 }
 
+async function renderProductionEditor(
+  role: JourneyRole,
+  userId: string,
+  overrides: Partial<ComponentProps<typeof IdeaEditor>> = {},
+) {
+  vi.stubEnv('MODE', 'production')
+  setDataMode('production')
+  const data = overrides.data ?? createDefaultData()
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input)
+      if (url === '/.auth/me') {
+        return new Response(
+          JSON.stringify({
+            clientPrincipal: { identityProvider: 'aad', userId, userDetails: userId, userRoles: [role] },
+          }),
+          { status: 200 },
+        )
+      }
+      if (url === '/api/journey/production') return new Response(JSON.stringify({ data, etags: {} }), { status: 200 })
+      return new Response(null, { status: 404 })
+    }),
+  )
+  renderEditor(overrides)
+  await screen.findByText('Owner')
+}
+
 describe('IdeaEditor', () => {
   beforeEach(() => {
+    vi.restoreAllMocks()
+  })
+  afterEach(() => {
+    vi.unstubAllEnvs()
     vi.restoreAllMocks()
   })
 
@@ -181,6 +217,7 @@ describe('IdeaEditor', () => {
       initialReferences: [
         {
           referenceId: 'r1',
+          ownerId: 'owner-1',
           title: ' Guide ',
           url: 'https://example.com/guide ',
           description: ' Details ',
@@ -316,6 +353,7 @@ describe('IdeaEditor', () => {
     await user.paste(
       JSON.stringify({
         ideaId: 'idea-1',
+        ownerId: 'owner-1',
         title: 'Bad draft',
         description: '',
         notes: '',
@@ -373,5 +411,83 @@ describe('IdeaEditor', () => {
     await user.click(screen.getByRole('button', { name: 'Idea JSON AI prompt' }))
     expect(screen.getByRole('heading', { name: 'Idea JSON AI prompt' })).toBeInTheDocument()
     expect(screen.getByDisplayValue(/ideaId/)).toBeInTheDocument()
+  })
+
+  it('shows the viewer ownership note and hides delete for viewers', async () => {
+    const initialIdea = {
+      ideaId: 'idea-1',
+      ownerId: 'owner-1',
+      title: 'Shared idea',
+      description: '',
+      notes: '',
+      waypointIds: [],
+      planningState: 'active' as const,
+      difficulty: 1 as const,
+      referenceIds: [],
+      createdAt: '2026-08-01T00:00:00.000Z',
+      updatedAt: '2026-08-01T00:00:00.000Z',
+    }
+    await renderProductionEditor('viewer', 'viewer-1', { initialIdea })
+
+    expect(screen.queryByRole('button', { name: 'Delete idea' })).not.toBeInTheDocument()
+    expect(screen.getByText('You can view and link to this entity, but cannot modify it.')).toBeInTheDocument()
+  })
+
+  it('shows the editor ownership note and hides delete for non-owned ideas', async () => {
+    const initialIdea = {
+      ideaId: 'idea-1',
+      ownerId: 'owner-1',
+      title: 'Shared idea',
+      description: '',
+      notes: '',
+      waypointIds: [],
+      planningState: 'active' as const,
+      difficulty: 1 as const,
+      referenceIds: [],
+      createdAt: '2026-08-01T00:00:00.000Z',
+      updatedAt: '2026-08-01T00:00:00.000Z',
+    }
+    await renderProductionEditor('editor', 'editor-1', { initialIdea })
+
+    expect(screen.queryByRole('button', { name: 'Delete idea' })).not.toBeInTheDocument()
+    expect(screen.getByText('You can only edit entities you created.')).toBeInTheDocument()
+  })
+
+  it('shows delete for editors on their own ideas', async () => {
+    const initialIdea = {
+      ideaId: 'idea-1',
+      ownerId: 'editor-1',
+      title: 'Owned idea',
+      description: '',
+      notes: '',
+      waypointIds: [],
+      planningState: 'active' as const,
+      difficulty: 1 as const,
+      referenceIds: [],
+      createdAt: '2026-08-01T00:00:00.000Z',
+      updatedAt: '2026-08-01T00:00:00.000Z',
+    }
+    await renderProductionEditor('editor', 'editor-1', { initialIdea })
+
+    expect(screen.getByRole('button', { name: 'Delete idea' })).toBeInTheDocument()
+  })
+
+  it('shows delete for owners on any idea', async () => {
+    const initialIdea = {
+      ideaId: 'idea-1',
+      ownerId: 'other-owner',
+      title: 'Owned elsewhere',
+      description: '',
+      notes: '',
+      waypointIds: [],
+      planningState: 'active' as const,
+      difficulty: 1 as const,
+      referenceIds: [],
+      createdAt: '2026-08-01T00:00:00.000Z',
+      updatedAt: '2026-08-01T00:00:00.000Z',
+    }
+    await renderProductionEditor('owner', 'owner-1', { initialIdea })
+
+    expect(screen.getByRole('button', { name: 'Delete idea' })).toBeInTheDocument()
   })
 })

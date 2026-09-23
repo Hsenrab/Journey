@@ -4,6 +4,7 @@ import { Alert, Button, Card, CardContent, Chip, Stack, Typography } from '@mui/
 import InboxOutlinedIcon from '@mui/icons-material/InboxOutlined'
 import { ActivityEditor } from '../components/ActivityEditor'
 import { EmptyState } from '../components/EmptyState'
+import { OwnerBadge } from '../components/OwnerBadge'
 import { locations } from '../data/locations'
 import {
   ideaUsageCount,
@@ -20,7 +21,7 @@ const catalogueLocationById = new Map(locations.map((location) => [location.loca
 
 export default function LocationDetails() {
   const { id = '' } = useParams()
-  const { addActivity, activitiesFor, statusFor, data, reload } = useWaypoints()
+  const { addActivity, activitiesFor, canMutate, data, principal, reload, statusFor } = useWaypoints()
   const [showEditor, setShowEditor] = useState(false)
   const [message, setMessage] = useState<{ severity: 'success' | 'error'; text: string; conflict?: boolean } | null>(
     null,
@@ -57,6 +58,12 @@ export default function LocationDetails() {
         ← All waypoints
       </Button>
       <Typography variant="h4">{waypoint.title}</Typography>
+      <OwnerBadge
+        ownerId={waypoint.ownerId}
+        currentUserId={principal?.userId}
+        role={principal?.role}
+        canMutate={canMutate(waypoint.ownerId)}
+      />
       <Chip label={`Category summary: ${statusLabels[statusFor(id)]}`} />
       <Typography>{waypoint.description}</Typography>
       {sourceLocation && (
@@ -101,11 +108,11 @@ export default function LocationDetails() {
           }}
           onCancel={() => setShowEditor(false)}
         />
-      ) : (
+      ) : principal?.role !== 'viewer' ? (
         <Button variant="contained" onClick={() => setShowEditor(true)}>
           Log activity
         </Button>
-      )}
+      ) : null}
 
       <Stack spacing={2}>
         <Stack
@@ -114,9 +121,11 @@ export default function LocationDetails() {
           sx={{ justifyContent: 'space-between', alignItems: { sm: 'center' } }}
         >
           <Typography variant="h5">Ideas</Typography>
-          <Button component={Link} to={`/ideas?mode=add&waypoint=${encodeURIComponent(id)}`}>
-            Add idea
-          </Button>
+          {principal?.role !== 'viewer' && (
+            <Button component={Link} to={`/ideas?mode=add&waypoint=${encodeURIComponent(id)}`}>
+              Add idea
+            </Button>
+          )}
         </Stack>
         {waypointIdeas.length === 0 ? (
           <EmptyState icon={<InboxOutlinedIcon color="disabled" />} message="No ideas linked to this waypoint." />
@@ -128,6 +137,12 @@ export default function LocationDetails() {
                   <Typography variant="h6" component={Link} to={`/ideas/${idea.ideaId}`}>
                     {idea.title}
                   </Typography>
+                  <OwnerBadge
+                    ownerId={idea.ownerId}
+                    currentUserId={principal?.userId}
+                    role={principal?.role}
+                    canMutate={canMutate(idea.ownerId)}
+                  />
                   <Typography color="text.secondary">
                     {planningStateLabels[idea.planningState]} ·{' '}
                     {ideaUsageLabel(ideaUsageCount(data.activities, idea.ideaId))}
@@ -152,6 +167,12 @@ export default function LocationDetails() {
                 <Typography variant="h6" component={Link} to={`/activities/${activity.activityId}`}>
                   {activity.date}
                 </Typography>
+                <OwnerBadge
+                  ownerId={activity.ownerId}
+                  currentUserId={principal?.userId}
+                  role={principal?.role}
+                  canMutate={canMutate(activity.ownerId)}
+                />
                 {activity.notes && <Typography>{activity.notes}</Typography>}
                 <Typography color="text.secondary">{locationSummary(activity.location)}</Typography>
               </Stack>

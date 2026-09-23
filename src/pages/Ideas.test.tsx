@@ -54,10 +54,11 @@ describe('Ideas', () => {
     const seed = createDefaultData()
     save({
       ...seed,
-      references: [...seed.references, { referenceId: 'ref-1', title: 'Trail', url: 'https://example.com/trail' }],
+      references: [...seed.references, { referenceId: 'ref-1', ownerId: 'owner-1', title: 'Trail', url: 'https://example.com/trail' }],
       ideas: [
         {
           ideaId: 'idea-1',
+          ownerId: 'owner-1',
           title: 'Route A',
           description: '',
           notes: '',
@@ -72,6 +73,7 @@ describe('Ideas', () => {
       activities: [
         {
           activityId: 'a1',
+          ownerId: 'owner-1',
           ideaIds: ['idea-1'],
           date: '2026-08-03',
           location: { kind: 'postcode', postcode: 'GL1 1AA' },
@@ -130,6 +132,7 @@ describe('Ideas', () => {
       ideas: [
         {
           ideaId: 'idea-active',
+          ownerId: 'owner-1',
           title: 'No location',
           description: '',
           notes: '',
@@ -142,6 +145,7 @@ describe('Ideas', () => {
         },
         {
           ideaId: 'idea-active-2',
+          ownerId: 'owner-1',
           title: 'With location',
           description: '',
           notes: '',
@@ -155,6 +159,7 @@ describe('Ideas', () => {
         },
         {
           ideaId: 'idea-rejected',
+          ownerId: 'owner-1',
           title: 'Rejected candidate',
           description: '',
           notes: '',

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import config from '../staticwebapp.config.json'
 
 describe('staticwebapp.config.json', () => {
-  it('requires the invited owner role while preserving auth endpoints', () => {
+  it('requires an invited Journey role while preserving auth endpoints', () => {
     expect(config.navigationFallback).toEqual({
       rewrite: '/index.html',
       exclude: ['/.auth/*', '/api/*'],
@@ -14,11 +14,11 @@ describe('staticwebapp.config.json', () => {
       },
       {
         route: '/api/*',
-        allowedRoles: ['owner'],
+        allowedRoles: ['owner', 'editor', 'viewer'],
       },
       {
         route: '/*',
-        allowedRoles: ['owner'],
+        allowedRoles: ['owner', 'editor', 'viewer'],
       },
     ])
     expect(config.responseOverrides['401']).toEqual({
