@@ -161,10 +161,15 @@ export async function journey(request: HttpRequest, context: InvocationContext):
     }
     if (parsed.data.operation === 'replace' || parsed.data.operation === 'replaceOwned') {
       if (parsed.data.operation === 'replace' && role !== 'owner') throw new ResponseError(403, 'forbidden')
-      if (parsed.data.operation === 'replaceOwned' && role !== 'editor') throw new ResponseError(403, 'forbidden')
+      if (parsed.data.operation === 'replaceOwned' && role !== 'editor' && role !== 'owner')
+        throw new ResponseError(403, 'forbidden')
       const loaded = await loadDataset(cosmos, datasetId)
       const data = withStoredOwnerIds(parsed.data.data, loaded.data)
-      if (parsed.data.operation === 'replaceOwned' && !replacementIsOwnedBy(data, loaded.data, ownerId))
+      if (
+        parsed.data.operation === 'replaceOwned' &&
+        role === 'editor' &&
+        !replacementIsOwnedBy(data, loaded.data, ownerId)
+      )
         throw new ResponseError(403, 'forbidden')
       const invalid = referenceIntegrityError(data)
       if (invalid) return { status: 400, jsonBody: { error: invalid } }
