@@ -348,4 +348,35 @@ describe('journey', () => {
       'etag-idea',
     )
   })
+
+  it('returns 404 when updating or deleting an entity that does not exist', async () => {
+    loadDataset.mockResolvedValue({ data: emptyData, etags: {} })
+    const { journey } = await import('./journey.js')
+    const header = principal('owner', 'owner-user')
+
+    expect(
+      await journey(
+        request('production', {
+          method: 'PUT',
+          header,
+          body: { operation: 'update', type: 'activity', id: 'missing-activity', entity: ownedActivity, ifMatch: 'etag-1' },
+        }),
+        context() as InvocationContext,
+      ),
+    ).toEqual({ status: 404, jsonBody: { error: 'not_found' } })
+
+    expect(
+      await journey(
+        request('production', {
+          method: 'DELETE',
+          header,
+          body: { operation: 'delete', type: 'activity', id: 'missing-activity', ifMatch: 'etag-1' },
+        }),
+        context() as InvocationContext,
+      ),
+    ).toEqual({ status: 404, jsonBody: { error: 'not_found' } })
+
+    expect(replaceDocument).not.toHaveBeenCalled()
+    expect(deleteEntity).not.toHaveBeenCalled()
+  })
 })

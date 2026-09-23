@@ -51,11 +51,14 @@ fallbacks, and document the challenge rules and status definitions.
 - Editors can create entities and links everywhere, but can edit or delete only the
   entities they created.
 - The owner can edit or delete any entity.
+- Each entity displays its owner's immutable identity identifier (`ownerId`), not a
+  display name — Journey has no user directory to resolve identifiers to names.
 
 ## Future improvements
 
 - Confirmation prompt before replacing data on restore
 - Merge option instead of full replace
 - Show when the last export was taken
+- Resolve `ownerId` to a friendly display name once a user directory is available
 
 See [../data.md](../data.md) for the data format and backup guidance.

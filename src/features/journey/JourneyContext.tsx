@@ -148,6 +148,9 @@ function entityOwnerId(entity: MutableEntity): string {
 
 const localTestOwnerId = 'owner-1'
 
+// Only used for the unauthenticated demo-local dataset and Vitest's `localTestMode`;
+// real production/demo Cosmos requests always resolve `principal` from `/.auth/me`
+// via `getClientPrincipal`, or `null` if no valid role is assigned (see effect below).
 function fallbackPrincipalFor(mode: JourneyDataMode, localTestMode: boolean): PrincipalState {
   if (mode === 'demo-local') return { role: 'owner', userId: 'demo-owner', userDetails: 'Demo owner' }
   if (localTestMode && mode === 'production')

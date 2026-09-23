@@ -119,6 +119,7 @@ export async function journey(request: HttpRequest, context: InvocationContext):
       if (parsed.data.operation === 'update') {
         const id = parsed.data.id
         existing = entities.find((item) => entityId(type, item) === id)
+        if (!existing) throw new ResponseError(404, 'not_found')
       }
       if (existing && role !== 'owner' && existing.ownerId !== ownerId) throw new ResponseError(403, 'forbidden')
       const sourceEntity =
@@ -140,7 +141,8 @@ export async function journey(request: HttpRequest, context: InvocationContext):
     const deleteType = parsed.data.type
     const deleteId = parsed.data.id
     const existing = loaded.data[entityKey(deleteType)].find((item) => entityId(deleteType, item) === deleteId)
-    if (existing && role !== 'owner' && existing.ownerId !== ownerId) throw new ResponseError(403, 'forbidden')
+    if (!existing) throw new ResponseError(404, 'not_found')
+    if (role !== 'owner' && existing.ownerId !== ownerId) throw new ResponseError(403, 'forbidden')
     await deleteEntity(cosmos, datasetId, parsed.data.type, parsed.data.id, parsed.data.ifMatch, loaded)
     return { status: 204 }
   } catch (error) {
