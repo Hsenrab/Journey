@@ -585,7 +585,7 @@ export function parseWaypointDraftJson(value: string): ParseResult<WaypointJsonI
       description: payload.description as string,
       category: payload.category as string,
       tags: payload.tags as string[],
-      completion: payload.completion as Waypoint['completion'],
+      completion: waypoint.data.completion,
       location,
       references: references.data,
       photoReferences: photoReferences.data,

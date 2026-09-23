@@ -328,8 +328,23 @@ describe('ActivityEditor', () => {
 
   it('loads valid pasted JSON into the form before submit', async () => {
     const user = userEvent.setup()
-    const initialWaypointId = dataWaypointId(createDefaultData())
-    const { onSubmit } = renderEditor({ initialWaypointId })
+    const data = createDefaultData()
+    const initialWaypointId = dataWaypointId(data)
+    data.ideas = [
+      {
+        ideaId: 'idea-1',
+        title: 'Route option',
+        description: '',
+        notes: '',
+        waypointIds: [initialWaypointId],
+        planningState: 'active',
+        difficulty: 2,
+        referenceIds: [],
+        createdAt: '2026-08-01T00:00:00.000Z',
+        updatedAt: '2026-08-01T00:00:00.000Z',
+      },
+    ]
+    const { onSubmit } = renderEditor({ data, initialWaypointId })
     const payload = {
       date: '2026-09-01',
       notes: 'Loaded from JSON',
@@ -339,6 +354,8 @@ describe('ActivityEditor', () => {
       photoReferences: [{ title: 'Photo', url: 'https://example.com/photo.jpg', altText: '' }],
     }
 
+    await user.click(screen.getByRole('combobox', { name: 'Linked ideas (optional)' }))
+    await user.click(screen.getByRole('option', { name: 'Route option (linked to selected waypoint)' }))
     await user.click(screen.getByRole('tab', { name: 'Paste JSON' }))
     await user.click(screen.getByLabelText('Activity JSON'))
     await user.paste(JSON.stringify(payload))
@@ -350,6 +367,7 @@ describe('ActivityEditor', () => {
         date: payload.date,
         notes: payload.notes,
         waypointId: initialWaypointId,
+        ideaIds: ['idea-1'],
         category: payload.category,
         location: payload.location,
         references: [expect.objectContaining({ title: 'Guide' })],

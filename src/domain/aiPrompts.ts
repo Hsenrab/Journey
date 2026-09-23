@@ -119,16 +119,16 @@ Example 2 — short idea with no useful optional detail:
 
 Now, using the source material I provide below (or that I paste after this prompt), produce a single JSON object in this exact shape.`
 
-export const waypointJsonAiPrompt = `Create an import-ready JSON object for a Waypoint in a personal travel and life-adventure journal. A Waypoint is a meaningful experience, destination, activity, life goal, or ambition worth achieving, such as visiting a landmark, learning to juggle, attending a concert, or taking a hot-air balloon ride. It describes the outcome itself, not planning steps or the historical record of completing it. It does not need to be a place, and location data is optional.
+export const waypointJsonAiPrompt = `Create an import-ready JSON object for a Waypoint in a personal travel and life-adventure journal. A Waypoint is a destination or place-based experience worth achieving, such as visiting a landmark, walking a named trail, or taking a hot-air balloon flight over a particular area. It describes the outcome itself, not planning steps or the historical record of completing it. Every waypoint is filed under a challenge collection in the app, so keep it to destinations and place-based experiences rather than standalone personal goals.
 
 Use only the source material I provide. Do not invent missing facts or pad sparse material. Write in a concise, motivating, grounded tone without hype, clichés, or promotional language. A short title and one clear sentence are often enough.
 
 Return ONLY one valid JSON object matching the shape below: no array, markdown, commentary, or additional fields.
 
 Required top-level fields:
-- "title" (string, required): a short name for the destination, experience, activity, goal, or ambition.
+- "title" (string, required): a short name for the destination or place-based experience.
 - "description" (string, required): a description of what the waypoint involves and why it is worth doing, one to a few sentences.
-- "category" (string, required): a short free-text category label for the waypoint, e.g. "Adventure", "Skill", "Culture", "Scenic", or "Historic place".
+- "category" (string, required): a short free-text category label for the waypoint, e.g. "Adventure", "Scenic", "Historic place", "Garden", or "Museum".
 - "tags" (array of strings, required): short free-text keyword tags. Leave as an empty array [] if none are known.
 - "completion" (object, required): see "completion shape" below.
 - "references" (array of objects, required): supporting source links. Use [] if none are provided.
@@ -177,13 +177,14 @@ Example 1 — filled-in waypoint with researched details:
   "photoReferences": [{ "title": "Balloon flight", "url": "https://example.com/balloon.jpg", "altText": "A hot-air balloon floating over fields at sunrise" }]
 }
 
-Example 2 — short non-place waypoint:
+Example 2 — count-based waypoint with minimal detail:
 {
-  "title": "Attend five live concerts",
-  "description": "See five artists perform live.",
-  "category": "Culture",
-  "tags": ["live music"],
-  "completion": { "mode": "count", "target": 5 },
+  "title": "Walk every Crickley Hill trail",
+  "description": "Complete each of the three waymarked trails at Crickley Hill Country Park.",
+  "category": "Scenic",
+  "tags": ["walking"],
+  "completion": { "mode": "count", "target": 3 },
+  "location": { "placeName": "Crickley Hill", "addressOrRegion": "Gloucestershire" },
   "references": [],
   "photoReferences": []
 }

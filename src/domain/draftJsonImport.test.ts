@@ -218,4 +218,37 @@ describe('draftJsonImport', () => {
       expect(withId.error).toContain("Remove 'waypointId' — IDs are assigned automatically.")
     }
   })
+
+  it('rejects unknown keys in nested completion, reference and photo objects', () => {
+    const completion = parseWaypointDraftJson(
+      JSON.stringify({
+        title: 'Sunrise viewpoint',
+        description: 'A local spot for early walks.',
+        category: 'Scenic',
+        tags: [],
+        completion: { mode: 'once', extra: 1 },
+        references: [],
+        photoReferences: [],
+      }),
+    )
+    expect(completion.ok).toBe(false)
+    if (!completion.ok) {
+      expect(completion.issues).toContain('completion: Unrecognized key: "extra"')
+    }
+
+    const nestedLinks = parseActivityDraftJson(
+      JSON.stringify({
+        date: '2026-09-01',
+        notes: '',
+        location: { kind: 'postcode', postcode: 'GL1 1AA' },
+        references: [{ title: 'Guide', url: 'https://example.com/guide', extra: 'no' }],
+        photoReferences: [{ title: 'Photo', url: 'https://example.com/photo.jpg', caption: 'no' }],
+      }),
+    )
+    expect(nestedLinks.ok).toBe(false)
+    if (!nestedLinks.ok) {
+      expect(nestedLinks.issues).toContain('0: Unrecognized key: "extra"')
+      expect(nestedLinks.issues).toContain('0: Unrecognized key: "caption"')
+    }
+  })
 })

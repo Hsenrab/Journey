@@ -235,6 +235,6 @@ describe('WaypointEditor', () => {
     await user.click(screen.getByRole('tab', { name: 'Paste JSON' }))
     await user.click(screen.getByRole('button', { name: 'Waypoint JSON AI prompt' }))
     expect(screen.getByRole('heading', { name: 'Waypoint JSON AI prompt' })).toBeInTheDocument()
-    expect(screen.getByDisplayValue(/life goal, or ambition/)).toBeInTheDocument()
+    expect(screen.getByDisplayValue(/destination or place-based experience/)).toBeInTheDocument()
   })
 })
