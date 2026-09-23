@@ -125,26 +125,33 @@ type WaypointsValue = {
 
 const Context = createContext<WaypointsValue | null>(null)
 
-const entityIdKeys = {
-  waypoint: 'waypointId',
-  challenge: 'challengeId',
-  idea: 'ideaId',
-  activity: 'activityId',
-  reference: 'referenceId',
-  photoReference: 'photoReferenceId',
-} as const satisfies Record<EntityType, string>
-
 function entityId(type: EntityType, entity: MutableEntity): string {
-  return (entity as unknown as Record<string, string>)[entityIdKeys[type]]
+  switch (type) {
+    case 'waypoint':
+      return (entity as Waypoint).waypointId
+    case 'challenge':
+      return (entity as Challenge).challengeId
+    case 'idea':
+      return (entity as Idea).ideaId
+    case 'activity':
+      return (entity as Activity).activityId
+    case 'reference':
+      return (entity as Reference).referenceId
+    case 'photoReference':
+      return (entity as ExternalPhotoReference).photoReferenceId
+  }
 }
 
 function entityOwnerId(entity: MutableEntity): string {
   return entity.ownerId
 }
 
+const localTestOwnerId = 'owner-1'
+
 function fallbackPrincipalFor(mode: JourneyDataMode, localTestMode: boolean): PrincipalState {
   if (mode === 'demo-local') return { role: 'owner', userId: 'demo-owner', userDetails: 'Demo owner' }
-  if (localTestMode && mode === 'production') return { role: 'owner', userId: 'owner-1', userDetails: 'Local owner' }
+  if (localTestMode && mode === 'production')
+    return { role: 'owner', userId: localTestOwnerId, userDetails: 'Local owner' }
   return null
 }
 
@@ -584,6 +591,34 @@ export function WaypointsProvider({ children }: { children: ReactNode }) {
         await updateJourneyEntity(container, 'challenge', challenge, challenge.challengeId, etag)
       }
     }
+    const referenceLikeTypes = ['reference', 'photoReference'] as const
+    type ReferenceLikeType = (typeof referenceLikeTypes)[number]
+    const currentReferenceLike = (type: ReferenceLikeType) => (type === 'reference' ? data.references : data.photoReferences)
+    const nextReferenceLike = (next: WaypointsData, type: ReferenceLikeType) =>
+      type === 'reference' ? next.references : next.photoReferences
+    const createLinkedReferences = async (
+      container: JourneyContainer,
+      next: WaypointsData,
+      types: readonly ReferenceLikeType[],
+    ) => {
+      for (const type of types) await createEntities(container, currentReferenceLike(type), nextReferenceLike(next, type), type)
+    }
+    const syncOwnedReferences = async (
+      container: JourneyContainer,
+      next: WaypointsData,
+      types: readonly ReferenceLikeType[],
+    ) => {
+      for (const type of types)
+        await updateOwnedReferences(container, currentReferenceLike(type), nextReferenceLike(next, type), type)
+    }
+    const cleanupOwnedReferences = async (
+      container: JourneyContainer,
+      next: WaypointsData,
+      types: readonly ReferenceLikeType[],
+    ) => {
+      for (const type of types)
+        await deleteOwnedReferences(container, currentReferenceLike(type), nextReferenceLike(next, type), type)
+    }
     const persistEditorAction = async (container: JourneyContainer, action: Action, next: WaypointsData) => {
       if (!principal || principal.role !== 'editor') return persistReplace(container, action, next)
 
@@ -604,8 +639,7 @@ export function WaypointsProvider({ children }: { children: ReactNode }) {
       }
 
       if (action.type === 'add-waypoint') {
-        await createEntities(container, data.references, next.references, 'reference')
-        await createEntities(container, data.photoReferences, next.photoReferences, 'photoReference')
+        await createLinkedReferences(container, next, referenceLikeTypes)
         const waypoint = next.waypoints.find((item) => !data.waypoints.some((current) => current.waypointId === item.waypointId))
         if (!waypoint) throw new Error('Waypoint not found after creation.')
         await createJourneyEntity(container, 'waypoint', waypoint)
@@ -615,8 +649,7 @@ export function WaypointsProvider({ children }: { children: ReactNode }) {
       }
 
       if (action.type === 'add-activity') {
-        await createEntities(container, data.references, next.references, 'reference')
-        await createEntities(container, data.photoReferences, next.photoReferences, 'photoReference')
+        await createLinkedReferences(container, next, referenceLikeTypes)
         const activity = next.activities.find((item) => !data.activities.some((current) => current.activityId === item.activityId))
         if (!activity) throw new Error('Activity not found after creation.')
         await createJourneyEntity(container, 'activity', activity)
@@ -625,23 +658,20 @@ export function WaypointsProvider({ children }: { children: ReactNode }) {
       }
 
       if (action.type === 'update-activity') {
-        await createEntities(container, data.references, next.references, 'reference')
-        await createEntities(container, data.photoReferences, next.photoReferences, 'photoReference')
-        await updateOwnedReferences(container, data.references, next.references, 'reference')
-        await updateOwnedReferences(container, data.photoReferences, next.photoReferences, 'photoReference')
+        await createLinkedReferences(container, next, referenceLikeTypes)
+        await syncOwnedReferences(container, next, referenceLikeTypes)
         const activity = next.activities.find((item) => item.activityId === action.activityId)
         if (!activity) throw new Error('Activity not found after update.')
         const etag = etags[action.activityId]
         if (!etag) throw new Error(`Missing ETag for activity "${action.activityId}".`)
         await updateJourneyEntity(container, 'activity', activity, action.activityId, etag)
-        await deleteOwnedReferences(container, data.references, next.references, 'reference')
-        await deleteOwnedReferences(container, data.photoReferences, next.photoReferences, 'photoReference')
+        await cleanupOwnedReferences(container, next, referenceLikeTypes)
         await reloadContainer(container)
         return
       }
 
       if (action.type === 'add-idea') {
-        await createEntities(container, data.references, next.references, 'reference')
+        await createLinkedReferences(container, next, ['reference'])
         const idea = next.ideas.find((item) => !data.ideas.some((current) => current.ideaId === item.ideaId))
         if (!idea) throw new Error('Idea not found after creation.')
         await createJourneyEntity(container, 'idea', idea)
@@ -650,14 +680,14 @@ export function WaypointsProvider({ children }: { children: ReactNode }) {
       }
 
       if (action.type === 'update-idea') {
-        await createEntities(container, data.references, next.references, 'reference')
-        await updateOwnedReferences(container, data.references, next.references, 'reference')
+        await createLinkedReferences(container, next, ['reference'])
+        await syncOwnedReferences(container, next, ['reference'])
         const idea = next.ideas.find((item) => item.ideaId === action.ideaId)
         if (!idea) throw new Error('Idea not found after update.')
         const etag = etags[action.ideaId]
         if (!etag) throw new Error(`Missing ETag for idea "${action.ideaId}".`)
         await updateJourneyEntity(container, 'idea', idea, action.ideaId, etag)
-        await deleteOwnedReferences(container, data.references, next.references, 'reference')
+        await cleanupOwnedReferences(container, next, ['reference'])
         await reloadContainer(container)
         return
       }
@@ -675,13 +705,13 @@ export function WaypointsProvider({ children }: { children: ReactNode }) {
       setDataMode: changeDataMode,
       addWaypoint: async (input) => {
         const container = writableContainer()
-        const action = { type: 'add-waypoint' as const, input, ownerId: principal?.userId ?? 'owner-1' }
+        const action = { type: 'add-waypoint' as const, input, ownerId: principal?.userId ?? localTestOwnerId }
         const next = reducer(data, action)
         await persistEditorAction(container, action, next)
       },
       addActivity: async (input) => {
         const container = writableContainer()
-        const action = { type: 'add-activity' as const, input, ownerId: principal?.userId ?? 'owner-1' }
+        const action = { type: 'add-activity' as const, input, ownerId: principal?.userId ?? localTestOwnerId }
         const next = reducer(data, action)
         await persistEditorAction(container, action, next)
       },
@@ -698,7 +728,7 @@ export function WaypointsProvider({ children }: { children: ReactNode }) {
       },
       addIdea: async (input) => {
         const container = writableContainer()
-        const action = { type: 'add-idea' as const, input, ownerId: principal?.userId ?? 'owner-1' }
+        const action = { type: 'add-idea' as const, input, ownerId: principal?.userId ?? localTestOwnerId }
         const next = reducer(data, action)
         await persistEditorAction(container, action, next)
       },
