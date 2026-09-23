@@ -19,8 +19,6 @@ export type ActivityJsonImportDraft = {
   name?: string
   date: string
   notes: string
-  waypointId?: string
-  ideaIds: string[]
   category?: AwardedStatus
   location: ActivityLocation
   references: Array<Pick<Reference, 'title' | 'url' | 'description' | 'previewImageUrl'>>
@@ -31,7 +29,6 @@ export type IdeaJsonImportDraft = {
   title: string
   description: string
   notes: string
-  waypointIds: string[]
   planningState: Idea['planningState']
   rejectionReason?: string
   difficulty: Idea['difficulty']
@@ -44,7 +41,6 @@ export type WaypointJsonImportDraft = {
   description: string
   category: string
   tags: string[]
-  challengeIds: string[]
   completion: Waypoint['completion']
   location?: Waypoint['location']
   references: Array<Pick<Reference, 'title' | 'url' | 'description' | 'previewImageUrl'>>
@@ -54,13 +50,11 @@ export type WaypointJsonImportDraft = {
 type ParseResult<T> = { ok: true; value: T } | { ok: false; error: string; issues: string[] }
 
 const activityForbiddenIdFields = new Set(['activityId', 'referenceId', 'photoReferenceId'])
-const activityRequiredImportFields = ['date', 'notes', 'ideaIds', 'location', 'references', 'photoReferences'] as const
+const activityRequiredImportFields = ['date', 'notes', 'location', 'references', 'photoReferences'] as const
 const activityAllowedImportFields = new Set([
   'name',
   'date',
   'notes',
-  'waypointId',
-  'ideaIds',
   'category',
   'location',
   'references',
@@ -68,20 +62,11 @@ const activityAllowedImportFields = new Set([
 ])
 
 const ideaForbiddenIdFields = new Set(['ideaId', 'referenceId'])
-const ideaRequiredImportFields = [
-  'title',
-  'description',
-  'notes',
-  'waypointIds',
-  'planningState',
-  'difficulty',
-  'references',
-] as const
+const ideaRequiredImportFields = ['title', 'description', 'notes', 'planningState', 'difficulty', 'references'] as const
 const ideaAllowedImportFields = new Set([
   'title',
   'description',
   'notes',
-  'waypointIds',
   'planningState',
   'rejectionReason',
   'difficulty',
@@ -112,7 +97,6 @@ const waypointRequiredImportFields = [
   'description',
   'category',
   'tags',
-  'challengeIds',
   'completion',
   'references',
   'photoReferences',
@@ -122,7 +106,6 @@ const waypointAllowedImportFields = new Set([
   'description',
   'category',
   'tags',
-  'challengeIds',
   'completion',
   'location',
   'references',
@@ -130,47 +113,72 @@ const waypointAllowedImportFields = new Set([
 ])
 
 export const activityImportExample: ActivityJsonImportDraft = {
-  name: 'Morning walk',
-  date: '2026-01-15',
-  notes: 'A short summary of the activity.',
-  waypointId: '',
-  ideaIds: [],
-  location: { kind: 'postcode', postcode: 'GL1 1AA' },
-  references: [{ title: 'Trip notes', url: 'https://example.com/notes' }],
-  photoReferences: [{ title: 'Viewpoint photo', url: 'https://example.com/photo.jpg' }],
+  name: 'Sunrise balloon flight',
+  date: '2026-08-16',
+  notes:
+    'Took an early-morning balloon flight over the Cotswolds. The pilot explained how the balloon was controlled, and the flight ended with a clear view of the sunrise above the fields.',
+  location: { kind: 'postcode', postcode: 'GL54 2EN' },
+  references: [
+    {
+      title: 'Flight details',
+      url: 'https://example.com/flight',
+      description: 'Operator details for the completed flight.',
+    },
+  ],
+  photoReferences: [
+    {
+      title: 'Sunrise balloon flight',
+      url: 'https://example.com/balloon.jpg',
+      altText: 'A hot-air balloon above the Cotswolds at sunrise',
+    },
+  ],
 }
 
 export const ideaImportExample: IdeaJsonImportDraft = {
-  title: 'Plan a sunrise walk',
-  description: 'Try a nearby route before breakfast.',
-  notes: 'Bring a flask and check weather first.',
-  waypointIds: [],
+  title: 'Compare Cotswolds balloon flights',
+  description: 'Research local sunrise flights and choose a suitable operator.',
+  notes: 'Compare launch locations, weather rebooking terms, accessibility and total cost before booking.',
   planningState: 'active',
-  difficulty: 1,
+  difficulty: 2,
   location: {
-    placeName: 'Brockworth',
-    addressOrRegion: 'Gloucestershire',
-    source: 'Manual research',
+    addressOrRegion: 'Cotswolds',
+    source: 'Operator website',
     approximate: true,
   },
-  references: [{ title: 'Route ideas', url: 'https://example.com/route' }],
+  references: [
+    {
+      title: 'Flight options',
+      url: 'https://example.com/balloon-flights',
+      description: 'Available launch areas, prices and booking terms.',
+    },
+  ],
 }
 
 export const waypointImportExample: WaypointJsonImportDraft = {
-  title: 'Sunrise viewpoint',
-  description: 'A local spot for early walks.',
-  category: 'Scenic',
-  tags: ['sunrise'],
-  challengeIds: ['national-trust'],
+  title: 'Take a hot-air balloon ride',
+  description: 'Experience a sunrise flight in a hot-air balloon and see the landscape from above.',
+  category: 'Adventure',
+  tags: ['ballooning', 'flight', 'bucket list'],
   completion: { mode: 'once' },
   location: {
-    placeName: 'Brockworth',
-    addressOrRegion: 'Gloucestershire',
+    addressOrRegion: 'Cotswolds',
     source: 'Manual research',
     approximate: true,
   },
-  references: [{ title: 'Waypoint guide', url: 'https://example.com/guide' }],
-  photoReferences: [{ title: 'Waypoint photo', url: 'https://example.com/photo.jpg' }],
+  references: [
+    {
+      title: 'Balloon ride details',
+      url: 'https://example.com/balloon-ride',
+      description: 'Flight format, launch area and practical requirements.',
+    },
+  ],
+  photoReferences: [
+    {
+      title: 'Balloon flight',
+      url: 'https://example.com/balloon.jpg',
+      altText: 'A hot-air balloon floating over fields at sunrise',
+    },
+  ],
 }
 
 function parseObject(value: string): ParseResult<Record<string, unknown>> {
@@ -328,10 +336,6 @@ export function parseActivityDraftJson(value: string): ParseResult<ActivityJsonI
   if (!references.success) issues.push(...zodIssues(references.error))
   if (!photoReferences.success) issues.push(...zodIssues(photoReferences.error))
 
-  const waypointId =
-    typeof payload.waypointId === 'string' && !payload.waypointId.trim()
-      ? undefined
-      : (payload.waypointId as string | undefined)
   const category =
     typeof payload.category === 'string' && !payload.category.trim()
       ? undefined
@@ -342,8 +346,7 @@ export function parseActivityDraftJson(value: string): ParseResult<ActivityJsonI
       name: payload.name as string | undefined,
       date: payload.date as string,
       notes: payload.notes as string,
-      waypointId,
-      ideaIds: payload.ideaIds as string[],
+      ideaIds: [],
       category,
       location: payload.location as ActivityLocation,
       // Placeholder IDs are only used to validate the draft against persisted-entity schemas.
@@ -367,8 +370,6 @@ export function parseActivityDraftJson(value: string): ParseResult<ActivityJsonI
       name: payload.name as string | undefined,
       date: payload.date as string,
       notes: payload.notes as string,
-      waypointId,
-      ideaIds: payload.ideaIds as string[],
       category,
       location: payload.location as ActivityLocation,
       references: references.data,
@@ -454,7 +455,7 @@ export function parseIdeaDraftJson(value: string): ParseResult<IdeaJsonImportDra
       title: payload.title as string,
       description: payload.description as string,
       notes: payload.notes as string,
-      waypointIds: payload.waypointIds as string[],
+      waypointIds: [],
       planningState: payload.planningState as Idea['planningState'],
       rejectionReason,
       difficulty: payload.difficulty as Idea['difficulty'],
@@ -477,7 +478,6 @@ export function parseIdeaDraftJson(value: string): ParseResult<IdeaJsonImportDra
       title: payload.title as string,
       description: payload.description as string,
       notes: payload.notes as string,
-      waypointIds: payload.waypointIds as string[],
       planningState: payload.planningState as Idea['planningState'],
       rejectionReason,
       difficulty: payload.difficulty as Idea['difficulty'],
@@ -575,7 +575,7 @@ export function parseWaypointDraftJson(value: string): ParseResult<WaypointJsonI
     description: payload.description as string,
     category: payload.category as string,
     tags: payload.tags as string[],
-    challengeIds: payload.challengeIds as string[],
+    challengeIds: [],
     completion: payload.completion as Waypoint['completion'],
     location,
     // Placeholder IDs are only used to validate the draft against persisted-entity schemas.
@@ -597,8 +597,7 @@ export function parseWaypointDraftJson(value: string): ParseResult<WaypointJsonI
       description: payload.description as string,
       category: payload.category as string,
       tags: payload.tags as string[],
-      challengeIds: payload.challengeIds as string[],
-      completion: payload.completion as Waypoint['completion'],
+      completion: waypoint.data.completion,
       location,
       references: references.data,
       photoReferences: photoReferences.data,

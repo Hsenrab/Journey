@@ -30,10 +30,11 @@ more activities through activity `ideaIds`.
 - Structured location fields are optional.
 - References are ordered, require HTTPS URLs, and support add/reorder/remove.
 - Unsaved changes prompt before cancel/unload.
-- Add mode includes **Form** and **Paste JSON** tabs. Paste JSON accepts one idea draft object,
-  rejects arrays, and rejects ID fields (`ideaId`, `referenceId`).
+- Add mode includes **Form** and **Paste JSON** tabs. Paste JSON accepts one idea content object
+  without entity links or generated identifiers and rejects arrays and unlisted fields.
 - **Copy example JSON** copies a representative draft shape. **Load into form** validates the pasted
-  JSON, keeps the pasted text on errors, and on success populates the existing form state before save.
+  JSON, keeps the pasted text on errors, and on success populates the content fields while preserving
+  waypoint selections already made in the form.
 - An info icon next to the Idea JSON field opens a dialog with a ready-to-copy AI prompt describing
   the exact draft shape. Copy the prompt into an external AI tool (for example GitHub Copilot Chat or
   ChatGPT) alongside source material about the idea, then paste the AI's JSON response into Paste JSON.
@@ -42,19 +43,17 @@ more activities through activity `ideaIds`.
 
 ```json
 {
-  "title": "Plan a sunrise walk",
-  "description": "Try a nearby route before breakfast.",
-  "notes": "Bring a flask and check weather first.",
-  "waypointIds": [],
+  "title": "Compare Cotswolds balloon flights",
+  "description": "Research local sunrise flights and choose a suitable operator.",
+  "notes": "Compare launch locations, weather rebooking terms, accessibility and total cost before booking.",
   "planningState": "active",
-  "difficulty": 1,
+  "difficulty": 2,
   "location": {
-    "placeName": "Brockworth",
-    "addressOrRegion": "Gloucestershire",
-    "source": "Manual research",
+    "addressOrRegion": "Cotswolds",
+    "source": "Operator website",
     "approximate": true
   },
-  "references": [{ "title": "Route ideas", "url": "https://example.com/route" }]
+  "references": [{ "title": "Flight options", "url": "https://example.com/balloon-flights" }]
 }
 ```
 

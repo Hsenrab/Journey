@@ -328,19 +328,35 @@ describe('ActivityEditor', () => {
 
   it('loads valid pasted JSON into the form before submit', async () => {
     const user = userEvent.setup()
-    const { onSubmit, data } = renderEditor()
+    const data = createDefaultData()
+    const initialWaypointId = dataWaypointId(data)
+    data.ideas = [
+      {
+        ideaId: 'idea-1',
+        title: 'Route option',
+        description: '',
+        notes: '',
+        waypointIds: [initialWaypointId],
+        planningState: 'active',
+        difficulty: 2,
+        referenceIds: [],
+        createdAt: '2026-08-01T00:00:00.000Z',
+        updatedAt: '2026-08-01T00:00:00.000Z',
+      },
+    ]
+    const { onSubmit } = renderEditor({ data, initialWaypointId })
     const payload = {
       name: 'Imported activity',
       date: '2026-09-01',
       notes: 'Loaded from JSON',
-      waypointId: data.waypoints[0]!.waypointId,
-      ideaIds: [],
       category: 'gold',
       location: { kind: 'postcode', postcode: 'GL2 2BB' },
       references: [{ title: 'Guide', url: 'https://example.com/guide', description: '', previewImageUrl: '' }],
       photoReferences: [{ title: 'Photo', url: 'https://example.com/photo.jpg', altText: '' }],
     }
 
+    await user.click(screen.getByRole('combobox', { name: 'Linked ideas (optional)' }))
+    await user.click(screen.getByRole('option', { name: 'Route option (linked to selected waypoint)' }))
     await user.click(screen.getByRole('tab', { name: 'Paste JSON' }))
     await user.click(screen.getByLabelText('Activity JSON'))
     await user.paste(JSON.stringify(payload))
@@ -352,7 +368,8 @@ describe('ActivityEditor', () => {
         date: payload.date,
         name: payload.name,
         notes: payload.notes,
-        waypointId: payload.waypointId,
+        waypointId: initialWaypointId,
+        ideaIds: ['idea-1'],
         category: payload.category,
         location: payload.location,
         references: [expect.objectContaining({ title: 'Guide' })],
@@ -380,7 +397,6 @@ describe('ActivityEditor', () => {
       JSON.stringify({
         date: '2026-09-01',
         notes: 123,
-        ideaIds: [],
         location: { kind: 'postcode', postcode: 'GL1 1AA' },
         references: [],
         photoReferences: [],
@@ -410,7 +426,6 @@ describe('ActivityEditor', () => {
         activityId: 'activity-1',
         date: '2026-09-01',
         notes: '',
-        ideaIds: [],
         location: { kind: 'postcode', postcode: 'GL1 1AA' },
         references: [],
         photoReferences: [],
@@ -436,7 +451,6 @@ describe('ActivityEditor', () => {
         JSON.stringify({
           date: '2026-09-01',
           notes: 123,
-          ideaIds: [],
           location: { kind: 'postcode', postcode: 'GL1 1AA' },
           references: [],
           photoReferences: [],
@@ -461,7 +475,7 @@ describe('ActivityEditor', () => {
     await user.click(screen.getByRole('tab', { name: 'Paste JSON' }))
     await user.click(screen.getByRole('button', { name: 'Activity JSON AI prompt' }))
     expect(screen.getByRole('heading', { name: 'Activity JSON AI prompt' })).toBeInTheDocument()
-    expect(screen.getByDisplayValue(/activityId/)).toBeInTheDocument()
+    expect(screen.getByDisplayValue(/dated historical record/)).toBeInTheDocument()
   })
 })
 
