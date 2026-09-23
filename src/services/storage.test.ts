@@ -61,6 +61,7 @@ describe('load', () => {
     setDataMode('demo-local')
 
     expect(createDemoModeData()).not.toMatchObject({ activities: [activity] })
+    expect(createDemoModeData().activities.every((demoActivity) => demoActivity.name)).toBe(true)
     expect(() => load()).toThrow(
       'load()/save() are only available in Production data mode; the current mode is demo-local.',
     )

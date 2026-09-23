@@ -385,6 +385,7 @@
   "activities": [
     {
       "activityId": "activity-demo-thistledown-autumn",
+      "name": "Autumn cloister visit",
       "waypointId": "demo-thistledown-priory",
       "challengeId": "national-trust",
       "ideaIds": [],
@@ -403,6 +404,7 @@
     },
     {
       "activityId": "activity-demo-foxglove-spring",
+      "name": "Spring orangery tour",
       "waypointId": "demo-foxglove-manor",
       "challengeId": "national-trust",
       "ideaIds": ["demo-idea-orangery-tour"],
@@ -421,6 +423,7 @@
     },
     {
       "activityId": "activity-demo-puddlebrook-summer",
+      "name": "Summer paddleboarding",
       "waypointId": "demo-puddlebrook-paddle",
       "challengeId": "local-adventures",
       "ideaIds": [],
@@ -438,6 +441,7 @@
     },
     {
       "activityId": "activity-demo-bramblewick-autumn",
+      "name": "Topiary garden walk",
       "waypointId": "demo-bramblewick-gardens",
       "challengeId": "national-trust",
       "ideaIds": ["demo-idea-orangery-tour"],
@@ -456,6 +460,7 @@
     },
     {
       "activityId": "activity-demo-cindercombe-spring",
+      "name": "Working mill day",
       "waypointId": "demo-cindercombe-mill",
       "challengeId": "national-trust",
       "ideaIds": ["demo-idea-heritage-open-day"],
@@ -474,6 +479,7 @@
     },
     {
       "activityId": "activity-demo-foxglove-return",
+      "name": "Clockwork orangery return",
       "waypointId": "demo-foxglove-manor",
       "challengeId": "national-trust",
       "ideaIds": ["demo-idea-orangery-tour"],
@@ -492,6 +498,7 @@
     },
     {
       "activityId": "activity-demo-marlpit-june",
+      "name": "Water garden boardwalk",
       "waypointId": "demo-marlpit-water-garden",
       "challengeId": "national-trust",
       "ideaIds": ["demo-idea-heritage-open-day"],
@@ -510,6 +517,7 @@
     },
     {
       "activityId": "activity-demo-wychwood",
+      "name": "Wychwood evening walk",
       "waypointId": "demo-wychwood-night-walk",
       "challengeId": "local-adventures",
       "ideaIds": ["demo-idea-midnight-swim"],
@@ -527,6 +535,7 @@
     },
     {
       "activityId": "activity-demo-puddlebrook-return",
+      "name": "Puddlebrook paddle return",
       "waypointId": "demo-puddlebrook-paddle",
       "challengeId": "local-adventures",
       "ideaIds": [],
@@ -544,6 +553,7 @@
     },
     {
       "activityId": "activity-demo-glasshouse",
+      "name": "Stained-glass workshop",
       "waypointId": "demo-glasshouse-workshop",
       "challengeId": "food-and-craft",
       "ideaIds": ["demo-idea-craft-taster"],
