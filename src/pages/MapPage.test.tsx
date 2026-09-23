@@ -33,7 +33,7 @@ const mapEvents = vi.hoisted(() => ({
   ),
   activityClusterLeaves: vi.fn(() =>
     Promise.resolve([
-      { properties: { label: '2026-08-10', description: 'Clustered activity', activityId: 'activity-1' } },
+      { properties: { label: 'Clustered activity', description: '2026-08-10', activityId: 'activity-1' } },
       { properties: {} },
     ]),
   ),
@@ -178,7 +178,7 @@ describe('MapPage', () => {
     mapEvents.popupContent = undefined
   })
 
-  it('renders accessible layer, status, and nearby controls', async () => {
+  it('renders accessible layer and nearby controls without a marker legend', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, text: () => Promise.resolve('Sign in required') }))
     render(
       <MemoryRouter>
@@ -190,15 +190,16 @@ describe('MapPage', () => {
     expect(screen.getByRole('heading', { name: 'Map' })).toBeInTheDocument()
     expect(screen.getByRole('tab', { name: 'Waypoints' })).toHaveAttribute('aria-selected', 'true')
     expect(screen.getByRole('tab', { name: 'Activities' })).toHaveAttribute('aria-selected', 'false')
-    expect(screen.getByRole('heading', { name: 'Nearest visible waypoints' })).toBeInTheDocument()
+    expect(screen.getByLabelText('Nearest visible waypoints')).toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: 'Find nearby waypoints' })).not.toBeInTheDocument()
     expect(screen.getByLabelText('Azure Maps interactive map')).toBeInTheDocument()
     expect(screen.getByRole('tabpanel')).toHaveAttribute('aria-labelledby', 'waypoints-tab')
-    expect(screen.getByRole('group', { name: 'Marker colour legend' })).toBeInTheDocument()
+    expect(screen.queryByRole('group', { name: 'Marker colour legend' })).not.toBeInTheDocument()
     const user = userEvent.setup()
-    await user.click(screen.getByRole('button', { name: 'Waypoint filters (4 of 4 statuses selected)' }))
+    expect(screen.getByRole('group', { name: 'Waypoint filters' })).toBeInTheDocument()
     expect(screen.getByRole('checkbox', { name: 'Gold' })).toBeChecked()
     await user.click(screen.getByRole('checkbox', { name: 'Gold' }))
-    expect(screen.getByRole('button', { name: 'Waypoint filters (3 of 4 statuses selected)' })).toBeInTheDocument()
+    expect(screen.getByRole('checkbox', { name: 'Gold' })).not.toBeChecked()
     expect(screen.getByLabelText('Nearby origin')).toHaveValue('Brockworth, Gloucestershire')
     expect(await screen.findByText('Map access failed: Sign in required')).toBeInTheDocument()
   })
@@ -236,8 +237,8 @@ describe('MapPage', () => {
     await user.click(screen.getByRole('tab', { name: 'Activities' }))
     expect(screen.getByRole('tab', { name: 'Waypoints' })).toHaveAttribute('aria-selected', 'false')
     expect(screen.getByRole('tab', { name: 'Activities' })).toHaveAttribute('aria-selected', 'true')
-    expect(screen.getByRole('heading', { name: 'Nearest activities' })).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: /Waypoint filters/ })).not.toBeInTheDocument()
+    expect(screen.getByLabelText('Nearest activities')).toBeInTheDocument()
+    expect(screen.queryByRole('group', { name: 'Waypoint filters' })).not.toBeInTheDocument()
   })
 
   it('defaults to the map view on small screens and lets the user switch to the list', async () => {
@@ -254,10 +255,10 @@ describe('MapPage', () => {
 
     expect(screen.getByRole('button', { name: 'Map' })).toHaveAttribute('aria-pressed', 'true')
     expect(screen.getByLabelText('Azure Maps interactive map')).toBeInTheDocument()
-    expect(screen.queryByRole('heading', { name: 'Nearest visible waypoints' })).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('Nearest visible waypoints')).not.toBeVisible()
 
     await user.click(screen.getByRole('button', { name: 'List' }))
-    expect(screen.getByRole('heading', { name: 'Nearest visible waypoints' })).toBeInTheDocument()
+    expect(screen.getByLabelText('Nearest visible waypoints')).toBeVisible()
     expect(screen.getByLabelText('Azure Maps interactive map')).not.toBeVisible()
   })
 
@@ -289,7 +290,6 @@ describe('MapPage', () => {
         </WaypointsProvider>
       </MemoryRouter>,
     )
-    await user.click(screen.getByRole('button', { name: /Waypoint filters/ }))
     await user.click(screen.getByRole('checkbox', { name: 'Gold' }))
     await user.click(screen.getByRole('button', { name: 'Search' }))
     expect(await screen.findByText(/No places matched that search/)).toBeInTheDocument()
@@ -377,6 +377,7 @@ describe('MapPage', () => {
     waypoint.location = { ...waypoint.location, latitude: 51.84, longitude: -2.15 }
     data.activities.push({
       activityId: 'activity',
+      name: 'Canal loop',
       ideaIds: [],
       waypointId: waypoint.waypointId,
       date: '2026-08-10',
@@ -415,11 +416,59 @@ describe('MapPage', () => {
         </WaypointsProvider>
       </MemoryRouter>,
     )
-    await user.click(screen.getByRole('button', { name: /Waypoint filters/ }))
     await user.click(screen.getByRole('checkbox', { name: 'Gold' }))
     await user.click(screen.getByRole('tab', { name: 'Activities' }))
-    expect(screen.getByRole('link', { name: /Bronze:.*miles/ })).toBeInTheDocument()
+    const activityLink = screen.getByRole('link', { name: /Canal loop.*\d+\.\d miles.*2026-08-10/ })
+    expect(activityLink).toHaveAttribute('title', 'Canal loop')
+    expect(screen.getByLabelText('Bronze tier')).toBeInTheDocument()
+    expect(screen.queryByText(/Bronze:/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/NOT STARTED|GOLD|SILVER|BRONZE/)).not.toBeInTheDocument()
     expect(screen.getByText(/1 waypoint and 1 activity have no coordinates/)).toBeInTheDocument()
+  })
+
+  it('uses fallback names without promoting dates to primary map list labels', async () => {
+    const data = createDefaultData()
+    const waypoint = data.waypoints[0]!
+    waypoint.title = '   '
+    waypoint.location = { ...waypoint.location, latitude: 51.84, longitude: -2.15 }
+    data.activities = [
+      {
+        activityId: 'unnamed-activity',
+        ideaIds: [],
+        waypointId: waypoint.waypointId,
+        date: '2026-08-10',
+        category: undefined,
+        location: { kind: 'coordinates', latitude: 51.85, longitude: -2.14 },
+        notes: '',
+        referenceIds: [],
+        photoReferenceIds: [],
+        createdAt: '2026-08-10T00:00:00.000Z',
+        updatedAt: '2026-08-10T00:00:00.000Z',
+      },
+    ]
+    localStorage.setItem('waypoints-v1', JSON.stringify(data))
+    const user = userEvent.setup()
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(jsonResponse({ token: 'entra', expiresOn: '2026-01-01', clientId: 'maps-client-id' })),
+    )
+    render(
+      <MemoryRouter>
+        <WaypointsProvider>
+          <MapPage />
+        </WaypointsProvider>
+      </MemoryRouter>,
+    )
+
+    const waypointLink = screen.getByRole('link', { name: /Unnamed waypoint.*\d+\.\d miles/ })
+    expect(waypointLink).toHaveAttribute('title', 'Unnamed waypoint')
+    expect(screen.getAllByLabelText('Not completed').length).toBeGreaterThan(0)
+
+    await user.click(screen.getByRole('tab', { name: 'Activities' }))
+
+    const activityLink = screen.getByRole('link', { name: /Unnamed activity.*\d+\.\d miles.*2026-08-10/ })
+    expect(activityLink).toHaveAttribute('title', 'Unnamed activity')
+    expect(activityLink).toHaveTextContent(/^Unnamed activity/)
   })
 
   it('omits the missing-coordinate notice when every record is geocoded', async () => {
@@ -570,6 +619,7 @@ describe('MapPage', () => {
     data.activities = [
       {
         activityId: 'linked-activity',
+        name: 'Ridge walk',
         ideaIds: [],
         waypointId: waypoint.waypointId,
         date: '2026-08-11',
@@ -604,7 +654,7 @@ describe('MapPage', () => {
     expect(mapEvents.popupContent).toHaveTextContent(`Waypoint${waypoint.title}Recorded activities`)
     expect(mapEvents.popupContent).not.toHaveTextContent('Not started')
     expect(mapEvents.popupContent?.querySelector('a')).toHaveAttribute('href', '/activities/linked-activity')
-    expect(mapEvents.popupContent?.querySelector('a')).toHaveTextContent('2026-08-11 · Silver')
+    expect(mapEvents.popupContent?.querySelector('a')).toHaveTextContent('Ridge walk')
     expect(await screen.findByText('Opening waypoint details.')).toBeInTheDocument()
     act(() => mapEvents.popupClose?.())
     expect(screen.queryByText('Opening waypoint details.')).not.toBeInTheDocument()
@@ -617,6 +667,7 @@ describe('MapPage', () => {
     data.activities = [
       {
         activityId: 'linked-activity',
+        name: 'Ridge walk',
         ideaIds: [],
         waypointId: waypoint.waypointId,
         date: '2026-08-11',
@@ -679,6 +730,7 @@ describe('MapPage', () => {
     const data = createDefaultData()
     const activity = {
       activityId: 'linked',
+      name: 'Linked garden visit',
       ideaIds: [],
       waypointId: data.waypoints[0]!.waypointId,
       date: '2026-08-10',
@@ -690,7 +742,13 @@ describe('MapPage', () => {
       createdAt: '2026-08-10T00:00:00.000Z',
       updatedAt: '2026-08-10T00:00:00.000Z',
     }
-    const unlinked = { ...activity, activityId: 'unlinked', waypointId: undefined, category: undefined }
+    const unlinked = {
+      ...activity,
+      activityId: 'unlinked',
+      name: undefined,
+      waypointId: undefined,
+      category: undefined,
+    }
     data.activities = [activity, unlinked]
     localStorage.setItem('waypoints-v1', JSON.stringify(data))
     vi.stubGlobal(
@@ -708,10 +766,12 @@ describe('MapPage', () => {
     expect(() => {
       mapEvents.activityClick!({})
       mapEvents.activityClick!({ shapes: [{ properties: { activityId: 'unknown' } }] })
-      mapEvents.activityClick!({ shapes: [{ properties: { activityId: activity.activityId } }] })
-      mapEvents.activityClick!({ shapes: [{ properties: { activityId: unlinked.activityId } }] })
     }).not.toThrow()
-    expect(mapEvents.popupContent).toHaveTextContent('Activity2026-08-10UncategorisedNo linked waypoint')
+    mapEvents.activityClick!({ shapes: [{ properties: { activityId: activity.activityId } }] })
+    expect(mapEvents.popupContent).toHaveTextContent('ActivityLinked garden visitBronze')
+    expect(mapEvents.popupContent).not.toHaveTextContent('Activity2026-08-10Bronze')
+    mapEvents.activityClick!({ shapes: [{ properties: { activityId: unlinked.activityId } }] })
+    expect(mapEvents.popupContent).toHaveTextContent('ActivityUnnamed activityUncategorisedNo linked waypoint')
     expect(mapEvents.popupContent?.querySelector('a')).toHaveAttribute('href', '/activities/unlinked')
   })
 
@@ -767,6 +827,7 @@ describe('MapPage', () => {
     await vi.waitFor(() => expect(mapEvents.popupContent).toBeDefined())
     expect(mapEvents.popupContent).toHaveTextContent('Activities here1 in this group')
     expect(mapEvents.popupContent?.querySelector('a')).toHaveAttribute('href', '/activities/activity-1')
+    expect(mapEvents.popupContent?.querySelector('a')).toHaveTextContent('Clustered activity')
   })
 
   it('ignores a stale cluster result after a marker click', async () => {

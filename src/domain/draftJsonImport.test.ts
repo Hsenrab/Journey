@@ -5,6 +5,7 @@ describe('draftJsonImport', () => {
   it('parses a valid activity draft payload', () => {
     const result = parseActivityDraftJson(
       JSON.stringify({
+        name: 'Morning walk',
         date: '2026-09-01',
         notes: 'Loaded from JSON',
         location: { kind: 'postcode', postcode: 'GL1 1AA' },
@@ -15,6 +16,7 @@ describe('draftJsonImport', () => {
 
     expect(result.ok).toBe(true)
     if (result.ok) {
+      expect(result.value.name).toBe('Morning walk')
       expect(result.value.references[0]).toEqual({
         title: 'Guide',
         url: 'https://example.com/guide',

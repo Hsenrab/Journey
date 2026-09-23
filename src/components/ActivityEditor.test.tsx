@@ -346,6 +346,7 @@ describe('ActivityEditor', () => {
     ]
     const { onSubmit } = renderEditor({ data, initialWaypointId })
     const payload = {
+      name: 'Imported activity',
       date: '2026-09-01',
       notes: 'Loaded from JSON',
       category: 'gold',
@@ -365,6 +366,7 @@ describe('ActivityEditor', () => {
     expect(onSubmit).toHaveBeenCalledWith(
       expect.objectContaining({
         date: payload.date,
+        name: payload.name,
         notes: payload.notes,
         waypointId: initialWaypointId,
         ideaIds: ['idea-1'],

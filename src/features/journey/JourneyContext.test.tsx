@@ -7,6 +7,7 @@ import { createActivity, createIdea } from '../../domain/visit'
 const lacockId = 'lacock-abbey-fox-talbot-museum-and-village'
 
 const draft = {
+  name: 'Abbey visit',
   waypointId: lacockId,
   ideaIds: [],
   date: '2026-08-01',
@@ -28,7 +29,9 @@ describe('WaypointsContext', () => {
     })
 
     expect(result.current.statusFor(lacockId)).toBe('silver')
-    expect(load().activities).toContainEqual(expect.objectContaining({ waypointId: lacockId, category: 'silver' }))
+    expect(load().activities).toContainEqual(
+      expect.objectContaining({ name: 'Abbey visit', waypointId: lacockId, category: 'silver' }),
+    )
   })
 
   it('adds a waypoint with its references and challenge links', () => {
@@ -81,6 +84,7 @@ describe('WaypointsContext', () => {
     })
 
     expect(result.current.data.activities[0]?.activityId).toBe(created.activityId)
+    expect(result.current.data.activities[0]?.name).toBe('Abbey visit')
     expect(result.current.data.activities[0]?.createdAt).toBe(created.createdAt)
     expect(result.current.data.activities[0]?.updatedAt).not.toBe(created.updatedAt)
     expect(result.current.data.photoReferences).toEqual([])

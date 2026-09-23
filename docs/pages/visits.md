@@ -33,6 +33,7 @@ Activities can be linked to a waypoint or left unlinked.
 
 ```json
 {
+  "name": "Sunrise balloon flight",
   "date": "2026-08-16",
   "notes": "Took an early-morning balloon flight over the Cotswolds and watched the sunrise above the fields.",
   "location": { "kind": "postcode", "postcode": "GL54 2EN" },

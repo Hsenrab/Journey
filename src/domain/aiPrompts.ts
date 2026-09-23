@@ -14,7 +14,8 @@ Required top-level fields:
 - "references" (array of objects, required): all useful supporting source links. Use [] if none are provided.
 - "photoReferences" (array of objects, required): all useful external photo links. Use [] if none are provided.
 
-Optional top-level field (omit entirely unless clearly supported by the source):
+Optional top-level fields (omit entirely unless clearly supported by the source):
+- "name" (string, optional): a short title for the activity, a few words. Omit if the source gives no natural name.
 - "category" (string, optional): exactly "bronze", "silver", or "gold". Include only when the source explicitly identifies that achievement tier.
 
 location shape (discriminated by "kind"):
@@ -37,6 +38,7 @@ Examples of the exact shape expected (return only one object for my source mater
 
 Example 1 — activity with a postcode and supporting media:
 {
+  "name": "Sunrise balloon flight",
   "date": "2026-08-16",
   "notes": "Took an early-morning balloon flight over the Cotswolds. The pilot explained how the balloon was controlled, and the flight ended with a clear view of the sunrise above the fields.",
   "location": { "kind": "postcode", "postcode": "GL54 2EN" },

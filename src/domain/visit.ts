@@ -165,6 +165,7 @@ export const ExternalPhotoReferenceSchema = z
 export const ActivitySchema = z
   .object({
     activityId: z.string().min(1),
+    name: z.string().trim().min(1, 'Activity name is required').optional(),
     waypointId: z.string().min(1).optional(),
     challengeId: z.string().min(1).optional(),
     ideaIds: distinctIds('Activity idea links must be distinct'),
@@ -266,6 +267,7 @@ export function validateActivityCategory(data: WaypointsData, activity: Activity
 
 export function createActivity(input: {
   activityId?: string
+  name?: string
   waypointId?: string
   challengeId?: string
   ideaIds?: string[]
@@ -281,6 +283,7 @@ export function createActivity(input: {
   const now = new Date().toISOString()
   return ActivitySchema.parse({
     activityId: input.activityId ?? crypto.randomUUID(),
+    name: input.name?.trim() || undefined,
     waypointId: input.waypointId,
     challengeId: input.challengeId,
     ideaIds: input.ideaIds ?? [],

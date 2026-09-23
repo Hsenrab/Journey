@@ -46,6 +46,7 @@ type DraftReference = Pick<Reference, 'title' | 'url' | 'description' | 'preview
 type DraftPhotoReference = Pick<ExternalPhotoReference, 'title' | 'url' | 'altText'> & { photoReferenceId?: string }
 
 export type ActivityDraft = {
+  name?: string
   waypointId?: string
   ideaIds: string[]
   date: string
@@ -239,6 +240,7 @@ function reducer(data: WaypointsData, action: Action): WaypointsData {
       const activity = ensureCategoryEligibility(
         data,
         createActivity({
+          name: action.input.name,
           waypointId: action.input.waypointId,
           ideaIds: action.input.ideaIds,
           date: action.input.date,
@@ -270,6 +272,7 @@ function reducer(data: WaypointsData, action: Action): WaypointsData {
         data,
         createActivity({
           activityId: existing.activityId,
+          name: action.input.name,
           createdAt: existing.createdAt,
           updatedAt,
           waypointId: action.input.waypointId,
