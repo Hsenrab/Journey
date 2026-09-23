@@ -109,11 +109,12 @@ function canReplaceOwned<T extends { ownerId: string }>(
   ownerId: string,
 ) {
   const incomingById = new Map(incoming.map((entity) => [id(entity), entity]))
+  const storedIds = new Set(stored.map(id))
   return (
     stored.every((entity) => {
       const replacement = incomingById.get(id(entity))
       return entity.ownerId === ownerId || (replacement !== undefined && deepEqual(entity, replacement))
-    }) && incoming.every((entity) => stored.some((current) => id(current) === id(entity)) || entity.ownerId === ownerId)
+    }) && incoming.every((entity) => storedIds.has(id(entity)) || entity.ownerId === ownerId)
   )
 }
 
