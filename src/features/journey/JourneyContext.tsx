@@ -521,9 +521,6 @@ export function WaypointsProvider({ children }: { children: ReactNode }) {
             : replaceJourney(container, next, etags)),
         )
     }
-    const persistEditorAction = async (container: JourneyContainer, action: Action, next: WaypointsData) =>
-      persistReplace(container, action, next)
-
     return {
       data,
       dataMode,
@@ -537,43 +534,43 @@ export function WaypointsProvider({ children }: { children: ReactNode }) {
         if (!principal) throw new Error('Journey principal is not available. Wait before making changes.')
         const action = { type: 'add-waypoint' as const, input, ownerId: principal.userId }
         const next = reducer(data, action)
-        await persistEditorAction(container, action, next)
+        await persistReplace(container, action, next)
       },
       addActivity: async (input) => {
         const container = writableContainer()
         if (!principal) throw new Error('Journey principal is not available. Wait before making changes.')
         const action = { type: 'add-activity' as const, input, ownerId: principal.userId }
         const next = reducer(data, action)
-        await persistEditorAction(container, action, next)
+        await persistReplace(container, action, next)
       },
       updateActivity: async (activityId, input) => {
         const container = writableContainer()
         const action = { type: 'update-activity' as const, activityId, input }
         const next = reducer(data, action)
-        await persistEditorAction(container, action, next)
+        await persistReplace(container, action, next)
       },
       deleteActivity: async (activityId) => {
         const container = writableContainer()
         const action = { type: 'delete-activity' as const, activityId }
-        await persistEditorAction(container, action, reducer(data, action))
+        await persistReplace(container, action, reducer(data, action))
       },
       addIdea: async (input) => {
         const container = writableContainer()
         if (!principal) throw new Error('Journey principal is not available. Wait before making changes.')
         const action = { type: 'add-idea' as const, input, ownerId: principal.userId }
         const next = reducer(data, action)
-        await persistEditorAction(container, action, next)
+        await persistReplace(container, action, next)
       },
       updateIdea: async (ideaId, input) => {
         const container = writableContainer()
         const action = { type: 'update-idea' as const, ideaId, input }
         const next = reducer(data, action)
-        await persistEditorAction(container, action, next)
+        await persistReplace(container, action, next)
       },
       deleteIdea: async (ideaId) => {
         const container = writableContainer()
         const action = { type: 'delete-idea' as const, ideaId }
-        await persistEditorAction(container, action, reducer(data, action))
+        await persistReplace(container, action, reducer(data, action))
       },
       restore: async (newData) => {
         if (localTestMode && dataMode === 'production') dispatch({ type: 'restore', data: newData })

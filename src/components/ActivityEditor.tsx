@@ -135,7 +135,7 @@ export function ActivityEditor({
   const [jsonIssues, setJsonIssues] = useState<string[]>([])
   const addMode = !initialActivity
   const ownerId = initialActivity?.ownerId ?? principal?.userId
-  const mayMutate = ownerId ? canMutate(ownerId) : true
+  const mayMutate = ownerId ? canMutate(ownerId) : false
 
   const supportsCategories = waypointSupportsActivityCategory(data, waypointId || undefined)
   const sortedIdeas = useMemo(

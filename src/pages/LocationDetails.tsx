@@ -108,7 +108,7 @@ export default function LocationDetails() {
           }}
           onCancel={() => setShowEditor(false)}
         />
-      ) : principal?.role !== 'viewer' ? (
+      ) : principal !== null && principal.role !== 'viewer' ? (
         <Button variant="contained" onClick={() => setShowEditor(true)}>
           Log activity
         </Button>
@@ -121,7 +121,7 @@ export default function LocationDetails() {
           sx={{ justifyContent: 'space-between', alignItems: { sm: 'center' } }}
         >
           <Typography variant="h5">Ideas</Typography>
-          {principal?.role !== 'viewer' && (
+          {principal !== null && principal.role !== 'viewer' && (
             <Button component={Link} to={`/ideas?mode=add&waypoint=${encodeURIComponent(id)}`}>
               Add idea
             </Button>

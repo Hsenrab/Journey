@@ -87,6 +87,21 @@ function withStoredOwnerIds(data: JourneyData, stored: JourneyData): JourneyData
   }
 }
 
+function deepEqual(left: unknown, right: unknown): boolean {
+  if (Object.is(left, right)) return true
+  if (Array.isArray(left) && Array.isArray(right))
+    return left.length === right.length && left.every((item, index) => deepEqual(item, right[index]))
+  if (typeof left !== 'object' || left === null || typeof right !== 'object' || right === null) return false
+  const leftRecord = left as Record<string, unknown>
+  const rightRecord = right as Record<string, unknown>
+  const leftKeys = Object.keys(leftRecord).sort()
+  const rightKeys = Object.keys(rightRecord).sort()
+  return (
+    leftKeys.length === rightKeys.length &&
+    leftKeys.every((key, index) => key === rightKeys[index] && deepEqual(leftRecord[key], rightRecord[key]))
+  )
+}
+
 function canReplaceOwned<T extends { ownerId: string }>(
   stored: T[],
   incoming: T[],
@@ -97,10 +112,7 @@ function canReplaceOwned<T extends { ownerId: string }>(
   return (
     stored.every((entity) => {
       const replacement = incomingById.get(id(entity))
-      return (
-        entity.ownerId === ownerId ||
-        (replacement !== undefined && JSON.stringify(entity) === JSON.stringify(replacement))
-      )
+      return entity.ownerId === ownerId || (replacement !== undefined && deepEqual(entity, replacement))
     }) && incoming.every((entity) => stored.some((current) => id(current) === id(entity)) || entity.ownerId === ownerId)
   )
 }

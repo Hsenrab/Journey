@@ -111,7 +111,7 @@ export function IdeaEditor({
   const [jsonIssues, setJsonIssues] = useState<string[]>([])
   const addMode = !initialIdea
   const ownerId = initialIdea?.ownerId ?? principal?.userId
-  const mayMutate = ownerId ? canMutate(ownerId) : true
+  const mayMutate = ownerId ? canMutate(ownerId) : false
 
   const dirty = useMemo(
     () =>

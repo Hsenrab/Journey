@@ -34,7 +34,7 @@ export default function Activities() {
   return (
     <Stack spacing={2}>
       <PageHeader title="Activities">
-        {!showEditor && principal?.role !== 'viewer' && (
+        {!showEditor && principal !== null && principal.role !== 'viewer' && (
           <Button variant="contained" onClick={() => setShowEditor(true)}>
             Add activity
           </Button>
