@@ -90,6 +90,8 @@ describe('mapsToken', () => {
 
     const { mapsToken } = await import('./mapsToken.js')
 
-    await expect(mapsToken(requestWithPrincipal(ownerHeader({ userRoles: ['authenticated', 'editor'] })), fakeContext())).rejects.toThrow(/AZURE_MAPS_CLIENT_ID/)
+    await expect(
+      mapsToken(requestWithPrincipal(ownerHeader({ userRoles: ['authenticated', 'editor'] })), fakeContext()),
+    ).rejects.toThrow(/AZURE_MAPS_CLIENT_ID/)
   })
 })

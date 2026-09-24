@@ -338,7 +338,6 @@ export function IdeaEditor({
                     setPlanningState(parsed.value.planningState)
                     setRejectionReason(parsed.value.rejectionReason ?? '')
                     setDifficulty(parsed.value.difficulty)
-                    setWaypointIds(parsed.value.waypointIds)
                     const location = parsed.value.location
                     setPlaceName(location?.placeName ?? '')
                     setAddressOrRegion(location?.addressOrRegion ?? '')

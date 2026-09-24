@@ -96,8 +96,13 @@ describe('ActivityDetails', () => {
           updatedAt: '2026-07-01T00:00:00.000Z',
         },
       ],
-      references: [...seed.references, { referenceId: 'r1', ownerId: 'owner-1', title: 'Guide', url: 'https://example.com/guide' }],
-      photoReferences: [{ photoReferenceId: 'p1', ownerId: 'owner-1', title: 'View', url: 'https://example.com/view.jpg' }],
+      references: [
+        ...seed.references,
+        { referenceId: 'r1', ownerId: 'owner-1', title: 'Guide', url: 'https://example.com/guide' },
+      ],
+      photoReferences: [
+        { photoReferenceId: 'p1', ownerId: 'owner-1', title: 'View', url: 'https://example.com/view.jpg' },
+      ],
       activities: [
         {
           activityId: 'a1',
@@ -157,7 +162,10 @@ describe('ActivityDetails', () => {
     const seed = createDefaultData()
     save({
       ...seed,
-      references: [...seed.references, { referenceId: 'r1', ownerId: 'owner-1', title: 'Guide', url: 'https://example.com/guide' }],
+      references: [
+        ...seed.references,
+        { referenceId: 'r1', ownerId: 'owner-1', title: 'Guide', url: 'https://example.com/guide' },
+      ],
       activities: [
         {
           activityId: 'a1',

@@ -56,8 +56,8 @@ const WaypointLocationSchema = z.object({
 })
 
 const CompletionSchema = z.discriminatedUnion('mode', [
-  z.object({ mode: z.literal('once') }),
-  z.object({ mode: z.literal('count'), target: z.number().int().positive() }),
+  z.object({ mode: z.literal('once') }).strict(),
+  z.object({ mode: z.literal('count'), target: z.number().int().positive() }).strict(),
 ])
 
 export const WaypointSchema = z.object({
@@ -146,22 +146,26 @@ export const IdeaSchema = z
 
 const httpsUrl = z.url('Please enter a valid URL').startsWith('https://', 'URL must use https://')
 
-export const ReferenceSchema = z.object({
-  referenceId: z.string().min(1),
-  ownerId: z.string().min(1),
-  title: z.string().trim().min(1, 'Reference title is required'),
-  description: z.string().trim().min(1).optional(),
-  url: httpsUrl,
-  previewImageUrl: httpsUrl.optional(),
-})
+export const ReferenceSchema = z
+  .object({
+    referenceId: z.string().min(1),
+    ownerId: z.string().min(1),
+    title: z.string().trim().min(1, 'Reference title is required'),
+    description: z.string().trim().min(1).optional(),
+    url: httpsUrl,
+    previewImageUrl: httpsUrl.optional(),
+  })
+  .strict()
 
-export const ExternalPhotoReferenceSchema = z.object({
-  photoReferenceId: z.string().min(1),
-  ownerId: z.string().min(1),
-  title: z.string().trim().min(1, 'Photo title is required'),
-  altText: z.string().trim().min(1).optional(),
-  url: httpsUrl,
-})
+export const ExternalPhotoReferenceSchema = z
+  .object({
+    photoReferenceId: z.string().min(1),
+    ownerId: z.string().min(1),
+    title: z.string().trim().min(1, 'Photo title is required'),
+    altText: z.string().trim().min(1).optional(),
+    url: httpsUrl,
+  })
+  .strict()
 
 export const ActivitySchema = z
   .object({

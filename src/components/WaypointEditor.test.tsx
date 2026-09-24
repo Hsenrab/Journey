@@ -16,7 +16,13 @@ function renderEditor(overrides: Partial<ComponentProps<typeof WaypointEditor>> 
   render(
     <MemoryRouter>
       <WaypointsProvider>
-        <WaypointEditor data={data} submitLabel="Save waypoint" onSubmit={onSubmit} onCancel={onCancel} {...overrides} />
+        <WaypointEditor
+          data={data}
+          submitLabel="Save waypoint"
+          onSubmit={onSubmit}
+          onCancel={onCancel}
+          {...overrides}
+        />
       </WaypointsProvider>
     </MemoryRouter>,
   )
@@ -143,7 +149,6 @@ describe('WaypointEditor', () => {
       description: 'A waypoint loaded from pasted JSON',
       category: 'Scenic',
       tags: ['sunrise', 'walk'],
-      challengeIds: ['national-trust'],
       completion: { mode: 'count', target: 2 },
       location: { placeName: 'Brockworth', approximate: true },
       references: [{ title: 'Guide', url: 'https://example.com/guide', description: '', previewImageUrl: '' }],
@@ -162,7 +167,7 @@ describe('WaypointEditor', () => {
         description: payload.description,
         category: payload.category,
         tags: payload.tags,
-        challengeIds: payload.challengeIds,
+        challengeIds: ['national-trust'],
         completion: payload.completion,
         references: [expect.objectContaining({ title: 'Guide' })],
         photoReferences: [expect.objectContaining({ title: 'Photo' })],
@@ -191,7 +196,6 @@ describe('WaypointEditor', () => {
         description: 123,
         category: 'Scenic',
         tags: [],
-        challengeIds: ['national-trust'],
         completion: { mode: 'once' },
         references: [],
         photoReferences: [],
@@ -223,7 +227,6 @@ describe('WaypointEditor', () => {
         description: '',
         category: 'Scenic',
         tags: [],
-        challengeIds: ['national-trust'],
         completion: { mode: 'once' },
         references: [],
         photoReferences: [],
@@ -248,7 +251,6 @@ describe('WaypointEditor', () => {
           description: 123,
           category: 'Scenic',
           tags: [],
-          challengeIds: ['national-trust'],
           completion: { mode: 'once' },
           references: [],
           photoReferences: [],
@@ -271,7 +273,7 @@ describe('WaypointEditor', () => {
     await user.click(screen.getByRole('tab', { name: 'Paste JSON' }))
     await user.click(screen.getByRole('button', { name: 'Waypoint JSON AI prompt' }))
     expect(screen.getByRole('heading', { name: 'Waypoint JSON AI prompt' })).toBeInTheDocument()
-    expect(screen.getByDisplayValue(/waypointId/)).toBeInTheDocument()
+    expect(screen.getByDisplayValue(/destination or place-based experience/)).toBeInTheDocument()
   })
 
   it('shows the viewer ownership note for viewer principals', async () => {

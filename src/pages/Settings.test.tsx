@@ -44,7 +44,10 @@ describe('Settings', () => {
     cleanup()
     localStorage.clear()
   })
-  afterEach(() => vi.restoreAllMocks())
+  afterEach(() => {
+    vi.unstubAllEnvs()
+    vi.restoreAllMocks()
+  })
 
   it('shows the challenge rules', () => {
     renderSettings()
@@ -168,12 +171,28 @@ describe('Settings', () => {
   })
 
   it('keeps mutations enabled for Demo Cosmos data', async () => {
+    vi.stubEnv('MODE', 'production')
     setDataMode('demo-cosmos')
     vi.stubGlobal(
       'fetch',
-      vi
-        .fn()
-        .mockResolvedValue(new Response(JSON.stringify({ data: createDemoModeData(), etags: {} }), { status: 200 })),
+      vi.fn(
+        async (input: RequestInfo | URL) =>
+          new Response(
+            JSON.stringify(
+              String(input) === '/.auth/me'
+                ? {
+                    clientPrincipal: {
+                      identityProvider: 'aad',
+                      userId: 'owner-1',
+                      userDetails: 'owner-1',
+                      userRoles: ['owner'],
+                    },
+                  }
+                : { data: createDemoModeData(), etags: {} },
+            ),
+            { status: 200 },
+          ),
+      ),
     )
     renderSettings()
 

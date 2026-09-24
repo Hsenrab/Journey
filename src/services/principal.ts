@@ -1,14 +1,12 @@
 export type JourneyRole = 'viewer' | 'editor' | 'owner'
 
 type ClientPrincipalResponse = {
-  clientPrincipal:
-    | {
-        identityProvider: string
-        userId: string
-        userDetails: string
-        userRoles: string[]
-      }
-    | null
+  clientPrincipal: {
+    identityProvider: string
+    userId: string
+    userDetails: string
+    userRoles: string[]
+  } | null
 }
 
 export type JourneyPrincipal = {
