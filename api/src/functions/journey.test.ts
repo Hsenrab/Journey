@@ -225,6 +225,7 @@ describe('journey', () => {
       ownedActivity.activityId,
       'etag-1',
       expect.objectContaining({ data: expect.objectContaining({ activities: [ownedActivity] }) }),
+      expect.any(Function),
     )
   })
 
@@ -394,6 +395,96 @@ describe('journey', () => {
       }),
       { [otherOwnedActivity.activityId]: 'etag-1' },
     )
+  })
+
+  it('stamps a new entity introduced via replace with the authenticated ownerId', async () => {
+    loadDataset.mockResolvedValue({ data: emptyData, etags: {} })
+    const { journey } = await import('./journey.js')
+
+    await expect(
+      journey(
+        request('production', {
+          method: 'POST',
+          header: principal('owner', 'owner-user'),
+          body: {
+            operation: 'replace',
+            data: { ...emptyData, activities: [{ ...ownedActivity, ownerId: 'malicious-user' }] },
+            etags: {},
+          },
+        }),
+        context() as InvocationContext,
+      ),
+    ).resolves.toMatchObject({ status: 200 })
+
+    expect(replaceDataset).toHaveBeenCalledWith(
+      {},
+      'production',
+      expect.objectContaining({
+        [ownedActivity.activityId]: expect.objectContaining({
+          entity: expect.objectContaining({ ownerId: 'owner-user' }),
+        }),
+      }),
+      {},
+    )
+  })
+
+  it('allows any editor to delete a shared-owned entity', async () => {
+    const sharedActivity = { ...ownedActivity, ownerId: 'shared' }
+    loadDataset.mockResolvedValue({
+      data: { ...emptyData, activities: [sharedActivity] },
+      etags: { [sharedActivity.activityId]: 'etag-1' },
+    })
+    const { journey } = await import('./journey.js')
+
+    expect(
+      await journey(
+        request('production', {
+          method: 'DELETE',
+          header: principal('editor', 'editor-user'),
+          body: { operation: 'delete', type: 'activity', id: sharedActivity.activityId, ifMatch: 'etag-1' },
+        }),
+        context() as InvocationContext,
+      ),
+    ).toEqual({ status: 204 })
+  })
+
+  it('retains an orphaned reference owned by another user instead of deleting it', async () => {
+    const otherOwnedReference = {
+      referenceId: 'reference-1',
+      ownerId: 'other-user',
+      title: 'Guide',
+      url: 'https://example.com',
+    }
+    const ownedIdeaWithReference = { ...ownedIdea, referenceIds: [otherOwnedReference.referenceId] }
+    loadDataset.mockResolvedValue({
+      data: { ...emptyData, ideas: [ownedIdeaWithReference], references: [otherOwnedReference] },
+      etags: { [ownedIdeaWithReference.ideaId]: 'etag-idea', [otherOwnedReference.referenceId]: 'etag-ref' },
+    })
+    const { journey } = await import('./journey.js')
+
+    expect(
+      await journey(
+        request('production', {
+          method: 'DELETE',
+          header: principal('editor', 'editor-user'),
+          body: { operation: 'delete', type: 'idea', id: ownedIdeaWithReference.ideaId, ifMatch: 'etag-idea' },
+        }),
+        context() as InvocationContext,
+      ),
+    ).toEqual({ status: 204 })
+
+    expect(deleteEntity).toHaveBeenCalledWith(
+      {},
+      'production',
+      'idea',
+      ownedIdeaWithReference.ideaId,
+      'etag-idea',
+      expect.anything(),
+      expect.any(Function),
+    )
+    const isDeletable = deleteEntity.mock.calls[0][6]
+    expect(isDeletable(ownedIdeaWithReference.ideaId)).toBe(true)
+    expect(isDeletable(otherOwnedReference.referenceId)).toBe(false)
   })
 
   it('rejects updates whose request and entity identifiers differ', async () => {

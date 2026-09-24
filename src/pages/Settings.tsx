@@ -24,7 +24,7 @@ const dataModeLabels: Record<JourneyDataMode, string> = {
 }
 
 export default function Settings() {
-  const { activeDataMode, clear, data, dataMode, loadError, readOnly, restore } = useWaypoints()
+  const { activeDataMode, canBulkMutate, clear, data, dataMode, loadError, restore } = useWaypoints()
   const input = useRef<HTMLInputElement>(null)
   const [message, setMessage] = useState<{ text: string; error: boolean } | null>(null)
   const [confirmingClear, setConfirmingClear] = useState(false)
@@ -47,12 +47,14 @@ export default function Settings() {
       setMessage({ text: 'Choose a JSON backup file exported from this app.', error: true })
       return
     }
-    if (readOnly) {
+    if (!canBulkMutate) {
       setMessage({
         text:
           loadError && dataMode === 'production'
             ? 'Production data is not loaded. Reload before restoring a backup.'
-            : 'Demo local data is read-only.',
+            : activeDataMode === 'demo-local'
+              ? 'Demo local data is read-only.'
+              : 'Only the owner can restore a backup for the active dataset.',
         error: true,
       })
       return
@@ -108,13 +110,13 @@ export default function Settings() {
         <Typography variant="h5">{activeLabel} data</Typography>
         <Typography>
           Export, restore, and clear apply only to the active dataset. Demo local and fallback data are read-only; Demo
-          Cosmos changes are temporary and reset on redeploy.
+          Cosmos changes are temporary and reset on redeploy. Restore and clear are limited to the owner role.
         </Typography>
         <Stack direction="row" spacing={2}>
           <Button variant="contained" onClick={exportData}>
             Export JSON
           </Button>
-          <Button component="label" variant="outlined" disabled={readOnly}>
+          <Button component="label" variant="outlined" disabled={!canBulkMutate}>
             Restore JSON
             <input
               ref={input}
@@ -128,7 +130,7 @@ export default function Settings() {
               }}
             />
           </Button>
-          <Button color="error" variant="outlined" disabled={readOnly} onClick={() => setConfirmingClear(true)}>
+          <Button color="error" variant="outlined" disabled={!canBulkMutate} onClick={() => setConfirmingClear(true)}>
             Clear data
           </Button>
         </Stack>

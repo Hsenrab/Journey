@@ -20,7 +20,7 @@
       },
       "referenceIds": ["reference-demo-foxglove-manor", "reference-demo-heritage-guide"],
       "photoReferenceIds": ["photo-demo-foxglove-orangery"],
-      "ownerId": "demo-owner"
+      "ownerId": "shared"
     },
     {
       "waypointId": "demo-bramblewick-gardens",
@@ -42,7 +42,7 @@
       },
       "referenceIds": ["reference-demo-bramblewick-gardens"],
       "photoReferenceIds": ["photo-demo-bramblewick-topiary", "photo-demo-bramblewick-borders"],
-      "ownerId": "demo-owner"
+      "ownerId": "shared"
     },
     {
       "waypointId": "demo-cindercombe-mill",
@@ -64,7 +64,7 @@
       },
       "referenceIds": ["reference-demo-cindercombe-mill"],
       "photoReferenceIds": ["photo-demo-cindercombe-gears"],
-      "ownerId": "demo-owner"
+      "ownerId": "shared"
     },
     {
       "waypointId": "demo-lantern-hill-fort",
@@ -86,7 +86,7 @@
       },
       "referenceIds": [],
       "photoReferenceIds": [],
-      "ownerId": "demo-owner"
+      "ownerId": "shared"
     },
     {
       "waypointId": "demo-thistledown-priory",
@@ -108,7 +108,7 @@
       },
       "referenceIds": ["reference-demo-thistledown-priory", "reference-demo-heritage-guide"],
       "photoReferenceIds": ["photo-demo-thistledown-cloister"],
-      "ownerId": "demo-owner"
+      "ownerId": "shared"
     },
     {
       "waypointId": "demo-marlpit-water-garden",
@@ -130,7 +130,7 @@
       },
       "referenceIds": [],
       "photoReferenceIds": [],
-      "ownerId": "demo-owner"
+      "ownerId": "shared"
     },
     {
       "waypointId": "demo-wychwood-night-walk",
@@ -152,7 +152,7 @@
       },
       "referenceIds": ["reference-demo-wychwood-night-walk"],
       "photoReferenceIds": [],
-      "ownerId": "demo-owner"
+      "ownerId": "shared"
     },
     {
       "waypointId": "demo-puddlebrook-paddle",
@@ -175,7 +175,7 @@
       },
       "referenceIds": ["reference-demo-puddlebrook-paddle"],
       "photoReferenceIds": ["photo-demo-puddlebrook-lake"],
-      "ownerId": "demo-owner"
+      "ownerId": "shared"
     },
     {
       "waypointId": "demo-copper-kettle-trail",
@@ -197,7 +197,7 @@
       },
       "referenceIds": ["reference-demo-copper-kettle-trail"],
       "photoReferenceIds": [],
-      "ownerId": "demo-owner"
+      "ownerId": "shared"
     },
     {
       "waypointId": "demo-glasshouse-workshop",
@@ -219,7 +219,7 @@
       },
       "referenceIds": ["reference-demo-glasshouse-workshop"],
       "photoReferenceIds": ["photo-demo-glasshouse-panel"],
-      "ownerId": "demo-owner"
+      "ownerId": "shared"
     },
     {
       "waypointId": "demo-tannery-lane-pottery",
@@ -241,7 +241,7 @@
       },
       "referenceIds": ["reference-demo-tannery-lane-pottery"],
       "photoReferenceIds": [],
-      "ownerId": "demo-owner"
+      "ownerId": "shared"
     }
   ],
   "challenges": [
@@ -258,7 +258,7 @@
         "demo-marlpit-water-garden"
       ],
       "supportsActivityCategories": true,
-      "ownerId": "demo-owner"
+      "ownerId": "shared"
     },
     {
       "challengeId": "heritage-weekend",
@@ -272,7 +272,7 @@
         "demo-thistledown-priory"
       ],
       "supportsActivityCategories": false,
-      "ownerId": "demo-owner"
+      "ownerId": "shared"
     },
     {
       "challengeId": "local-adventures",
@@ -280,7 +280,7 @@
       "description": "A fictional mix of walking, paddling and food stops around Gloucestershire.",
       "waypointIds": ["demo-wychwood-night-walk", "demo-puddlebrook-paddle", "demo-copper-kettle-trail"],
       "supportsActivityCategories": false,
-      "ownerId": "demo-owner"
+      "ownerId": "shared"
     },
     {
       "challengeId": "family-days",
@@ -288,7 +288,7 @@
       "description": "A small fictional family activity collection.",
       "waypointIds": ["demo-wychwood-night-walk", "demo-puddlebrook-paddle", "demo-copper-kettle-trail"],
       "supportsActivityCategories": false,
-      "ownerId": "demo-owner"
+      "ownerId": "shared"
     },
     {
       "challengeId": "food-and-craft",
@@ -296,7 +296,7 @@
       "description": "Three fictional creative day trips with no medal categories.",
       "waypointIds": ["demo-copper-kettle-trail", "demo-glasshouse-workshop", "demo-tannery-lane-pottery"],
       "supportsActivityCategories": false,
-      "ownerId": "demo-owner"
+      "ownerId": "shared"
     },
     {
       "challengeId": "future-shortlist",
@@ -304,7 +304,7 @@
       "description": "An empty challenge for previewing the no-waypoints state.",
       "waypointIds": [],
       "supportsActivityCategories": false,
-      "ownerId": "demo-owner"
+      "ownerId": "shared"
     }
   ],
   "ideas": [
@@ -323,7 +323,7 @@
       "referenceIds": ["reference-demo-railway-picnic"],
       "createdAt": "2026-06-01T09:00:00.000Z",
       "updatedAt": "2026-06-01T09:00:00.000Z",
-      "ownerId": "demo-owner"
+      "ownerId": "shared"
     },
     {
       "ideaId": "demo-idea-orangery-tour",
@@ -336,7 +336,7 @@
       "referenceIds": [],
       "createdAt": "2026-06-02T09:00:00.000Z",
       "updatedAt": "2026-06-02T09:00:00.000Z",
-      "ownerId": "demo-owner"
+      "ownerId": "shared"
     },
     {
       "ideaId": "demo-idea-midnight-swim",
@@ -350,7 +350,7 @@
       "referenceIds": [],
       "createdAt": "2026-06-03T09:00:00.000Z",
       "updatedAt": "2026-06-03T09:00:00.000Z",
-      "ownerId": "demo-owner"
+      "ownerId": "shared"
     },
     {
       "ideaId": "demo-idea-heritage-open-day",
@@ -363,7 +363,7 @@
       "referenceIds": ["reference-demo-heritage-guide"],
       "createdAt": "2026-01-12T09:00:00.000Z",
       "updatedAt": "2026-03-22T09:00:00.000Z",
-      "ownerId": "demo-owner"
+      "ownerId": "shared"
     },
     {
       "ideaId": "demo-idea-winter-lantern-trail",
@@ -376,7 +376,7 @@
       "referenceIds": [],
       "createdAt": "2026-02-02T09:00:00.000Z",
       "updatedAt": "2026-02-02T09:00:00.000Z",
-      "ownerId": "demo-owner"
+      "ownerId": "shared"
     },
     {
       "ideaId": "demo-idea-canal-cycle-loop",
@@ -390,7 +390,7 @@
       "referenceIds": [],
       "createdAt": "2026-04-04T09:00:00.000Z",
       "updatedAt": "2026-04-04T09:00:00.000Z",
-      "ownerId": "demo-owner"
+      "ownerId": "shared"
     },
     {
       "ideaId": "demo-idea-craft-taster",
@@ -403,7 +403,7 @@
       "referenceIds": [],
       "createdAt": "2026-05-05T09:00:00.000Z",
       "updatedAt": "2026-07-16T09:00:00.000Z",
-      "ownerId": "demo-owner"
+      "ownerId": "shared"
     }
   ],
   "activities": [
@@ -425,7 +425,7 @@
       "photoReferenceIds": ["photo-demo-thistledown-cloister"],
       "createdAt": "2024-10-12T15:30:00.000Z",
       "updatedAt": "2024-10-12T15:30:00.000Z",
-      "ownerId": "demo-owner"
+      "ownerId": "shared"
     },
     {
       "activityId": "activity-demo-foxglove-spring",
@@ -445,7 +445,7 @@
       "photoReferenceIds": ["photo-demo-foxglove-orangery"],
       "createdAt": "2025-04-18T10:00:00.000Z",
       "updatedAt": "2025-04-18T10:00:00.000Z",
-      "ownerId": "demo-owner"
+      "ownerId": "shared"
     },
     {
       "activityId": "activity-demo-puddlebrook-summer",
@@ -464,7 +464,7 @@
       "photoReferenceIds": ["photo-demo-puddlebrook-lake"],
       "createdAt": "2025-08-23T11:45:00.000Z",
       "updatedAt": "2025-08-23T11:45:00.000Z",
-      "ownerId": "demo-owner"
+      "ownerId": "shared"
     },
     {
       "activityId": "activity-demo-bramblewick-autumn",
@@ -484,7 +484,7 @@
       "photoReferenceIds": ["photo-demo-bramblewick-topiary", "photo-demo-bramblewick-borders"],
       "createdAt": "2025-09-27T14:20:00.000Z",
       "updatedAt": "2025-09-27T14:20:00.000Z",
-      "ownerId": "demo-owner"
+      "ownerId": "shared"
     },
     {
       "activityId": "activity-demo-cindercombe-spring",
@@ -504,7 +504,7 @@
       "photoReferenceIds": ["photo-demo-cindercombe-gears"],
       "createdAt": "2026-03-21T09:40:00.000Z",
       "updatedAt": "2026-03-21T09:40:00.000Z",
-      "ownerId": "demo-owner"
+      "ownerId": "shared"
     },
     {
       "activityId": "activity-demo-foxglove-return",
@@ -524,7 +524,7 @@
       "photoReferenceIds": [],
       "createdAt": "2026-05-30T16:05:00.000Z",
       "updatedAt": "2026-05-30T16:05:00.000Z",
-      "ownerId": "demo-owner"
+      "ownerId": "shared"
     },
     {
       "activityId": "activity-demo-marlpit-june",
@@ -544,7 +544,7 @@
       "photoReferenceIds": [],
       "createdAt": "2026-06-06T12:10:00.000Z",
       "updatedAt": "2026-06-06T12:10:00.000Z",
-      "ownerId": "demo-owner"
+      "ownerId": "shared"
     },
     {
       "activityId": "activity-demo-wychwood",
@@ -563,7 +563,7 @@
       "photoReferenceIds": [],
       "createdAt": "2026-07-08T18:15:00.000Z",
       "updatedAt": "2026-07-08T18:15:00.000Z",
-      "ownerId": "demo-owner"
+      "ownerId": "shared"
     },
     {
       "activityId": "activity-demo-puddlebrook-return",
@@ -582,7 +582,7 @@
       "photoReferenceIds": ["photo-demo-puddlebrook-lake"],
       "createdAt": "2026-07-11T10:30:00.000Z",
       "updatedAt": "2026-07-11T10:30:00.000Z",
-      "ownerId": "demo-owner"
+      "ownerId": "shared"
     },
     {
       "activityId": "activity-demo-glasshouse",
@@ -601,7 +601,7 @@
       "photoReferenceIds": ["photo-demo-glasshouse-panel"],
       "createdAt": "2026-07-16T13:00:00.000Z",
       "updatedAt": "2026-07-16T13:00:00.000Z",
-      "ownerId": "demo-owner"
+      "ownerId": "shared"
     }
   ],
   "references": [
@@ -610,77 +610,77 @@
       "title": "Foxglove Manor demo listing",
       "description": "Fabricated reference for demonstration only.",
       "url": "https://example.com/demo/foxglove-manor",
-      "ownerId": "demo-owner"
+      "ownerId": "shared"
     },
     {
       "referenceId": "reference-demo-bramblewick-gardens",
       "title": "Bramblewick Gardens demo listing",
       "description": "Fabricated reference for demonstration only.",
       "url": "https://example.com/demo/bramblewick-gardens",
-      "ownerId": "demo-owner"
+      "ownerId": "shared"
     },
     {
       "referenceId": "reference-demo-cindercombe-mill",
       "title": "Cindercombe Mill demo listing",
       "description": "Fabricated reference for demonstration only.",
       "url": "https://example.com/demo/cindercombe-mill",
-      "ownerId": "demo-owner"
+      "ownerId": "shared"
     },
     {
       "referenceId": "reference-demo-thistledown-priory",
       "title": "Thistledown Priory demo listing",
       "description": "Fabricated reference for demonstration only.",
       "url": "https://example.com/demo/thistledown-priory",
-      "ownerId": "demo-owner"
+      "ownerId": "shared"
     },
     {
       "referenceId": "reference-demo-heritage-guide",
       "title": "Fictional heritage guide shared by several demo places",
       "description": "Fabricated reference for demonstration only.",
       "url": "https://example.com/demo/heritage-guide",
-      "ownerId": "demo-owner"
+      "ownerId": "shared"
     },
     {
       "referenceId": "reference-demo-wychwood-night-walk",
       "title": "Wychwood Night Walk demo listing",
       "description": "Fabricated reference for demonstration only.",
       "url": "https://example.com/demo/wychwood-night-walk",
-      "ownerId": "demo-owner"
+      "ownerId": "shared"
     },
     {
       "referenceId": "reference-demo-puddlebrook-paddle",
       "title": "Puddlebrook Paddle Club demo listing",
       "description": "Fabricated reference for demonstration only.",
       "url": "https://example.com/demo/puddlebrook-paddle",
-      "ownerId": "demo-owner"
+      "ownerId": "shared"
     },
     {
       "referenceId": "reference-demo-copper-kettle-trail",
       "title": "Copper Kettle Trail demo listing",
       "description": "Fabricated reference for demonstration only.",
       "url": "https://example.com/demo/copper-kettle-trail",
-      "ownerId": "demo-owner"
+      "ownerId": "shared"
     },
     {
       "referenceId": "reference-demo-glasshouse-workshop",
       "title": "Old Glasshouse Workshop demo listing",
       "description": "Fabricated reference for demonstration only.",
       "url": "https://example.com/demo/glasshouse-workshop",
-      "ownerId": "demo-owner"
+      "ownerId": "shared"
     },
     {
       "referenceId": "reference-demo-tannery-lane-pottery",
       "title": "Tannery Lane Pottery demo listing",
       "description": "Fabricated reference for demonstration only.",
       "url": "https://example.com/demo/tannery-lane-pottery",
-      "ownerId": "demo-owner"
+      "ownerId": "shared"
     },
     {
       "referenceId": "reference-demo-railway-picnic",
       "title": "Steam railway demo listing",
       "description": "Fabricated reference for demonstration only.",
       "url": "https://example.com/demo/steam-railway",
-      "ownerId": "demo-owner"
+      "ownerId": "shared"
     }
   ],
   "photoReferences": [
@@ -689,49 +689,49 @@
       "title": "Foxglove Manor orangery (Demo photo)",
       "altText": "Fabricated illustration of a fictional clockwork orangery.",
       "url": "https://example.com/demo/photos/foxglove-orangery.jpg",
-      "ownerId": "demo-owner"
+      "ownerId": "shared"
     },
     {
       "photoReferenceId": "photo-demo-bramblewick-topiary",
       "title": "Bramblewick topiary teapots (Demo photo)",
       "altText": "Fabricated illustration of fictional teapot-shaped topiary.",
       "url": "https://example.com/demo/photos/bramblewick-topiary.jpg",
-      "ownerId": "demo-owner"
+      "ownerId": "shared"
     },
     {
       "photoReferenceId": "photo-demo-bramblewick-borders",
       "title": "Bramblewick late borders (Demo photo)",
       "altText": "Fabricated illustration of fictional autumn flower borders.",
       "url": "https://example.com/demo/photos/bramblewick-borders.jpg",
-      "ownerId": "demo-owner"
+      "ownerId": "shared"
     },
     {
       "photoReferenceId": "photo-demo-cindercombe-gears",
       "title": "Cindercombe Mill gears (Demo photo)",
       "altText": "Fabricated illustration of fictional wooden mill gears.",
       "url": "https://example.com/demo/photos/cindercombe-gears.jpg",
-      "ownerId": "demo-owner"
+      "ownerId": "shared"
     },
     {
       "photoReferenceId": "photo-demo-thistledown-cloister",
       "title": "Thistledown Priory cloister (Demo photo)",
       "altText": "Fabricated illustration of a fictional cloister garden.",
       "url": "https://example.com/demo/photos/thistledown-cloister.jpg",
-      "ownerId": "demo-owner"
+      "ownerId": "shared"
     },
     {
       "photoReferenceId": "photo-demo-puddlebrook-lake",
       "title": "Puddlebrook quarry lake (Demo photo)",
       "altText": "Fabricated illustration of a fictional paddleboarding lake.",
       "url": "https://example.com/demo/photos/puddlebrook-lake.jpg",
-      "ownerId": "demo-owner"
+      "ownerId": "shared"
     },
     {
       "photoReferenceId": "photo-demo-glasshouse-panel",
       "title": "Old Glasshouse stained-glass panel (Demo photo)",
       "altText": "Fabricated illustration of a fictional stained-glass panel.",
       "url": "https://example.com/demo/photos/glasshouse-panel.jpg",
-      "ownerId": "demo-owner"
+      "ownerId": "shared"
     }
   ]
 }

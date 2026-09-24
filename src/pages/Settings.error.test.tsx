@@ -15,6 +15,7 @@ vi.mock('../features/journey/JourneyContext', () => ({
     dataMode: 'production',
     activeDataMode: 'production',
     readOnly: false,
+    canBulkMutate: true,
     restore,
   }),
 }))

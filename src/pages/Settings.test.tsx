@@ -201,6 +201,37 @@ describe('Settings', () => {
     expect(screen.getByRole('button', { name: 'Clear data' })).not.toBeDisabled()
   })
 
+  it('disables Restore JSON and Clear data for an editor, even though they may mutate entities', async () => {
+    vi.stubEnv('MODE', 'production')
+    setDataMode('demo-cosmos')
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(
+        async (input: RequestInfo | URL) =>
+          new Response(
+            JSON.stringify(
+              String(input) === '/.auth/me'
+                ? {
+                    clientPrincipal: {
+                      identityProvider: 'aad',
+                      userId: 'editor-1',
+                      userDetails: 'editor-1',
+                      userRoles: ['editor'],
+                    },
+                  }
+                : { data: createDemoModeData(), etags: {} },
+            ),
+            { status: 200 },
+          ),
+      ),
+    )
+    renderSettings()
+
+    expect(await screen.findByText('Demo Cosmos loaded')).toBeInTheDocument()
+    expect(screen.getByText('Restore JSON').closest('label')).toHaveClass('Mui-disabled')
+    expect(screen.getByRole('button', { name: 'Clear data' })).toBeDisabled()
+  })
+
   it('closes the clear data confirmation dialog when dismissed with escape', async () => {
     const user = userEvent.setup()
     save({ ...createDefaultData(), activities: [activity()] })

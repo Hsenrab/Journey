@@ -15,6 +15,9 @@ export interface ClientPrincipal {
 
 export type JourneyRole = 'viewer' | 'editor' | 'owner'
 
+/** Sentinel `ownerId` marking an entity as commonly owned, so every editor may mutate it. */
+export const SHARED_OWNER_ID = 'shared'
+
 export class PrincipalValidationError extends Error {
   constructor(message: string) {
     super(message)

@@ -49,8 +49,12 @@ fallbacks, and document the challenge rules and status definitions.
 
 - Viewers can view and link to every entity but cannot edit or delete anything.
 - Editors can create entities and links everywhere, but can edit or delete only the
-  entities they created.
+  entities they created, plus any entity marked with the shared `ownerId` (used by the
+  seeded Demo Cosmos dataset so every editor can edit it).
 - The owner can edit or delete any entity.
+- Restore JSON and Clear data are limited to the owner role; editors and viewers see
+  these controls disabled instead of a guaranteed failure after submission. Export
+  remains available to everyone.
 - Each entity displays its owner's immutable identity identifier (`ownerId`), not a
   display name — Journey has no user directory to resolve identifiers to names.
 

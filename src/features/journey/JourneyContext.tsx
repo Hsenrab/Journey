@@ -42,7 +42,7 @@ import {
   type Status,
   type WaypointsData,
 } from '../../domain/visit'
-import { getClientPrincipal, type JourneyPrincipal } from '../../services/principal'
+import { getClientPrincipal, SHARED_OWNER_ID, type JourneyPrincipal } from '../../services/principal'
 
 type DraftReference = Pick<Reference, 'title' | 'url' | 'description' | 'previewImageUrl'> & { referenceId?: string }
 type DraftPhotoReference = Pick<ExternalPhotoReference, 'title' | 'url' | 'altText'> & { photoReferenceId?: string }
@@ -100,6 +100,7 @@ type WaypointsValue = {
   dataMode: JourneyDataMode
   activeDataMode: JourneyDataMode
   readOnly: boolean
+  canBulkMutate: boolean
   loadError?: string
   principal: PrincipalState
   setDataMode: (mode: JourneyDataMode) => Promise<void>
@@ -502,8 +503,9 @@ export function WaypointsProvider({ children }: { children: ReactNode }) {
     const canMutate = (ownerId?: string) => {
       if (!principal || principal.role === 'viewer') return false
       if (principal.role === 'owner') return true
-      return ownerId === principal.userId
+      return ownerId === principal.userId || ownerId === SHARED_OWNER_ID
     }
+    const canBulkMutate = !readOnly && principal?.role === 'owner'
     const writableContainer = (): JourneyContainer => {
       if (loading)
         throw new Error('Journey data is still loading. Wait for the selected data mode before making changes.')
@@ -526,6 +528,7 @@ export function WaypointsProvider({ children }: { children: ReactNode }) {
       dataMode,
       activeDataMode,
       readOnly,
+      canBulkMutate,
       loadError,
       principal,
       setDataMode: changeDataMode,

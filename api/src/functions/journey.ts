@@ -3,6 +3,7 @@ import {
   assertJourneyPrincipal,
   parseClientPrincipalHeader,
   PrincipalValidationError,
+  SHARED_OWNER_ID,
   type JourneyRole,
 } from '../lib/principal.js'
 import {
@@ -21,7 +22,7 @@ import {
 import { JourneyMutationSchema, type EntityType, type JourneyData } from '../lib/journeySchema.js'
 import { GeocodeError, resolveEntityCoordinates } from '../lib/geocode.js'
 import { DefaultAzureCredential } from '@azure/identity'
-import { entityId, entityKey, referenceIntegrityError, upsertEntity } from '../lib/journeyGraph.js'
+import { entityId, entityKey, ownerIdOf, referenceIntegrityError, upsertEntity } from '../lib/journeyGraph.js'
 import { ZodError } from 'zod'
 
 type ContainerName = 'production' | 'demo'
@@ -71,10 +72,10 @@ async function geocodedEntity(type: EntityType, entity: Record<string, unknown>)
   }
 }
 
-function withStoredOwnerIds(data: JourneyData, stored: JourneyData): JourneyData {
+function withStoredOwnerIds(data: JourneyData, stored: JourneyData, ownerId: string): JourneyData {
   const preserveOwners = <T extends { ownerId: string }>(incoming: T[], existing: T[], id: (entity: T) => string) => {
     const ownerIds = new Map(existing.map((entity) => [id(entity), entity.ownerId]))
-    return incoming.map((entity) => ({ ...entity, ownerId: ownerIds.get(id(entity)) ?? entity.ownerId }))
+    return incoming.map((entity) => ({ ...entity, ownerId: ownerIds.get(id(entity)) ?? ownerId }))
   }
 
   return {
@@ -110,11 +111,12 @@ function canReplaceOwned<T extends { ownerId: string }>(
 ) {
   const incomingById = new Map(incoming.map((entity) => [id(entity), entity]))
   const storedIds = new Set(stored.map(id))
+  const isOwnedByRequester = (entity: T) => entity.ownerId === ownerId || entity.ownerId === SHARED_OWNER_ID
   return (
     stored.every((entity) => {
       const replacement = incomingById.get(id(entity))
-      return entity.ownerId === ownerId || (replacement !== undefined && deepEqual(entity, replacement))
-    }) && incoming.every((entity) => storedIds.has(id(entity)) || entity.ownerId === ownerId)
+      return isOwnedByRequester(entity) || (replacement !== undefined && deepEqual(entity, replacement))
+    }) && incoming.every((entity) => storedIds.has(id(entity)) || isOwnedByRequester(entity))
   )
 }
 
@@ -164,7 +166,7 @@ export async function journey(request: HttpRequest, context: InvocationContext):
       if (parsed.data.operation === 'replaceOwned' && role !== 'editor' && role !== 'owner')
         throw new ResponseError(403, 'forbidden')
       const loaded = await loadDataset(cosmos, datasetId)
-      const data = withStoredOwnerIds(parsed.data.data, loaded.data)
+      const data = withStoredOwnerIds(parsed.data.data, loaded.data, ownerId)
       if (
         parsed.data.operation === 'replaceOwned' &&
         role === 'editor' &&
@@ -190,7 +192,8 @@ export async function journey(request: HttpRequest, context: InvocationContext):
         existing = entities.find((item) => entityId(type, item) === id)
         if (!existing) throw new ResponseError(404, 'not_found')
       }
-      if (existing && role !== 'owner' && existing.ownerId !== ownerId) throw new ResponseError(403, 'forbidden')
+      if (existing && role !== 'owner' && existing.ownerId !== ownerId && existing.ownerId !== SHARED_OWNER_ID)
+        throw new ResponseError(403, 'forbidden')
       const sourceEntity =
         parsed.data.operation === 'create'
           ? { ...parsed.data.entity, ownerId }
@@ -211,8 +214,14 @@ export async function journey(request: HttpRequest, context: InvocationContext):
     const deleteId = parsed.data.id
     const existing = loaded.data[entityKey(deleteType)].find((item) => entityId(deleteType, item) === deleteId)
     if (!existing) throw new ResponseError(404, 'not_found')
-    if (role !== 'owner' && existing.ownerId !== ownerId) throw new ResponseError(403, 'forbidden')
-    await deleteEntity(cosmos, datasetId, parsed.data.type, parsed.data.id, parsed.data.ifMatch, loaded)
+    if (role !== 'owner' && existing.ownerId !== ownerId && existing.ownerId !== SHARED_OWNER_ID)
+      throw new ResponseError(403, 'forbidden')
+    const isDeletable = (candidateId: string) => {
+      if (role === 'owner') return true
+      const candidateOwnerId = ownerIdOf(loaded.data, candidateId)
+      return candidateOwnerId === ownerId || candidateOwnerId === SHARED_OWNER_ID
+    }
+    await deleteEntity(cosmos, datasetId, parsed.data.type, parsed.data.id, parsed.data.ifMatch, loaded, isDeletable)
     return { status: 204 }
   } catch (error) {
     if (error instanceof ResponseError) return { status: error.status, jsonBody: { error: error.code } }

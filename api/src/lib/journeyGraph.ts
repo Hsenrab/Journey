@@ -35,6 +35,19 @@ export function upsertEntity(data: JourneyData, type: EntityType, entity: Entity
   return { ...data, [key]: [...entities, entity] }
 }
 
+const idKeysByType = (Object.keys(entityKeys) as EntityType[]).map(
+  (type) => [type, type === 'photoReference' ? 'photoReferenceId' : `${type}Id`] as const,
+)
+
+/** Finds the owning entity's `ownerId` for a document id, searching across every entity type. */
+export function ownerIdOf(data: JourneyData, id: string): string | undefined {
+  for (const [type, idKey] of idKeysByType) {
+    const entity = (data[entityKey(type)] as Entity[]).find((item) => item[idKey] === id)
+    if (entity) return entity.ownerId as string | undefined
+  }
+  return undefined
+}
+
 function linkError(owner: string, ownerId: string, label: string, ids: readonly string[], known: Set<string>) {
   if (new Set(ids).size !== ids.length) return `${owner} "${ownerId}" repeats a ${label} link.`
   const missing = ids.find((id) => !known.has(id))

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { deletionPlan, referenceIntegrityError, upsertEntity } from './journeyGraph.js'
+import { deletionPlan, ownerIdOf, referenceIntegrityError, upsertEntity } from './journeyGraph.js'
 import type { JourneyData } from './journeySchema.js'
 
 function data(): JourneyData {
@@ -155,5 +155,18 @@ describe('deletionPlan', () => {
         { type: 'activity', entity: expect.objectContaining({ activityId: 'activity-1', photoReferenceIds: [] }) },
       ],
     })
+  })
+})
+
+describe('ownerIdOf', () => {
+  it('finds the owning entity across every entity type', () => {
+    const withOwners: JourneyData = {
+      ...data(),
+      waypoints: data().waypoints.map((waypoint) => ({ ...waypoint, ownerId: 'owner-a' })),
+      references: data().references.map((reference) => ({ ...reference, ownerId: 'owner-b' })),
+    }
+    expect(ownerIdOf(withOwners, 'waypoint-1')).toBe('owner-a')
+    expect(ownerIdOf(withOwners, 'reference-1')).toBe('owner-b')
+    expect(ownerIdOf(withOwners, 'unknown-id')).toBeUndefined()
   })
 })
