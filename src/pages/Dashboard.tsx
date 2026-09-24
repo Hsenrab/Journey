@@ -5,6 +5,7 @@ import { EmptyState } from '../components/EmptyState'
 import { PageHeader } from '../components/PageHeader'
 import {
   awardableStatuses,
+  challengeWaypoints,
   completedWaypointCount,
   lastActivityDate,
   recentlyVisited,
@@ -27,7 +28,7 @@ export default function Dashboard() {
     )
   }
 
-  const waypoints = data.waypoints.filter((waypoint) => waypoint.challengeIds.includes(challenge.challengeId))
+  const waypoints = challengeWaypoints(challenge, data.waypoints)
   const activities = data.activities
   const counts = statusCounts(waypoints, activities)
   const recent = recentlyVisited(waypoints, activities)

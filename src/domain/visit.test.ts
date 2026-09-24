@@ -5,6 +5,7 @@ import {
   activitiesForWaypoint,
   activitiesUsingIdea,
   awardableStatuses,
+  challengeWaypoints,
   completedWaypointCount,
   createActivity,
   createDemoData,
@@ -16,6 +17,7 @@ import {
   statusForWaypoint,
   validateActivityCategory,
   waypointSupportsActivityCategory,
+  type Challenge,
   type Idea,
   type Waypoint,
   type WaypointsData,
@@ -188,6 +190,24 @@ describe('demo data', () => {
     expect(data.challenges.filter((challenge) => challenge.waypointIds.length === 0)).toEqual([
       expect.objectContaining({ challengeId: 'future-shortlist' }),
     ])
+  })
+
+  it('collects challenge waypoints from either link direction', () => {
+    const challenge: Challenge = {
+      challengeId: 'national-trust',
+      ownerId: 'owner-1',
+      title: 'National Trust',
+      description: 'Challenge',
+      waypointIds: ['forward-only'],
+      supportsActivityCategories: true,
+    }
+    const forwardOnly = { ...waypoint('forward-only'), challengeIds: ['other-challenge'] }
+    const reverseOnly = waypoint('reverse-only')
+    const unrelated = { ...waypoint('unrelated'), challengeIds: ['other-challenge'] }
+
+    expect(challengeWaypoints(challenge, [forwardOnly, reverseOnly, unrelated]).map((item) => item.waypointId)).toEqual(
+      ['forward-only', 'reverse-only'],
+    )
   })
 
   it('links photo references to some waypoints and activities but not all', () => {

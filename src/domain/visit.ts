@@ -269,6 +269,13 @@ export function waypointSupportsActivityCategory(data: WaypointsData, waypointId
   )
 }
 
+export function challengeWaypoints(challenge: Challenge, waypoints: readonly Waypoint[]): Waypoint[] {
+  return waypoints.filter(
+    (waypoint) =>
+      challenge.waypointIds.includes(waypoint.waypointId) || waypoint.challengeIds.includes(challenge.challengeId),
+  )
+}
+
 export function validateActivityCategory(data: WaypointsData, activity: Activity) {
   if (activity.category && !waypointSupportsActivityCategory(data, activity.waypointId)) {
     throw new Error('Selected waypoint does not support Bronze, Silver or Gold categories.')
