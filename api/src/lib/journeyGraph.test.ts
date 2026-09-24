@@ -15,6 +15,7 @@ function data(): JourneyData {
         completion: { mode: 'once' },
         referenceIds: [],
         photoReferenceIds: [],
+        ownerId: 'owner-a',
       },
     ],
     challenges: [
@@ -24,6 +25,7 @@ function data(): JourneyData {
         description: 'Heritage weekend',
         waypointIds: ['waypoint-1'],
         supportsActivityCategories: false,
+        ownerId: 'owner-a',
       },
     ],
     ideas: [
@@ -38,6 +40,7 @@ function data(): JourneyData {
         referenceIds: ['reference-1'],
         createdAt: '2026-08-01T00:00:00.000Z',
         updatedAt: '2026-08-01T00:00:00.000Z',
+        ownerId: 'owner-a',
       },
     ],
     activities: [
@@ -52,13 +55,16 @@ function data(): JourneyData {
         photoReferenceIds: ['photo-1'],
         createdAt: '2026-08-02T00:00:00.000Z',
         updatedAt: '2026-08-02T00:00:00.000Z',
+        ownerId: 'owner-a',
       },
     ],
     references: [
-      { referenceId: 'reference-1', title: 'Idea link', url: 'https://example.com/idea' },
-      { referenceId: 'reference-2', title: 'Activity link', url: 'https://example.com/activity' },
+      { referenceId: 'reference-1', title: 'Idea link', url: 'https://example.com/idea', ownerId: 'owner-a' },
+      { referenceId: 'reference-2', title: 'Activity link', url: 'https://example.com/activity', ownerId: 'owner-a' },
     ],
-    photoReferences: [{ photoReferenceId: 'photo-1', title: 'Photo', url: 'https://example.com/photo.jpg' }],
+    photoReferences: [
+      { photoReferenceId: 'photo-1', title: 'Photo', url: 'https://example.com/photo.jpg', ownerId: 'owner-a' },
+    ],
   }
 }
 
@@ -114,7 +120,12 @@ describe('deletionPlan', () => {
 
   it('preserves ideas and prunes only newly orphaned documents when an activity is deleted', () => {
     const withOrphan = data()
-    withOrphan.references.push({ referenceId: 'reference-3', title: 'Orphan', url: 'https://example.com/orphan' })
+    withOrphan.references.push({
+      referenceId: 'reference-3',
+      title: 'Orphan',
+      url: 'https://example.com/orphan',
+      ownerId: 'owner-a',
+    })
 
     const plan = deletionPlan(withOrphan, 'activity', 'activity-1')
 
