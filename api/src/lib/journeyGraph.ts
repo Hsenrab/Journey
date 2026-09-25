@@ -1,6 +1,7 @@
 import type { EntityType, JourneyData } from './journeySchema.js'
 
 type Entity = Record<string, unknown>
+type OwnedEntity = Entity & { ownerId: string }
 
 const entityKeys = {
   waypoint: 'waypoints',
@@ -116,7 +117,7 @@ function newlyUnreferencedTargets(before: JourneyData, after: JourneyData): Dele
 }
 
 export type DeletionTarget = { type: EntityType; id: string }
-export type DeletionPlan = { deletes: DeletionTarget[]; updates: { type: EntityType; entity: Entity }[] }
+export type DeletionPlan = { deletes: DeletionTarget[]; updates: { type: EntityType; entity: OwnedEntity }[] }
 
 export function deletionPlan(data: JourneyData, type: EntityType, id: string): DeletionPlan {
   if (type === 'waypoint') {

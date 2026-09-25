@@ -244,13 +244,19 @@ export async function journey(request: HttpRequest, context: InvocationContext):
     if (!existing) throw new ResponseError(404, 'not_found')
     if (!canMutateOwner(container, role, ownerId, existing.ownerId)) throw new ResponseError(403, 'forbidden')
     const plan = deletionPlan(loaded.data, deleteType, deleteId)
+    const entityTypes: EntityType[] = ['waypoint', 'challenge', 'idea', 'activity', 'reference', 'photoReference']
+    const ownerIdsByEntity = new Map(
+      entityTypes.flatMap((type) =>
+        loaded.data[entityKey(type)].map((entity) => [`${type}:${entityId(type, entity)}`, entity.ownerId] as const),
+      ),
+    )
     const cleanupMutatesOtherOwner =
       role !== 'owner' &&
       (plan.deletes.some((target) => {
-        const entity = loaded.data[entityKey(target.type)].find((item) => entityId(target.type, item) === target.id)
-        return !entity || !canMutateOwner(container, role, ownerId, entity.ownerId)
+        const targetOwnerId = ownerIdsByEntity.get(`${target.type}:${target.id}`)
+        return !targetOwnerId || !canMutateOwner(container, role, ownerId, targetOwnerId)
       }) ||
-        plan.updates.some((update) => !canMutateOwner(container, role, ownerId, update.entity.ownerId as string)))
+        plan.updates.some((update) => !canMutateOwner(container, role, ownerId, update.entity.ownerId)))
     if (cleanupMutatesOtherOwner) throw new ResponseError(403, 'forbidden')
     await deleteEntity(cosmos, datasetId, parsed.data.type, parsed.data.id, parsed.data.ifMatch, loaded)
     return { status: 204 }
