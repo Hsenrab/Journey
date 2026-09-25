@@ -87,15 +87,12 @@ export default function Activities() {
         ) : (
           activities.map((activity) => {
             const waypoint = activity.waypointId ? waypointById.get(activity.waypointId) : undefined
+            const title = activityTitle(activity)
             const subtitle = [activitySubtitle(activity), waypoint?.title].filter(Boolean).join(' · ')
             return (
-              <ClickableCard
-                key={activity.activityId}
-                title={activityTitle(activity)}
-                to={`/activities/${activity.activityId}`}
-              >
+              <ClickableCard key={activity.activityId} title={title} to={`/activities/${activity.activityId}`}>
                 <Stack spacing={1}>
-                  <Typography variant="h6">{activityTitle(activity)}</Typography>
+                  <Typography variant="h6">{title}</Typography>
                   {subtitle && <Typography color="text.secondary">{subtitle}</Typography>}
                   <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: 'wrap' }}>
                     {activity.category && <Chip label={statusLabels[activity.category]} />}
