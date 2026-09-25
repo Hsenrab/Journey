@@ -9,6 +9,11 @@ import {
   DialogContent,
   DialogContentText,
   DialogTitle,
+  FormControl,
+  InputLabel,
+  MenuItem,
+  Select,
+  type SelectChangeEvent,
   Stack,
   Typography,
 } from '@mui/material'
@@ -23,13 +28,21 @@ const dataModeLabels: Record<JourneyDataMode, string> = {
   production: 'Production',
 }
 
+const dataModeOptions: Record<JourneyDataMode, string> = {
+  ...dataModeLabels,
+  production: 'Production data',
+}
+
 export default function Settings() {
-  const { activeDataMode, clear, data, dataMode, loadError, readOnly, restore } = useWaypoints()
+  const { activeDataMode, clear, data, dataMode, loadError, readOnly, restore, setDataMode } = useWaypoints()
   const input = useRef<HTMLInputElement>(null)
   const [message, setMessage] = useState<{ text: string; error: boolean } | null>(null)
   const [confirmingClear, setConfirmingClear] = useState(false)
   const usingLocalFallback = dataMode === 'demo-cosmos' && activeDataMode === 'demo-local' && Boolean(loadError)
   const activeLabel = usingLocalFallback ? 'Demo local fallback' : dataModeLabels[activeDataMode]
+  const changeMode = (event: SelectChangeEvent) => {
+    void setDataMode(event.target.value as JourneyDataMode)
+  }
 
   const exportData = () => {
     const exportMode = usingLocalFallback ? 'demo-local' : activeDataMode
@@ -83,11 +96,19 @@ export default function Settings() {
       <PageHeader title="Settings" />
 
       <Stack spacing={2}>
-        <Typography variant="h5">Demo mode</Typography>
+        <Typography variant="h5">Data mode</Typography>
         <Typography>
-          Use the Data mode selector in the header to choose Demo local, Demo Cosmos, or Production data. Switching
-          modes reloads that dataset and never overwrites data that belongs to another mode.
+          Choose Demo local, Demo Cosmos, or Production data. Switching modes reloads that dataset and never overwrites
+          data that belongs to another mode.
         </Typography>
+        <FormControl size="small" sx={{ maxWidth: 320 }}>
+          <InputLabel id="journey-data-mode-label">Data mode</InputLabel>
+          <Select label="Data mode" labelId="journey-data-mode-label" onChange={changeMode} value={dataMode}>
+            <MenuItem value="demo-local">{dataModeOptions['demo-local']}</MenuItem>
+            <MenuItem value="demo-cosmos">{dataModeOptions['demo-cosmos']}</MenuItem>
+            <MenuItem value="production">{dataModeOptions.production}</MenuItem>
+          </Select>
+        </FormControl>
         {loadError && <Alert severity={activeDataMode === 'demo-local' ? 'warning' : 'error'}>{loadError}</Alert>}
         {dataMode !== 'production' && (
           <Card>
@@ -114,7 +135,7 @@ export default function Settings() {
           <Button variant="contained" onClick={exportData}>
             Export JSON
           </Button>
-          <Button component="label" variant="outlined" disabled={readOnly}>
+          <Button component="label" disabled={readOnly}>
             Restore JSON
             <input
               ref={input}
@@ -128,7 +149,7 @@ export default function Settings() {
               }}
             />
           </Button>
-          <Button color="error" variant="outlined" disabled={readOnly} onClick={() => setConfirmingClear(true)}>
+          <Button color="error" disabled={readOnly} onClick={() => setConfirmingClear(true)}>
             Clear data
           </Button>
         </Stack>

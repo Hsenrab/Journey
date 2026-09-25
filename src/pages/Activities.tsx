@@ -1,13 +1,25 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Alert, Button, Card, CardContent, Chip, Stack, Typography } from '@mui/material'
+import LinkIcon from '@mui/icons-material/Link'
+import PhotoLibraryIcon from '@mui/icons-material/PhotoLibrary'
+import PlaceIcon from '@mui/icons-material/Place'
 import InboxOutlinedIcon from '@mui/icons-material/InboxOutlined'
 import { ActivityEditor } from '../components/ActivityEditor'
+import { CardDetailRow } from '../components/CardDetailRow'
 import { EmptyState } from '../components/EmptyState'
 import { PageHeader } from '../components/PageHeader'
-import { locationSummary, statusLabels } from '../domain/visit'
+import { locationSummary, statusLabels, type Activity } from '../domain/visit'
 import { useWaypoints } from '../features/journey/JourneyContext'
 import { JourneyConflictError } from '../services/journeyApi'
+
+function formatActivityDate(date: string) {
+  return new Date(`${date}T00:00:00`).toLocaleDateString()
+}
+
+function activityTitle(activity: Activity) {
+  return activity.name ?? formatActivityDate(activity.date)
+}
 
 export default function Activities() {
   const { data, addActivity, reload } = useWaypoints()
@@ -88,7 +100,11 @@ export default function Activities() {
                 <CardContent>
                   <Stack spacing={1}>
                     <Typography variant="h6" component={Link} to={`/activities/${activity.activityId}`}>
-                      {activity.date}
+                      {activityTitle(activity)}
+                    </Typography>
+                    <Typography color="text.secondary">
+                      {activity.name ? formatActivityDate(activity.date) : 'Activity log entry'}
+                      {waypoint ? ` · ${waypoint.title}` : ''}
                     </Typography>
                     <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: 'wrap' }}>
                       {activity.category && <Chip label={statusLabels[activity.category]} />}
@@ -102,12 +118,16 @@ export default function Activities() {
                         />
                       )}
                     </Stack>
-                    <Typography color="text.secondary">{locationSummary(activity.location)}</Typography>
+                    <CardDetailRow icon={<PlaceIcon fontSize="small" />}>
+                      {locationSummary(activity.location)}
+                    </CardDetailRow>
                     {activity.notes && <Typography>{activity.notes.slice(0, 140)}</Typography>}
-                    <Typography color="text.secondary">
-                      {activity.photoReferenceIds.length} photo{activity.photoReferenceIds.length === 1 ? '' : 's'} ·{' '}
+                    <CardDetailRow icon={<PhotoLibraryIcon fontSize="small" />}>
+                      {activity.photoReferenceIds.length} photo{activity.photoReferenceIds.length === 1 ? '' : 's'}
+                    </CardDetailRow>
+                    <CardDetailRow icon={<LinkIcon fontSize="small" />}>
                       {activity.referenceIds.length} link{activity.referenceIds.length === 1 ? '' : 's'}
-                    </Typography>
+                    </CardDetailRow>
                   </Stack>
                 </CardContent>
               </Card>

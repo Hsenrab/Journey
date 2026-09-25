@@ -1,7 +1,11 @@
 import { useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { Box, Button, Card, CardContent, Chip, MenuItem, Stack, TextField, Typography } from '@mui/material'
+import LinkIcon from '@mui/icons-material/Link'
+import PlaceIcon from '@mui/icons-material/Place'
+import RouteIcon from '@mui/icons-material/Route'
 import SearchOffIcon from '@mui/icons-material/SearchOff'
+import { CardDetailRow } from '../components/CardDetailRow'
 import { EmptyState } from '../components/EmptyState'
 import { FilterBar } from '../components/FilterBar'
 import { PageHeader } from '../components/PageHeader'
@@ -142,20 +146,12 @@ export default function Ideas() {
         </Stack>
       </PageHeader>
       <FilterBar>
-        <TextField
-          label="Search ideas"
-          value={query}
-          onChange={(event) => setQuery(event.target.value)}
-          size="small"
-          fullWidth
-        />
+        <TextField label="Search ideas" value={query} onChange={(event) => setQuery(event.target.value)} />
         <TextField
           select
           label="Usage"
           value={usage}
           onChange={(event) => setUsage(event.target.value as UsageFilter)}
-          size="small"
-          fullWidth
         >
           <MenuItem value="all">All usage</MenuItem>
           <MenuItem value="used">Used ideas</MenuItem>
@@ -166,8 +162,6 @@ export default function Ideas() {
           label="Sort"
           value={sort}
           onChange={(event) => setSort(event.target.value as SortKey)}
-          size="small"
-          fullWidth
         >
           <MenuItem value="distance">Distance from Brockworth</MenuItem>
           <MenuItem value="updated">Recently updated</MenuItem>
@@ -239,22 +233,22 @@ export default function Ideas() {
                       <Chip label={difficultyLabels[idea.difficulty]} />
                       <Chip label={ideaUsageLabel(count)} />
                     </Stack>
-                    <Typography color="text.secondary">
-                      Linked waypoints: {linkedWaypointNames.length > 0 ? linkedWaypointNames.join(', ') : 'None'}
-                    </Typography>
-                    <Typography color="text.secondary">Location: {ideaLocationSummary(idea.location)}</Typography>
+                    <CardDetailRow icon={<PlaceIcon fontSize="small" />}>
+                      {linkedWaypointNames.length > 0
+                        ? `${linkedWaypointNames.length} waypoint${linkedWaypointNames.length === 1 ? '' : 's'}: ${linkedWaypointNames.join(', ')}`
+                        : 'No linked waypoints'}
+                    </CardDetailRow>
+                    <CardDetailRow icon={<PlaceIcon fontSize="small" />}>
+                      Location: {ideaLocationSummary(idea.location)}
+                    </CardDetailRow>
                     {distance !== undefined && (
-                      <Typography color="text.secondary">
-                        Distance from Brockworth: {distance.toFixed(1)} miles
-                      </Typography>
+                      <CardDetailRow icon={<RouteIcon fontSize="small" />}>
+                        {distance.toFixed(1)} miles from Brockworth
+                      </CardDetailRow>
                     )}
-                    {references[0] ? (
-                      <Typography color="text.secondary">
-                        Reference: {references[0].title} ({referenceHostname(references[0].url)})
-                      </Typography>
-                    ) : (
-                      <Typography color="text.secondary">No references</Typography>
-                    )}
+                    <CardDetailRow icon={<LinkIcon fontSize="small" />}>
+                      {references.length} link{references.length === 1 ? '' : 's'}
+                    </CardDetailRow>
                     <Button component={Link} to={`/ideas/${idea.ideaId}`}>
                       View idea
                     </Button>

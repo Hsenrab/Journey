@@ -1,8 +1,12 @@
 import { useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { Alert, Button, Card, CardContent, Chip, Stack, Typography } from '@mui/material'
+import LinkIcon from '@mui/icons-material/Link'
+import PhotoLibraryIcon from '@mui/icons-material/PhotoLibrary'
+import PlaceIcon from '@mui/icons-material/Place'
 import InboxOutlinedIcon from '@mui/icons-material/InboxOutlined'
 import { ActivityEditor } from '../components/ActivityEditor'
+import { CardDetailRow } from '../components/CardDetailRow'
 import { EmptyState } from '../components/EmptyState'
 import { locations } from '../data/locations'
 import {
@@ -12,11 +16,20 @@ import {
   locationSummary,
   planningStateLabels,
   statusLabels,
+  type Activity,
 } from '../domain/visit'
 import { useWaypoints } from '../features/journey/JourneyContext'
 import { JourneyConflictError } from '../services/journeyApi'
 
 const catalogueLocationById = new Map(locations.map((location) => [location.locationId, location]))
+
+function formatActivityDate(date: string) {
+  return new Date(`${date}T00:00:00`).toLocaleDateString()
+}
+
+function activityTitle(activity: Activity) {
+  return activity.name ?? formatActivityDate(activity.date)
+}
 
 export default function LocationDetails() {
   const { id = '' } = useParams()
@@ -150,10 +163,26 @@ export default function LocationDetails() {
             <CardContent>
               <Stack spacing={1}>
                 <Typography variant="h6" component={Link} to={`/activities/${activity.activityId}`}>
-                  {activity.date}
+                  {activityTitle(activity)}
                 </Typography>
+                <Typography color="text.secondary">
+                  {activity.name ? formatActivityDate(activity.date) : 'Activity log entry'}
+                </Typography>
+                {activity.category && (
+                  <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: 'wrap' }}>
+                    <Chip label={statusLabels[activity.category]} />
+                  </Stack>
+                )}
                 {activity.notes && <Typography>{activity.notes}</Typography>}
-                <Typography color="text.secondary">{locationSummary(activity.location)}</Typography>
+                <CardDetailRow icon={<PlaceIcon fontSize="small" />}>
+                  {locationSummary(activity.location)}
+                </CardDetailRow>
+                <CardDetailRow icon={<PhotoLibraryIcon fontSize="small" />}>
+                  {activity.photoReferenceIds.length} photo{activity.photoReferenceIds.length === 1 ? '' : 's'}
+                </CardDetailRow>
+                <CardDetailRow icon={<LinkIcon fontSize="small" />}>
+                  {activity.referenceIds.length} link{activity.referenceIds.length === 1 ? '' : 's'}
+                </CardDetailRow>
               </Stack>
             </CardContent>
           </Card>

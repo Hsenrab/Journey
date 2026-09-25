@@ -4,7 +4,15 @@ import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import Settings from './Settings'
 import { WaypointsProvider } from '../features/journey/JourneyContext'
-import { backupVersion, createDefaultData, createDemoModeData, load, save, setDataMode } from '../services/storage'
+import {
+  backupVersion,
+  createDefaultData,
+  createDemoModeData,
+  getDataMode,
+  load,
+  save,
+  setDataMode,
+} from '../services/storage'
 import type { Activity } from '../domain/visit'
 
 function activity(category: 'bronze' | 'silver' | 'gold' = 'gold'): Activity {
@@ -51,11 +59,36 @@ describe('Settings', () => {
     expect(screen.getByText('At least one linked Bronze activity has been recorded.')).toBeInTheDocument()
   })
 
-  it('documents the header mode selector instead of showing duplicate mode buttons', () => {
+  it('shows the data mode selector without duplicate mode buttons', () => {
     renderSettings()
 
-    expect(screen.getByText(/Use the Data mode selector in the header/)).toBeInTheDocument()
+    expect(screen.getByRole('combobox', { name: 'Data mode' })).toHaveTextContent('Production data')
     expect(screen.queryByRole('button', { name: /demo mode/i })).not.toBeInTheDocument()
+  })
+
+  it('switches to local demo data immediately and back to the production dataset', async () => {
+    const user = userEvent.setup()
+    save({ ...createDefaultData(), activities: [activity()] })
+    renderSettings()
+
+    await user.click(screen.getByRole('combobox', { name: 'Data mode' }))
+    await user.click(screen.getByRole('option', { name: 'Demo local' }))
+
+    const demo = createDemoModeData()
+    expect(getDataMode()).toBe('demo-local')
+    expect(await screen.findByText('Demo local loaded')).toBeInTheDocument()
+    expect(
+      screen.getByText(
+        `${demo.waypoints.length} waypoints · ${demo.challenges.length} challenges · ${demo.ideas.length} ideas · ${demo.activities.length} activities`,
+      ),
+    ).toBeInTheDocument()
+
+    await user.click(screen.getByRole('combobox', { name: 'Data mode' }))
+    await user.click(screen.getByRole('option', { name: 'Production data' }))
+
+    expect(getDataMode()).toBe('production')
+    expect(screen.getByRole('combobox', { name: 'Data mode' })).toHaveTextContent('Production data')
+    expect(load().activities).toEqual([activity()])
   })
 
   it('summarizes the active demo dataset', () => {

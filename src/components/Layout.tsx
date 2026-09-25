@@ -7,16 +7,11 @@ import {
   Container,
   Divider,
   Drawer,
-  FormControl,
   IconButton,
-  InputLabel,
   List,
   ListItemButton,
   ListItemIcon,
   ListItemText,
-  MenuItem,
-  Select,
-  type SelectChangeEvent,
   Toolbar,
   Typography,
   useMediaQuery,
@@ -30,7 +25,6 @@ import HikingIcon from '@mui/icons-material/Hiking'
 import MapIcon from '@mui/icons-material/Map'
 import SettingsIcon from '@mui/icons-material/Settings'
 import { useWaypoints } from '../features/journey/JourneyContext'
-import type { JourneyDataMode } from '../services/storage'
 
 const navItems = [
   { label: 'Waypoints', to: '/waypoints', icon: <PlaceIcon /> },
@@ -59,12 +53,7 @@ export function Layout({ children }: { children: ReactNode }) {
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'))
   const [open, setOpen] = useState(false)
   const location = useLocation()
-  const { activeDataMode, dataMode, loadError, readOnly, setDataMode } = useWaypoints()
-  const modeLabel: Record<JourneyDataMode, string> = {
-    'demo-local': 'Demo local',
-    'demo-cosmos': 'Demo Cosmos',
-    production: 'Production data',
-  }
+  const { activeDataMode, dataMode, loadError, readOnly } = useWaypoints()
   const usingLocalFallback = dataMode === 'demo-cosmos' && activeDataMode === 'demo-local' && Boolean(loadError)
   const status: DataModeStatus = usingLocalFallback
     ? 'fallback'
@@ -76,9 +65,6 @@ export function Layout({ children }: { children: ReactNode }) {
           ? 'demoWritable'
           : 'production'
   const chip = dataModeStatusView[status]
-  const changeMode = (event: SelectChangeEvent) => {
-    void setDataMode(event.target.value as JourneyDataMode)
-  }
 
   const navList = (
     <List>
@@ -112,8 +98,13 @@ export function Layout({ children }: { children: ReactNode }) {
               <MenuIcon />
             </IconButton>
           )}
-          <Typography variant="h6" sx={{ flexGrow: 1 }}>
-            Waypoints
+          <Typography
+            variant="h6"
+            component={Link}
+            to="/challenges"
+            sx={{ color: 'inherit', flexGrow: 1, textDecoration: 'none' }}
+          >
+            Journey
           </Typography>
           <Box
             sx={{
@@ -123,20 +114,6 @@ export function Layout({ children }: { children: ReactNode }) {
               gap: 1,
             }}
           >
-            <FormControl size="small" sx={{ minWidth: 160 }}>
-              <InputLabel id="journey-data-mode-label">Data mode</InputLabel>
-              <Select
-                label="Data mode"
-                labelId="journey-data-mode-label"
-                onChange={changeMode}
-                value={dataMode}
-                variant="outlined"
-              >
-                <MenuItem value="demo-local">{modeLabel['demo-local']}</MenuItem>
-                <MenuItem value="demo-cosmos">{modeLabel['demo-cosmos']}</MenuItem>
-                <MenuItem value="production">{modeLabel.production}</MenuItem>
-              </Select>
-            </FormControl>
             <Chip color={chip.color} label={chip.label} size="small" variant={chip.filled ? 'filled' : 'outlined'} />
           </Box>
         </Toolbar>
