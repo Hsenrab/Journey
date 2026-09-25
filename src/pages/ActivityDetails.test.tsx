@@ -2,7 +2,7 @@ import { render, screen } from '@testing-library/react'
 import { fireEvent } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
-import { beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import ActivityDetails from './ActivityDetails'
 import { WaypointsProvider } from '../features/journey/JourneyContext'
 import { createDefaultData, load, save } from '../services/storage'
@@ -14,6 +14,7 @@ function renderDetails(path = '/activities/a1') {
         <Routes>
           <Route path="/activities/:activityId" element={<ActivityDetails />} />
           <Route path="/waypoints/:id" element={<div>Waypoint details</div>} />
+          <Route path="/activities" element={<div>Activity log</div>} />
         </Routes>
       </WaypointsProvider>
     </MemoryRouter>,
@@ -22,10 +23,70 @@ function renderDetails(path = '/activities/a1') {
 
 describe('ActivityDetails', () => {
   beforeEach(() => localStorage.clear())
+  afterEach(() => {
+    vi.restoreAllMocks()
+    vi.unstubAllGlobals()
+    vi.unstubAllEnvs()
+  })
 
   it('shows not found for unknown ids', () => {
     renderDetails('/activities/missing')
     expect(screen.getByText('Activity not found.')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Activities' })).toHaveAttribute('href', '/activities')
+  })
+
+  it('breadcrumbs an unlinked activity back to the activity log', async () => {
+    const user = userEvent.setup()
+    const seed = createDefaultData()
+    save({
+      ...seed,
+      activities: [
+        {
+          activityId: 'a1',
+          ideaIds: [],
+          date: '2026-08-01',
+          location: { kind: 'postcode', postcode: 'BA12 6QF' },
+          notes: '',
+          referenceIds: [],
+          photoReferenceIds: [],
+          createdAt: '2026-08-01T10:00:00.000Z',
+          updatedAt: '2026-08-01T10:00:00.000Z',
+        },
+      ],
+    })
+
+    renderDetails()
+
+    await user.click(screen.getByRole('link', { name: 'Activities' }))
+    expect(screen.getByText('Activity log')).toBeInTheDocument()
+  })
+
+  it('breadcrumbs a linked activity back to its waypoint', async () => {
+    const user = userEvent.setup()
+    const seed = createDefaultData()
+    save({
+      ...seed,
+      activities: [
+        {
+          activityId: 'a1',
+          ideaIds: [],
+          waypointId: 'stourhead',
+          date: '2026-08-01',
+          location: { kind: 'postcode', postcode: 'BA12 6QF' },
+          notes: '',
+          referenceIds: [],
+          photoReferenceIds: [],
+          createdAt: '2026-08-01T10:00:00.000Z',
+          updatedAt: '2026-08-01T10:00:00.000Z',
+        },
+      ],
+    })
+
+    renderDetails()
+
+    expect(screen.queryByRole('link', { name: 'Activities' })).not.toBeInTheDocument()
+    await user.click(screen.getByRole('link', { name: 'Stourhead' }))
+    expect(screen.getByText('Waypoint details')).toBeInTheDocument()
   })
 
   it('renders linked references and photos', () => {
@@ -68,9 +129,9 @@ describe('ActivityDetails', () => {
     renderDetails()
 
     expect(
-      screen.getByRole('heading', { name: new Date('2026-08-01T00:00:00').toLocaleDateString() }),
+      screen.getByRole('heading', { name: new Date('2026-08-01T00:00:00').toLocaleDateString(), level: 1 }),
     ).toBeInTheDocument()
-    expect(screen.getByText('Stourhead')).toBeInTheDocument()
+    expect(screen.getAllByText('Stourhead').length).toBeGreaterThan(0)
     expect(screen.getByText('Guide')).toBeInTheDocument()
     expect(screen.getByRole('img', { name: 'View' })).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Orangery idea' })).toBeInTheDocument()
@@ -95,12 +156,51 @@ describe('ActivityDetails', () => {
         },
       ],
     })
-
     renderDetails()
 
     expect(screen.getByText('No description recorded.')).toBeInTheDocument()
     expect(screen.getByText('No photos linked to this activity.')).toBeInTheDocument()
     expect(screen.getByText('example.com')).toBeInTheDocument()
+  })
+
+  it('does not offer activity mutations to a viewer', async () => {
+    vi.stubEnv('MODE', 'production')
+    const seed = createDefaultData()
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        new Response(
+          JSON.stringify({
+            data: {
+              ...seed,
+              activities: [
+                {
+                  activityId: 'a1',
+                  ideaIds: [],
+                  date: '2026-08-01',
+                  location: { kind: 'postcode', postcode: 'BA12 6QF' },
+                  notes: '',
+                  referenceIds: [],
+                  photoReferenceIds: [],
+                  createdAt: '2026-08-01T10:00:00.000Z',
+                  updatedAt: '2026-08-01T10:00:00.000Z',
+                },
+              ],
+            },
+            etags: {},
+            role: 'viewer',
+          }),
+        ),
+      ),
+    )
+
+    renderDetails()
+
+    expect(
+      await screen.findByRole('heading', { name: new Date('2026-08-01T00:00:00').toLocaleDateString(), level: 1 }),
+    ).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Edit activity' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Delete activity' })).not.toBeInTheDocument()
   })
 
   it('deletes an activity after confirmation', async () => {

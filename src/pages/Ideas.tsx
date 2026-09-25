@@ -12,8 +12,8 @@ import { FilterBar } from '../components/FilterBar'
 import { PageHeader } from '../components/PageHeader'
 import { distanceMiles } from '../domain/map'
 import {
-  difficultyLabels,
   countLabel,
+  difficultyLabels,
   ideaLocationSummary,
   ideaUsageCount,
   ideaUsageLabel,
@@ -43,7 +43,7 @@ function referenceHostname(url: string): string {
 }
 
 export default function Ideas() {
-  const { data, addIdea } = useWaypoints()
+  const { data, addIdea, readOnly } = useWaypoints()
   const [searchParams, setSearchParams] = useSearchParams()
   const stateParam = searchParams.get('state')
   const selectedState = planningStates.includes(stateParam as Idea['planningState'])
@@ -113,7 +113,7 @@ export default function Ideas() {
   return (
     <Stack spacing={2}>
       <PageHeader title="Ideas">
-        {!showEditor && (
+        {!readOnly && !showEditor && (
           <Button
             variant="contained"
             onClick={() => {
@@ -165,7 +165,7 @@ export default function Ideas() {
         <Typography color={message.severity === 'error' ? 'error' : 'success.main'}>{message.text}</Typography>
       )}
 
-      {showEditor && (
+      {!readOnly && showEditor && (
         <IdeaEditor
           data={data}
           initialWaypointId={initialWaypointId}

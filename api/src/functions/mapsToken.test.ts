@@ -12,12 +12,12 @@ vi.mock('../lib/mapsAuth.js', () => ({ acquireMapsAccessToken }))
 const encodePrincipal = (principal: Record<string, unknown>): string =>
   Buffer.from(JSON.stringify(principal)).toString('base64')
 
-function ownerHeader(overrides: Record<string, unknown> = {}): string {
+function principalHeader(overrides: Record<string, unknown> = {}): string {
   return encodePrincipal({
     identityProvider: 'aad',
     userId: 'user-1',
-    userDetails: 'owner@example.com',
-    userRoles: ['anonymous', 'authenticated', 'owner'],
+    userDetails: 'admin@example.com',
+    userRoles: ['anonymous', 'authenticated', 'admin'],
     ...overrides,
   })
 }
@@ -55,23 +55,23 @@ describe('mapsToken', () => {
 
   it('returns 403 for a principal from a different identity provider', async () => {
     const { mapsToken } = await import('./mapsToken.js')
-    const header = ownerHeader({ identityProvider: 'github' })
+    const header = principalHeader({ identityProvider: 'github' })
     const result = await mapsToken(requestWithPrincipal(header), fakeContext())
     expect(result.status).toBe(403)
   })
 
-  it('returns 403 for a principal missing the owner role', async () => {
+  it('returns 403 for a principal missing a Journey role', async () => {
     const { mapsToken } = await import('./mapsToken.js')
-    const header = ownerHeader({ userRoles: ['anonymous', 'authenticated'] })
+    const header = principalHeader({ userRoles: ['anonymous', 'authenticated'] })
     const result = await mapsToken(requestWithPrincipal(header), fakeContext())
     expect(result.status).toBe(403)
   })
 
-  it('returns a Maps Entra token and client ID for the assigned owner', async () => {
+  it('returns a Maps Entra token and client ID for an assigned Journey user', async () => {
     acquireMapsAccessToken.mockResolvedValueOnce({ token: 'entra-token-value', expiresOn: '2024-01-01T00:15:00.000Z' })
 
     const { mapsToken } = await import('./mapsToken.js')
-    const result = await mapsToken(requestWithPrincipal(ownerHeader()), fakeContext())
+    const result = await mapsToken(requestWithPrincipal(principalHeader()), fakeContext())
 
     expect(result.status).toBe(200)
     expect(result.jsonBody).toEqual({
@@ -87,6 +87,8 @@ describe('mapsToken', () => {
 
     const { mapsToken } = await import('./mapsToken.js')
 
-    await expect(mapsToken(requestWithPrincipal(ownerHeader()), fakeContext())).rejects.toThrow(/AZURE_MAPS_CLIENT_ID/)
+    await expect(mapsToken(requestWithPrincipal(principalHeader()), fakeContext())).rejects.toThrow(
+      /AZURE_MAPS_CLIENT_ID/,
+    )
   })
 })

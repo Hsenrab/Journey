@@ -10,8 +10,8 @@ const principal = Buffer.from(
   JSON.stringify({
     identityProvider: 'aad',
     userId: 'user',
-    userDetails: 'owner@example.com',
-    userRoles: ['authenticated', 'owner'],
+    userDetails: 'admin@example.com',
+    userRoles: ['authenticated', 'admin'],
   }),
 ).toString('base64')
 

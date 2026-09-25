@@ -1,7 +1,7 @@
 import { MemoryRouter } from 'react-router-dom'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import Activities from './Activities'
 import { WaypointsProvider } from '../features/journey/JourneyContext'
 import { createDefaultData, load, save } from '../services/storage'
@@ -19,6 +19,11 @@ function renderActivities() {
 
 describe('Activities', () => {
   beforeEach(() => localStorage.clear())
+  afterEach(() => {
+    vi.restoreAllMocks()
+    vi.unstubAllGlobals()
+    vi.unstubAllEnvs()
+  })
 
   it('shows an empty state when there are no activities', () => {
     renderActivities()
@@ -101,9 +106,22 @@ describe('Activities', () => {
     renderActivities()
 
     expect(screen.getByRole('link', { name: 'Summer visit' })).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: '8/2/2026' })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: new Date('2026-08-02T00:00:00').toLocaleDateString() })).toBeInTheDocument()
     expect(screen.getByText('Waypoint: Stourhead')).toBeInTheDocument()
     expect(screen.getByText('1 photo')).toBeInTheDocument()
     expect(screen.getByText('1 link')).toBeInTheDocument()
+  })
+
+  it('does not offer activity mutations to a viewer', async () => {
+    vi.stubEnv('MODE', 'production')
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(new Response(JSON.stringify({ data: createDefaultData(), etags: {}, role: 'viewer' }))),
+    )
+
+    renderActivities()
+
+    expect(await screen.findByText('No activities logged yet.')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Add activity' })).not.toBeInTheDocument()
   })
 })

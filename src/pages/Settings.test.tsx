@@ -205,7 +205,9 @@ describe('Settings', () => {
       'fetch',
       vi
         .fn()
-        .mockResolvedValue(new Response(JSON.stringify({ data: createDemoModeData(), etags: {} }), { status: 200 })),
+        .mockResolvedValue(
+          new Response(JSON.stringify({ data: createDemoModeData(), etags: {}, role: 'admin' }), { status: 200 }),
+        ),
     )
     renderSettings()
 

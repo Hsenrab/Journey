@@ -21,9 +21,24 @@ describe('journey API client', () => {
     const data = createDefaultData()
     vi.stubGlobal(
       'fetch',
-      vi.fn().mockResolvedValue(new Response(JSON.stringify({ data, etags: { one: 'etag' } }), { status: 200 })),
+      vi
+        .fn()
+        .mockResolvedValue(
+          new Response(JSON.stringify({ data, etags: { one: 'etag' }, role: 'admin' }), { status: 200 }),
+        ),
     )
-    await expect(loadJourney('production')).resolves.toEqual({ data, etags: { one: 'etag' } })
+    await expect(loadJourney('production')).resolves.toEqual({ data, etags: { one: 'etag' }, role: 'admin' })
+  })
+
+  it('fails closed when the server does not return a supported Journey role', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi
+        .fn()
+        .mockResolvedValue(new Response(JSON.stringify({ data: createDefaultData(), etags: {} }), { status: 200 })),
+    )
+
+    await expect(loadJourney('production')).rejects.toThrow()
   })
 
   it('returns saved entity metadata and sends concurrency conditions', async () => {

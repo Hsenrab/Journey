@@ -1,5 +1,10 @@
 import { app, type HttpRequest, type HttpResponseInit, type InvocationContext } from '@azure/functions'
-import { assertOwnerPrincipal, parseClientPrincipalHeader, PrincipalValidationError } from '../lib/principal.js'
+import {
+  journeyRoleForPrincipal,
+  parseClientPrincipalHeader,
+  PrincipalValidationError,
+  type JourneyRole,
+} from '../lib/principal.js'
 import {
   createDocument,
   datasetIdFor,
@@ -27,9 +32,9 @@ function containerName(request: HttpRequest): ContainerName {
   return value
 }
 
-function auth(request: HttpRequest): void {
+function auth(request: HttpRequest): JourneyRole {
   try {
-    assertOwnerPrincipal(parseClientPrincipalHeader(request.headers.get('x-ms-client-principal')))
+    return journeyRoleForPrincipal(parseClientPrincipalHeader(request.headers.get('x-ms-client-principal')))
   } catch (error) {
     if (error instanceof PrincipalValidationError) throw new ResponseError(403, 'forbidden')
     throw error
@@ -68,15 +73,16 @@ async function geocodedEntity(type: EntityType, entity: Record<string, unknown>)
 
 export async function journey(request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> {
   try {
-    auth(request)
+    const role = auth(request)
     const container = containerName(request)
     const datasetId = datasetIdFor(container)
     const cosmos = journeyContainer(container)
 
     if (request.method === 'GET') {
       const loaded = await loadDataset(cosmos, datasetId)
-      return { status: 200, jsonBody: { data: loaded.data, etags: loaded.etags, datasetId } }
+      return { status: 200, jsonBody: { data: loaded.data, etags: loaded.etags, datasetId, role } }
     }
+    if (role !== 'admin') throw new ResponseError(403, 'forbidden')
 
     const parsed = JourneyMutationSchema.safeParse(await request.json())
     if (!parsed.success)

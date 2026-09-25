@@ -1,6 +1,9 @@
 import { DataSchema, type WaypointsData } from '../domain/visit'
+import { z } from 'zod'
 
 export type JourneyContainer = 'production' | 'demo'
+const JourneyRoleSchema = z.enum(['admin', 'viewer'])
+export type JourneyRole = z.infer<typeof JourneyRoleSchema>
 type EntityType = 'waypoint' | 'challenge' | 'idea' | 'activity' | 'reference' | 'photoReference'
 
 export class JourneyConflictError extends Error {
@@ -36,9 +39,9 @@ async function request<T>(container: JourneyContainer, init?: RequestInit): Prom
 
 export async function loadJourney(
   container: JourneyContainer,
-): Promise<{ data: WaypointsData; etags: Record<string, string> }> {
-  const result = await request<{ data: unknown; etags: Record<string, string> }>(container)
-  return { data: DataSchema.parse(result.data), etags: result.etags }
+): Promise<{ data: WaypointsData; etags: Record<string, string>; role: JourneyRole }> {
+  const result = await request<{ data: unknown; etags: Record<string, string>; role: unknown }>(container)
+  return { data: DataSchema.parse(result.data), etags: result.etags, role: JourneyRoleSchema.parse(result.role) }
 }
 
 export async function createJourneyEntity(

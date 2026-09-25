@@ -28,16 +28,18 @@ vi.mock('../lib/mapsAuth.js', () => ({
   acquireMapsAccessToken: vi.fn().mockResolvedValue({ token: 'entra-token', expiresOn: '2026-01-01T00:00:00.000Z' }),
 }))
 
-const principal = Buffer.from(
-  JSON.stringify({ identityProvider: 'aad', userId: 'owner', userDetails: 'owner@example.com', userRoles: ['owner'] }),
-).toString('base64')
+function principal(roles = ['authenticated', 'admin']) {
+  return Buffer.from(
+    JSON.stringify({ identityProvider: 'aad', userId: 'admin', userDetails: 'admin@example.com', userRoles: roles }),
+  ).toString('base64')
+}
 
-function request(container: string, method = 'GET', body?: unknown) {
+function request(container: string, method = 'GET', body?: unknown, roles?: string[]) {
   return {
     method,
     params: { container },
     json: async () => body,
-    headers: { get: (name: string) => (name === 'x-ms-client-principal' ? principal : null) },
+    headers: { get: (name: string) => (name === 'x-ms-client-principal' ? principal(roles) : null) },
   } as never
 }
 
@@ -117,6 +119,43 @@ describe('journey', () => {
     })
     expect(journeyContainer).toHaveBeenCalledWith('production')
     expect(loadDataset).toHaveBeenCalledWith(container, 'production')
+  })
+
+  it('allows viewers to read the shared dataset but not mutate it', async () => {
+    loadDataset.mockResolvedValue({ data: emptyData, etags: {} })
+    const { journey } = await import('./journey.js')
+
+    expect(
+      await journey(request('production', 'GET', undefined, ['authenticated', 'viewer']), context()),
+    ).toMatchObject({
+      status: 200,
+      jsonBody: { role: 'viewer' },
+    })
+    for (const [method, operation] of [
+      ['POST', 'create'],
+      ['PUT', 'update'],
+      ['DELETE', 'delete'],
+      ['POST', 'import'],
+      ['POST', 'replace'],
+      ['POST', 'clear'],
+    ] as const) {
+      expect(
+        await journey(request('production', method, { operation }, ['authenticated', 'viewer']), context()),
+      ).toEqual({ status: 403, jsonBody: { error: 'forbidden' } })
+    }
+  })
+
+  it('denies anonymous and authenticated but unassigned identities', async () => {
+    const { journey } = await import('./journey.js')
+
+    expect(await journey(request('production', 'GET', undefined, ['anonymous']), context())).toEqual({
+      status: 403,
+      jsonBody: { error: 'forbidden' },
+    })
+    expect(await journey(request('production', 'GET', undefined, ['authenticated']), context())).toEqual({
+      status: 403,
+      jsonBody: { error: 'forbidden' },
+    })
   })
 
   it('rejects unsupported route containers', async () => {

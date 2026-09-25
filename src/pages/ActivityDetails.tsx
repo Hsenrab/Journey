@@ -16,6 +16,7 @@ import {
 } from '@mui/material'
 import InboxOutlinedIcon from '@mui/icons-material/InboxOutlined'
 import { ActivityEditor } from '../components/ActivityEditor'
+import { DetailPageHeader } from '../components/DetailPageHeader'
 import { EmptyState } from '../components/EmptyState'
 import {
   activitySubtitle,
@@ -31,7 +32,7 @@ import { JourneyConflictError } from '../services/journeyApi'
 export default function ActivityDetails() {
   const { activityId = '' } = useParams()
   const navigate = useNavigate()
-  const { data, reload, updateActivity, deleteActivity } = useWaypoints()
+  const { data, readOnly, reload, updateActivity, deleteActivity } = useWaypoints()
   const [editing, setEditing] = useState(false)
   const [photoIndex, setPhotoIndex] = useState(0)
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
@@ -44,14 +45,18 @@ export default function ActivityDetails() {
   const waypoint = activity?.waypointId
     ? data.waypoints.find((item) => item.waypointId === activity.waypointId)
     : undefined
-  const backTarget = waypoint ? `/waypoints/${waypoint.waypointId}` : '/activities'
+  const breadcrumbs = waypoint
+    ? [
+        { label: 'Waypoints', to: '/waypoints' },
+        { label: waypoint.title, to: `/waypoints/${waypoint.waypointId}` },
+      ]
+    : [{ label: 'Activities', to: '/activities' }]
+  const backTarget = breadcrumbs[breadcrumbs.length - 1].to
 
   if (!activity) {
     return (
       <Stack spacing={3}>
-        <Button component={Link} to={backTarget}>
-          ← Activity log
-        </Button>
+        <DetailPageHeader breadcrumbs={breadcrumbs} title="Activity" />
         <Alert severity="error">Activity not found.</Alert>
       </Stack>
     )
@@ -90,9 +95,18 @@ export default function ActivityDetails() {
 
   return (
     <Stack spacing={3}>
-      <Button component={Link} to={backTarget}>
-        ← Activity log
-      </Button>
+      <DetailPageHeader breadcrumbs={breadcrumbs} title={activityTitle(activity)}>
+        {!readOnly && !editing && (
+          <>
+            <Button variant="contained" onClick={() => setEditing(true)}>
+              Edit activity
+            </Button>
+            <Button color="error" onClick={() => setShowDeleteDialog(true)}>
+              Delete activity
+            </Button>
+          </>
+        )}
+      </DetailPageHeader>
 
       {message && (
         <Alert
@@ -109,7 +123,6 @@ export default function ActivityDetails() {
         </Alert>
       )}
 
-      <Typography variant="h4">{activityTitle(activity)}</Typography>
       {detailSubtitle && <Typography color="text.secondary">{detailSubtitle}</Typography>}
       <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: 'wrap' }}>
         {activity.category && <Chip label={statusLabels[activity.category]} />}
@@ -221,7 +234,7 @@ export default function ActivityDetails() {
         )}
       </Stack>
 
-      {editing ? (
+      {!readOnly && editing && (
         <ActivityEditor
           data={data}
           initialActivity={activity}
@@ -244,49 +257,42 @@ export default function ActivityDetails() {
           onCancel={() => setEditing(false)}
           onDelete={() => setShowDeleteDialog(true)}
         />
-      ) : (
-        <Stack direction="row" spacing={1}>
-          <Button variant="contained" onClick={() => setEditing(true)}>
-            Edit activity
-          </Button>
-          <Button color="error" onClick={() => setShowDeleteDialog(true)}>
-            Delete activity
-          </Button>
-        </Stack>
       )}
 
-      <Dialog open={showDeleteDialog} onClose={() => setShowDeleteDialog(false)}>
-        <DialogTitle>Delete activity?</DialogTitle>
-        <DialogContent>
-          <Typography>
-            Delete activity on {formatActivityDate(activity.date)}
-            {waypoint ? ` linked to ${waypoint.title}` : ''}? Linked ideas and waypoints are preserved, and idea usage
-            updates after reloading the dataset.
-          </Typography>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setShowDeleteDialog(false)}>Cancel</Button>
-          <Button
-            color="error"
-            onClick={async () => {
-              try {
-                await deleteActivity(activity.activityId)
-                await reload()
-                setShowDeleteDialog(false)
-                navigate(backTarget)
-              } catch (error) {
-                setMessage({
-                  severity: 'error',
-                  text: error instanceof Error ? error.message : 'Failed to delete activity.',
-                  conflict: error instanceof JourneyConflictError,
-                })
-              }
-            }}
-          >
-            Delete
-          </Button>
-        </DialogActions>
-      </Dialog>
+      {!readOnly && (
+        <Dialog open={showDeleteDialog} onClose={() => setShowDeleteDialog(false)}>
+          <DialogTitle>Delete activity?</DialogTitle>
+          <DialogContent>
+            <Typography>
+              Delete activity on {formatActivityDate(activity.date)}
+              {waypoint ? ` linked to ${waypoint.title}` : ''}? Linked ideas and waypoints are preserved, and idea usage
+              updates after reloading the dataset.
+            </Typography>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setShowDeleteDialog(false)}>Cancel</Button>
+            <Button
+              color="error"
+              onClick={async () => {
+                try {
+                  await deleteActivity(activity.activityId)
+                  await reload()
+                  setShowDeleteDialog(false)
+                  navigate(backTarget)
+                } catch (error) {
+                  setMessage({
+                    severity: 'error',
+                    text: error instanceof Error ? error.message : 'Failed to delete activity.',
+                    conflict: error instanceof JourneyConflictError,
+                  })
+                }
+              }}
+            >
+              Delete
+            </Button>
+          </DialogActions>
+        </Dialog>
+      )}
     </Stack>
   )
 }

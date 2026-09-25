@@ -55,11 +55,12 @@ The app exposes three explicit modes in the header:
 - **Demo local** loads the bundled `src/data/demo.json` fixture in the browser. It is
   always read-only and works in local development and Static Web Apps previews even
   when no linked Functions API or Cosmos access is available.
-- **Demo Cosmos** loads the `demo` container through `/api/journey/demo`. Supported
+- **Demo Cosmos** loads the `demo` container through `/api/journey/demo`. Admin
   mutations are allowed, but changes are temporary because deployment reseeds this
-  partition from `src/data/demo.json`.
-- **Production data** loads the `production` container through `/api/journey/production`.
-  It is writable and persistent.
+  partition from `src/data/demo.json`. Viewers can read it but cannot modify it.
+- **Production data** loads the shared `production` container through
+  `/api/journey/production`. It is writable and persistent for admins; viewers can
+  read the complete shared dataset only.
 
 If Demo Cosmos cannot load, the UI falls back to Demo local for the current session and
 shows a read-only warning. Production load failures show an error and never expose demo
@@ -173,21 +174,27 @@ Assigned work user
 1. Deploy the Static Web App, which uses the platform's built-in Microsoft Entra
    (`aad`) provider.
 2. In the Static Web App's **Role management** page, generate an invitation for
-   the owner's work account with the custom role `owner` and the Microsoft Entra
-   provider. Open the generated link while signed in as that account.
+   each approved Microsoft Entra work identity with exactly one custom Journey role:
+   `admin` for full read/write and administrative access, or `viewer` for read-only
+   access. Open the generated link while signed in as that account. Invitations bind
+   the role to the provider identity; do not use mutable email addresses as access
+   control.
 3. `staticwebapp.config.json` restricts all application routes and `/api/*` to
-   the `owner` role while leaving `/.auth/*` reachable for platform login.
+   `admin` or `viewer` while leaving `/.auth/*` reachable for platform login. The API
+   fails closed unless the forwarded Entra principal has exactly one of those roles.
 4. Repeat the invitation for each separately provisioned Static Web App resource,
    including the production and shared test resources. Role assignment in one
    resource does not grant access to another resource.
-5. Manage and revoke access from the Static Web App's **Role management** page.
-   This repository does not build a roles or administration UI.
+5. Audit assignments in the Static Web App's **Role management** page. Change access
+   by revoking the existing invitation and issuing a new invitation with the other
+   role; revoke access by deleting the invitation. This repository does not build a
+   roles or administration UI.
 
 Accepting an Entra consent prompt only authenticates the account; it does not
-assign `owner`. After accepting an invitation, sign out through `/.auth/logout`
+assign a Journey role. After accepting an invitation, sign out through `/.auth/logout`
 and sign in again so Static Web Apps issues a principal with the new role. Check
 `/.auth/me` on the affected application URL and confirm that
-`clientPrincipal.userRoles` contains `owner`.
+`clientPrincipal.userRoles` contains exactly one of `admin` or `viewer`.
 
 ### Local development
 
@@ -219,11 +226,18 @@ hand (for example with `curl -H`) to test principal validation end to end.
   `/.auth/login/aad?post_login_redirect_uri=.referrer`, which starts Microsoft
   Entra sign-in and returns the browser to the originally requested route after a
   successful sign-in.
-- Only the owner's work account should accept an invitation for the `owner` role.
-  Other authenticated users cannot load the application or call its API.
+- Admins and viewers share the same datasets. Viewers can read every entity but cannot
+  create, update, delete, import, restore, clear, replace, or modify relationships
+  and links. The frontend marks viewers as read-only, while the API independently
+  returns `403` for every mutation.
+- Authenticated users without an `admin` or `viewer` invitation cannot load the
+  application or call its API.
 - `/api/*` remains protected by Static Web Apps, and the Functions API still
   validates the Static Web Apps principal's provider (`aad`) and assigned
-  `owner` role before calling Azure Maps.
+  Journey role before calling Azure Maps.
+
+Per-entity ownership, editor permissions, viewer link mutations, per-user datasets,
+and in-application role administration are intentionally out of scope.
 
 ### RBAC (managed identity to Azure Maps)
 
@@ -285,8 +299,10 @@ after the application boundary validates the caller's Entra provider and assigne
   Bicep deployment. No extra secret or variable is needed; the object id comes
   from the deployment itself.
 - Test deployments publish to the test Static Web App's primary environment, where
-  the linked Functions backend is supported. The repository does not create Static
-  Web Apps pull-request preview environments.
+  the linked Functions backend is supported. Pull-request previews use the same
+  Static Web App and role assignments: an identity invited as a `viewer` on the test
+  resource can access every test preview. This shared preview access is intentional;
+  invite only identities that may read test data.
 
 ### Diagnostics
 
@@ -474,12 +490,12 @@ no server-side database to back up.
 | Deploy step reports an invalid token                                                       | The Static Web App was recreated. Re-run the workflow so the token is read again.                                                                                                                                                                                                            |
 | Verification receives a status other than HTTP 302                                         | Confirm the deployed config protects `/*`, inspect the response `Location` header, and confirm the workflow run uses the intended branch and commit.                                                                                                                                         |
 | Routes return 404 on refresh                                                               | Check `staticwebapp.config.json` navigation fallback is still present.                                                                                                                                                                                                                       |
-| Application routes do not redirect to Entra sign-in                                        | Confirm the catch-all `/*` route in `staticwebapp.config.json` still requires the `owner` role and the 401 override redirects to `/.auth/login/aad?post_login_redirect_uri=.referrer`.                                                                                                       |
+| Application routes do not redirect to Entra sign-in                                        | Confirm the catch-all `/*` route in `staticwebapp.config.json` still requires `admin` or `viewer` and the 401 override redirects to `/.auth/login/aad?post_login_redirect_uri=.referrer`.                                                                                                    |
 | Sign-in succeeds but returns to the wrong page                                             | Confirm the 401 override still uses `post_login_redirect_uri=.referrer`; without it, Static Web Apps may return to the default post-login page instead of the originally requested deep link.                                                                                                |
-| Sign-in completes and the application returns 403                                          | Authentication succeeded but the Static Web Apps principal lacks `owner`. Check `/.auth/me`, generate and accept an `owner` invitation for that Static Web App resource, then use `/.auth/logout` and sign in again. Entra consent alone does not assign the role.                           |
-| Owner work account cannot sign in                                                          | Confirm Microsoft Entra ID was selected as the invitation provider and accept the generated invitation while signed in as the invited work account.                                                                                                                                          |
+| Sign-in completes and the application returns 403                                          | Authentication succeeded but the Static Web Apps principal lacks a Journey role. Check `/.auth/me`, generate and accept exactly one `admin` or `viewer` invitation for that Static Web App resource, then use `/.auth/logout` and sign in again. Entra consent alone does not assign a role. |
+| Invited work account cannot sign in                                                        | Confirm Microsoft Entra ID was selected as the invitation provider and accept the generated invitation while signed in as the invited work account.                                                                                                                                          |
 | `/api/*` returns 401                                                                       | The request has no authenticated Static Web Apps principal. Sign in through `/.auth/login/aad`; do not call the Function App's direct hostname.                                                                                                                                              |
-| `/api/*` returns 403 while `/.auth/me` includes `owner`                                    | Confirm `clientPrincipal.identityProvider` is `aad`, sign out through `/.auth/logout`, and sign in again. If it persists, inspect the linked Function's rejection warning in Application Insights.                                                                                           |
+| `/api/*` returns 403 while `/.auth/me` includes a Journey role                             | Confirm `clientPrincipal.identityProvider` is `aad` and exactly one of `admin` or `viewer` is assigned, then sign out through `/.auth/logout` and sign in again. If it persists, inspect the linked Function's rejection warning in Application Insights.                                    |
 | Azure Maps returns `LocalAuthDisabled`                                                     | A shared-key or SAS path is still deployed. Keep `disableLocalAuth: true` and replace that path with Microsoft Entra token acquisition through the Function managed identity.                                                                                                                |
 | `/api/maps/token` fails to acquire an Entra token                                          | Confirm the Function has a system-assigned identity, the token scope is `https://atlas.microsoft.com/.default`, and the identity has the minimum render/search data role scoped to the Maps account.                                                                                         |
 | Bicep deployment fails with `LinkedAuthorizationFailed` for `joinPerimeterRule/action`     | Assign the GitHub OIDC principal the custom **Journey NSP Subscription Join** role at subscription scope. The role must contain only `Microsoft.Network/networkSecurityPerimeters/joinPerimeterRule/action`; a subscription administrator must create and assign it.                         |
