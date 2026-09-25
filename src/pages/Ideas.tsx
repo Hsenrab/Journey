@@ -220,11 +220,7 @@ export default function Ideas() {
         <EmptyState
           icon={<SearchOffIcon color="disabled" />}
           message={data.ideas.length === 0 ? 'You have no ideas yet.' : 'No ideas match your filters.'}
-          action={
-            data.ideas.length > 0 ? (
-              <Button onClick={clearFilters}>Clear filters</Button>
-            ) : undefined
-          }
+          action={data.ideas.length > 0 ? <Button onClick={clearFilters}>Clear filters</Button> : undefined}
         />
       ) : (
         <Box sx={{ display: 'grid', gap: 2, gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))' }}>
