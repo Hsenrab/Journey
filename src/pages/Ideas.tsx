@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
-import { Box, Button, Card, CardContent, Chip, MenuItem, Stack, TextField, Typography } from '@mui/material'
+import { Alert, Box, Button, Card, CardContent, Chip, MenuItem, Stack, TextField, Typography } from '@mui/material'
 import SearchOffIcon from '@mui/icons-material/SearchOff'
 import { EmptyState } from '../components/EmptyState'
 import { FilterBar } from '../components/FilterBar'
@@ -17,6 +17,7 @@ import {
 } from '../domain/visit'
 import { IdeaEditor } from '../components/IdeaEditor'
 import { useWaypoints } from '../features/journey/JourneyContext'
+import { JourneyConflictError } from '../services/journeyApi'
 
 const brockworth = { latitude: 51.844, longitude: -2.153 }
 
@@ -37,7 +38,7 @@ function referenceHostname(url: string): string {
 }
 
 export default function Ideas() {
-  const { data, addIdea } = useWaypoints()
+  const { data, addIdea, reload } = useWaypoints()
   const [searchParams, setSearchParams] = useSearchParams()
   const stateParam = searchParams.get('state')
   const selectedState = planningStates.includes(stateParam as Idea['planningState'])
@@ -47,7 +48,30 @@ export default function Ideas() {
   const [query, setQuery] = useState('')
   const [usage, setUsage] = useState<UsageFilter>('all')
   const [sort, setSort] = useState<SortKey>('distance')
-  const [message, setMessage] = useState<{ severity: 'success' | 'error'; text: string } | null>(null)
+  const [message, setMessage] = useState<{
+    severity: 'success' | 'error'
+    text: string
+    conflict: boolean
+  } | null>(null)
+
+  const reloadLatest = async () => {
+    try {
+      await reload()
+      setMessage(null)
+      setSearchParams((previous) => {
+        const next = new URLSearchParams(previous)
+        next.delete('mode')
+        next.delete('waypoint')
+        return next
+      })
+    } catch (error) {
+      setMessage({
+        severity: 'error',
+        text: error instanceof Error ? error.message : 'Failed to reload ideas.',
+        conflict: false,
+      })
+    }
+  }
 
   const waypointById = useMemo(
     () => new Map(data.waypoints.map((waypoint) => [waypoint.waypointId, waypoint])),
@@ -175,8 +199,19 @@ export default function Ideas() {
         </TextField>
       </FilterBar>
 
-      {!showEditor && message && (
-        <Typography color={message.severity === 'error' ? 'error' : 'success.main'}>{message.text}</Typography>
+      {message && (
+        <Alert
+          severity={message.severity}
+          action={
+            message.conflict ? (
+              <Button color="inherit" size="small" onClick={() => void reloadLatest()}>
+                Reload latest
+              </Button>
+            ) : undefined
+          }
+        >
+          {message.text}
+        </Alert>
       )}
 
       {showEditor && (
@@ -187,7 +222,7 @@ export default function Ideas() {
           onSubmit={async (draft) => {
             try {
               await addIdea(draft)
-              setMessage({ severity: 'success', text: 'Idea saved.' })
+              setMessage({ severity: 'success', text: 'Idea saved.', conflict: false })
               setSearchParams((previous) => {
                 const next = new URLSearchParams(previous)
                 next.set('state', draft.planningState)
@@ -199,6 +234,7 @@ export default function Ideas() {
               setMessage({
                 severity: 'error',
                 text: error instanceof Error ? error.message : 'Failed to save idea.',
+                conflict: error instanceof JourneyConflictError,
               })
             }
           }}
@@ -211,7 +247,6 @@ export default function Ideas() {
               return next
             })
           }}
-          errorMessage={message?.severity === 'error' ? message.text : null}
         />
       )}
 

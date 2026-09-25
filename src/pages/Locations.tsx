@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
-import { Box, Button, Card, CardContent, Chip, MenuItem, Stack, TextField, Typography } from '@mui/material'
+import { Alert, Box, Button, Card, CardContent, Chip, MenuItem, Stack, TextField, Typography } from '@mui/material'
 import SearchOffIcon from '@mui/icons-material/SearchOff'
 import { EmptyState } from '../components/EmptyState'
 import { FilterBar } from '../components/FilterBar'
@@ -9,13 +9,14 @@ import { WaypointEditor } from '../components/WaypointEditor'
 import { locations } from '../data/locations'
 import { lastActivityDates, statusLabels, statusOrder } from '../domain/visit'
 import { useWaypoints } from '../features/journey/JourneyContext'
+import { JourneyConflictError } from '../services/journeyApi'
 
 const locationById = new Map(locations.map((location) => [location.locationId, location]))
 
 type SortKey = 'name' | 'travel' | 'distance' | 'status' | 'lastActivity'
 
 export default function Locations() {
-  const { addWaypoint, data, statusFor } = useWaypoints()
+  const { addWaypoint, data, reload, statusFor } = useWaypoints()
   const activities = data.activities
   const [searchParams, setSearchParams] = useSearchParams()
   const showEditor = searchParams.get('mode') === 'add'
@@ -36,7 +37,29 @@ export default function Locations() {
   const [maxDistance, setMaxDistance] = useState('all')
   const [area, setArea] = useState('all')
   const [category, setCategory] = useState('all')
-  const [message, setMessage] = useState<{ severity: 'success' | 'error'; text: string } | null>(null)
+  const [message, setMessage] = useState<{
+    severity: 'success' | 'error'
+    text: string
+    conflict: boolean
+  } | null>(null)
+
+  const reloadLatest = async () => {
+    try {
+      await reload()
+      setMessage(null)
+      setSearchParams((previous) => {
+        const next = new URLSearchParams(previous)
+        next.delete('mode')
+        return next
+      })
+    } catch (error) {
+      setMessage({
+        severity: 'error',
+        text: error instanceof Error ? error.message : 'Failed to reload waypoints.',
+        conflict: false,
+      })
+    }
+  }
 
   const areas = useMemo(
     () =>
@@ -125,8 +148,19 @@ export default function Locations() {
           </Button>
         )}
       </PageHeader>
-      {!showEditor && message && (
-        <Typography color={message.severity === 'error' ? 'error' : 'success.main'}>{message.text}</Typography>
+      {message && (
+        <Alert
+          severity={message.severity}
+          action={
+            message.conflict ? (
+              <Button color="inherit" size="small" onClick={() => void reloadLatest()}>
+                Reload latest
+              </Button>
+            ) : undefined
+          }
+        >
+          {message.text}
+        </Alert>
       )}
       {showEditor && (
         <WaypointEditor
@@ -135,7 +169,7 @@ export default function Locations() {
           onSubmit={async (draft) => {
             try {
               await addWaypoint(draft)
-              setMessage({ severity: 'success', text: 'Waypoint saved.' })
+              setMessage({ severity: 'success', text: 'Waypoint saved.', conflict: false })
               setSearchParams((previous) => {
                 const next = new URLSearchParams(previous)
                 next.delete('mode')
@@ -145,6 +179,7 @@ export default function Locations() {
               setMessage({
                 severity: 'error',
                 text: error instanceof Error ? error.message : 'Failed to save waypoint.',
+                conflict: error instanceof JourneyConflictError,
               })
             }
           }}
@@ -156,7 +191,6 @@ export default function Locations() {
               return next
             })
           }}
-          errorMessage={message?.severity === 'error' ? message.text : null}
         />
       )}
       <FilterBar>

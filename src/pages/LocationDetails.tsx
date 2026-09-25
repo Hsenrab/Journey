@@ -22,7 +22,7 @@ export default function LocationDetails() {
   const { id = '' } = useParams()
   const { addActivity, activitiesFor, statusFor, data, reload } = useWaypoints()
   const [showEditor, setShowEditor] = useState(false)
-  const [message, setMessage] = useState<{ severity: 'success' | 'error'; text: string; conflict?: boolean } | null>(
+  const [message, setMessage] = useState<{ severity: 'success' | 'error'; text: string; conflict: boolean } | null>(
     null,
   )
   const waypoint = data.waypoints.find((item) => item.waypointId === id)
@@ -47,7 +47,11 @@ export default function LocationDetails() {
       setMessage(null)
       setShowEditor(false)
     } catch (error) {
-      setMessage({ severity: 'error', text: error instanceof Error ? error.message : 'Failed to reload activities.' })
+      setMessage({
+        severity: 'error',
+        text: error instanceof Error ? error.message : 'Failed to reload activities.',
+        conflict: false,
+      })
     }
   }
 
@@ -90,7 +94,7 @@ export default function LocationDetails() {
             try {
               await addActivity(draft)
               setShowEditor(false)
-              setMessage({ severity: 'success', text: 'Activity saved.' })
+              setMessage({ severity: 'success', text: 'Activity saved.', conflict: false })
             } catch (error) {
               setMessage({
                 severity: 'error',
@@ -99,10 +103,19 @@ export default function LocationDetails() {
               })
             }
           }}
-          onCancel={() => setShowEditor(false)}
+          onCancel={() => {
+            setMessage(null)
+            setShowEditor(false)
+          }}
         />
       ) : (
-        <Button variant="contained" onClick={() => setShowEditor(true)}>
+        <Button
+          variant="contained"
+          onClick={() => {
+            setMessage(null)
+            setShowEditor(true)
+          }}
+        >
           Log activity
         </Button>
       )}

@@ -1,10 +1,10 @@
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
-import { render, screen } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import Ideas from './Ideas'
 import { WaypointsProvider } from '../features/journey/JourneyContext'
-import { createDefaultData, load, save } from '../services/storage'
+import { createDefaultData, load, save, setDataMode } from '../services/storage'
 
 function renderIdeas(path = '/ideas') {
   return render(
@@ -20,6 +20,7 @@ function renderIdeas(path = '/ideas') {
 
 describe('Ideas', () => {
   beforeEach(() => localStorage.clear())
+  afterEach(() => vi.unstubAllGlobals())
 
   it('creates an idea with required fields and a linked waypoint', async () => {
     const user = userEvent.setup()
@@ -30,6 +31,7 @@ describe('Ideas', () => {
     await user.click(screen.getAllByRole('option')[0]!)
     await user.click(screen.getByRole('button', { name: 'Save idea' }))
 
+    expect(screen.getByRole('alert')).toHaveTextContent('Idea saved.')
     expect(load().ideas[0]).toMatchObject({
       title: 'Weekend hill walk',
       planningState: 'active',
@@ -121,6 +123,39 @@ describe('Ideas', () => {
 
     expect(screen.queryByRole('button', { name: 'Save idea' })).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Add idea' })).toBeInTheDocument()
+  })
+
+  it('offers to reload the latest ideas after a save conflict', async () => {
+    setDataMode('demo-cosmos')
+    const data = createDefaultData()
+    const fetch = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+      if (init?.method === 'POST') {
+        return new Response(JSON.stringify({ error: 'conflict' }), {
+          status: 409,
+          headers: { 'content-type': 'application/json' },
+        })
+      }
+      return new Response(JSON.stringify({ data, etags: {} }), {
+        headers: { 'content-type': 'application/json' },
+      })
+    })
+    vi.stubGlobal('fetch', fetch)
+    const user = userEvent.setup()
+    renderIdeas('/ideas?mode=add')
+    await user.click(screen.getByRole('combobox', { name: 'Linked waypoints' }))
+    await user.click(await screen.findByRole('option', { name: 'Stourhead' }))
+
+    await user.type(screen.getByLabelText('Title'), 'Weekend hill walk')
+    await user.click(screen.getByRole('button', { name: 'Save idea' }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Your data has changed in another session.')
+    expect(screen.getAllByText('Your data has changed in another session.')).toHaveLength(1)
+
+    await user.click(screen.getByRole('button', { name: 'Reload latest' }))
+
+    await waitFor(() => expect(screen.queryByRole('alert')).not.toBeInTheDocument())
+    await waitFor(() => expect(screen.queryByRole('button', { name: 'Save idea' })).not.toBeInTheDocument())
+    expect(fetch.mock.calls.filter(([, init]) => !init?.method)).toHaveLength(2)
   })
 
   it('switches planning-state tabs and supports updated and difficulty sorting', async () => {

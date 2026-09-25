@@ -1,10 +1,10 @@
-import { render, screen } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
-import { beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import Locations from './Locations'
 import { WaypointsProvider } from '../features/journey/JourneyContext'
-import { createDefaultData, save } from '../services/storage'
+import { createDefaultData, save, setDataMode } from '../services/storage'
 import type { Activity } from '../domain/visit'
 
 function activity(waypointId: string, category: 'bronze' | 'silver' | 'gold'): Activity {
@@ -36,6 +36,7 @@ function renderLocations(initialEntries: string[] = ['/waypoints']) {
 
 describe('Locations', () => {
   beforeEach(() => localStorage.clear())
+  afterEach(() => vi.unstubAllGlobals())
 
   it('lists every waypoint by default', () => {
     renderLocations()
@@ -142,5 +143,55 @@ describe('Locations', () => {
     expect(screen.getByRole('button', { name: 'Save waypoint' })).toBeInTheDocument()
     await user.click(screen.getByRole('tab', { name: 'Paste JSON' }))
     expect(screen.getByLabelText('Waypoint JSON')).toBeInTheDocument()
+  })
+
+  it('shows waypoint save success in an alert', async () => {
+    const user = userEvent.setup()
+    renderLocations(['/waypoints?mode=add'])
+
+    await user.type(screen.getByLabelText('Title'), 'A viewpoint')
+    await user.type(screen.getByLabelText('Description'), 'A quiet viewpoint')
+    await user.type(screen.getAllByLabelText('Category')[0]!, 'Scenic')
+    await user.click(screen.getByRole('button', { name: 'Save waypoint' }))
+
+    expect(screen.getByRole('alert')).toHaveTextContent('Waypoint saved.')
+  })
+
+  it('offers to reload the latest waypoints after a save conflict', async () => {
+    setDataMode('demo-cosmos')
+    const data = createDefaultData()
+    const fetch = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+      if (init?.method === 'POST') {
+        return new Response(JSON.stringify({ error: 'conflict' }), {
+          status: 409,
+          headers: { 'content-type': 'application/json' },
+        })
+      }
+      return new Response(JSON.stringify({ data, etags: {} }), {
+        headers: { 'content-type': 'application/json' },
+      })
+    })
+    vi.stubGlobal('fetch', fetch)
+    const user = userEvent.setup()
+    renderLocations(['/waypoints?mode=add'])
+    await screen.findByText('Stourhead')
+
+    await user.type(screen.getByLabelText('Title'), 'A viewpoint')
+    await user.type(screen.getByLabelText('Description'), 'A quiet viewpoint')
+    await user.type(screen.getAllByLabelText('Category')[0]!, 'Scenic')
+    await user.click(screen.getByRole('combobox', { name: 'Challenges' }))
+    await user.click(await screen.findByRole('option', { name: 'National Trust' }))
+    await user.click(screen.getByRole('button', { name: 'Save waypoint' }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Your data has changed in another session.')
+    expect(screen.getAllByText('Your data has changed in another session.')).toHaveLength(1)
+
+    await user.click(screen.getByRole('button', { name: 'Reload latest' }))
+
+    await waitFor(() => expect(screen.queryByRole('alert')).not.toBeInTheDocument())
+    await waitFor(() =>
+      expect(screen.queryByRole('button', { name: 'Save waypoint' })).not.toBeInTheDocument(),
+    )
+    expect(fetch.mock.calls.filter(([, init]) => !init?.method)).toHaveLength(2)
   })
 })
