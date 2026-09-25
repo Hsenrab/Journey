@@ -2,7 +2,7 @@ import { render, screen } from '@testing-library/react'
 import { fireEvent } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
-import { beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import ActivityDetails from './ActivityDetails'
 import { WaypointsProvider } from '../features/journey/JourneyContext'
 import { createDefaultData, load, save } from '../services/storage'
@@ -23,6 +23,11 @@ function renderDetails(path = '/activities/a1') {
 
 describe('ActivityDetails', () => {
   beforeEach(() => localStorage.clear())
+  afterEach(() => {
+    vi.restoreAllMocks()
+    vi.unstubAllGlobals()
+    vi.unstubAllEnvs()
+  })
 
   it('shows not found for unknown ids', () => {
     renderDetails('/activities/missing')
@@ -148,12 +153,49 @@ describe('ActivityDetails', () => {
         },
       ],
     })
-
     renderDetails()
 
     expect(screen.getByText('No description recorded.')).toBeInTheDocument()
     expect(screen.getByText('No photos linked to this activity.')).toBeInTheDocument()
     expect(screen.getByText('example.com')).toBeInTheDocument()
+  })
+
+  it('does not offer activity mutations to a viewer', async () => {
+    vi.stubEnv('MODE', 'production')
+    const seed = createDefaultData()
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        new Response(
+          JSON.stringify({
+            data: {
+              ...seed,
+              activities: [
+                {
+                  activityId: 'a1',
+                  ideaIds: [],
+                  date: '2026-08-01',
+                  location: { kind: 'postcode', postcode: 'BA12 6QF' },
+                  notes: '',
+                  referenceIds: [],
+                  photoReferenceIds: [],
+                  createdAt: '2026-08-01T10:00:00.000Z',
+                  updatedAt: '2026-08-01T10:00:00.000Z',
+                },
+              ],
+            },
+            etags: {},
+            role: 'viewer',
+          }),
+        ),
+      ),
+    )
+
+    renderDetails()
+
+    expect(await screen.findByRole('heading', { name: '2026-08-01', level: 1 })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Edit activity' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Delete activity' })).not.toBeInTheDocument()
   })
 
   it('deletes an activity after confirmation', async () => {

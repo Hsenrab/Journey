@@ -1,7 +1,7 @@
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import IdeaDetails from './IdeaDetails'
 import { WaypointsProvider } from '../features/journey/JourneyContext'
 import { createDefaultData, load, save } from '../services/storage'
@@ -22,6 +22,11 @@ function renderDetails(path = '/ideas/idea-1') {
 
 describe('IdeaDetails', () => {
   beforeEach(() => localStorage.clear())
+  afterEach(() => {
+    vi.restoreAllMocks()
+    vi.unstubAllGlobals()
+    vi.unstubAllEnvs()
+  })
 
   it('breadcrumbs back to the idea list', async () => {
     const user = userEvent.setup()
@@ -140,12 +145,50 @@ describe('IdeaDetails', () => {
       ],
       activities: [],
     })
-
     renderDetails()
     expect(screen.getByText('Rejection reason: Not viable')).toBeInTheDocument()
     expect(screen.getByText('Location: 51.12345, -2.54321')).toBeInTheDocument()
     expect(screen.getByText('No references linked to this idea.')).toBeInTheDocument()
     expect(screen.getByText('Not used')).toBeInTheDocument()
+  })
+
+  it('does not offer idea mutations to a viewer', async () => {
+    vi.stubEnv('MODE', 'production')
+    const seed = createDefaultData()
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        new Response(
+          JSON.stringify({
+            data: {
+              ...seed,
+              ideas: [
+                {
+                  ideaId: 'idea-1',
+                  title: 'Try the outer trail',
+                  description: '',
+                  notes: '',
+                  waypointIds: [],
+                  planningState: 'active',
+                  difficulty: 2,
+                  referenceIds: [],
+                  createdAt: '2026-08-01T00:00:00.000Z',
+                  updatedAt: '2026-08-01T00:00:00.000Z',
+                },
+              ],
+            },
+            etags: {},
+            role: 'viewer',
+          }),
+        ),
+      ),
+    )
+
+    renderDetails()
+
+    expect(await screen.findByRole('heading', { name: 'Try the outer trail', level: 1 })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Edit idea' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Delete idea' })).not.toBeInTheDocument()
   })
 
   it('enters and exits edit mode', async () => {
