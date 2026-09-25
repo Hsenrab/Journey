@@ -28,6 +28,9 @@ const brockworth = { latitude: 51.844, longitude: -2.153 }
 
 type SortKey = 'distance' | 'updated' | 'difficulty'
 type UsageFilter = 'all' | 'used' | 'not-used'
+type StateFilter = Idea['planningState'] | 'all'
+
+const stateFilters: StateFilter[] = ['all', ...planningStates]
 
 function distanceFromBrockworth(idea: Idea): number | undefined {
   if (idea.location?.latitude === undefined || idea.location?.longitude === undefined) return undefined
@@ -46,9 +49,9 @@ export default function Ideas() {
   const { data, addIdea, readOnly } = useWaypoints()
   const [searchParams, setSearchParams] = useSearchParams()
   const stateParam = searchParams.get('state')
-  const selectedState = planningStates.includes(stateParam as Idea['planningState'])
+  const selectedState: StateFilter = planningStates.includes(stateParam as Idea['planningState'])
     ? (stateParam as Idea['planningState'])
-    : 'active'
+    : 'all'
   const showEditor = searchParams.get('mode') === 'add'
   const [query, setQuery] = useState('')
   const [usage, setUsage] = useState<UsageFilter>('all')
@@ -71,11 +74,12 @@ export default function Ideas() {
       ),
     [data.ideas],
   )
+  const allCount = data.ideas.length
 
   const filteredIdeas = useMemo(() => {
     const loweredQuery = query.trim().toLowerCase()
     return data.ideas
-      .filter((idea) => idea.planningState === selectedState)
+      .filter((idea) => selectedState === 'all' || idea.planningState === selectedState)
       .filter((idea) => {
         const count = ideaUsageCount(data.activities, idea.ideaId)
         if (usage === 'used') return count > 0
@@ -109,6 +113,16 @@ export default function Ideas() {
   }, [data.activities, data.ideas, query, referenceById, selectedState, sort, usage, waypointById])
 
   const initialWaypointId = searchParams.get('waypoint') ?? undefined
+  const clearFilters = () => {
+    setQuery('')
+    setUsage('all')
+    setSort('distance')
+    setSearchParams((previous) => {
+      const next = new URLSearchParams(previous)
+      next.delete('state')
+      return next
+    })
+  }
 
   return (
     <Stack spacing={2}>
@@ -129,20 +143,21 @@ export default function Ideas() {
           </Button>
         )}
         <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: 'wrap' }}>
-          {planningStates.map((state) => (
+          {stateFilters.map((state) => (
             <Button
               key={state}
               variant={selectedState === state ? 'contained' : 'outlined'}
               onClick={() =>
                 setSearchParams((previous) => {
                   const next = new URLSearchParams(previous)
-                  next.set('state', state)
+                  if (state === 'all') next.delete('state')
+                  else next.set('state', state)
                   return next
                 })
               }
-              aria-label={`${planningStateLabels[state]} ideas (${counts[state]})`}
+              aria-label={`${state === 'all' ? 'All' : planningStateLabels[state]} ideas (${state === 'all' ? allCount : counts[state]})`}
             >
-              {planningStateLabels[state]} ({counts[state]})
+              {state === 'all' ? 'All' : planningStateLabels[state]} ({state === 'all' ? allCount : counts[state]})
             </Button>
           ))}
         </Stack>
@@ -202,7 +217,15 @@ export default function Ideas() {
       )}
 
       {filteredIdeas.length === 0 ? (
-        <EmptyState icon={<SearchOffIcon color="disabled" />} message="No ideas match your filters." />
+        <EmptyState
+          icon={<SearchOffIcon color="disabled" />}
+          message={data.ideas.length === 0 ? 'You have no ideas yet.' : 'No ideas match your filters.'}
+          action={
+            data.ideas.length > 0 ? (
+              <Button onClick={clearFilters}>Clear filters</Button>
+            ) : undefined
+          }
+        />
       ) : (
         <Box sx={{ display: 'grid', gap: 2, gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))' }}>
           {filteredIdeas.map((idea) => {

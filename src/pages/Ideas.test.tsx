@@ -50,7 +50,7 @@ describe('Ideas', () => {
     expect(load().ideas).toHaveLength(0)
   })
 
-  it('searches by reference hostname and filters by usage', async () => {
+  it('searches across planning states by reference hostname and filters by usage', async () => {
     const seed = createDefaultData()
     save({
       ...seed,
@@ -62,7 +62,7 @@ describe('Ideas', () => {
           description: '',
           notes: '',
           waypointIds: [],
-          planningState: 'active',
+          planningState: 'someday',
           difficulty: 2,
           referenceIds: ['ref-1'],
           createdAt: '2026-08-01T00:00:00.000Z',
@@ -89,11 +89,44 @@ describe('Ideas', () => {
 
     await user.type(screen.getByLabelText('Search ideas'), 'example.com')
     expect(screen.getByText('Route A')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'All ideas (1)' })).toBeInTheDocument()
     expect(screen.getByText('Used in 1 activity')).toBeInTheDocument()
 
     await user.click(screen.getByRole('combobox', { name: 'Usage' }))
     await user.click(screen.getByRole('option', { name: 'Not used' }))
     expect(screen.getByText('No ideas match your filters.')).toBeInTheDocument()
+  })
+
+  it('distinguishes an empty collection from filtered results and clears filters', async () => {
+    const { unmount } = renderIdeas()
+    expect(screen.getByText('You have no ideas yet.')).toBeInTheDocument()
+    unmount()
+
+    const seed = createDefaultData()
+    save({
+      ...seed,
+      ideas: [
+        {
+          ideaId: 'idea-1',
+          title: 'Weekend hill walk',
+          description: '',
+          notes: '',
+          waypointIds: [],
+          planningState: 'active',
+          difficulty: 1,
+          referenceIds: [],
+          createdAt: '2026-08-01T00:00:00.000Z',
+          updatedAt: '2026-08-01T00:00:00.000Z',
+        },
+      ],
+    })
+
+    const user = userEvent.setup()
+    renderIdeas()
+    await user.type(screen.getByLabelText('Search ideas'), 'no match')
+    expect(screen.getByText('No ideas match your filters.')).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Clear filters' }))
+    expect(screen.getByText('Weekend hill walk')).toBeInTheDocument()
   })
 
   it('validates idea location coordinates and reference https URLs', async () => {
