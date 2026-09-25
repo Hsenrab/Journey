@@ -258,9 +258,11 @@ export default function Locations() {
                       </>
                     ) : (
                       <>
-                        <CardDetailRow icon={<RouteIcon fontSize="small" />}>Distance unavailable</CardDetailRow>
+                        <CardDetailRow icon={<RouteIcon fontSize="small" />}>
+                          Distance unavailable for custom waypoints
+                        </CardDetailRow>
                         <CardDetailRow icon={<DirectionsCarIcon fontSize="small" />}>
-                          Drive time unavailable
+                          Drive time unavailable for custom waypoints
                         </CardDetailRow>
                       </>
                     )}

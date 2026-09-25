@@ -151,33 +151,36 @@ export default function LocationDetails() {
         {activities.length === 0 && (
           <EmptyState icon={<InboxOutlinedIcon color="disabled" />} message="No activities logged yet." />
         )}
-        {activities.map((activity) => (
-          <Card key={activity.activityId}>
-            <CardContent>
-              <Stack spacing={1}>
-                <Typography variant="h6" component={Link} to={`/activities/${activity.activityId}`}>
-                  {activityTitle(activity)}
-                </Typography>
-                <Typography color="text.secondary">{activitySubtitle(activity)}</Typography>
-                {activity.category && (
-                  <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: 'wrap' }}>
-                    <Chip label={statusLabels[activity.category]} />
-                  </Stack>
-                )}
-                {activity.notes && <Typography>{activity.notes}</Typography>}
-                <CardDetailRow icon={<PlaceIcon fontSize="small" />}>
-                  {locationSummary(activity.location)}
-                </CardDetailRow>
-                <CardDetailRow icon={<PhotoLibraryIcon fontSize="small" />}>
-                  {activity.photoReferenceIds.length} photo{activity.photoReferenceIds.length === 1 ? '' : 's'}
-                </CardDetailRow>
-                <CardDetailRow icon={<LinkIcon fontSize="small" />}>
-                  {activity.referenceIds.length} link{activity.referenceIds.length === 1 ? '' : 's'}
-                </CardDetailRow>
-              </Stack>
-            </CardContent>
-          </Card>
-        ))}
+        {activities.map((activity) => {
+          const subtitle = activitySubtitle(activity)
+          return (
+            <Card key={activity.activityId}>
+              <CardContent>
+                <Stack spacing={1}>
+                  <Typography variant="h6" component={Link} to={`/activities/${activity.activityId}`}>
+                    {activityTitle(activity)}
+                  </Typography>
+                  {subtitle && <Typography color="text.secondary">{subtitle}</Typography>}
+                  {activity.category && (
+                    <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: 'wrap' }}>
+                      <Chip label={statusLabels[activity.category]} />
+                    </Stack>
+                  )}
+                  {activity.notes && <Typography>{activity.notes}</Typography>}
+                  <CardDetailRow icon={<PlaceIcon fontSize="small" />}>
+                    {locationSummary(activity.location)}
+                  </CardDetailRow>
+                  <CardDetailRow icon={<PhotoLibraryIcon fontSize="small" />}>
+                    {activity.photoReferenceIds.length} photo{activity.photoReferenceIds.length === 1 ? '' : 's'}
+                  </CardDetailRow>
+                  <CardDetailRow icon={<LinkIcon fontSize="small" />}>
+                    {activity.referenceIds.length} link{activity.referenceIds.length === 1 ? '' : 's'}
+                  </CardDetailRow>
+                </Stack>
+              </CardContent>
+            </Card>
+          )
+        })}
       </Stack>
     </Stack>
   )

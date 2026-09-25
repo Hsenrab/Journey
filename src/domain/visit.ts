@@ -208,7 +208,7 @@ export function activityTitle(activity: Activity) {
 }
 
 export function activitySubtitle(activity: Activity) {
-  return activity.name ? formatActivityDate(activity.date) : 'Activity log entry'
+  return activity.name ? formatActivityDate(activity.date) : undefined
 }
 
 export function locationSummary(location: ActivityLocation): string {
