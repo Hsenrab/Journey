@@ -44,21 +44,17 @@ export default function Locations() {
   } | null>(null)
 
   const reloadLatest = async () => {
-    try {
-      await reload()
-      setMessage(null)
-      setSearchParams((previous) => {
-        const next = new URLSearchParams(previous)
-        next.delete('mode')
-        return next
-      })
-    } catch (error) {
-      setMessage({
-        severity: 'error',
-        text: error instanceof Error ? error.message : 'Failed to reload waypoints.',
-        conflict: false,
-      })
+    const loadFailure = await reload()
+    if (loadFailure) {
+      setMessage({ severity: 'error', text: loadFailure, conflict: true })
+      return
     }
+    setMessage(null)
+    setSearchParams((previous) => {
+      const next = new URLSearchParams(previous)
+      next.delete('mode')
+      return next
+    })
   }
 
   const areas = useMemo(

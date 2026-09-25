@@ -107,7 +107,7 @@ type WaypointsValue = {
   deleteIdea: (ideaId: string) => Promise<void>
   restore: (data: WaypointsData) => Promise<void>
   clear: () => Promise<void>
-  reload: () => Promise<void>
+  reload: () => Promise<string | undefined>
   activitiesFor: (waypointId: string) => Activity[]
   statusFor: (waypointId: string) => Status
 }
@@ -382,7 +382,7 @@ export function WaypointsProvider({ children }: { children: ReactNode }) {
     setEtags(loaded.etags)
   }, [])
   const loadMode = useCallback(
-    async (mode: JourneyDataMode) => {
+    async (mode: JourneyDataMode): Promise<string | undefined> => {
       const generation = loadGeneration.current + 1
       loadGeneration.current = generation
       setLoading(true)
@@ -391,36 +391,34 @@ export function WaypointsProvider({ children }: { children: ReactNode }) {
         active: JourneyDataMode,
         error?: string,
       ) => {
-        if (loadGeneration.current !== generation) return
+        if (loadGeneration.current !== generation) return error
         apply(loaded)
         setActiveDataMode(active)
         setLoadError(error)
         setLoading(false)
+        return error
       }
 
       if (mode === 'demo-local') {
-        settle({ data: createDemoModeData(), etags: {} }, 'demo-local')
-        return
+        return settle({ data: createDemoModeData(), etags: {} }, 'demo-local')
       }
 
       if (localTestMode && mode === 'production') {
-        settle({ data: load(), etags: {} }, 'production')
-        return
+        return settle({ data: load(), etags: {} }, 'production')
       }
 
       try {
-        settle(await loadJourney(mode === 'demo-cosmos' ? 'demo' : 'production'), mode)
+        return settle(await loadJourney(mode === 'demo-cosmos' ? 'demo' : 'production'), mode)
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error)
         if (mode === 'demo-cosmos') {
-          settle(
+          return settle(
             { data: createDemoModeData(), etags: {} },
             'demo-local',
             `Demo Cosmos could not be loaded, so read-only local demo data is shown: ${message}`,
           )
-          return
         }
-        settle(
+        return settle(
           { data: emptyData(), etags: {} },
           'production',
           `Production data could not be loaded. Check the Journey API and Cosmos configuration: ${message}`,
@@ -429,9 +427,7 @@ export function WaypointsProvider({ children }: { children: ReactNode }) {
     },
     [apply, localTestMode],
   )
-  const reload = useCallback(async () => {
-    await loadMode(dataMode)
-  }, [dataMode, loadMode])
+  const reload = useCallback(async () => loadMode(dataMode), [dataMode, loadMode])
   const changeDataMode = useCallback(async (mode: JourneyDataMode) => {
     saveDataMode(mode)
     setDataModeState(mode)
