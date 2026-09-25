@@ -29,7 +29,7 @@ import { useWaypoints } from '../features/journey/JourneyContext'
 export default function IdeaDetails() {
   const navigate = useNavigate()
   const { ideaId = '' } = useParams()
-  const { data, updateIdea, deleteIdea } = useWaypoints()
+  const { data, readOnly, updateIdea, deleteIdea } = useWaypoints()
   const [editing, setEditing] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
@@ -125,7 +125,7 @@ export default function IdeaDetails() {
           </>
         )}
       </Stack>
-      {editing ? (
+      {!readOnly && editing ? (
         <IdeaEditor
           data={data}
           initialIdea={idea}
@@ -143,7 +143,7 @@ export default function IdeaDetails() {
           onDelete={() => setShowDeleteDialog(true)}
           errorMessage={error}
         />
-      ) : (
+      ) : !readOnly ? (
         <Stack direction="row" spacing={1}>
           <Button variant="contained" onClick={() => setEditing(true)}>
             Edit idea
@@ -153,7 +153,7 @@ export default function IdeaDetails() {
           </Button>
         </Stack>
       )}
-      <Dialog open={showDeleteDialog} onClose={() => setShowDeleteDialog(false)}>
+      {!readOnly && <Dialog open={showDeleteDialog} onClose={() => setShowDeleteDialog(false)}>
         <DialogTitle>Delete idea?</DialogTitle>
         <DialogContent>
           <Typography>
@@ -176,7 +176,7 @@ export default function IdeaDetails() {
             Delete
           </Button>
         </DialogActions>
-      </Dialog>
+      </Dialog>}
     </Stack>
   )
 }

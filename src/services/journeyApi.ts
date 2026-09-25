@@ -1,6 +1,7 @@
 import { DataSchema, type WaypointsData } from '../domain/visit'
 
 export type JourneyContainer = 'production' | 'demo'
+export type JourneyRole = 'admin' | 'viewer'
 type EntityType = 'waypoint' | 'challenge' | 'idea' | 'activity' | 'reference' | 'photoReference'
 
 export class JourneyConflictError extends Error {
@@ -36,9 +37,9 @@ async function request<T>(container: JourneyContainer, init?: RequestInit): Prom
 
 export async function loadJourney(
   container: JourneyContainer,
-): Promise<{ data: WaypointsData; etags: Record<string, string> }> {
-  const result = await request<{ data: unknown; etags: Record<string, string> }>(container)
-  return { data: DataSchema.parse(result.data), etags: result.etags }
+): Promise<{ data: WaypointsData; etags: Record<string, string>; role?: JourneyRole }> {
+  const result = await request<{ data: unknown; etags: Record<string, string>; role?: JourneyRole }>(container)
+  return { data: DataSchema.parse(result.data), etags: result.etags, role: result.role }
 }
 
 export async function createJourneyEntity(

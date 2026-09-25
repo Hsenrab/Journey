@@ -10,11 +10,11 @@
     },
     {
       "route": "/api/*",
-      "allowedRoles": ["owner"]
+      "allowedRoles": ["admin", "viewer"]
     },
     {
       "route": "/*",
-      "allowedRoles": ["owner"]
+      "allowedRoles": ["admin", "viewer"]
     }
   ],
   "responseOverrides": {

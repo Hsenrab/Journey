@@ -24,7 +24,7 @@ import { JourneyConflictError } from '../services/journeyApi'
 export default function ActivityDetails() {
   const { activityId = '' } = useParams()
   const navigate = useNavigate()
-  const { data, reload, updateActivity, deleteActivity } = useWaypoints()
+  const { data, readOnly, reload, updateActivity, deleteActivity } = useWaypoints()
   const [editing, setEditing] = useState(false)
   const [photoIndex, setPhotoIndex] = useState(0)
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
@@ -213,7 +213,7 @@ export default function ActivityDetails() {
         )}
       </Stack>
 
-      {editing ? (
+      {!readOnly && editing ? (
         <ActivityEditor
           data={data}
           initialActivity={activity}
@@ -236,7 +236,7 @@ export default function ActivityDetails() {
           onCancel={() => setEditing(false)}
           onDelete={() => setShowDeleteDialog(true)}
         />
-      ) : (
+      ) : !readOnly ? (
         <Stack direction="row" spacing={1}>
           <Button variant="contained" onClick={() => setEditing(true)}>
             Edit activity
@@ -247,7 +247,7 @@ export default function ActivityDetails() {
         </Stack>
       )}
 
-      <Dialog open={showDeleteDialog} onClose={() => setShowDeleteDialog(false)}>
+      {!readOnly && <Dialog open={showDeleteDialog} onClose={() => setShowDeleteDialog(false)}>
         <DialogTitle>Delete activity?</DialogTitle>
         <DialogContent>
           <Typography>
@@ -278,7 +278,7 @@ export default function ActivityDetails() {
             Delete
           </Button>
         </DialogActions>
-      </Dialog>
+      </Dialog>}
     </Stack>
   )
 }

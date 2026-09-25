@@ -16,8 +16,8 @@ function ownerHeader(overrides: Record<string, unknown> = {}): string {
   return encodePrincipal({
     identityProvider: 'aad',
     userId: 'user-1',
-    userDetails: 'owner@example.com',
-    userRoles: ['anonymous', 'authenticated', 'owner'],
+    userDetails: 'admin@example.com',
+    userRoles: ['anonymous', 'authenticated', 'admin'],
     ...overrides,
   })
 }
@@ -60,7 +60,7 @@ describe('mapsToken', () => {
     expect(result.status).toBe(403)
   })
 
-  it('returns 403 for a principal missing the owner role', async () => {
+  it('returns 403 for a principal missing a Journey role', async () => {
     const { mapsToken } = await import('./mapsToken.js')
     const header = ownerHeader({ userRoles: ['anonymous', 'authenticated'] })
     const result = await mapsToken(requestWithPrincipal(header), fakeContext())

@@ -244,6 +244,21 @@ describe('WaypointsContext in production mode', () => {
     expect(fetch).toHaveBeenCalledTimes(9)
   })
 
+  it('keeps viewer data read-only even when mutation methods are called directly', async () => {
+    const seeded = createDefaultData()
+    const fetch = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ data: seeded, etags: {}, role: 'viewer' }), { status: 200 }),
+    )
+    vi.stubGlobal('fetch', fetch)
+
+    const { result } = renderHook(() => useWaypoints(), { wrapper: WaypointsProvider })
+    await waitFor(() => expect(result.current.role).toBe('viewer'))
+
+    expect(result.current.readOnly).toBe(true)
+    await expect(result.current.addActivity(draft)).rejects.toThrow('Viewer access is read-only.')
+    expect(fetch).toHaveBeenCalledTimes(1)
+  })
+
   it('refuses to mutate local demo data', async () => {
     setDataMode('demo-local')
 

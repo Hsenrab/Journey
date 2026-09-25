@@ -42,7 +42,7 @@ const navItems = [
 ]
 
 const drawerWidth = 240
-type DataModeStatus = 'fallback' | 'error' | 'readOnly' | 'demoWritable' | 'production'
+type DataModeStatus = 'fallback' | 'error' | 'readOnly' | 'viewer' | 'demoWritable' | 'production'
 const dataModeStatusView: Record<
   DataModeStatus,
   { label: string; color: 'default' | 'error' | 'info' | 'warning'; filled: boolean }
@@ -50,6 +50,7 @@ const dataModeStatusView: Record<
   fallback: { label: 'Local fallback read-only', color: 'warning', filled: true },
   error: { label: 'Load error', color: 'error', filled: true },
   readOnly: { label: 'Read-only', color: 'warning', filled: true },
+  viewer: { label: 'Viewer read-only', color: 'warning', filled: true },
   demoWritable: { label: 'Demo writable', color: 'info', filled: false },
   production: { label: 'Production', color: 'default', filled: false },
 }
@@ -59,7 +60,7 @@ export function Layout({ children }: { children: ReactNode }) {
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'))
   const [open, setOpen] = useState(false)
   const location = useLocation()
-  const { activeDataMode, dataMode, loadError, readOnly, setDataMode } = useWaypoints()
+  const { activeDataMode, dataMode, loadError, readOnly, role, setDataMode } = useWaypoints()
   const modeLabel: Record<JourneyDataMode, string> = {
     'demo-local': 'Demo local',
     'demo-cosmos': 'Demo Cosmos',
@@ -70,6 +71,8 @@ export function Layout({ children }: { children: ReactNode }) {
     ? 'fallback'
     : loadError
       ? 'error'
+      : role === 'viewer'
+        ? 'viewer'
       : readOnly
         ? 'readOnly'
         : activeDataMode === 'demo-cosmos'

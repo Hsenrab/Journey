@@ -2,13 +2,13 @@ import { app, type HttpRequest, type HttpResponseInit, type InvocationContext } 
 import { DefaultAzureCredential } from '@azure/identity'
 import { z } from 'zod'
 import { MapsSearchError, searchAddress } from '../lib/geocode.js'
-import { assertOwnerPrincipal, parseClientPrincipalHeader, PrincipalValidationError } from '../lib/principal.js'
+import { journeyRoleForPrincipal, parseClientPrincipalHeader, PrincipalValidationError } from '../lib/principal.js'
 
 const SearchQuerySchema = z.object({ query: z.string().trim().min(2, 'Enter at least two characters.').max(200) })
 
 export async function mapsSearch(request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> {
   try {
-    assertOwnerPrincipal(parseClientPrincipalHeader(request.headers.get('x-ms-client-principal')))
+    journeyRoleForPrincipal(parseClientPrincipalHeader(request.headers.get('x-ms-client-principal')))
   } catch (error) {
     if (error instanceof PrincipalValidationError) return { status: 403, jsonBody: { error: 'forbidden' } }
     throw error

@@ -1,16 +1,16 @@
 import { describe, expect, it } from 'vitest'
-import { assertOwnerPrincipal, parseClientPrincipalHeader, PrincipalValidationError } from './principal.js'
+import { journeyRoleForPrincipal, parseClientPrincipalHeader, PrincipalValidationError } from './principal.js'
 
 function encodePrincipal(principal: Record<string, unknown>): string {
   return Buffer.from(JSON.stringify(principal)).toString('base64')
 }
 
-function ownerHeader(overrides: Record<string, unknown> = {}): string {
+function principalHeader(overrides: Record<string, unknown> = {}): string {
   return encodePrincipal({
     identityProvider: 'aad',
     userId: 'user-1',
-    userDetails: 'owner@example.com',
-    userRoles: ['anonymous', 'authenticated', 'owner'],
+    userDetails: 'admin@example.com',
+    userRoles: ['anonymous', 'authenticated', 'admin'],
     ...overrides,
   })
 }
@@ -30,25 +30,34 @@ describe('parseClientPrincipalHeader', () => {
   })
 
   it('parses a well-formed header', () => {
-    const principal = parseClientPrincipalHeader(ownerHeader())
+    const principal = parseClientPrincipalHeader(principalHeader())
     expect(principal.identityProvider).toBe('aad')
-    expect(principal.userRoles).toContain('owner')
+    expect(principal.userRoles).toContain('admin')
   })
 })
 
-describe('assertOwnerPrincipal', () => {
-  it('accepts the assigned owner', () => {
-    const principal = parseClientPrincipalHeader(ownerHeader())
-    expect(() => assertOwnerPrincipal(principal)).not.toThrow()
+describe('journeyRoleForPrincipal', () => {
+  it('returns the single assigned Journey role', () => {
+    expect(journeyRoleForPrincipal(parseClientPrincipalHeader(principalHeader()))).toBe('admin')
+    expect(journeyRoleForPrincipal(parseClientPrincipalHeader(principalHeader({ userRoles: ['authenticated', 'viewer'] })))).toBe(
+      'viewer',
+    )
   })
 
   it('rejects a different identity provider', () => {
-    const principal = parseClientPrincipalHeader(ownerHeader({ identityProvider: 'github' }))
-    expect(() => assertOwnerPrincipal(principal)).toThrow(PrincipalValidationError)
+    const principal = parseClientPrincipalHeader(principalHeader({ identityProvider: 'github' }))
+    expect(() => journeyRoleForPrincipal(principal)).toThrow(PrincipalValidationError)
   })
 
-  it('rejects a principal missing the owner role', () => {
-    const principal = parseClientPrincipalHeader(ownerHeader({ userRoles: ['anonymous', 'authenticated'] }))
-    expect(() => assertOwnerPrincipal(principal)).toThrow(PrincipalValidationError)
+  it('fails closed for anonymous, unassigned, and ambiguously assigned principals', () => {
+    expect(() => journeyRoleForPrincipal(parseClientPrincipalHeader(principalHeader({ userRoles: ['anonymous'] })))).toThrow(
+      PrincipalValidationError,
+    )
+    expect(() =>
+      journeyRoleForPrincipal(parseClientPrincipalHeader(principalHeader({ userRoles: ['authenticated'] }))),
+    ).toThrow(PrincipalValidationError)
+    expect(() =>
+      journeyRoleForPrincipal(parseClientPrincipalHeader(principalHeader({ userRoles: ['authenticated', 'admin', 'viewer'] }))),
+    ).toThrow(PrincipalValidationError)
   })
 })
