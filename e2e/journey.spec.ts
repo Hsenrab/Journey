@@ -8,7 +8,7 @@ test.describe('activity management flow', () => {
   test('creates a linked categorized activity from waypoint details', async ({ page }) => {
     await page.goto('/')
     await page.getByLabel('Search waypoints').fill('Chedworth')
-    await page.getByRole('link', { name: 'View waypoint' }).click()
+    await page.getByRole('link', { name: 'Chedworth Roman Villa' }).click()
 
     await page.getByRole('button', { name: 'Log activity' }).click()
     await expect(page.getByLabel('Latitude')).toHaveValue('51.783')

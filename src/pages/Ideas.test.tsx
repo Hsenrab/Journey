@@ -90,6 +90,7 @@ describe('Ideas', () => {
     await user.type(screen.getByLabelText('Search ideas'), 'example.com')
     expect(screen.getByText('Route A')).toBeInTheDocument()
     expect(screen.getByText('Used in 1 activity')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Route A' })).toHaveAttribute('href', '/ideas/idea-1')
 
     await user.click(screen.getByRole('combobox', { name: 'Usage' }))
     await user.click(screen.getByRole('option', { name: 'Not used' }))

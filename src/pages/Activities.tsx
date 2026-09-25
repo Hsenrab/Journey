@@ -1,12 +1,12 @@
 import { useState } from 'react'
-import { Link } from 'react-router-dom'
-import { Alert, Button, Card, CardContent, Chip, Stack, Typography } from '@mui/material'
+import { Alert, Button, Chip, Stack, Typography } from '@mui/material'
 import LinkIcon from '@mui/icons-material/Link'
 import PhotoLibraryIcon from '@mui/icons-material/PhotoLibrary'
 import PlaceIcon from '@mui/icons-material/Place'
 import InboxOutlinedIcon from '@mui/icons-material/InboxOutlined'
 import { ActivityEditor } from '../components/ActivityEditor'
 import { CardDetailRow } from '../components/CardDetailRow'
+import { ClickableCard } from '../components/ClickableCard'
 import { EmptyState } from '../components/EmptyState'
 import { PageHeader } from '../components/PageHeader'
 import { activitySubtitle, activityTitle, countLabel, locationSummary, statusLabels } from '../domain/visit'
@@ -89,38 +89,30 @@ export default function Activities() {
             const waypoint = activity.waypointId ? waypointById.get(activity.waypointId) : undefined
             const subtitle = [activitySubtitle(activity), waypoint?.title].filter(Boolean).join(' · ')
             return (
-              <Card key={activity.activityId}>
-                <CardContent>
-                  <Stack spacing={1}>
-                    <Typography variant="h6" component={Link} to={`/activities/${activity.activityId}`}>
-                      {activityTitle(activity)}
-                    </Typography>
-                    {subtitle && <Typography color="text.secondary">{subtitle}</Typography>}
-                    <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: 'wrap' }}>
-                      {activity.category && <Chip label={statusLabels[activity.category]} />}
-                      {waypoint && (
-                        <Chip
-                          component={Link}
-                          clickable
-                          label={`Waypoint: ${waypoint.title}`}
-                          to={`/waypoints/${waypoint.waypointId}`}
-                          variant="outlined"
-                        />
-                      )}
-                    </Stack>
-                    <CardDetailRow icon={<PlaceIcon fontSize="small" />}>
-                      {locationSummary(activity.location)}
-                    </CardDetailRow>
-                    {activity.notes && <Typography>{activity.notes.slice(0, 140)}</Typography>}
-                    <CardDetailRow icon={<PhotoLibraryIcon fontSize="small" />}>
-                      {countLabel(activity.photoReferenceIds.length, 'photo')}
-                    </CardDetailRow>
-                    <CardDetailRow icon={<LinkIcon fontSize="small" />}>
-                      {countLabel(activity.referenceIds.length, 'link')}
-                    </CardDetailRow>
+              <ClickableCard
+                key={activity.activityId}
+                title={activityTitle(activity)}
+                to={`/activities/${activity.activityId}`}
+              >
+                <Stack spacing={1}>
+                  <Typography variant="h6">{activityTitle(activity)}</Typography>
+                  {subtitle && <Typography color="text.secondary">{subtitle}</Typography>}
+                  <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: 'wrap' }}>
+                    {activity.category && <Chip label={statusLabels[activity.category]} />}
+                    {waypoint && <Chip label={`Waypoint: ${waypoint.title}`} variant="outlined" />}
                   </Stack>
-                </CardContent>
-              </Card>
+                  <CardDetailRow icon={<PlaceIcon fontSize="small" />}>
+                    {locationSummary(activity.location)}
+                  </CardDetailRow>
+                  {activity.notes && <Typography>{activity.notes.slice(0, 140)}</Typography>}
+                  <CardDetailRow icon={<PhotoLibraryIcon fontSize="small" />}>
+                    {countLabel(activity.photoReferenceIds.length, 'photo')}
+                  </CardDetailRow>
+                  <CardDetailRow icon={<LinkIcon fontSize="small" />}>
+                    {countLabel(activity.referenceIds.length, 'link')}
+                  </CardDetailRow>
+                </Stack>
+              </ClickableCard>
             )
           })
         )}

@@ -93,7 +93,7 @@ describe('LocationDetails', () => {
     })
     renderDetails(lacockId)
     expect(screen.getByRole('heading', { name: 'Ideas' })).toBeInTheDocument()
-    expect(screen.getByText('Scout route')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Scout route' })).toHaveAttribute('href', '/ideas/idea-1')
     expect(screen.getByText('Active · Not used')).toBeInTheDocument()
   })
 

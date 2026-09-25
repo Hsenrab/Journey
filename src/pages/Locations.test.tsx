@@ -41,6 +41,7 @@ describe('Locations', () => {
     renderLocations()
     expect(screen.getByText('Stourhead')).toBeInTheDocument()
     expect(screen.getByText('Dyrham Park')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Stourhead' })).toHaveAttribute('href', '/waypoints/stourhead')
   })
 
   it('filters by search term across title, area and category', async () => {
