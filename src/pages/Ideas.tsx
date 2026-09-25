@@ -143,23 +143,27 @@ export default function Ideas() {
           </Button>
         )}
         <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: 'wrap' }}>
-          {stateFilters.map((state) => (
-            <Button
-              key={state}
-              variant={selectedState === state ? 'contained' : 'outlined'}
-              onClick={() =>
-                setSearchParams((previous) => {
-                  const next = new URLSearchParams(previous)
-                  if (state === 'all') next.delete('state')
-                  else next.set('state', state)
-                  return next
-                })
-              }
-              aria-label={`${state === 'all' ? 'All' : planningStateLabels[state]} ideas (${state === 'all' ? allCount : counts[state]})`}
-            >
-              {state === 'all' ? 'All' : planningStateLabels[state]} ({state === 'all' ? allCount : counts[state]})
-            </Button>
-          ))}
+          {stateFilters.map((state) => {
+            const label = state === 'all' ? 'All' : planningStateLabels[state]
+            const count = state === 'all' ? allCount : counts[state]
+            return (
+              <Button
+                key={state}
+                variant={selectedState === state ? 'contained' : 'outlined'}
+                onClick={() =>
+                  setSearchParams((previous) => {
+                    const next = new URLSearchParams(previous)
+                    if (state === 'all') next.delete('state')
+                    else next.set('state', state)
+                    return next
+                  })
+                }
+                aria-label={`${label} ideas (${count})`}
+              >
+                {label} ({count})
+              </Button>
+            )
+          })}
         </Stack>
       </PageHeader>
       <FilterBar>
@@ -219,8 +223,8 @@ export default function Ideas() {
       {filteredIdeas.length === 0 ? (
         <EmptyState
           icon={<SearchOffIcon color="disabled" />}
-          message={data.ideas.length === 0 ? 'You have no ideas yet.' : 'No ideas match your filters.'}
-          action={data.ideas.length > 0 ? <Button onClick={clearFilters}>Clear filters</Button> : undefined}
+          message={allCount === 0 ? 'You have no ideas yet.' : 'No ideas match your filters.'}
+          action={allCount > 0 ? <Button onClick={clearFilters}>Clear filters</Button> : undefined}
         />
       ) : (
         <Box sx={{ display: 'grid', gap: 2, gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))' }}>
