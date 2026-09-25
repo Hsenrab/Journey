@@ -236,9 +236,15 @@ export default function Locations() {
             const source = locationById.get(waypoint.waypointId)
             const waypointStatus = statusFor(waypoint.waypointId)
             return (
-              <ClickableCard key={waypoint.waypointId} title={waypoint.title} to={`/waypoints/${waypoint.waypointId}`}>
+              <ClickableCard
+                key={waypoint.waypointId}
+                titleId={`waypoint-${waypoint.waypointId}-title`}
+                to={`/waypoints/${waypoint.waypointId}`}
+              >
                 <Stack spacing={1}>
-                  <Typography variant="h6">{waypoint.title}</Typography>
+                  <Typography id={`waypoint-${waypoint.waypointId}-title`} variant="h6">
+                    {waypoint.title}
+                  </Typography>
                   <Typography color="text.secondary">
                     {(source?.area ?? 'Custom') + ' · ' + (source?.category ?? waypoint.category)}
                   </Typography>

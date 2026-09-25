@@ -216,9 +216,11 @@ export default function Ideas() {
               .filter((name): name is string => Boolean(name))
             const distance = distanceFromBrockworth(idea)
             return (
-              <ClickableCard key={idea.ideaId} title={idea.title} to={`/ideas/${idea.ideaId}`}>
+              <ClickableCard key={idea.ideaId} titleId={`idea-${idea.ideaId}-title`} to={`/ideas/${idea.ideaId}`}>
                 <Stack spacing={1}>
-                  <Typography variant="h6">{idea.title}</Typography>
+                  <Typography id={`idea-${idea.ideaId}-title`} variant="h6">
+                    {idea.title}
+                  </Typography>
                   <Typography color="text.secondary">{idea.description || 'No description'}</Typography>
                   <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: 'wrap' }}>
                     <Chip label={planningStateLabels[idea.planningState]} />

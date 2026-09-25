@@ -62,12 +62,10 @@ export default function Dashboard() {
           }}
         >
           {awardableStatuses.map((status) => (
-            <ClickableCard
-              key={status}
-              title={`${statusLabels[status]}: ${counts[status]} waypoint${counts[status] === 1 ? '' : 's'}`}
-              to={`/waypoints?status=${status}`}
-            >
-              <Typography variant="h6">{statusLabels[status]}</Typography>
+            <ClickableCard key={status} titleId={`status-${status}-title`} to={`/waypoints?status=${status}`}>
+              <Typography id={`status-${status}-title`} variant="h6">
+                {statusLabels[status]}
+              </Typography>
               <Typography variant="h4">{counts[status]}</Typography>
             </ClickableCard>
           ))}
@@ -85,7 +83,7 @@ export default function Dashboard() {
               return (
                 <ClickableCard
                   key={waypoint.waypointId}
-                  title={waypoint.title}
+                  titleId={`waypoint-${waypoint.waypointId}-title`}
                   to={`/waypoints/${waypoint.waypointId}`}
                 >
                   <Stack
@@ -93,7 +91,9 @@ export default function Dashboard() {
                     spacing={{ xs: 0.5, sm: 2 }}
                     sx={{ justifyContent: 'space-between', alignItems: { xs: 'flex-start', sm: 'center' } }}
                   >
-                    <Typography variant="h6">{waypoint.title}</Typography>
+                    <Typography id={`waypoint-${waypoint.waypointId}-title`} variant="h6">
+                      {waypoint.title}
+                    </Typography>
                     <Typography color="text.secondary">
                       {statusLabels[statusForWaypoint(activities, waypoint.waypointId)]}
                       {date ? ` · ${new Date(`${date}T00:00:00`).toLocaleDateString()}` : ''}

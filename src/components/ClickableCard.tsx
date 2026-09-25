@@ -4,14 +4,14 @@ import { Link } from 'react-router-dom'
 
 type ClickableCardProps = {
   children: ReactNode
-  title: string
+  titleId: string
   to: string
 }
 
-export function ClickableCard({ children, title, to }: ClickableCardProps) {
+export function ClickableCard({ children, titleId, to }: ClickableCardProps) {
   return (
     <Card>
-      <CardActionArea component={Link} to={to} aria-label={title}>
+      <CardActionArea component={Link} to={to} aria-labelledby={titleId}>
         <CardContent>{children}</CardContent>
       </CardActionArea>
     </Card>

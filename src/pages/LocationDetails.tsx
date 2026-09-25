@@ -125,9 +125,11 @@ export default function LocationDetails() {
           <EmptyState icon={<InboxOutlinedIcon color="disabled" />} message="No ideas linked to this waypoint." />
         ) : (
           waypointIdeas.map((idea) => (
-            <ClickableCard key={idea.ideaId} title={idea.title} to={`/ideas/${idea.ideaId}`}>
+            <ClickableCard key={idea.ideaId} titleId={`idea-${idea.ideaId}-title`} to={`/ideas/${idea.ideaId}`}>
               <Stack spacing={1}>
-                <Typography variant="h6">{idea.title}</Typography>
+                <Typography id={`idea-${idea.ideaId}-title`} variant="h6">
+                  {idea.title}
+                </Typography>
                 <Typography color="text.secondary">
                   {planningStateLabels[idea.planningState]} ·{' '}
                   {ideaUsageLabel(ideaUsageCount(data.activities, idea.ideaId))}
@@ -148,9 +150,15 @@ export default function LocationDetails() {
           const subtitle = activitySubtitle(activity)
           const title = activityTitle(activity)
           return (
-            <ClickableCard key={activity.activityId} title={title} to={`/activities/${activity.activityId}`}>
+            <ClickableCard
+              key={activity.activityId}
+              titleId={`activity-${activity.activityId}-title`}
+              to={`/activities/${activity.activityId}`}
+            >
               <Stack spacing={1}>
-                <Typography variant="h6">{title}</Typography>
+                <Typography id={`activity-${activity.activityId}-title`} variant="h6">
+                  {title}
+                </Typography>
                 {subtitle && <Typography color="text.secondary">{subtitle}</Typography>}
                 {activity.category && (
                   <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: 'wrap' }}>
