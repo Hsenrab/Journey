@@ -38,7 +38,7 @@ function referenceHostname(url: string): string {
 }
 
 export default function Ideas() {
-  const { data, addIdea, reload } = useWaypoints()
+  const { data, addIdea, readOnly, reload } = useWaypoints()
   const [searchParams, setSearchParams] = useSearchParams()
   const stateParam = searchParams.get('state')
   const selectedState = planningStates.includes(stateParam as Idea['planningState'])
@@ -130,7 +130,7 @@ export default function Ideas() {
   return (
     <Stack spacing={2}>
       <PageHeader title="Ideas">
-        {!showEditor && (
+        {!readOnly && !showEditor && (
           <Button
             variant="contained"
             onClick={() => {
@@ -213,7 +213,7 @@ export default function Ideas() {
         </Alert>
       )}
 
-      {showEditor && (
+      {!readOnly && showEditor && (
         <IdeaEditor
           data={data}
           initialWaypointId={initialWaypointId}

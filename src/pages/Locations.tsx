@@ -16,7 +16,7 @@ const locationById = new Map(locations.map((location) => [location.locationId, l
 type SortKey = 'name' | 'travel' | 'distance' | 'status' | 'lastActivity'
 
 export default function Locations() {
-  const { addWaypoint, data, reload, statusFor } = useWaypoints()
+  const { addWaypoint, data, readOnly, reload, statusFor } = useWaypoints()
   const activities = data.activities
   const [searchParams, setSearchParams] = useSearchParams()
   const showEditor = searchParams.get('mode') === 'add'
@@ -131,7 +131,7 @@ export default function Locations() {
   return (
     <Stack spacing={2}>
       <PageHeader title="Waypoints">
-        {!showEditor && (
+        {!readOnly && !showEditor && (
           <Button
             variant="contained"
             onClick={() => {
@@ -161,7 +161,7 @@ export default function Locations() {
           {message.text}
         </Alert>
       )}
-      {showEditor && (
+      {!readOnly && showEditor && (
         <WaypointEditor
           data={data}
           submitLabel="Save waypoint"

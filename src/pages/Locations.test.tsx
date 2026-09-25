@@ -167,20 +167,18 @@ describe('Locations', () => {
           headers: { 'content-type': 'application/json' },
         })
       }
-      return new Response(JSON.stringify({ data, etags: {} }), {
+      return new Response(JSON.stringify({ data, etags: {}, role: 'admin' }), {
         headers: { 'content-type': 'application/json' },
       })
     })
     vi.stubGlobal('fetch', fetch)
     const user = userEvent.setup()
-    renderLocations(['/waypoints?mode=add'])
-    await screen.findByText('Stourhead')
+    renderLocations()
+    await user.click(await screen.findByRole('button', { name: 'Add waypoint' }))
 
     await user.type(screen.getByLabelText('Title'), 'A viewpoint')
     await user.type(screen.getByLabelText('Description'), 'A quiet viewpoint')
     await user.type(screen.getAllByLabelText('Category')[0]!, 'Scenic')
-    await user.click(screen.getByRole('combobox', { name: 'Challenges' }))
-    await user.click(await screen.findByRole('option', { name: 'National Trust' }))
     await user.click(screen.getByRole('button', { name: 'Save waypoint' }))
 
     expect(await screen.findByRole('alert')).toHaveTextContent('Your data has changed in another session.')
@@ -211,20 +209,18 @@ describe('Locations', () => {
           headers: { 'content-type': 'application/json' },
         })
       }
-      return new Response(JSON.stringify({ data, etags: {} }), {
+      return new Response(JSON.stringify({ data, etags: {}, role: 'admin' }), {
         headers: { 'content-type': 'application/json' },
       })
     })
     vi.stubGlobal('fetch', fetch)
     const user = userEvent.setup()
-    renderLocations(['/waypoints?mode=add'])
-    await screen.findByText('Stourhead')
+    renderLocations()
+    await user.click(await screen.findByRole('button', { name: 'Add waypoint' }))
 
     await user.type(screen.getByLabelText('Title'), 'A viewpoint')
     await user.type(screen.getByLabelText('Description'), 'A quiet viewpoint')
     await user.type(screen.getAllByLabelText('Category')[0]!, 'Scenic')
-    await user.click(screen.getByRole('combobox', { name: 'Challenges' }))
-    await user.click(await screen.findByRole('option', { name: 'National Trust' }))
     await user.click(screen.getByRole('button', { name: 'Save waypoint' }))
 
     expect(await screen.findByRole('alert')).toHaveTextContent('Your data has changed in another session.')
@@ -233,6 +229,6 @@ describe('Locations', () => {
 
     await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent('Demo Cosmos could not be loaded'))
     expect(screen.getByRole('button', { name: 'Reload latest' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Save waypoint' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Save waypoint' })).not.toBeInTheDocument()
   })
 })

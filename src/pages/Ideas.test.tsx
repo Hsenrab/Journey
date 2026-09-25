@@ -135,13 +135,14 @@ describe('Ideas', () => {
           headers: { 'content-type': 'application/json' },
         })
       }
-      return new Response(JSON.stringify({ data, etags: {} }), {
+      return new Response(JSON.stringify({ data, etags: {}, role: 'admin' }), {
         headers: { 'content-type': 'application/json' },
       })
     })
     vi.stubGlobal('fetch', fetch)
     const user = userEvent.setup()
-    renderIdeas('/ideas?mode=add')
+    renderIdeas()
+    await user.click(await screen.findByRole('button', { name: 'Add idea' }))
     await user.click(screen.getByRole('combobox', { name: 'Linked waypoints' }))
     await user.click(await screen.findByRole('option', { name: 'Stourhead' }))
 
@@ -176,13 +177,14 @@ describe('Ideas', () => {
           headers: { 'content-type': 'application/json' },
         })
       }
-      return new Response(JSON.stringify({ data, etags: {} }), {
+      return new Response(JSON.stringify({ data, etags: {}, role: 'admin' }), {
         headers: { 'content-type': 'application/json' },
       })
     })
     vi.stubGlobal('fetch', fetch)
     const user = userEvent.setup()
-    renderIdeas('/ideas?mode=add')
+    renderIdeas()
+    await user.click(await screen.findByRole('button', { name: 'Add idea' }))
     await user.click(screen.getByRole('combobox', { name: 'Linked waypoints' }))
     await user.click(await screen.findByRole('option', { name: 'Stourhead' }))
 
@@ -195,7 +197,7 @@ describe('Ideas', () => {
 
     await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent('Demo Cosmos could not be loaded'))
     expect(screen.getByRole('button', { name: 'Reload latest' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Save idea' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Save idea' })).not.toBeInTheDocument()
   })
 
   it('switches planning-state tabs and supports updated and difficulty sorting', async () => {

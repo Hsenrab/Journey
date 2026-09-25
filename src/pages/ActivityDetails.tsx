@@ -24,7 +24,7 @@ import { JourneyConflictError } from '../services/journeyApi'
 export default function ActivityDetails() {
   const { activityId = '' } = useParams()
   const navigate = useNavigate()
-  const { data, reload, updateActivity, deleteActivity } = useWaypoints()
+  const { data, readOnly, reload, updateActivity, deleteActivity } = useWaypoints()
   const [editing, setEditing] = useState(false)
   const [photoIndex, setPhotoIndex] = useState(0)
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
@@ -212,79 +212,82 @@ export default function ActivityDetails() {
         )}
       </Stack>
 
-      {editing ? (
-        <ActivityEditor
-          data={data}
-          initialActivity={activity}
-          initialReferences={references}
-          initialPhotoReferences={photoReferences}
-          submitLabel="Save changes"
-          onSubmit={async (draft) => {
-            try {
-              await updateActivity(activity.activityId, draft)
-              setEditing(false)
-              setMessage({ severity: 'success', text: 'Activity updated.' })
-            } catch (error) {
-              setMessage({
-                severity: 'error',
-                text: error instanceof Error ? error.message : 'Failed to update activity.',
-                conflict: error instanceof JourneyConflictError,
-              })
-            }
-          }}
-          onCancel={() => setEditing(false)}
-          onDelete={() => setShowDeleteDialog(true)}
-        />
-      ) : (
-        <Stack direction="row" spacing={1}>
-          <Button variant="contained" onClick={() => setEditing(true)}>
-            Edit activity
-          </Button>
-          <Button color="error" onClick={() => setShowDeleteDialog(true)}>
-            Delete activity
-          </Button>
-        </Stack>
-      )}
-
-      <Dialog open={showDeleteDialog} onClose={() => setShowDeleteDialog(false)}>
-        <DialogTitle>Delete activity?</DialogTitle>
-        <DialogContent>
-          <Typography>
-            Delete activity on {activity.date}
-            {waypoint ? ` linked to ${waypoint.title}` : ''}? Linked ideas and waypoints are preserved, and idea usage
-            updates after reloading the dataset.
-          </Typography>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setShowDeleteDialog(false)}>Cancel</Button>
-          <Button
-            color="error"
-            onClick={async () => {
+      {!readOnly &&
+        (editing ? (
+          <ActivityEditor
+            data={data}
+            initialActivity={activity}
+            initialReferences={references}
+            initialPhotoReferences={photoReferences}
+            submitLabel="Save changes"
+            onSubmit={async (draft) => {
               try {
-                await deleteActivity(activity.activityId)
-                const result = await reload()
-                if (result.status === 'failure') {
-                  setMessage({ severity: 'error', text: result.message, conflict: true })
-                  return
-                }
-                if (result.status === 'superseded') {
-                  return
-                }
-                setShowDeleteDialog(false)
-                navigate(backTarget)
+                await updateActivity(activity.activityId, draft)
+                setEditing(false)
+                setMessage({ severity: 'success', text: 'Activity updated.' })
               } catch (error) {
                 setMessage({
                   severity: 'error',
-                  text: error instanceof Error ? error.message : 'Failed to delete activity.',
+                  text: error instanceof Error ? error.message : 'Failed to update activity.',
                   conflict: error instanceof JourneyConflictError,
                 })
               }
             }}
-          >
-            Delete
-          </Button>
-        </DialogActions>
-      </Dialog>
+            onCancel={() => setEditing(false)}
+            onDelete={() => setShowDeleteDialog(true)}
+          />
+        ) : (
+          <Stack direction="row" spacing={1}>
+            <Button variant="contained" onClick={() => setEditing(true)}>
+              Edit activity
+            </Button>
+            <Button color="error" onClick={() => setShowDeleteDialog(true)}>
+              Delete activity
+            </Button>
+          </Stack>
+        ))}
+
+      {!readOnly && (
+        <Dialog open={showDeleteDialog} onClose={() => setShowDeleteDialog(false)}>
+          <DialogTitle>Delete activity?</DialogTitle>
+          <DialogContent>
+            <Typography>
+              Delete activity on {activity.date}
+              {waypoint ? ` linked to ${waypoint.title}` : ''}? Linked ideas and waypoints are preserved, and idea usage
+              updates after reloading the dataset.
+            </Typography>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setShowDeleteDialog(false)}>Cancel</Button>
+            <Button
+              color="error"
+              onClick={async () => {
+                try {
+                  await deleteActivity(activity.activityId)
+                  const result = await reload()
+                  if (result.status === 'failure') {
+                    setMessage({ severity: 'error', text: result.message, conflict: true })
+                    return
+                  }
+                  if (result.status === 'superseded') {
+                    return
+                  }
+                  setShowDeleteDialog(false)
+                  navigate(backTarget)
+                } catch (error) {
+                  setMessage({
+                    severity: 'error',
+                    text: error instanceof Error ? error.message : 'Failed to delete activity.',
+                    conflict: error instanceof JourneyConflictError,
+                  })
+                }
+              }}
+            >
+              Delete
+            </Button>
+          </DialogActions>
+        </Dialog>
+      )}
     </Stack>
   )
 }
