@@ -13,7 +13,7 @@ export default function Activities() {
   const { data, addActivity, reload } = useWaypoints()
   const waypointById = new Map(data.waypoints.map((waypoint) => [waypoint.waypointId, waypoint]))
   const [showEditor, setShowEditor] = useState(false)
-  const [message, setMessage] = useState<{ severity: 'success' | 'error'; text: string; conflict?: boolean } | null>(
+  const [message, setMessage] = useState<{ severity: 'success' | 'error'; text: string; conflict: boolean } | null>(
     null,
   )
 
@@ -26,7 +26,11 @@ export default function Activities() {
       setMessage(null)
       setShowEditor(false)
     } catch (error) {
-      setMessage({ severity: 'error', text: error instanceof Error ? error.message : 'Failed to reload activities.' })
+      setMessage({
+        severity: 'error',
+        text: error instanceof Error ? error.message : 'Failed to reload activities.',
+        conflict: false,
+      })
     }
   }
 
@@ -34,7 +38,13 @@ export default function Activities() {
     <Stack spacing={2}>
       <PageHeader title="Activities">
         {!showEditor && (
-          <Button variant="contained" onClick={() => setShowEditor(true)}>
+          <Button
+            variant="contained"
+            onClick={() => {
+              setMessage(null)
+              setShowEditor(true)
+            }}
+          >
             Add activity
           </Button>
         )}
@@ -63,7 +73,7 @@ export default function Activities() {
             try {
               await addActivity(draft)
               setShowEditor(false)
-              setMessage({ severity: 'success', text: 'Activity saved.' })
+              setMessage({ severity: 'success', text: 'Activity saved.', conflict: false })
             } catch (error) {
               setMessage({
                 severity: 'error',
@@ -72,7 +82,10 @@ export default function Activities() {
               })
             }
           }}
-          onCancel={() => setShowEditor(false)}
+          onCancel={() => {
+            setMessage(null)
+            setShowEditor(false)
+          }}
         />
       )}
 
