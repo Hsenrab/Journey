@@ -299,8 +299,10 @@ after the application boundary validates the caller's Entra provider and assigne
   Bicep deployment. No extra secret or variable is needed; the object id comes
   from the deployment itself.
 - Test deployments publish to the test Static Web App's primary environment, where
-  the linked Functions backend is supported. The repository does not create Static
-  Web Apps pull-request preview environments.
+  the linked Functions backend is supported. Pull-request previews use the same
+  Static Web App and role assignments: an identity invited as a `viewer` on the test
+  resource can access every test preview. This shared preview access is intentional;
+  invite only identities that may read test data.
 
 ### Diagnostics
 
