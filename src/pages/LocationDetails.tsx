@@ -7,6 +7,7 @@ import PlaceIcon from '@mui/icons-material/Place'
 import InboxOutlinedIcon from '@mui/icons-material/InboxOutlined'
 import { ActivityEditor } from '../components/ActivityEditor'
 import { CardDetailRow } from '../components/CardDetailRow'
+import { DetailPageHeader } from '../components/DetailPageHeader'
 import { EmptyState } from '../components/EmptyState'
 import { locations } from '../data/locations'
 import {
@@ -32,15 +33,14 @@ export default function LocationDetails() {
   const [message, setMessage] = useState<{ severity: 'success' | 'error'; text: string; conflict?: boolean } | null>(
     null,
   )
+  const breadcrumbs = [{ label: 'Waypoints', to: '/waypoints' }]
   const waypoint = data.waypoints.find((item) => item.waypointId === id)
   const sourceLocation = waypoint ? catalogueLocationById.get(waypoint.waypointId) : undefined
 
   if (!waypoint) {
     return (
       <Stack spacing={3}>
-        <Button component={Link} to="/waypoints">
-          ← All waypoints
-        </Button>
+        <DetailPageHeader breadcrumbs={breadcrumbs} title="Waypoint" />
         <Alert severity="error">Waypoint not found.</Alert>
       </Stack>
     )
@@ -60,10 +60,18 @@ export default function LocationDetails() {
 
   return (
     <Stack spacing={3}>
-      <Button component={Link} to="/waypoints">
-        ← All waypoints
-      </Button>
-      <Typography variant="h4">{waypoint.title}</Typography>
+      <DetailPageHeader breadcrumbs={breadcrumbs} title={waypoint.title}>
+        {!readOnly && !showEditor && (
+          <Button variant="contained" onClick={() => setShowEditor(true)}>
+            Log activity
+          </Button>
+        )}
+        {!readOnly && (
+          <Button component={Link} to={`/ideas?mode=add&waypoint=${encodeURIComponent(id)}`}>
+            Add idea
+          </Button>
+        )}
+      </DetailPageHeader>
       <Chip label={`Category summary: ${statusLabels[statusFor(id)]}`} />
       <Typography>{waypoint.description}</Typography>
       {sourceLocation && (
@@ -88,46 +96,30 @@ export default function LocationDetails() {
         </Alert>
       )}
 
-      {!readOnly &&
-        (showEditor ? (
-          <ActivityEditor
-            data={data}
-            initialWaypointId={id}
-            submitLabel="Save activity"
-            onSubmit={async (draft) => {
-              try {
-                await addActivity(draft)
-                setShowEditor(false)
-                setMessage({ severity: 'success', text: 'Activity saved.' })
-              } catch (error) {
-                setMessage({
-                  severity: 'error',
-                  text: error instanceof Error ? error.message : 'Failed to save activity.',
-                  conflict: error instanceof JourneyConflictError,
-                })
-              }
-            }}
-            onCancel={() => setShowEditor(false)}
-          />
-        ) : (
-          <Button variant="contained" onClick={() => setShowEditor(true)}>
-            Log activity
-          </Button>
-        ))}
+      {!readOnly && showEditor && (
+        <ActivityEditor
+          data={data}
+          initialWaypointId={id}
+          submitLabel="Save activity"
+          onSubmit={async (draft) => {
+            try {
+              await addActivity(draft)
+              setShowEditor(false)
+              setMessage({ severity: 'success', text: 'Activity saved.' })
+            } catch (error) {
+              setMessage({
+                severity: 'error',
+                text: error instanceof Error ? error.message : 'Failed to save activity.',
+                conflict: error instanceof JourneyConflictError,
+              })
+            }
+          }}
+          onCancel={() => setShowEditor(false)}
+        />
+      )}
 
       <Stack spacing={2}>
-        <Stack
-          direction={{ xs: 'column', sm: 'row' }}
-          spacing={1}
-          sx={{ justifyContent: 'space-between', alignItems: { sm: 'center' } }}
-        >
-          <Typography variant="h5">Ideas</Typography>
-          {!readOnly && (
-            <Button component={Link} to={`/ideas?mode=add&waypoint=${encodeURIComponent(id)}`}>
-              Add idea
-            </Button>
-          )}
-        </Stack>
+        <Typography variant="h5">Ideas</Typography>
         {waypointIdeas.length === 0 ? (
           <EmptyState icon={<InboxOutlinedIcon color="disabled" />} message="No ideas linked to this waypoint." />
         ) : (
