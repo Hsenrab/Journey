@@ -21,7 +21,8 @@ test.describe('activity management flow', () => {
     await expect(page.getByText('Category summary: Gold')).toBeVisible()
 
     await page.getByRole('link', { name: '2026' }).first().click()
-    await expect(page.getByRole('heading', { name: /2026-.*Chedworth Roman Villa/ })).toBeVisible()
+    await expect(page.getByRole('heading', { name: /2026/ })).toBeVisible()
+    await expect(page.getByText('Chedworth Roman Villa').first()).toBeVisible()
   })
 
   test('creates unlinked activity, edits it, and deletes it', async ({ page }) => {
@@ -32,7 +33,7 @@ test.describe('activity management flow', () => {
     await page.getByRole('button', { name: 'Save activity' }).click()
 
     await expect(page.getByText('Activity saved.')).toBeVisible()
-    await page.getByRole('link', { name: /2026-/ }).first().click()
+    await page.getByRole('link', { name: /2026/ }).first().click()
 
     await expect(page.getByText('No photos linked to this activity.')).toBeVisible()
     await expect(page.getByText('No references linked to this activity.')).toBeVisible()

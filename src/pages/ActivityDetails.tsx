@@ -17,7 +17,14 @@ import {
 import InboxOutlinedIcon from '@mui/icons-material/InboxOutlined'
 import { ActivityEditor } from '../components/ActivityEditor'
 import { EmptyState } from '../components/EmptyState'
-import { ideasForActivity, locationSummary, statusLabels } from '../domain/visit'
+import {
+  activitySubtitle,
+  activityTitle,
+  formatActivityDate,
+  ideasForActivity,
+  locationSummary,
+  statusLabels,
+} from '../domain/visit'
 import { useWaypoints } from '../features/journey/JourneyContext'
 import { JourneyConflictError } from '../services/journeyApi'
 
@@ -65,7 +72,7 @@ export default function ActivityDetails() {
     }
   }
 
-  const detailHeading = [activity.date, waypoint?.title].filter(Boolean).join(' · ')
+  const detailSubtitle = [activitySubtitle(activity), waypoint?.title].filter(Boolean).join(' · ')
   const reloadLatest = async () => {
     try {
       await reload()
@@ -102,7 +109,8 @@ export default function ActivityDetails() {
         </Alert>
       )}
 
-      <Typography variant="h4">{detailHeading}</Typography>
+      <Typography variant="h4">{activityTitle(activity)}</Typography>
+      {detailSubtitle && <Typography color="text.secondary">{detailSubtitle}</Typography>}
       <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: 'wrap' }}>
         {activity.category && <Chip label={statusLabels[activity.category]} />}
         {waypoint && (
@@ -251,7 +259,7 @@ export default function ActivityDetails() {
         <DialogTitle>Delete activity?</DialogTitle>
         <DialogContent>
           <Typography>
-            Delete activity on {activity.date}
+            Delete activity on {formatActivityDate(activity.date)}
             {waypoint ? ` linked to ${waypoint.title}` : ''}? Linked ideas and waypoints are preserved, and idea usage
             updates after reloading the dataset.
           </Typography>

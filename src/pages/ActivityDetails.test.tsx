@@ -67,7 +67,10 @@ describe('ActivityDetails', () => {
 
     renderDetails()
 
-    expect(screen.getByRole('heading', { name: '2026-08-01 · Stourhead' })).toBeInTheDocument()
+    expect(
+      screen.getByRole('heading', { name: new Date('2026-08-01T00:00:00').toLocaleDateString() }),
+    ).toBeInTheDocument()
+    expect(screen.getByText('Stourhead')).toBeInTheDocument()
     expect(screen.getByText('Guide')).toBeInTheDocument()
     expect(screen.getByRole('img', { name: 'View' })).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Orangery idea' })).toBeInTheDocument()

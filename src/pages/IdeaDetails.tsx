@@ -17,6 +17,8 @@ import { EmptyState } from '../components/EmptyState'
 import { IdeaEditor } from '../components/IdeaEditor'
 import {
   activitiesUsingIdea,
+  activitySubtitle,
+  activityTitle,
   difficultyDescriptions,
   difficultyLabels,
   ideaLocationSummary,
@@ -106,14 +108,18 @@ export default function IdeaDetails() {
               const waypoint = activity.waypointId
                 ? data.waypoints.find((item) => item.waypointId === activity.waypointId)
                 : undefined
+              const subtitle = [
+                activitySubtitle(activity),
+                waypoint ? `Waypoint: ${waypoint.title}` : 'No linked waypoint',
+              ]
+                .filter(Boolean)
+                .join(' · ')
               return (
                 <Card key={activity.activityId}>
                   <CardContent>
                     <Stack spacing={1}>
-                      <Typography>{activity.date}</Typography>
-                      <Typography color="text.secondary">
-                        {waypoint ? `Waypoint: ${waypoint.title}` : 'No linked waypoint'}
-                      </Typography>
+                      <Typography>{activityTitle(activity)}</Typography>
+                      <Typography color="text.secondary">{subtitle}</Typography>
                       <Button component={Link} to={`/activities/${activity.activityId}`}>
                         View activity
                       </Button>
