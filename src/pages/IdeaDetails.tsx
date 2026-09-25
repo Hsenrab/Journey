@@ -108,14 +108,13 @@ export default function IdeaDetails() {
               const waypoint = activity.waypointId
                 ? data.waypoints.find((item) => item.waypointId === activity.waypointId)
                 : undefined
+              const subtitle = activitySubtitle(activity)
               return (
                 <Card key={activity.activityId}>
                   <CardContent>
                     <Stack spacing={1}>
                       <Typography>{activityTitle(activity)}</Typography>
-                      {activitySubtitle(activity) && (
-                        <Typography color="text.secondary">{activitySubtitle(activity)}</Typography>
-                      )}
+                      {subtitle && <Typography color="text.secondary">{subtitle}</Typography>}
                       <Typography color="text.secondary">
                         {waypoint ? `Waypoint: ${waypoint.title}` : 'No linked waypoint'}
                       </Typography>

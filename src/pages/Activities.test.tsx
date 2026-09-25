@@ -101,7 +101,7 @@ describe('Activities', () => {
     renderActivities()
 
     expect(screen.getByRole('link', { name: 'Summer visit' })).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: '8/2/2026' })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: new Date('2026-08-02T00:00:00').toLocaleDateString() })).toBeInTheDocument()
     expect(screen.getByText('Waypoint: Stourhead')).toBeInTheDocument()
     expect(screen.getByText('1 photo')).toBeInTheDocument()
     expect(screen.getByText('1 link')).toBeInTheDocument()

@@ -12,8 +12,8 @@ import { FilterBar } from '../components/FilterBar'
 import { PageHeader } from '../components/PageHeader'
 import { distanceMiles } from '../domain/map'
 import {
-  difficultyLabels,
   countLabel,
+  difficultyLabels,
   ideaLocationSummary,
   ideaUsageCount,
   ideaUsageLabel,
