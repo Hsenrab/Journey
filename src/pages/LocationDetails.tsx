@@ -21,7 +21,7 @@ const catalogueLocationById = new Map(locations.map((location) => [location.loca
 
 export default function LocationDetails() {
   const { id = '' } = useParams()
-  const { addActivity, activitiesFor, statusFor, data, reload } = useWaypoints()
+  const { addActivity, activitiesFor, statusFor, data, readOnly, reload } = useWaypoints()
   const [showEditor, setShowEditor] = useState(false)
   const [message, setMessage] = useState<{ severity: 'success' | 'error'; text: string; conflict?: boolean } | null>(
     null,
@@ -54,14 +54,16 @@ export default function LocationDetails() {
   return (
     <Stack spacing={3}>
       <DetailPageHeader breadcrumbs={breadcrumbs} title={waypoint.title}>
-        {!showEditor && (
+        {!readOnly && !showEditor && (
           <Button variant="contained" onClick={() => setShowEditor(true)}>
             Log activity
           </Button>
         )}
-        <Button component={Link} to={`/ideas?mode=add&waypoint=${encodeURIComponent(id)}`}>
-          Add idea
-        </Button>
+        {!readOnly && (
+          <Button component={Link} to={`/ideas?mode=add&waypoint=${encodeURIComponent(id)}`}>
+            Add idea
+          </Button>
+        )}
       </DetailPageHeader>
       <Chip label={`Category summary: ${statusLabels[statusFor(id)]}`} />
       <Typography>{waypoint.description}</Typography>
@@ -87,7 +89,7 @@ export default function LocationDetails() {
         </Alert>
       )}
 
-      {showEditor && (
+      {!readOnly && showEditor && (
         <ActivityEditor
           data={data}
           initialWaypointId={id}

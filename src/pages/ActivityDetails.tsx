@@ -25,7 +25,7 @@ import { JourneyConflictError } from '../services/journeyApi'
 export default function ActivityDetails() {
   const { activityId = '' } = useParams()
   const navigate = useNavigate()
-  const { data, reload, updateActivity, deleteActivity } = useWaypoints()
+  const { data, readOnly, reload, updateActivity, deleteActivity } = useWaypoints()
   const [editing, setEditing] = useState(false)
   const [photoIndex, setPhotoIndex] = useState(0)
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
@@ -89,7 +89,7 @@ export default function ActivityDetails() {
   return (
     <Stack spacing={3}>
       <DetailPageHeader breadcrumbs={breadcrumbs} title={detailHeading}>
-        {!editing && (
+        {!readOnly && !editing && (
           <>
             <Button variant="contained" onClick={() => setEditing(true)}>
               Edit activity
@@ -226,7 +226,7 @@ export default function ActivityDetails() {
         )}
       </Stack>
 
-      {editing && (
+      {!readOnly && editing && (
         <ActivityEditor
           data={data}
           initialActivity={activity}
@@ -251,38 +251,40 @@ export default function ActivityDetails() {
         />
       )}
 
-      <Dialog open={showDeleteDialog} onClose={() => setShowDeleteDialog(false)}>
-        <DialogTitle>Delete activity?</DialogTitle>
-        <DialogContent>
-          <Typography>
-            Delete activity on {activity.date}
-            {waypoint ? ` linked to ${waypoint.title}` : ''}? Linked ideas and waypoints are preserved, and idea usage
-            updates after reloading the dataset.
-          </Typography>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setShowDeleteDialog(false)}>Cancel</Button>
-          <Button
-            color="error"
-            onClick={async () => {
-              try {
-                await deleteActivity(activity.activityId)
-                await reload()
-                setShowDeleteDialog(false)
-                navigate(backTarget)
-              } catch (error) {
-                setMessage({
-                  severity: 'error',
-                  text: error instanceof Error ? error.message : 'Failed to delete activity.',
-                  conflict: error instanceof JourneyConflictError,
-                })
-              }
-            }}
-          >
-            Delete
-          </Button>
-        </DialogActions>
-      </Dialog>
+      {!readOnly && (
+        <Dialog open={showDeleteDialog} onClose={() => setShowDeleteDialog(false)}>
+          <DialogTitle>Delete activity?</DialogTitle>
+          <DialogContent>
+            <Typography>
+              Delete activity on {activity.date}
+              {waypoint ? ` linked to ${waypoint.title}` : ''}? Linked ideas and waypoints are preserved, and idea usage
+              updates after reloading the dataset.
+            </Typography>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setShowDeleteDialog(false)}>Cancel</Button>
+            <Button
+              color="error"
+              onClick={async () => {
+                try {
+                  await deleteActivity(activity.activityId)
+                  await reload()
+                  setShowDeleteDialog(false)
+                  navigate(backTarget)
+                } catch (error) {
+                  setMessage({
+                    severity: 'error',
+                    text: error instanceof Error ? error.message : 'Failed to delete activity.',
+                    conflict: error instanceof JourneyConflictError,
+                  })
+                }
+              }}
+            >
+              Delete
+            </Button>
+          </DialogActions>
+        </Dialog>
+      )}
     </Stack>
   )
 }
