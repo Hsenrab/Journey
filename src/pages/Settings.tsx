@@ -34,7 +34,7 @@ export default function Settings() {
   const [message, setMessage] = useState<{ text: string; error: boolean } | null>(null)
   const [confirmingClear, setConfirmingClear] = useState(false)
   const usingLocalFallback = dataMode === 'demo-cosmos' && activeDataMode === 'demo-local' && Boolean(loadError)
-  const activeLabel = usingLocalFallback ? 'Demo local fallback' : dataModeLabels[activeDataMode]
+  const activeLabel = usingLocalFallback ? 'Demo local fallback data' : dataModeLabels[activeDataMode]
   const changeMode = (event: SelectChangeEvent) => {
     void setDataMode(event.target.value as JourneyDataMode)
   }

@@ -211,6 +211,10 @@ export function activitySubtitle(activity: Activity) {
   return activity.name ? formatActivityDate(activity.date) : undefined
 }
 
+export function countLabel(count: number, singular: string) {
+  return `${count} ${singular}${count === 1 ? '' : 's'}`
+}
+
 export function locationSummary(location: ActivityLocation): string {
   return location.kind === 'postcode'
     ? `Postcode: ${location.postcode}`

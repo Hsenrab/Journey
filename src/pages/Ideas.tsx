@@ -13,6 +13,7 @@ import { PageHeader } from '../components/PageHeader'
 import { distanceMiles } from '../domain/map'
 import {
   difficultyLabels,
+  countLabel,
   ideaLocationSummary,
   ideaUsageCount,
   ideaUsageLabel,
@@ -238,7 +239,7 @@ export default function Ideas() {
                       </CardDetailRow>
                     )}
                     <CardDetailRow icon={<LinkIcon fontSize="small" />}>
-                      {references.length} link{references.length === 1 ? '' : 's'}
+                      {countLabel(references.length, 'link')}
                       {references[0] ? ` · ${referenceHostname(references[0].url)}` : ''}
                     </CardDetailRow>
                     <Button component={Link} to={`/ideas/${idea.ideaId}`}>

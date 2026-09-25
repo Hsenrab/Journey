@@ -233,6 +233,7 @@ export default function Locations() {
         >
           {list.map((waypoint) => {
             const source = locationById.get(waypoint.waypointId)
+            const waypointStatus = statusFor(waypoint.waypointId)
             return (
               <Card key={waypoint.waypointId}>
                 <CardContent>
@@ -243,8 +244,8 @@ export default function Locations() {
                     </Typography>
                     <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: 'wrap' }}>
                       <Chip
-                        label={statusLabels[statusFor(waypoint.waypointId)]}
-                        color={statusFor(waypoint.waypointId) === 'gold' ? 'success' : 'default'}
+                        label={statusLabels[waypointStatus]}
+                        color={waypointStatus === 'gold' ? 'success' : 'default'}
                       />
                     </Stack>
                     {source ? (

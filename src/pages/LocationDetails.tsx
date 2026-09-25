@@ -12,6 +12,7 @@ import { locations } from '../data/locations'
 import {
   activitySubtitle,
   activityTitle,
+  countLabel,
   ideaUsageCount,
   ideaUsageLabel,
   ideasForWaypoint,
@@ -171,10 +172,10 @@ export default function LocationDetails() {
                     {locationSummary(activity.location)}
                   </CardDetailRow>
                   <CardDetailRow icon={<PhotoLibraryIcon fontSize="small" />}>
-                    {activity.photoReferenceIds.length} photo{activity.photoReferenceIds.length === 1 ? '' : 's'}
+                    {countLabel(activity.photoReferenceIds.length, 'photo')}
                   </CardDetailRow>
                   <CardDetailRow icon={<LinkIcon fontSize="small" />}>
-                    {activity.referenceIds.length} link{activity.referenceIds.length === 1 ? '' : 's'}
+                    {countLabel(activity.referenceIds.length, 'link')}
                   </CardDetailRow>
                 </Stack>
               </CardContent>

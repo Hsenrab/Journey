@@ -9,7 +9,7 @@ import { ActivityEditor } from '../components/ActivityEditor'
 import { CardDetailRow } from '../components/CardDetailRow'
 import { EmptyState } from '../components/EmptyState'
 import { PageHeader } from '../components/PageHeader'
-import { activitySubtitle, activityTitle, locationSummary, statusLabels } from '../domain/visit'
+import { activitySubtitle, activityTitle, countLabel, locationSummary, statusLabels } from '../domain/visit'
 import { useWaypoints } from '../features/journey/JourneyContext'
 import { JourneyConflictError } from '../services/journeyApi'
 
@@ -113,10 +113,10 @@ export default function Activities() {
                     </CardDetailRow>
                     {activity.notes && <Typography>{activity.notes.slice(0, 140)}</Typography>}
                     <CardDetailRow icon={<PhotoLibraryIcon fontSize="small" />}>
-                      {activity.photoReferenceIds.length} photo{activity.photoReferenceIds.length === 1 ? '' : 's'}
+                      {countLabel(activity.photoReferenceIds.length, 'photo')}
                     </CardDetailRow>
                     <CardDetailRow icon={<LinkIcon fontSize="small" />}>
-                      {activity.referenceIds.length} link{activity.referenceIds.length === 1 ? '' : 's'}
+                      {countLabel(activity.referenceIds.length, 'link')}
                     </CardDetailRow>
                   </Stack>
                 </CardContent>
