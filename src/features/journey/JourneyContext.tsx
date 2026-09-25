@@ -459,9 +459,11 @@ export function WaypointsProvider({ children }: { children: ReactNode }) {
         throw new Error('Journey data is still loading. Wait for the selected data mode before making changes.')
       if (activeDataMode === 'demo-local') throw new Error('Demo local data is read-only.')
       if (loadError) throw new Error('Production data is not loaded. Reload before making changes.')
-      if (role === 'viewer') throw new Error('Viewer access is read-only.')
-      if (role !== 'admin' && !(localTestMode && dataMode === 'production'))
-        throw new Error('Journey role is not authorized to modify data.')
+      if (role !== 'admin') {
+        if (role === 'viewer') throw new Error('Viewer access is read-only.')
+        if (!(localTestMode && dataMode === 'production'))
+          throw new Error('Journey role is not authorized to modify data.')
+      }
       if (activeDataMode === 'demo-cosmos') return 'demo'
       return 'production'
     }

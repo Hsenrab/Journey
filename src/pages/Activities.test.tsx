@@ -21,6 +21,7 @@ describe('Activities', () => {
   beforeEach(() => localStorage.clear())
   afterEach(() => {
     vi.restoreAllMocks()
+    vi.unstubAllGlobals()
     vi.unstubAllEnvs()
   })
 
