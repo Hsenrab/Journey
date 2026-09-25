@@ -42,17 +42,13 @@ export default function LocationDetails() {
   const activities = activitiesFor(id)
   const waypointIdeas = ideasForWaypoint(data.ideas, id)
   const reloadLatest = async () => {
-    try {
-      await reload()
-      setMessage(null)
-      setShowEditor(false)
-    } catch (error) {
-      setMessage({
-        severity: 'error',
-        text: error instanceof Error ? error.message : 'Failed to reload activities.',
-        conflict: false,
-      })
+    const loadFailure = await reload()
+    if (loadFailure) {
+      setMessage({ severity: 'error', text: loadFailure, conflict: true })
+      return
     }
+    setMessage(null)
+    setShowEditor(false)
   }
 
   return (

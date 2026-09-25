@@ -392,7 +392,7 @@ export function WaypointsProvider({ children }: { children: ReactNode }) {
         active: JourneyDataMode,
         error?: string,
       ) => {
-        if (loadGeneration.current !== generation) return error
+        if (loadGeneration.current !== generation) return undefined
         apply(loaded)
         setActiveDataMode(active)
         setLoadError(error)
