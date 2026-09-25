@@ -116,7 +116,6 @@ export default function Ideas() {
   const clearFilters = () => {
     setQuery('')
     setUsage('all')
-    setSort('distance')
     setSearchParams((previous) => {
       const next = new URLSearchParams(previous)
       next.delete('state')
