@@ -10,8 +10,8 @@ import { CardDetailRow } from '../components/CardDetailRow'
 import { EmptyState } from '../components/EmptyState'
 import { locations } from '../data/locations'
 import {
+  activitySubtitle,
   activityTitle,
-  formatActivityDate,
   ideaUsageCount,
   ideaUsageLabel,
   ideasForWaypoint,
@@ -158,9 +158,7 @@ export default function LocationDetails() {
                 <Typography variant="h6" component={Link} to={`/activities/${activity.activityId}`}>
                   {activityTitle(activity)}
                 </Typography>
-                <Typography color="text.secondary">
-                  {activity.name ? formatActivityDate(activity.date) : 'Activity log entry'}
-                </Typography>
+                <Typography color="text.secondary">{activitySubtitle(activity)}</Typography>
                 {activity.category && (
                   <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: 'wrap' }}>
                     <Chip label={statusLabels[activity.category]} />

@@ -9,7 +9,7 @@ import { ActivityEditor } from '../components/ActivityEditor'
 import { CardDetailRow } from '../components/CardDetailRow'
 import { EmptyState } from '../components/EmptyState'
 import { PageHeader } from '../components/PageHeader'
-import { activityTitle, formatActivityDate, locationSummary, statusLabels } from '../domain/visit'
+import { activitySubtitle, activityTitle, locationSummary, statusLabels } from '../domain/visit'
 import { useWaypoints } from '../features/journey/JourneyContext'
 import { JourneyConflictError } from '../services/journeyApi'
 
@@ -95,7 +95,7 @@ export default function Activities() {
                       {activityTitle(activity)}
                     </Typography>
                     <Typography color="text.secondary">
-                      {activity.name ? formatActivityDate(activity.date) : 'Activity log entry'}
+                      {activitySubtitle(activity)}
                       {waypoint ? ` · ${waypoint.title}` : ''}
                     </Typography>
                     <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: 'wrap' }}>

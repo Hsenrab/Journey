@@ -206,9 +206,6 @@ export default function Ideas() {
         <Box sx={{ display: 'grid', gap: 2, gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))' }}>
           {filteredIdeas.map((idea) => {
             const count = ideaUsageCount(data.activities, idea.ideaId)
-            const references = idea.referenceIds
-              .map((id) => referenceById.get(id))
-              .filter((reference) => reference !== undefined)
             const linkedWaypointNames = idea.waypointIds
               .map((id) => waypointById.get(id)?.title)
               .filter((name): name is string => Boolean(name))
@@ -238,7 +235,7 @@ export default function Ideas() {
                       </CardDetailRow>
                     )}
                     <CardDetailRow icon={<LinkIcon fontSize="small" />}>
-                      {references.length} link{references.length === 1 ? '' : 's'}
+                      {idea.referenceIds.length} link{idea.referenceIds.length === 1 ? '' : 's'}
                     </CardDetailRow>
                     <Button component={Link} to={`/ideas/${idea.ideaId}`}>
                       View idea
