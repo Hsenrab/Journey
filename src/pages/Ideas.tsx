@@ -147,22 +147,12 @@ export default function Ideas() {
       </PageHeader>
       <FilterBar>
         <TextField label="Search ideas" value={query} onChange={(event) => setQuery(event.target.value)} />
-        <TextField
-          select
-          label="Usage"
-          value={usage}
-          onChange={(event) => setUsage(event.target.value as UsageFilter)}
-        >
+        <TextField select label="Usage" value={usage} onChange={(event) => setUsage(event.target.value as UsageFilter)}>
           <MenuItem value="all">All usage</MenuItem>
           <MenuItem value="used">Used ideas</MenuItem>
           <MenuItem value="not-used">Not used</MenuItem>
         </TextField>
-        <TextField
-          select
-          label="Sort"
-          value={sort}
-          onChange={(event) => setSort(event.target.value as SortKey)}
-        >
+        <TextField select label="Sort" value={sort} onChange={(event) => setSort(event.target.value as SortKey)}>
           <MenuItem value="distance">Distance from Brockworth</MenuItem>
           <MenuItem value="updated">Recently updated</MenuItem>
           <MenuItem value="difficulty">Difficulty</MenuItem>
