@@ -23,6 +23,14 @@ function renderDetails(path = '/ideas/idea-1') {
 describe('IdeaDetails', () => {
   beforeEach(() => localStorage.clear())
 
+  it('breadcrumbs back to the idea list', async () => {
+    const user = userEvent.setup()
+    renderDetails('/ideas/missing')
+
+    await user.click(screen.getByRole('link', { name: 'Ideas' }))
+    expect(screen.getByText('Ideas list')).toBeInTheDocument()
+  })
+
   it('shows usage and linked activities', () => {
     const seed = createDefaultData()
     save({
@@ -107,6 +115,7 @@ describe('IdeaDetails', () => {
   it('shows not-found state for unknown idea id', () => {
     renderDetails('/ideas/missing')
     expect(screen.getByText('Idea not found.')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Ideas' })).toHaveAttribute('href', '/ideas')
   })
 
   it('renders rejected metadata and empty usage details', () => {

@@ -14,6 +14,7 @@ function renderDetails(path = '/activities/a1') {
         <Routes>
           <Route path="/activities/:activityId" element={<ActivityDetails />} />
           <Route path="/waypoints/:id" element={<div>Waypoint details</div>} />
+          <Route path="/activities" element={<div>Activity log</div>} />
         </Routes>
       </WaypointsProvider>
     </MemoryRouter>,
@@ -26,6 +27,61 @@ describe('ActivityDetails', () => {
   it('shows not found for unknown ids', () => {
     renderDetails('/activities/missing')
     expect(screen.getByText('Activity not found.')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Activities' })).toHaveAttribute('href', '/activities')
+  })
+
+  it('breadcrumbs an unlinked activity back to the activity log', async () => {
+    const user = userEvent.setup()
+    const seed = createDefaultData()
+    save({
+      ...seed,
+      activities: [
+        {
+          activityId: 'a1',
+          ideaIds: [],
+          date: '2026-08-01',
+          location: { kind: 'postcode', postcode: 'BA12 6QF' },
+          notes: '',
+          referenceIds: [],
+          photoReferenceIds: [],
+          createdAt: '2026-08-01T10:00:00.000Z',
+          updatedAt: '2026-08-01T10:00:00.000Z',
+        },
+      ],
+    })
+
+    renderDetails()
+
+    await user.click(screen.getByRole('link', { name: 'Activities' }))
+    expect(screen.getByText('Activity log')).toBeInTheDocument()
+  })
+
+  it('breadcrumbs a linked activity back to its waypoint', async () => {
+    const user = userEvent.setup()
+    const seed = createDefaultData()
+    save({
+      ...seed,
+      activities: [
+        {
+          activityId: 'a1',
+          ideaIds: [],
+          waypointId: 'stourhead',
+          date: '2026-08-01',
+          location: { kind: 'postcode', postcode: 'BA12 6QF' },
+          notes: '',
+          referenceIds: [],
+          photoReferenceIds: [],
+          createdAt: '2026-08-01T10:00:00.000Z',
+          updatedAt: '2026-08-01T10:00:00.000Z',
+        },
+      ],
+    })
+
+    renderDetails()
+
+    expect(screen.queryByRole('link', { name: 'Activities' })).not.toBeInTheDocument()
+    await user.click(screen.getByRole('link', { name: 'Stourhead' }))
+    expect(screen.getByText('Waypoint details')).toBeInTheDocument()
   })
 
   it('renders linked references and photos', () => {
@@ -67,7 +123,7 @@ describe('ActivityDetails', () => {
 
     renderDetails()
 
-    expect(screen.getByRole('heading', { name: '2026-08-01 · Stourhead' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: '2026-08-01 · Stourhead', level: 1 })).toBeInTheDocument()
     expect(screen.getByText('Guide')).toBeInTheDocument()
     expect(screen.getByRole('img', { name: 'View' })).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Orangery idea' })).toBeInTheDocument()

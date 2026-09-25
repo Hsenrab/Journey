@@ -26,11 +26,15 @@ describe('LocationDetails', () => {
   it('shows an error when the waypoint is not found', () => {
     renderDetails('does-not-exist')
     expect(screen.getByText('Waypoint not found.')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Waypoints' })).toHaveAttribute('href', '/waypoints')
   })
 
   it('shows the waypoint details', () => {
     renderDetails(lacockId)
-    expect(screen.getByRole('heading', { name: 'Lacock Abbey, Fox Talbot Museum and Village' })).toBeInTheDocument()
+    expect(
+      screen.getByRole('heading', { name: 'Lacock Abbey, Fox Talbot Museum and Village', level: 1 }),
+    ).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Waypoints' })).toHaveAttribute('href', '/waypoints')
   })
 
   it('adds a linked activity', async () => {

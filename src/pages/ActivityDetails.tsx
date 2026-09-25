@@ -16,6 +16,7 @@ import {
 } from '@mui/material'
 import InboxOutlinedIcon from '@mui/icons-material/InboxOutlined'
 import { ActivityEditor } from '../components/ActivityEditor'
+import { DetailPageHeader } from '../components/DetailPageHeader'
 import { EmptyState } from '../components/EmptyState'
 import { ideasForActivity, locationSummary, statusLabels } from '../domain/visit'
 import { useWaypoints } from '../features/journey/JourneyContext'
@@ -37,14 +38,18 @@ export default function ActivityDetails() {
   const waypoint = activity?.waypointId
     ? data.waypoints.find((item) => item.waypointId === activity.waypointId)
     : undefined
-  const backTarget = waypoint ? `/waypoints/${waypoint.waypointId}` : '/activities'
+  const breadcrumbs = waypoint
+    ? [
+        { label: 'Waypoints', to: '/waypoints' },
+        { label: waypoint.title, to: `/waypoints/${waypoint.waypointId}` },
+      ]
+    : [{ label: 'Activities', to: '/activities' }]
+  const backTarget = breadcrumbs[breadcrumbs.length - 1].to
 
   if (!activity) {
     return (
       <Stack spacing={3}>
-        <Button component={Link} to={backTarget}>
-          ← Activity log
-        </Button>
+        <DetailPageHeader breadcrumbs={breadcrumbs} title="Activity" />
         <Alert severity="error">Activity not found.</Alert>
       </Stack>
     )
@@ -83,9 +88,18 @@ export default function ActivityDetails() {
 
   return (
     <Stack spacing={3}>
-      <Button component={Link} to={backTarget}>
-        ← Activity log
-      </Button>
+      <DetailPageHeader breadcrumbs={breadcrumbs} title={detailHeading}>
+        {!editing && (
+          <>
+            <Button variant="contained" onClick={() => setEditing(true)}>
+              Edit activity
+            </Button>
+            <Button color="error" onClick={() => setShowDeleteDialog(true)}>
+              Delete activity
+            </Button>
+          </>
+        )}
+      </DetailPageHeader>
 
       {message && (
         <Alert
@@ -102,7 +116,6 @@ export default function ActivityDetails() {
         </Alert>
       )}
 
-      <Typography variant="h4">{detailHeading}</Typography>
       <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: 'wrap' }}>
         {activity.category && <Chip label={statusLabels[activity.category]} />}
         {waypoint && (
@@ -213,7 +226,7 @@ export default function ActivityDetails() {
         )}
       </Stack>
 
-      {editing ? (
+      {editing && (
         <ActivityEditor
           data={data}
           initialActivity={activity}
@@ -236,15 +249,6 @@ export default function ActivityDetails() {
           onCancel={() => setEditing(false)}
           onDelete={() => setShowDeleteDialog(true)}
         />
-      ) : (
-        <Stack direction="row" spacing={1}>
-          <Button variant="contained" onClick={() => setEditing(true)}>
-            Edit activity
-          </Button>
-          <Button color="error" onClick={() => setShowDeleteDialog(true)}>
-            Delete activity
-          </Button>
-        </Stack>
       )}
 
       <Dialog open={showDeleteDialog} onClose={() => setShowDeleteDialog(false)}>
