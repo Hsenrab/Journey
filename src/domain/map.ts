@@ -2,7 +2,7 @@ import type { Activity, Status, Waypoint } from './visit'
 
 export type Coordinates = { latitude: number; longitude: number }
 export type WaypointCompletionState = 'not-started' | 'complete'
-export const brockworth = { latitude: 51.844, longitude: -2.153 }
+export const brockworth: Readonly<Coordinates> = { latitude: 51.844, longitude: -2.153 }
 
 export function completionStateForWaypoint(
   waypoint: Waypoint,

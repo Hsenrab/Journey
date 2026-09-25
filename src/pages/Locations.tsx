@@ -85,6 +85,7 @@ export default function Locations() {
         const waypointArea = source?.area ?? 'Custom'
         const waypointCategory = source?.category ?? waypoint.category
         const waypointStatus = statusFor(waypoint.waypointId)
+        // Retain unknown distances so filters never silently hide saved waypoints.
         const withinDistance = maxDistance === 'all' || distance === undefined || distance <= Number(maxDistance)
         return (
           (status === 'all' || waypointStatus === status) &&
