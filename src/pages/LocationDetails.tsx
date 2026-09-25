@@ -1,18 +1,11 @@
 import { useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { Alert, Button, Card, CardContent, Chip, Stack, Typography } from '@mui/material'
-import LinkIcon from '@mui/icons-material/Link'
-import PhotoLibraryIcon from '@mui/icons-material/PhotoLibrary'
-import PlaceIcon from '@mui/icons-material/Place'
 import InboxOutlinedIcon from '@mui/icons-material/InboxOutlined'
 import { ActivityEditor } from '../components/ActivityEditor'
-import { CardDetailRow } from '../components/CardDetailRow'
 import { EmptyState } from '../components/EmptyState'
 import { locations } from '../data/locations'
 import {
-  activitySubtitle,
-  activityTitle,
-  countLabel,
   ideaUsageCount,
   ideaUsageLabel,
   ideasForWaypoint,
@@ -152,36 +145,19 @@ export default function LocationDetails() {
         {activities.length === 0 && (
           <EmptyState icon={<InboxOutlinedIcon color="disabled" />} message="No activities logged yet." />
         )}
-        {activities.map((activity) => {
-          const subtitle = activitySubtitle(activity)
-          return (
-            <Card key={activity.activityId}>
-              <CardContent>
-                <Stack spacing={1}>
-                  <Typography variant="h6" component={Link} to={`/activities/${activity.activityId}`}>
-                    {activityTitle(activity)}
-                  </Typography>
-                  {subtitle && <Typography color="text.secondary">{subtitle}</Typography>}
-                  {activity.category && (
-                    <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: 'wrap' }}>
-                      <Chip label={statusLabels[activity.category]} />
-                    </Stack>
-                  )}
-                  {activity.notes && <Typography>{activity.notes}</Typography>}
-                  <CardDetailRow icon={<PlaceIcon fontSize="small" />}>
-                    {locationSummary(activity.location)}
-                  </CardDetailRow>
-                  <CardDetailRow icon={<PhotoLibraryIcon fontSize="small" />}>
-                    {countLabel(activity.photoReferenceIds.length, 'photo')}
-                  </CardDetailRow>
-                  <CardDetailRow icon={<LinkIcon fontSize="small" />}>
-                    {countLabel(activity.referenceIds.length, 'link')}
-                  </CardDetailRow>
-                </Stack>
-              </CardContent>
-            </Card>
-          )
-        })}
+        {activities.map((activity) => (
+          <Card key={activity.activityId}>
+            <CardContent>
+              <Stack spacing={1}>
+                <Typography variant="h6" component={Link} to={`/activities/${activity.activityId}`}>
+                  {activity.date}
+                </Typography>
+                {activity.notes && <Typography>{activity.notes}</Typography>}
+                <Typography color="text.secondary">{locationSummary(activity.location)}</Typography>
+              </Stack>
+            </CardContent>
+          </Card>
+        ))}
       </Stack>
     </Stack>
   )

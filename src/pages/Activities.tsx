@@ -1,15 +1,11 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Alert, Button, Card, CardContent, Chip, Stack, Typography } from '@mui/material'
-import LinkIcon from '@mui/icons-material/Link'
-import PhotoLibraryIcon from '@mui/icons-material/PhotoLibrary'
-import PlaceIcon from '@mui/icons-material/Place'
 import InboxOutlinedIcon from '@mui/icons-material/InboxOutlined'
 import { ActivityEditor } from '../components/ActivityEditor'
-import { CardDetailRow } from '../components/CardDetailRow'
 import { EmptyState } from '../components/EmptyState'
 import { PageHeader } from '../components/PageHeader'
-import { activitySubtitle, activityTitle, countLabel, locationSummary, statusLabels } from '../domain/visit'
+import { locationSummary, statusLabels } from '../domain/visit'
 import { useWaypoints } from '../features/journey/JourneyContext'
 import { JourneyConflictError } from '../services/journeyApi'
 
@@ -87,15 +83,13 @@ export default function Activities() {
         ) : (
           activities.map((activity) => {
             const waypoint = activity.waypointId ? waypointById.get(activity.waypointId) : undefined
-            const subtitle = [activitySubtitle(activity), waypoint?.title].filter(Boolean).join(' · ')
             return (
               <Card key={activity.activityId}>
                 <CardContent>
                   <Stack spacing={1}>
                     <Typography variant="h6" component={Link} to={`/activities/${activity.activityId}`}>
-                      {activityTitle(activity)}
+                      {activity.date}
                     </Typography>
-                    {subtitle && <Typography color="text.secondary">{subtitle}</Typography>}
                     <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: 'wrap' }}>
                       {activity.category && <Chip label={statusLabels[activity.category]} />}
                       {waypoint && (
@@ -108,16 +102,12 @@ export default function Activities() {
                         />
                       )}
                     </Stack>
-                    <CardDetailRow icon={<PlaceIcon fontSize="small" />}>
-                      {locationSummary(activity.location)}
-                    </CardDetailRow>
+                    <Typography color="text.secondary">{locationSummary(activity.location)}</Typography>
                     {activity.notes && <Typography>{activity.notes.slice(0, 140)}</Typography>}
-                    <CardDetailRow icon={<PhotoLibraryIcon fontSize="small" />}>
-                      {countLabel(activity.photoReferenceIds.length, 'photo')}
-                    </CardDetailRow>
-                    <CardDetailRow icon={<LinkIcon fontSize="small" />}>
-                      {countLabel(activity.referenceIds.length, 'link')}
-                    </CardDetailRow>
+                    <Typography color="text.secondary">
+                      {activity.photoReferenceIds.length} photo{activity.photoReferenceIds.length === 1 ? '' : 's'} ·{' '}
+                      {activity.referenceIds.length} link{activity.referenceIds.length === 1 ? '' : 's'}
+                    </Typography>
                   </Stack>
                 </CardContent>
               </Card>

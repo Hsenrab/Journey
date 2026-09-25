@@ -68,42 +68,26 @@ describe('Activities', () => {
     })
   })
 
-  it('shows activity names, formatted fallback dates, waypoint labels and detail counts', () => {
+  it('shows waypoint title labels instead of raw ids', () => {
     const seed = createDefaultData()
-    const namedActivity: Activity = {
+    const seededActivity: Activity = {
       activityId: 'a1',
       ideaIds: [],
       waypointId: 'stourhead',
       challengeId: 'national-trust',
       date: '2026-08-01',
-      name: 'Summer visit',
       category: 'gold',
       location: { kind: 'postcode', postcode: 'BA12 6QF' },
       notes: '',
-      referenceIds: ['ref-1'],
-      photoReferenceIds: ['photo-1'],
+      referenceIds: [],
+      photoReferenceIds: [],
       createdAt: '2026-08-01T10:00:00.000Z',
       updatedAt: '2026-08-01T10:00:00.000Z',
     }
-    const unnamedActivity: Activity = {
-      activityId: 'a2',
-      ideaIds: [],
-      date: '2026-08-02',
-      location: { kind: 'postcode', postcode: 'GL1 1AA' },
-      notes: '',
-      referenceIds: [],
-      photoReferenceIds: [],
-      createdAt: '2026-08-02T10:00:00.000Z',
-      updatedAt: '2026-08-02T10:00:00.000Z',
-    }
-    save({ ...seed, activities: [namedActivity, unnamedActivity] })
+    save({ ...seed, activities: [seededActivity] })
 
     renderActivities()
 
-    expect(screen.getByRole('link', { name: 'Summer visit' })).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: '8/2/2026' })).toBeInTheDocument()
     expect(screen.getByText('Waypoint: Stourhead')).toBeInTheDocument()
-    expect(screen.getByText('1 photo')).toBeInTheDocument()
-    expect(screen.getByText('1 link')).toBeInTheDocument()
   })
 })
