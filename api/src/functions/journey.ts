@@ -22,7 +22,14 @@ import {
 import { JourneyMutationSchema, type EntityType, type JourneyData } from '../lib/journeySchema.js'
 import { GeocodeError, resolveEntityCoordinates } from '../lib/geocode.js'
 import { DefaultAzureCredential } from '@azure/identity'
-import { deletionPlan, entityId, entityKey, referenceIntegrityError, upsertEntity } from '../lib/journeyGraph.js'
+import {
+  deletionPlan,
+  entityId,
+  entityKey,
+  entityTypes,
+  referenceIntegrityError,
+  upsertEntity,
+} from '../lib/journeyGraph.js'
 import { ZodError } from 'zod'
 
 type ContainerName = 'production' | 'demo'
@@ -244,12 +251,12 @@ export async function journey(request: HttpRequest, context: InvocationContext):
     if (!existing) throw new ResponseError(404, 'not_found')
     if (!canMutateOwner(container, role, ownerId, existing.ownerId)) throw new ResponseError(403, 'forbidden')
     const plan = deletionPlan(loaded.data, deleteType, deleteId)
-    const entityTypes: EntityType[] = ['waypoint', 'challenge', 'idea', 'activity', 'reference', 'photoReference']
     const ownerIdsByEntity = new Map(
       entityTypes.flatMap((type) =>
         loaded.data[entityKey(type)].map((entity) => [`${type}:${entityId(type, entity)}`, entity.ownerId] as const),
       ),
     )
+    // Editors cannot delete when transactional cleanup would modify another owner's entity.
     const cleanupMutatesOtherOwner =
       role !== 'owner' &&
       (plan.deletes.some((target) => {

@@ -12,6 +12,8 @@ const entityKeys = {
   photoReference: 'photoReferences',
 } as const satisfies Record<EntityType, keyof JourneyData>
 
+export const entityTypes = Object.keys(entityKeys) as EntityType[]
+
 export function entityKey(type: EntityType): keyof JourneyData {
   return entityKeys[type]
 }
