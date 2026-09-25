@@ -143,7 +143,7 @@ describe('Locations', () => {
     renderLocations()
 
     await user.click(screen.getAllByRole('combobox')[2])
-    await user.click(screen.getByRole('option', { name: 'Up to 25 miles' }))
+    await user.click(screen.getByRole('option', { name: 'Up to 25 miles (plus unknown)' }))
 
     expect(screen.getByText('Custom nearby waypoint')).toBeInTheDocument()
     expect(screen.getByText('0.4 miles from Brockworth')).toBeInTheDocument()
@@ -180,7 +180,7 @@ describe('Locations', () => {
     renderLocations()
 
     await user.click(screen.getAllByRole('combobox')[2])
-    await user.click(screen.getByRole('option', { name: 'Up to 25 miles' }))
+    await user.click(screen.getByRole('option', { name: 'Up to 25 miles (plus unknown)' }))
 
     expect(screen.getByText('Other challenge waypoint')).toBeInTheDocument()
     expect(screen.getByText('Distance unknown')).toBeInTheDocument()

@@ -212,10 +212,10 @@ export default function Locations() {
           onChange={(e) => setMaxDistance(e.target.value)}
         >
           <MenuItem value="all">Any distance</MenuItem>
-          <MenuItem value="25">Up to 25 miles</MenuItem>
-          <MenuItem value="50">Up to 50 miles</MenuItem>
-          <MenuItem value="100">Up to 100 miles</MenuItem>
-          <MenuItem value="200">Up to 200 miles</MenuItem>
+          <MenuItem value="25">Up to 25 miles (plus unknown)</MenuItem>
+          <MenuItem value="50">Up to 50 miles (plus unknown)</MenuItem>
+          <MenuItem value="100">Up to 100 miles (plus unknown)</MenuItem>
+          <MenuItem value="200">Up to 200 miles (plus unknown)</MenuItem>
         </TextField>
         <TextField select label="Area" value={area} onChange={(e) => setArea(e.target.value)}>
           <MenuItem value="all">All areas</MenuItem>
