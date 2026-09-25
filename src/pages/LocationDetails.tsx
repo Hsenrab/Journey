@@ -20,7 +20,7 @@ const catalogueLocationById = new Map(locations.map((location) => [location.loca
 
 export default function LocationDetails() {
   const { id = '' } = useParams()
-  const { addActivity, activitiesFor, statusFor, data, reload } = useWaypoints()
+  const { addActivity, activitiesFor, statusFor, data, readOnly, reload } = useWaypoints()
   const [showEditor, setShowEditor] = useState(false)
   const [message, setMessage] = useState<{ severity: 'success' | 'error'; text: string; conflict?: boolean } | null>(
     null,
@@ -81,31 +81,32 @@ export default function LocationDetails() {
         </Alert>
       )}
 
-      {showEditor ? (
-        <ActivityEditor
-          data={data}
-          initialWaypointId={id}
-          submitLabel="Save activity"
-          onSubmit={async (draft) => {
-            try {
-              await addActivity(draft)
-              setShowEditor(false)
-              setMessage({ severity: 'success', text: 'Activity saved.' })
-            } catch (error) {
-              setMessage({
-                severity: 'error',
-                text: error instanceof Error ? error.message : 'Failed to save activity.',
-                conflict: error instanceof JourneyConflictError,
-              })
-            }
-          }}
-          onCancel={() => setShowEditor(false)}
-        />
-      ) : (
-        <Button variant="contained" onClick={() => setShowEditor(true)}>
-          Log activity
-        </Button>
-      )}
+      {!readOnly &&
+        (showEditor ? (
+          <ActivityEditor
+            data={data}
+            initialWaypointId={id}
+            submitLabel="Save activity"
+            onSubmit={async (draft) => {
+              try {
+                await addActivity(draft)
+                setShowEditor(false)
+                setMessage({ severity: 'success', text: 'Activity saved.' })
+              } catch (error) {
+                setMessage({
+                  severity: 'error',
+                  text: error instanceof Error ? error.message : 'Failed to save activity.',
+                  conflict: error instanceof JourneyConflictError,
+                })
+              }
+            }}
+            onCancel={() => setShowEditor(false)}
+          />
+        ) : (
+          <Button variant="contained" onClick={() => setShowEditor(true)}>
+            Log activity
+          </Button>
+        ))}
 
       <Stack spacing={2}>
         <Stack
@@ -114,9 +115,11 @@ export default function LocationDetails() {
           sx={{ justifyContent: 'space-between', alignItems: { sm: 'center' } }}
         >
           <Typography variant="h5">Ideas</Typography>
-          <Button component={Link} to={`/ideas?mode=add&waypoint=${encodeURIComponent(id)}`}>
-            Add idea
-          </Button>
+          {!readOnly && (
+            <Button component={Link} to={`/ideas?mode=add&waypoint=${encodeURIComponent(id)}`}>
+              Add idea
+            </Button>
+          )}
         </Stack>
         {waypointIdeas.length === 0 ? (
           <EmptyState icon={<InboxOutlinedIcon color="disabled" />} message="No ideas linked to this waypoint." />

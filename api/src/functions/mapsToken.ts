@@ -4,11 +4,11 @@
  * Returns a Microsoft Entra access token for Azure Maps browser rendering.
  * Callers reach this endpoint only through Static Web
  * Apps' authenticated `/api/*` proxy; the function additionally validates
- * the forwarded principal's Entra provider and assigned owner role.
+ * the forwarded principal's Entra provider and assigned Journey role.
  */
 import { app, type HttpRequest, type HttpResponseInit, type InvocationContext } from '@azure/functions'
 import { DefaultAzureCredential } from '@azure/identity'
-import { assertOwnerPrincipal, parseClientPrincipalHeader, PrincipalValidationError } from '../lib/principal.js'
+import { journeyRoleForPrincipal, parseClientPrincipalHeader, PrincipalValidationError } from '../lib/principal.js'
 import { acquireMapsAccessToken } from '../lib/mapsAuth.js'
 
 function requireEnv(name: string): string {
@@ -23,7 +23,7 @@ export async function mapsToken(request: HttpRequest, context: InvocationContext
   let principal
   try {
     principal = parseClientPrincipalHeader(request.headers.get('x-ms-client-principal'))
-    assertOwnerPrincipal(principal)
+    journeyRoleForPrincipal(principal)
   } catch (error) {
     if (error instanceof PrincipalValidationError) {
       context.warn(`Rejected maps token request: ${error.message}`)

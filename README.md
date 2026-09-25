@@ -50,8 +50,9 @@ Shared domain validation lives in `src/domain/visit.ts` and is reused by UI + st
 - Export/import uses a versioned portable JSON format.
 - The app header includes a **Data mode** selector on every route:
   **Demo local** loads the bundled `src/data/demo.json` fixture read-only, **Demo Cosmos**
-  loads a writable temporary demo partition that is reseeded on redeploy, and
-  **Production data** loads the persistent production partition.
+  loads a temporary demo partition that is writable for admins and reseeded on
+  redeploy, and **Production data** loads the persistent shared production partition.
+  Viewers can read every shared dataset but cannot make changes.
 - If Demo Cosmos cannot load, the app uses visible read-only Demo local fallback data for
   that session. Production load failures never fall back to demo data.
 - Export is generated from the active dataset. Import is allowed only into an empty
@@ -86,9 +87,10 @@ npm run dev
 ## Hosted access
 
 The hosted application uses Azure Static Web Apps' built-in Microsoft Entra ID
-provider. Application and API routes require the custom `owner` role, assigned
-through a Static Web Apps invitation. The linked Functions API validates the
-Static Web Apps principal before accessing Azure Maps. Azure Maps must retain
+provider. Application and API routes require exactly one custom Journey role,
+assigned through a Static Web Apps invitation: `admin` has full access and
+`viewer` is read-only. The linked Functions API validates the Static Web Apps
+principal before accessing Azure Maps. Azure Maps must retain
 `disableLocalAuth: true`; its browser and API access must use Microsoft Entra tokens
 acquired with the Function App's managed identity, never shared keys or SAS tokens.
 
