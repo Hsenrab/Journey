@@ -45,6 +45,8 @@ import {
 type DraftReference = Pick<Reference, 'title' | 'url' | 'description' | 'previewImageUrl'> & { referenceId?: string }
 type DraftPhotoReference = Pick<ExternalPhotoReference, 'title' | 'url' | 'altText'> & { photoReferenceId?: string }
 
+type ReloadResult = { status: 'success' } | { status: 'failure'; message: string } | { status: 'superseded' }
+
 export type ActivityDraft = {
   name?: string
   waypointId?: string
@@ -107,8 +109,8 @@ type WaypointsValue = {
   deleteIdea: (ideaId: string) => Promise<void>
   restore: (data: WaypointsData) => Promise<void>
   clear: () => Promise<void>
-  /** Resolves with the load-failure message when the refresh failed, or undefined when it succeeded. */
-  reload: () => Promise<string | undefined>
+  /** Resolves with whether the refresh succeeded, failed, or was superseded by another load. */
+  reload: () => Promise<ReloadResult>
   activitiesFor: (waypointId: string) => Activity[]
   statusFor: (waypointId: string) => Status
 }
@@ -383,7 +385,7 @@ export function WaypointsProvider({ children }: { children: ReactNode }) {
     setEtags(loaded.etags)
   }, [])
   const loadMode = useCallback(
-    async (mode: JourneyDataMode): Promise<string | undefined> => {
+    async (mode: JourneyDataMode): Promise<ReloadResult> => {
       const generation = loadGeneration.current + 1
       loadGeneration.current = generation
       setLoading(true)
@@ -391,13 +393,13 @@ export function WaypointsProvider({ children }: { children: ReactNode }) {
         loaded: { data: WaypointsData; etags: Record<string, string> },
         active: JourneyDataMode,
         error?: string,
-      ) => {
-        if (loadGeneration.current !== generation) return undefined
+      ): ReloadResult => {
+        if (loadGeneration.current !== generation) return { status: 'superseded' }
         apply(loaded)
         setActiveDataMode(active)
         setLoadError(error)
         setLoading(false)
-        return error
+        return error ? { status: 'failure', message: error } : { status: 'success' }
       }
 
       if (mode === 'demo-local') {

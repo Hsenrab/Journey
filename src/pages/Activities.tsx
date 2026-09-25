@@ -21,9 +21,12 @@ export default function Activities() {
     (a, b) => b.date.localeCompare(a.date) || b.updatedAt.localeCompare(a.updatedAt),
   )
   const reloadLatest = async () => {
-    const loadFailure = await reload()
-    if (loadFailure) {
-      setMessage({ severity: 'error', text: loadFailure, conflict: true })
+    const result = await reload()
+    if (result.status === 'failure') {
+      setMessage({ severity: 'error', text: result.message, conflict: true })
+      return
+    }
+    if (result.status === 'superseded') {
       return
     }
     setMessage(null)

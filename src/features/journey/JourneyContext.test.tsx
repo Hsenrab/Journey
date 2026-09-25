@@ -314,6 +314,35 @@ describe('WaypointsContext in production mode', () => {
     expect(result.current.data).toEqual(createDemoModeData())
   })
 
+  it('reports a superseded reload distinctly from a successful reload', async () => {
+    const seeded = createDefaultData()
+    const resolvers: ((response: Response) => void)[] = []
+    const rejecters: ((error: Error) => void)[] = []
+    const fetch = vi
+      .fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify({ data: seeded, etags: {} }), { status: 200 }))
+      .mockImplementation(
+        () =>
+          new Promise<Response>((resolve, reject) => {
+            resolvers.push(resolve)
+            rejecters.push(reject)
+          }),
+      )
+    vi.stubGlobal('fetch', fetch)
+
+    const { result } = renderHook(() => useWaypoints(), { wrapper: WaypointsProvider })
+    await waitFor(() => expect(result.current.data.waypoints).toHaveLength(seeded.waypoints.length))
+
+    const firstReload = result.current.reload()
+    const secondReload = result.current.reload()
+
+    rejecters[0]?.(new Error('First reload failed'))
+    await expect(firstReload).resolves.toEqual({ status: 'superseded' })
+
+    resolvers[1]?.(new Response(JSON.stringify({ data: seeded, etags: {} }), { status: 200 }))
+    await expect(secondReload).resolves.toEqual({ status: 'success' })
+  })
+
   it('does not expose demo data when Production cannot be loaded', async () => {
     setDataMode('production')
     const fetch = vi

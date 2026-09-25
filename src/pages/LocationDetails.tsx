@@ -42,9 +42,12 @@ export default function LocationDetails() {
   const activities = activitiesFor(id)
   const waypointIdeas = ideasForWaypoint(data.ideas, id)
   const reloadLatest = async () => {
-    const loadFailure = await reload()
-    if (loadFailure) {
-      setMessage({ severity: 'error', text: loadFailure, conflict: true })
+    const result = await reload()
+    if (result.status === 'failure') {
+      setMessage({ severity: 'error', text: result.message, conflict: true })
+      return
+    }
+    if (result.status === 'superseded') {
       return
     }
     setMessage(null)

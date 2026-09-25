@@ -67,9 +67,12 @@ export default function ActivityDetails() {
 
   const detailHeading = [activity.date, waypoint?.title].filter(Boolean).join(' · ')
   const reloadLatest = async () => {
-    const loadFailure = await reload()
-    if (loadFailure) {
-      setMessage({ severity: 'error', text: loadFailure, conflict: true })
+    const result = await reload()
+    if (result.status === 'failure') {
+      setMessage({ severity: 'error', text: result.message, conflict: true })
+      return
+    }
+    if (result.status === 'superseded') {
       return
     }
     setMessage(null)
@@ -259,9 +262,12 @@ export default function ActivityDetails() {
             onClick={async () => {
               try {
                 await deleteActivity(activity.activityId)
-                const loadFailure = await reload()
-                if (loadFailure) {
-                  setMessage({ severity: 'error', text: loadFailure, conflict: true })
+                const result = await reload()
+                if (result.status === 'failure') {
+                  setMessage({ severity: 'error', text: result.message, conflict: true })
+                  return
+                }
+                if (result.status === 'superseded') {
                   return
                 }
                 setShowDeleteDialog(false)
