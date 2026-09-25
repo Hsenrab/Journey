@@ -10,26 +10,19 @@ import { CardDetailRow } from '../components/CardDetailRow'
 import { EmptyState } from '../components/EmptyState'
 import { locations } from '../data/locations'
 import {
+  activityTitle,
+  formatActivityDate,
   ideaUsageCount,
   ideaUsageLabel,
   ideasForWaypoint,
   locationSummary,
   planningStateLabels,
   statusLabels,
-  type Activity,
 } from '../domain/visit'
 import { useWaypoints } from '../features/journey/JourneyContext'
 import { JourneyConflictError } from '../services/journeyApi'
 
 const catalogueLocationById = new Map(locations.map((location) => [location.locationId, location]))
-
-function formatActivityDate(date: string) {
-  return new Date(`${date}T00:00:00`).toLocaleDateString()
-}
-
-function activityTitle(activity: Activity) {
-  return activity.name ?? formatActivityDate(activity.date)
-}
 
 export default function LocationDetails() {
   const { id = '' } = useParams()

@@ -72,11 +72,11 @@ describe('Settings', () => {
     renderSettings()
 
     await user.click(screen.getByRole('combobox', { name: 'Data mode' }))
-    await user.click(screen.getByRole('option', { name: 'Demo local' }))
+    await user.click(screen.getByRole('option', { name: 'Demo local data' }))
 
     const demo = createDemoModeData()
     expect(getDataMode()).toBe('demo-local')
-    expect(await screen.findByText('Demo local loaded')).toBeInTheDocument()
+    expect(await screen.findByText('Demo local data loaded')).toBeInTheDocument()
     expect(
       screen.getByText(
         `${demo.waypoints.length} waypoints · ${demo.challenges.length} challenges · ${demo.ideas.length} ideas · ${demo.activities.length} activities`,
@@ -96,7 +96,7 @@ describe('Settings', () => {
     renderSettings()
 
     const demo = createDemoModeData()
-    expect(screen.getByText('Demo local data')).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Demo local data' })).toBeInTheDocument()
     expect(
       screen.getByText(
         `${demo.waypoints.length} waypoints · ${demo.challenges.length} challenges · ${demo.ideas.length} ideas · ${demo.activities.length} activities`,
@@ -209,7 +209,7 @@ describe('Settings', () => {
     )
     renderSettings()
 
-    expect(await screen.findByText('Demo Cosmos loaded')).toBeInTheDocument()
+    expect(await screen.findByText('Demo Cosmos data loaded')).toBeInTheDocument()
     expect(screen.getByText('Restore JSON').closest('label')).not.toHaveClass('Mui-disabled')
     expect(screen.getByRole('button', { name: 'Clear data' })).not.toBeDisabled()
   })

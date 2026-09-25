@@ -23,13 +23,8 @@ import { useWaypoints } from '../features/journey/JourneyContext'
 import { createBackup, parseImport, type JourneyDataMode } from '../services/storage'
 
 const dataModeLabels: Record<JourneyDataMode, string> = {
-  'demo-local': 'Demo local',
-  'demo-cosmos': 'Demo Cosmos',
-  production: 'Production',
-}
-
-const dataModeOptions: Record<JourneyDataMode, string> = {
-  ...dataModeLabels,
+  'demo-local': 'Demo local data',
+  'demo-cosmos': 'Demo Cosmos data',
   production: 'Production data',
 }
 
@@ -82,7 +77,7 @@ export default function Settings() {
     }
     try {
       await restore(importedData)
-      setMessage({ text: `${activeLabel} data was restored.`, error: false })
+      setMessage({ text: `${activeLabel} was restored.`, error: false })
     } catch (error) {
       setMessage({
         text: error instanceof Error ? error.message : 'Failed to restore the active data.',
@@ -98,15 +93,15 @@ export default function Settings() {
       <Stack spacing={2}>
         <Typography variant="h5">Data mode</Typography>
         <Typography>
-          Choose Demo local, Demo Cosmos, or Production data. Switching modes reloads that dataset and never overwrites
-          data that belongs to another mode.
+          Choose Demo local data, Demo Cosmos data, or Production data. Switching modes reloads that dataset and never
+          overwrites data that belongs to another mode.
         </Typography>
         <FormControl size="small" sx={{ maxWidth: 320 }}>
           <InputLabel id="journey-data-mode-label">Data mode</InputLabel>
           <Select label="Data mode" labelId="journey-data-mode-label" onChange={changeMode} value={dataMode}>
-            <MenuItem value="demo-local">{dataModeOptions['demo-local']}</MenuItem>
-            <MenuItem value="demo-cosmos">{dataModeOptions['demo-cosmos']}</MenuItem>
-            <MenuItem value="production">{dataModeOptions.production}</MenuItem>
+            <MenuItem value="demo-local">{dataModeLabels['demo-local']}</MenuItem>
+            <MenuItem value="demo-cosmos">{dataModeLabels['demo-cosmos']}</MenuItem>
+            <MenuItem value="production">{dataModeLabels.production}</MenuItem>
           </Select>
         </FormControl>
         {loadError && <Alert severity={activeDataMode === 'demo-local' ? 'warning' : 'error'}>{loadError}</Alert>}
@@ -126,7 +121,7 @@ export default function Settings() {
       </Stack>
 
       <Stack spacing={2}>
-        <Typography variant="h5">{activeLabel} data</Typography>
+        <Typography variant="h5">{activeLabel}</Typography>
         <Typography>
           Export, restore, and clear apply only to the active dataset. Demo local and fallback data are read-only; Demo
           Cosmos changes are temporary and reset on redeploy.
@@ -176,7 +171,7 @@ export default function Settings() {
                 return
               }
               setConfirmingClear(false)
-              setMessage({ text: `${activeLabel} data was cleared.`, error: false })
+              setMessage({ text: `${activeLabel} was cleared.`, error: false })
             }}
           >
             Clear everything

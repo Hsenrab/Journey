@@ -198,6 +198,14 @@ export type Activity = z.infer<typeof ActivitySchema>
 export type ActivityLocation = z.infer<typeof ActivityLocationSchema>
 export type WaypointsData = z.infer<typeof DataSchema>
 
+export function formatActivityDate(date: string) {
+  return new Date(`${date}T00:00:00`).toLocaleDateString()
+}
+
+export function activityTitle(activity: Activity) {
+  return activity.name ?? formatActivityDate(activity.date)
+}
+
 export function locationSummary(location: ActivityLocation): string {
   return location.kind === 'postcode'
     ? `Postcode: ${location.postcode}`

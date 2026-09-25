@@ -9,17 +9,9 @@ import { ActivityEditor } from '../components/ActivityEditor'
 import { CardDetailRow } from '../components/CardDetailRow'
 import { EmptyState } from '../components/EmptyState'
 import { PageHeader } from '../components/PageHeader'
-import { locationSummary, statusLabels, type Activity } from '../domain/visit'
+import { activityTitle, formatActivityDate, locationSummary, statusLabels } from '../domain/visit'
 import { useWaypoints } from '../features/journey/JourneyContext'
 import { JourneyConflictError } from '../services/journeyApi'
-
-function formatActivityDate(date: string) {
-  return new Date(`${date}T00:00:00`).toLocaleDateString()
-}
-
-function activityTitle(activity: Activity) {
-  return activity.name ?? formatActivityDate(activity.date)
-}
 
 export default function Activities() {
   const { data, addActivity, reload } = useWaypoints()

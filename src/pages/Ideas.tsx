@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { Box, Button, Card, CardContent, Chip, MenuItem, Stack, TextField, Typography } from '@mui/material'
+import FlagIcon from '@mui/icons-material/Flag'
 import LinkIcon from '@mui/icons-material/Link'
 import PlaceIcon from '@mui/icons-material/Place'
 import RouteIcon from '@mui/icons-material/Route'
@@ -223,7 +224,7 @@ export default function Ideas() {
                       <Chip label={difficultyLabels[idea.difficulty]} />
                       <Chip label={ideaUsageLabel(count)} />
                     </Stack>
-                    <CardDetailRow icon={<PlaceIcon fontSize="small" />}>
+                    <CardDetailRow icon={<FlagIcon fontSize="small" />}>
                       {linkedWaypointNames.length > 0
                         ? `${linkedWaypointNames.length} waypoint${linkedWaypointNames.length === 1 ? '' : 's'}: ${linkedWaypointNames.join(', ')}`
                         : 'No linked waypoints'}
