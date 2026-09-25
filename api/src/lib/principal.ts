@@ -60,7 +60,8 @@ export function parseClientPrincipalHeader(headerValue: string | null): ClientPr
 
 /**
  * Validates that a parsed principal is an authenticated Microsoft Entra ID
- * identity with exactly one Journey role assigned by Static Web Apps.
+ * identity with a non-empty immutable user ID, the `authenticated` role, and
+ * exactly one Journey role assigned by Static Web Apps.
  *
  * Throws {@link PrincipalValidationError} with a specific reason on any
  * mismatch; it never silently downgrades to an anonymous or degraded result.

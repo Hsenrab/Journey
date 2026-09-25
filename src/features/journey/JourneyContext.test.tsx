@@ -209,7 +209,9 @@ describe('WaypointsContext in production mode', () => {
     seeded.ideas = [idea]
     const fetch = vi
       .fn()
-      .mockImplementation(() => new Response(JSON.stringify({ data: seeded, etags: {} }), { status: 200 }))
+      .mockImplementation(
+        () => new Response(JSON.stringify({ data: seeded, etags: {}, role: 'admin' }), { status: 200 }),
+      )
     vi.stubGlobal('fetch', fetch)
 
     const { result } = renderHook(() => useWaypoints(), { wrapper: WaypointsProvider })
@@ -274,7 +276,9 @@ describe('WaypointsContext in production mode', () => {
     const seeded = createDefaultData()
     const fetch = vi
       .fn()
-      .mockImplementation(() => new Response(JSON.stringify({ data: seeded, etags: {} }), { status: 200 }))
+      .mockImplementation(
+        () => new Response(JSON.stringify({ data: seeded, etags: {}, role: 'admin' }), { status: 200 }),
+      )
     vi.stubGlobal('fetch', fetch)
 
     const { result } = renderHook(() => useWaypoints(), { wrapper: WaypointsProvider })
@@ -322,7 +326,9 @@ describe('WaypointsContext in production mode', () => {
     await waitFor(() => expect(result.current.activeDataMode).toBe('demo-local'))
 
     await act(async () => {
-      resolvers[0]?.(new Response(JSON.stringify({ data: createDefaultData(), etags: {} }), { status: 200 }))
+      resolvers[0]?.(
+        new Response(JSON.stringify({ data: createDefaultData(), etags: {}, role: 'admin' }), { status: 200 }),
+      )
     })
 
     expect(result.current.activeDataMode).toBe('demo-local')
