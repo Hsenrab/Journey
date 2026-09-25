@@ -1,12 +1,13 @@
 import { useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { Alert, Button, Card, CardContent, Chip, Stack, Typography } from '@mui/material'
+import { Alert, Button, Chip, Stack, Typography } from '@mui/material'
 import LinkIcon from '@mui/icons-material/Link'
 import PhotoLibraryIcon from '@mui/icons-material/PhotoLibrary'
 import PlaceIcon from '@mui/icons-material/Place'
 import InboxOutlinedIcon from '@mui/icons-material/InboxOutlined'
 import { ActivityEditor } from '../components/ActivityEditor'
 import { CardDetailRow } from '../components/CardDetailRow'
+import { ClickableCard } from '../components/ClickableCard'
 import { DetailPageHeader } from '../components/DetailPageHeader'
 import { EmptyState } from '../components/EmptyState'
 import { locations } from '../data/locations'
@@ -124,20 +125,18 @@ export default function LocationDetails() {
           <EmptyState icon={<InboxOutlinedIcon color="disabled" />} message="No ideas linked to this waypoint." />
         ) : (
           waypointIdeas.map((idea) => (
-            <Card key={idea.ideaId}>
-              <CardContent>
-                <Stack spacing={1}>
-                  <Typography variant="h6" component={Link} to={`/ideas/${idea.ideaId}`}>
-                    {idea.title}
-                  </Typography>
-                  <Typography color="text.secondary">
-                    {planningStateLabels[idea.planningState]} ·{' '}
-                    {ideaUsageLabel(ideaUsageCount(data.activities, idea.ideaId))}
-                  </Typography>
-                  <Typography color="text.secondary">{idea.description || 'No description'}</Typography>
-                </Stack>
-              </CardContent>
-            </Card>
+            <ClickableCard key={idea.ideaId} titleId={`idea-${idea.ideaId}-title`} to={`/ideas/${idea.ideaId}`}>
+              <Stack spacing={1}>
+                <Typography id={`idea-${idea.ideaId}-title`} variant="h6">
+                  {idea.title}
+                </Typography>
+                <Typography color="text.secondary">
+                  {planningStateLabels[idea.planningState]} ·{' '}
+                  {ideaUsageLabel(ideaUsageCount(data.activities, idea.ideaId))}
+                </Typography>
+                <Typography color="text.secondary">{idea.description || 'No description'}</Typography>
+              </Stack>
+            </ClickableCard>
           ))
         )}
       </Stack>
@@ -149,32 +148,35 @@ export default function LocationDetails() {
         )}
         {activities.map((activity) => {
           const subtitle = activitySubtitle(activity)
+          const title = activityTitle(activity)
           return (
-            <Card key={activity.activityId}>
-              <CardContent>
-                <Stack spacing={1}>
-                  <Typography variant="h6" component={Link} to={`/activities/${activity.activityId}`}>
-                    {activityTitle(activity)}
-                  </Typography>
-                  {subtitle && <Typography color="text.secondary">{subtitle}</Typography>}
-                  {activity.category && (
-                    <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: 'wrap' }}>
-                      <Chip label={statusLabels[activity.category]} />
-                    </Stack>
-                  )}
-                  {activity.notes && <Typography>{activity.notes}</Typography>}
-                  <CardDetailRow icon={<PlaceIcon fontSize="small" />}>
-                    {locationSummary(activity.location)}
-                  </CardDetailRow>
-                  <CardDetailRow icon={<PhotoLibraryIcon fontSize="small" />}>
-                    {countLabel(activity.photoReferenceIds.length, 'photo')}
-                  </CardDetailRow>
-                  <CardDetailRow icon={<LinkIcon fontSize="small" />}>
-                    {countLabel(activity.referenceIds.length, 'link')}
-                  </CardDetailRow>
-                </Stack>
-              </CardContent>
-            </Card>
+            <ClickableCard
+              key={activity.activityId}
+              titleId={`activity-${activity.activityId}-title`}
+              to={`/activities/${activity.activityId}`}
+            >
+              <Stack spacing={1}>
+                <Typography id={`activity-${activity.activityId}-title`} variant="h6">
+                  {title}
+                </Typography>
+                {subtitle && <Typography color="text.secondary">{subtitle}</Typography>}
+                {activity.category && (
+                  <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: 'wrap' }}>
+                    <Chip label={statusLabels[activity.category]} />
+                  </Stack>
+                )}
+                {activity.notes && <Typography>{activity.notes}</Typography>}
+                <CardDetailRow icon={<PlaceIcon fontSize="small" />}>
+                  {locationSummary(activity.location)}
+                </CardDetailRow>
+                <CardDetailRow icon={<PhotoLibraryIcon fontSize="small" />}>
+                  {countLabel(activity.photoReferenceIds.length, 'photo')}
+                </CardDetailRow>
+                <CardDetailRow icon={<LinkIcon fontSize="small" />}>
+                  {countLabel(activity.referenceIds.length, 'link')}
+                </CardDetailRow>
+              </Stack>
+            </ClickableCard>
           )
         })}
       </Stack>

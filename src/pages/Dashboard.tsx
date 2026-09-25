@@ -1,7 +1,7 @@
-import { Link } from 'react-router-dom'
-import { Box, Card, CardActionArea, CardContent, LinearProgress, Stack, Typography } from '@mui/material'
+import { Box, Card, CardContent, LinearProgress, Stack, Typography } from '@mui/material'
 import InboxOutlinedIcon from '@mui/icons-material/InboxOutlined'
 import { EmptyState } from '../components/EmptyState'
+import { ClickableCard } from '../components/ClickableCard'
 import { PageHeader } from '../components/PageHeader'
 import {
   awardableStatuses,
@@ -62,14 +62,12 @@ export default function Dashboard() {
           }}
         >
           {awardableStatuses.map((status) => (
-            <Card key={status}>
-              <CardActionArea component={Link} to={`/waypoints?status=${status}`}>
-                <CardContent>
-                  <Typography variant="h6">{statusLabels[status]}</Typography>
-                  <Typography variant="h4">{counts[status]}</Typography>
-                </CardContent>
-              </CardActionArea>
-            </Card>
+            <ClickableCard key={status} titleId={`status-${status}-title`} to={`/waypoints?status=${status}`}>
+              <Typography id={`status-${status}-title`} variant="h6">
+                {statusLabels[status]}
+              </Typography>
+              <Typography variant="h4">{counts[status]}</Typography>
+            </ClickableCard>
           ))}
         </Box>
       </Box>
@@ -83,23 +81,25 @@ export default function Dashboard() {
             {recent.map((waypoint) => {
               const date = lastActivityDate(activities, waypoint.waypointId)
               return (
-                <Card key={waypoint.waypointId}>
-                  <CardActionArea component={Link} to={`/waypoints/${waypoint.waypointId}`}>
-                    <CardContent>
-                      <Stack
-                        direction={{ xs: 'column', sm: 'row' }}
-                        spacing={{ xs: 0.5, sm: 2 }}
-                        sx={{ justifyContent: 'space-between', alignItems: { xs: 'flex-start', sm: 'center' } }}
-                      >
-                        <Typography variant="h6">{waypoint.title}</Typography>
-                        <Typography color="text.secondary">
-                          {statusLabels[statusForWaypoint(activities, waypoint.waypointId)]}
-                          {date ? ` · ${new Date(`${date}T00:00:00`).toLocaleDateString()}` : ''}
-                        </Typography>
-                      </Stack>
-                    </CardContent>
-                  </CardActionArea>
-                </Card>
+                <ClickableCard
+                  key={waypoint.waypointId}
+                  titleId={`waypoint-${waypoint.waypointId}-title`}
+                  to={`/waypoints/${waypoint.waypointId}`}
+                >
+                  <Stack
+                    direction={{ xs: 'column', sm: 'row' }}
+                    spacing={{ xs: 0.5, sm: 2 }}
+                    sx={{ justifyContent: 'space-between', alignItems: { xs: 'flex-start', sm: 'center' } }}
+                  >
+                    <Typography id={`waypoint-${waypoint.waypointId}-title`} variant="h6">
+                      {waypoint.title}
+                    </Typography>
+                    <Typography color="text.secondary">
+                      {statusLabels[statusForWaypoint(activities, waypoint.waypointId)]}
+                      {date ? ` · ${new Date(`${date}T00:00:00`).toLocaleDateString()}` : ''}
+                    </Typography>
+                  </Stack>
+                </ClickableCard>
               )
             })}
           </Stack>
