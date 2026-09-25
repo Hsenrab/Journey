@@ -146,14 +146,11 @@ export default function LocationDetails() {
         )}
         {activities.map((activity) => {
           const subtitle = activitySubtitle(activity)
+          const title = activityTitle(activity)
           return (
-            <ClickableCard
-              key={activity.activityId}
-              title={activityTitle(activity)}
-              to={`/activities/${activity.activityId}`}
-            >
+            <ClickableCard key={activity.activityId} title={title} to={`/activities/${activity.activityId}`}>
               <Stack spacing={1}>
-                <Typography variant="h6">{activityTitle(activity)}</Typography>
+                <Typography variant="h6">{title}</Typography>
                 {subtitle && <Typography color="text.secondary">{subtitle}</Typography>}
                 {activity.category && (
                   <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: 'wrap' }}>

@@ -71,7 +71,7 @@ describe('Dashboard', () => {
     expect(silverCard).toHaveTextContent('1')
 
     expect(getByRole('link', { name: 'Bronze: 0 waypoints' })).toHaveAttribute('href', '/waypoints?status=bronze')
-    expect(getByRole('link', { name: 'Silver: 1 waypoints' })).toHaveAttribute('href', '/waypoints?status=silver')
+    expect(getByRole('link', { name: 'Silver: 1 waypoint' })).toHaveAttribute('href', '/waypoints?status=silver')
     expect(getByRole('link', { name: 'Gold: 0 waypoints' })).toHaveAttribute('href', '/waypoints?status=gold')
   })
 

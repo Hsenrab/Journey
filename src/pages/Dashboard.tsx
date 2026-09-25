@@ -64,7 +64,7 @@ export default function Dashboard() {
           {awardableStatuses.map((status) => (
             <ClickableCard
               key={status}
-              title={`${statusLabels[status]}: ${counts[status]} waypoints`}
+              title={`${statusLabels[status]}: ${counts[status]} waypoint${counts[status] === 1 ? '' : 's'}`}
               to={`/waypoints?status=${status}`}
             >
               <Typography variant="h6">{statusLabels[status]}</Typography>
