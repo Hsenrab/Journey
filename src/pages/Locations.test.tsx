@@ -120,10 +120,11 @@ describe('Locations', () => {
   })
 
   it('keeps custom waypoints with coordinates in a distance filter', async () => {
+    const data = createDefaultData()
     save({
-      ...createDefaultData(),
+      ...data,
       waypoints: [
-        ...createDefaultData().waypoints,
+        ...data.waypoints,
         {
           waypointId: 'custom-nearby',
           title: 'Custom nearby waypoint',
