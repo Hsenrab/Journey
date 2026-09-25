@@ -17,6 +17,8 @@ import { EmptyState } from '../components/EmptyState'
 import { IdeaEditor } from '../components/IdeaEditor'
 import {
   activitiesUsingIdea,
+  activitySubtitle,
+  activityTitle,
   difficultyDescriptions,
   difficultyLabels,
   ideaLocationSummary,
@@ -110,7 +112,10 @@ export default function IdeaDetails() {
                 <Card key={activity.activityId}>
                   <CardContent>
                     <Stack spacing={1}>
-                      <Typography>{activity.date}</Typography>
+                      <Typography>{activityTitle(activity)}</Typography>
+                      {activitySubtitle(activity) && (
+                        <Typography color="text.secondary">{activitySubtitle(activity)}</Typography>
+                      )}
                       <Typography color="text.secondary">
                         {waypoint ? `Waypoint: ${waypoint.title}` : 'No linked waypoint'}
                       </Typography>

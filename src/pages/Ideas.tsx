@@ -1,13 +1,19 @@
 import { useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { Box, Button, Card, CardContent, Chip, MenuItem, Stack, TextField, Typography } from '@mui/material'
+import FlagIcon from '@mui/icons-material/Flag'
+import LinkIcon from '@mui/icons-material/Link'
+import PlaceIcon from '@mui/icons-material/Place'
+import RouteIcon from '@mui/icons-material/Route'
 import SearchOffIcon from '@mui/icons-material/SearchOff'
+import { CardDetailRow } from '../components/CardDetailRow'
 import { EmptyState } from '../components/EmptyState'
 import { FilterBar } from '../components/FilterBar'
 import { PageHeader } from '../components/PageHeader'
 import { distanceMiles } from '../domain/map'
 import {
   difficultyLabels,
+  countLabel,
   ideaLocationSummary,
   ideaUsageCount,
   ideaUsageLabel,
@@ -219,22 +225,23 @@ export default function Ideas() {
                       <Chip label={difficultyLabels[idea.difficulty]} />
                       <Chip label={ideaUsageLabel(count)} />
                     </Stack>
-                    <Typography color="text.secondary">
-                      Linked waypoints: {linkedWaypointNames.length > 0 ? linkedWaypointNames.join(', ') : 'None'}
-                    </Typography>
-                    <Typography color="text.secondary">Location: {ideaLocationSummary(idea.location)}</Typography>
+                    <CardDetailRow icon={<FlagIcon fontSize="small" />}>
+                      {linkedWaypointNames.length > 0
+                        ? `${linkedWaypointNames.length} waypoint${linkedWaypointNames.length === 1 ? '' : 's'}: ${linkedWaypointNames.join(', ')}`
+                        : 'No linked waypoints'}
+                    </CardDetailRow>
+                    <CardDetailRow icon={<PlaceIcon fontSize="small" />}>
+                      Location: {ideaLocationSummary(idea.location)}
+                    </CardDetailRow>
                     {distance !== undefined && (
-                      <Typography color="text.secondary">
-                        Distance from Brockworth: {distance.toFixed(1)} miles
-                      </Typography>
+                      <CardDetailRow icon={<RouteIcon fontSize="small" />}>
+                        {distance.toFixed(1)} miles from Brockworth
+                      </CardDetailRow>
                     )}
-                    {references[0] ? (
-                      <Typography color="text.secondary">
-                        Reference: {references[0].title} ({referenceHostname(references[0].url)})
-                      </Typography>
-                    ) : (
-                      <Typography color="text.secondary">No references</Typography>
-                    )}
+                    <CardDetailRow icon={<LinkIcon fontSize="small" />}>
+                      {countLabel(references.length, 'link')}
+                      {references[0] ? ` · ${referenceHostname(references[0].url)}` : ''}
+                    </CardDetailRow>
                     <Button component={Link} to={`/ideas/${idea.ideaId}`}>
                       View idea
                     </Button>
