@@ -107,6 +107,7 @@ type WaypointsValue = {
   deleteIdea: (ideaId: string) => Promise<void>
   restore: (data: WaypointsData) => Promise<void>
   clear: () => Promise<void>
+  /** Resolves with the load-failure message when the refresh failed, or undefined when it succeeded. */
   reload: () => Promise<string | undefined>
   activitiesFor: (waypointId: string) => Activity[]
   statusFor: (waypointId: string) => Status
