@@ -31,7 +31,7 @@ import { useWaypoints } from '../features/journey/JourneyContext'
 export default function IdeaDetails() {
   const navigate = useNavigate()
   const { ideaId = '' } = useParams()
-  const { data, updateIdea, deleteIdea } = useWaypoints()
+  const { data, readOnly, updateIdea, deleteIdea } = useWaypoints()
   const [editing, setEditing] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
@@ -129,58 +129,61 @@ export default function IdeaDetails() {
           </>
         )}
       </Stack>
-      {editing ? (
-        <IdeaEditor
-          data={data}
-          initialIdea={idea}
-          initialReferences={references}
-          submitLabel="Save changes"
-          onSubmit={async (draft) => {
-            try {
-              await updateIdea(idea.ideaId, draft)
-              setEditing(false)
-            } catch (cause) {
-              setError(cause instanceof Error ? cause.message : 'Failed to update idea.')
-            }
-          }}
-          onCancel={() => setEditing(false)}
-          onDelete={() => setShowDeleteDialog(true)}
-          errorMessage={error}
-        />
-      ) : (
-        <Stack direction="row" spacing={1}>
-          <Button variant="contained" onClick={() => setEditing(true)}>
-            Edit idea
-          </Button>
-          <Button color="error" onClick={() => setShowDeleteDialog(true)}>
-            Delete idea
-          </Button>
-        </Stack>
-      )}
-      <Dialog open={showDeleteDialog} onClose={() => setShowDeleteDialog(false)}>
-        <DialogTitle>Delete idea?</DialogTitle>
-        <DialogContent>
-          <Typography>
-            Deleting this idea removes its links from activities but keeps the activities and any linked waypoints.
-          </Typography>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setShowDeleteDialog(false)}>Cancel</Button>
-          <Button
-            color="error"
-            onClick={async () => {
+      {!readOnly &&
+        (editing ? (
+          <IdeaEditor
+            data={data}
+            initialIdea={idea}
+            initialReferences={references}
+            submitLabel="Save changes"
+            onSubmit={async (draft) => {
               try {
-                await deleteIdea(idea.ideaId)
-                navigate('/ideas')
+                await updateIdea(idea.ideaId, draft)
+                setEditing(false)
               } catch (cause) {
-                setError(cause instanceof Error ? cause.message : 'Failed to delete idea.')
+                setError(cause instanceof Error ? cause.message : 'Failed to update idea.')
               }
             }}
-          >
-            Delete
-          </Button>
-        </DialogActions>
-      </Dialog>
+            onCancel={() => setEditing(false)}
+            onDelete={() => setShowDeleteDialog(true)}
+            errorMessage={error}
+          />
+        ) : (
+          <Stack direction="row" spacing={1}>
+            <Button variant="contained" onClick={() => setEditing(true)}>
+              Edit idea
+            </Button>
+            <Button color="error" onClick={() => setShowDeleteDialog(true)}>
+              Delete idea
+            </Button>
+          </Stack>
+        ))}
+      {!readOnly && (
+        <Dialog open={showDeleteDialog} onClose={() => setShowDeleteDialog(false)}>
+          <DialogTitle>Delete idea?</DialogTitle>
+          <DialogContent>
+            <Typography>
+              Deleting this idea removes its links from activities but keeps the activities and any linked waypoints.
+            </Typography>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setShowDeleteDialog(false)}>Cancel</Button>
+            <Button
+              color="error"
+              onClick={async () => {
+                try {
+                  await deleteIdea(idea.ideaId)
+                  navigate('/ideas')
+                } catch (cause) {
+                  setError(cause instanceof Error ? cause.message : 'Failed to delete idea.')
+                }
+              }}
+            >
+              Delete
+            </Button>
+          </DialogActions>
+        </Dialog>
+      )}
     </Stack>
   )
 }

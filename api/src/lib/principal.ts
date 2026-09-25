@@ -13,6 +13,8 @@ export interface ClientPrincipal {
   userRoles: string[]
 }
 
+export type JourneyRole = 'admin' | 'viewer'
+
 export class PrincipalValidationError extends Error {
   constructor(message: string) {
     super(message)
@@ -57,21 +59,25 @@ export function parseClientPrincipalHeader(headerValue: string | null): ClientPr
 }
 
 /**
- * Validates that a parsed principal is the single, explicitly assigned owner
- * work identity: signed in via Microsoft Entra ID (`aad`) and assigned the
- * invited `owner` role by Static Web Apps.
+ * Validates that a parsed principal is an authenticated Microsoft Entra ID
+ * identity with a non-empty immutable user ID, the `authenticated` role, and
+ * exactly one Journey role assigned by Static Web Apps.
  *
  * Throws {@link PrincipalValidationError} with a specific reason on any
  * mismatch; it never silently downgrades to an anonymous or degraded result.
  */
-export function assertOwnerPrincipal(principal: ClientPrincipal): void {
+export function journeyRoleForPrincipal(principal: ClientPrincipal): JourneyRole {
   if (principal.identityProvider !== 'aad') {
     throw new PrincipalValidationError(
       `Unsupported identity provider "${principal.identityProvider}"; only aad is permitted.`,
     )
   }
 
-  if (!principal.userRoles.includes('owner')) {
-    throw new PrincipalValidationError('Principal is not assigned the owner role.')
-  }
+  if (!principal.userId) throw new PrincipalValidationError('Principal has no immutable user ID.')
+  if (!principal.userRoles.includes('authenticated'))
+    throw new PrincipalValidationError('Principal is missing the authenticated role.')
+
+  const roles = (['admin', 'viewer'] as const).filter((role) => principal.userRoles.includes(role))
+  if (roles.length !== 1) throw new PrincipalValidationError('Principal must be assigned exactly one Journey role.')
+  return roles[0]
 }

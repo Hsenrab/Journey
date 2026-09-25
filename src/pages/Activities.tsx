@@ -14,7 +14,7 @@ import { useWaypoints } from '../features/journey/JourneyContext'
 import { JourneyConflictError } from '../services/journeyApi'
 
 export default function Activities() {
-  const { data, addActivity, reload } = useWaypoints()
+  const { data, addActivity, readOnly, reload } = useWaypoints()
   const waypointById = new Map(data.waypoints.map((waypoint) => [waypoint.waypointId, waypoint]))
   const [showEditor, setShowEditor] = useState(false)
   const [message, setMessage] = useState<{ severity: 'success' | 'error'; text: string; conflict?: boolean } | null>(
@@ -37,7 +37,7 @@ export default function Activities() {
   return (
     <Stack spacing={2}>
       <PageHeader title="Activities">
-        {!showEditor && (
+        {!readOnly && !showEditor && (
           <Button variant="contained" onClick={() => setShowEditor(true)}>
             Add activity
           </Button>
@@ -59,7 +59,7 @@ export default function Activities() {
         </Alert>
       )}
 
-      {showEditor && (
+      {!readOnly && showEditor && (
         <ActivityEditor
           data={data}
           submitLabel="Save activity"
