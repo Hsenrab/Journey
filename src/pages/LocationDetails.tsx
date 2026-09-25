@@ -81,31 +81,32 @@ export default function LocationDetails() {
         </Alert>
       )}
 
-      {!readOnly && showEditor ? (
-        <ActivityEditor
-          data={data}
-          initialWaypointId={id}
-          submitLabel="Save activity"
-          onSubmit={async (draft) => {
-            try {
-              await addActivity(draft)
-              setShowEditor(false)
-              setMessage({ severity: 'success', text: 'Activity saved.' })
-            } catch (error) {
-              setMessage({
-                severity: 'error',
-                text: error instanceof Error ? error.message : 'Failed to save activity.',
-                conflict: error instanceof JourneyConflictError,
-              })
-            }
-          }}
-          onCancel={() => setShowEditor(false)}
-        />
-      ) : !readOnly ? (
-        <Button variant="contained" onClick={() => setShowEditor(true)}>
-          Log activity
-        </Button>
-      ) : null}
+      {!readOnly &&
+        (showEditor ? (
+          <ActivityEditor
+            data={data}
+            initialWaypointId={id}
+            submitLabel="Save activity"
+            onSubmit={async (draft) => {
+              try {
+                await addActivity(draft)
+                setShowEditor(false)
+                setMessage({ severity: 'success', text: 'Activity saved.' })
+              } catch (error) {
+                setMessage({
+                  severity: 'error',
+                  text: error instanceof Error ? error.message : 'Failed to save activity.',
+                  conflict: error instanceof JourneyConflictError,
+                })
+              }
+            }}
+            onCancel={() => setShowEditor(false)}
+          />
+        ) : (
+          <Button variant="contained" onClick={() => setShowEditor(true)}>
+            Log activity
+          </Button>
+        ))}
 
       <Stack spacing={2}>
         <Stack

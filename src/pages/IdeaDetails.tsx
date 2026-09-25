@@ -125,34 +125,35 @@ export default function IdeaDetails() {
           </>
         )}
       </Stack>
-      {!readOnly && editing ? (
-        <IdeaEditor
-          data={data}
-          initialIdea={idea}
-          initialReferences={references}
-          submitLabel="Save changes"
-          onSubmit={async (draft) => {
-            try {
-              await updateIdea(idea.ideaId, draft)
-              setEditing(false)
-            } catch (cause) {
-              setError(cause instanceof Error ? cause.message : 'Failed to update idea.')
-            }
-          }}
-          onCancel={() => setEditing(false)}
-          onDelete={() => setShowDeleteDialog(true)}
-          errorMessage={error}
-        />
-      ) : !readOnly ? (
-        <Stack direction="row" spacing={1}>
-          <Button variant="contained" onClick={() => setEditing(true)}>
-            Edit idea
-          </Button>
-          <Button color="error" onClick={() => setShowDeleteDialog(true)}>
-            Delete idea
-          </Button>
-        </Stack>
-      ) : null}
+      {!readOnly &&
+        (editing ? (
+          <IdeaEditor
+            data={data}
+            initialIdea={idea}
+            initialReferences={references}
+            submitLabel="Save changes"
+            onSubmit={async (draft) => {
+              try {
+                await updateIdea(idea.ideaId, draft)
+                setEditing(false)
+              } catch (cause) {
+                setError(cause instanceof Error ? cause.message : 'Failed to update idea.')
+              }
+            }}
+            onCancel={() => setEditing(false)}
+            onDelete={() => setShowDeleteDialog(true)}
+            errorMessage={error}
+          />
+        ) : (
+          <Stack direction="row" spacing={1}>
+            <Button variant="contained" onClick={() => setEditing(true)}>
+              Edit idea
+            </Button>
+            <Button color="error" onClick={() => setShowDeleteDialog(true)}>
+              Delete idea
+            </Button>
+          </Stack>
+        ))}
       {!readOnly && (
         <Dialog open={showDeleteDialog} onClose={() => setShowDeleteDialog(false)}>
           <DialogTitle>Delete idea?</DialogTitle>

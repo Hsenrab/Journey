@@ -73,9 +73,9 @@ export function journeyRoleForPrincipal(principal: ClientPrincipal): JourneyRole
     )
   }
 
-  if (!principal.userId || !principal.userRoles.includes('authenticated')) {
-    throw new PrincipalValidationError('Principal is not authenticated.')
-  }
+  if (!principal.userId) throw new PrincipalValidationError('Principal has no immutable user ID.')
+  if (!principal.userRoles.includes('authenticated'))
+    throw new PrincipalValidationError('Principal is missing the authenticated role.')
 
   const roles = (['admin', 'viewer'] as const).filter((role) => principal.userRoles.includes(role))
   if (roles.length !== 1) throw new PrincipalValidationError('Principal must be assigned exactly one Journey role.')

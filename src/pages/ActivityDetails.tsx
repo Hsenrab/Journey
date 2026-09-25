@@ -213,39 +213,40 @@ export default function ActivityDetails() {
         )}
       </Stack>
 
-      {!readOnly && editing ? (
-        <ActivityEditor
-          data={data}
-          initialActivity={activity}
-          initialReferences={references}
-          initialPhotoReferences={photoReferences}
-          submitLabel="Save changes"
-          onSubmit={async (draft) => {
-            try {
-              await updateActivity(activity.activityId, draft)
-              setEditing(false)
-              setMessage({ severity: 'success', text: 'Activity updated.' })
-            } catch (error) {
-              setMessage({
-                severity: 'error',
-                text: error instanceof Error ? error.message : 'Failed to update activity.',
-                conflict: error instanceof JourneyConflictError,
-              })
-            }
-          }}
-          onCancel={() => setEditing(false)}
-          onDelete={() => setShowDeleteDialog(true)}
-        />
-      ) : !readOnly ? (
-        <Stack direction="row" spacing={1}>
-          <Button variant="contained" onClick={() => setEditing(true)}>
-            Edit activity
-          </Button>
-          <Button color="error" onClick={() => setShowDeleteDialog(true)}>
-            Delete activity
-          </Button>
-        </Stack>
-      ) : null}
+      {!readOnly &&
+        (editing ? (
+          <ActivityEditor
+            data={data}
+            initialActivity={activity}
+            initialReferences={references}
+            initialPhotoReferences={photoReferences}
+            submitLabel="Save changes"
+            onSubmit={async (draft) => {
+              try {
+                await updateActivity(activity.activityId, draft)
+                setEditing(false)
+                setMessage({ severity: 'success', text: 'Activity updated.' })
+              } catch (error) {
+                setMessage({
+                  severity: 'error',
+                  text: error instanceof Error ? error.message : 'Failed to update activity.',
+                  conflict: error instanceof JourneyConflictError,
+                })
+              }
+            }}
+            onCancel={() => setEditing(false)}
+            onDelete={() => setShowDeleteDialog(true)}
+          />
+        ) : (
+          <Stack direction="row" spacing={1}>
+            <Button variant="contained" onClick={() => setEditing(true)}>
+              Edit activity
+            </Button>
+            <Button color="error" onClick={() => setShowDeleteDialog(true)}>
+              Delete activity
+            </Button>
+          </Stack>
+        ))}
 
       {!readOnly && (
         <Dialog open={showDeleteDialog} onClose={() => setShowDeleteDialog(false)}>
