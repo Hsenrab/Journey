@@ -26,6 +26,7 @@ import * as atlas from 'azure-maps-control'
 import 'azure-maps-control/dist/atlas.min.css'
 import {
   activityCoordinates,
+  brockworth,
   completionStateForWaypoint,
   filterWaypointsByStatus,
   orderNearbyActivities,
@@ -43,7 +44,6 @@ import {
 import { PageHeader } from '../components/PageHeader'
 import { useWaypoints } from '../features/journey/JourneyContext'
 
-const brockworth = { latitude: 51.844, longitude: -2.153 }
 type MapMode = 'waypoints' | 'activities'
 const markerColors = { notStarted: '#455a64', complete: '#2e7d32', activity: '#007c83' }
 const tierColors: Record<AwardedStatus, string> = { gold: '#b7791f', silver: '#757575', bronze: '#a05a2c' }

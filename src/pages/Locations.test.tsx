@@ -109,7 +109,7 @@ describe('Locations', () => {
     expect([...namesByDistance].sort()).toEqual([...namesByName].sort())
 
     await user.click(screen.getAllByRole('combobox')[1])
-    await user.click(screen.getByRole('option', { name: 'Travel time' }))
+    await user.click(screen.getByRole('option', { name: 'Drive time (where available)' }))
     const namesByTravel = screen.getAllByRole('heading', { level: 6 }).map((el) => el.textContent)
     expect([...namesByTravel].sort()).toEqual([...namesByName].sort())
 
@@ -117,6 +117,73 @@ describe('Locations', () => {
     await user.click(screen.getByRole('option', { name: 'Last activity date' }))
     const namesByLastActivity = screen.getAllByRole('heading', { level: 6 }).map((el) => el.textContent)
     expect([...namesByLastActivity].sort()).toEqual([...namesByName].sort())
+  })
+
+  it('keeps custom waypoints with coordinates in a distance filter', async () => {
+    const data = createDefaultData()
+    save({
+      ...data,
+      waypoints: [
+        ...data.waypoints,
+        {
+          waypointId: 'custom-nearby',
+          title: 'Custom nearby waypoint',
+          description: 'A nearby custom waypoint.',
+          category: 'Custom',
+          tags: [],
+          challengeIds: ['national-trust'],
+          completion: { mode: 'once' },
+          location: { latitude: 51.85, longitude: -2.15 },
+          referenceIds: [],
+          photoReferenceIds: [],
+        },
+      ],
+    })
+    const user = userEvent.setup()
+    renderLocations()
+
+    await user.click(screen.getAllByRole('combobox')[2])
+    await user.click(screen.getByRole('option', { name: 'Up to 25 miles (plus unknown)' }))
+
+    expect(screen.getByText('Custom nearby waypoint')).toBeInTheDocument()
+    expect(screen.getByText('0.4 miles from Brockworth')).toBeInTheDocument()
+  })
+
+  it('lists waypoints assigned to any challenge and retains unknown distances in distance filters', async () => {
+    save({
+      ...createDefaultData(),
+      waypoints: [
+        {
+          waypointId: 'other-challenge',
+          title: 'Other challenge waypoint',
+          description: 'A waypoint for another challenge.',
+          category: 'Custom',
+          tags: [],
+          challengeIds: ['other-challenge'],
+          completion: { mode: 'once' },
+          referenceIds: [],
+          photoReferenceIds: [],
+        },
+      ],
+      challenges: [
+        {
+          challengeId: 'other-challenge',
+          title: 'Other challenge',
+          description: 'A separate challenge.',
+          waypointIds: ['other-challenge'],
+          supportsActivityCategories: false,
+        },
+      ],
+    })
+
+    const user = userEvent.setup()
+    renderLocations()
+
+    await user.click(screen.getAllByRole('combobox')[2])
+    await user.click(screen.getByRole('option', { name: 'Up to 25 miles (plus unknown)' }))
+
+    expect(screen.getByText('Other challenge waypoint')).toBeInTheDocument()
+    expect(screen.getByText('Distance unknown')).toBeInTheDocument()
   })
 
   it('filters by area and category', async () => {

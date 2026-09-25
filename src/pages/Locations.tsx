@@ -10,11 +10,11 @@ import { FilterBar } from '../components/FilterBar'
 import { PageHeader } from '../components/PageHeader'
 import { WaypointEditor } from '../components/WaypointEditor'
 import { locations } from '../data/locations'
+import { brockworth, distanceMiles, waypointCoordinates } from '../domain/map'
 import { lastActivityDates, statusLabels, statusOrder } from '../domain/visit'
 import { useWaypoints } from '../features/journey/JourneyContext'
 
 const locationById = new Map(locations.map((location) => [location.locationId, location]))
-
 type SortKey = 'name' | 'travel' | 'distance' | 'status' | 'lastActivity'
 
 export default function Locations() {
@@ -65,18 +65,28 @@ export default function Locations() {
       ).sort(),
     [data.waypoints],
   )
+  const distanceByWaypointId = useMemo(
+    () =>
+      new Map(
+        data.waypoints.map((waypoint) => {
+          const coordinates = waypointCoordinates(waypoint)
+          return [waypoint.waypointId, coordinates ? distanceMiles(brockworth, coordinates) : undefined]
+        }),
+      ),
+    [data.waypoints],
+  )
 
   const list = useMemo(() => {
     const dates = lastActivityDates(activities)
     return data.waypoints
-      .filter((waypoint) => waypoint.challengeIds.includes('national-trust'))
       .filter((waypoint) => {
         const source = locationById.get(waypoint.waypointId)
+        const distance = distanceByWaypointId.get(waypoint.waypointId)
         const waypointArea = source?.area ?? 'Custom'
         const waypointCategory = source?.category ?? waypoint.category
         const waypointStatus = statusFor(waypoint.waypointId)
-        const withinDistance =
-          maxDistance === 'all' || (source ? source.travel.distanceMiles <= Number(maxDistance) : false)
+        // Retain unknown distances so filters never silently hide saved waypoints.
+        const withinDistance = maxDistance === 'all' || distance === undefined || distance <= Number(maxDistance)
         return (
           (status === 'all' || waypointStatus === status) &&
           withinDistance &&
@@ -94,11 +104,14 @@ export default function Locations() {
             if (!sourceA) return 1
             if (!sourceB) return -1
             return sourceA.travel.driveTimeMinutes - sourceB.travel.driveTimeMinutes
-          case 'distance':
-            if (!sourceA && !sourceB) return a.title.localeCompare(b.title)
-            if (!sourceA) return 1
-            if (!sourceB) return -1
-            return sourceA.travel.distanceMiles - sourceB.travel.distanceMiles
+          case 'distance': {
+            const distanceA = distanceByWaypointId.get(a.waypointId)
+            const distanceB = distanceByWaypointId.get(b.waypointId)
+            if (distanceA === undefined && distanceB === undefined) return a.title.localeCompare(b.title)
+            if (distanceA === undefined) return 1
+            if (distanceB === undefined) return -1
+            return distanceA - distanceB || a.title.localeCompare(b.title)
+          }
           case 'status':
             return statusOrder.indexOf(statusFor(b.waypointId)) - statusOrder.indexOf(statusFor(a.waypointId))
           case 'lastActivity':
@@ -107,7 +120,7 @@ export default function Locations() {
             return a.title.localeCompare(b.title)
         }
       })
-  }, [activities, area, category, data.waypoints, maxDistance, query, sort, status, statusFor])
+  }, [activities, area, category, data.waypoints, distanceByWaypointId, maxDistance, query, sort, status, statusFor])
 
   return (
     <Stack spacing={2}>
@@ -188,7 +201,7 @@ export default function Locations() {
           <MenuItem value="name">Name</MenuItem>
           <MenuItem value="status">Progress</MenuItem>
           <MenuItem value="distance">Distance (nearest first)</MenuItem>
-          <MenuItem value="travel">Travel time</MenuItem>
+          <MenuItem value="travel">Drive time (where available)</MenuItem>
           <MenuItem value="lastActivity">Last activity date</MenuItem>
         </TextField>
         <TextField
@@ -199,10 +212,10 @@ export default function Locations() {
           onChange={(e) => setMaxDistance(e.target.value)}
         >
           <MenuItem value="all">Any distance</MenuItem>
-          <MenuItem value="25">Up to 25 miles</MenuItem>
-          <MenuItem value="50">Up to 50 miles</MenuItem>
-          <MenuItem value="100">Up to 100 miles</MenuItem>
-          <MenuItem value="200">Up to 200 miles</MenuItem>
+          <MenuItem value="25">Up to 25 miles (plus unknown)</MenuItem>
+          <MenuItem value="50">Up to 50 miles (plus unknown)</MenuItem>
+          <MenuItem value="100">Up to 100 miles (plus unknown)</MenuItem>
+          <MenuItem value="200">Up to 200 miles (plus unknown)</MenuItem>
         </TextField>
         <TextField select label="Area" value={area} onChange={(e) => setArea(e.target.value)}>
           <MenuItem value="all">All areas</MenuItem>
@@ -233,6 +246,7 @@ export default function Locations() {
         >
           {list.map((waypoint) => {
             const source = locationById.get(waypoint.waypointId)
+            const distance = distanceByWaypointId.get(waypoint.waypointId)
             const waypointStatus = statusFor(waypoint.waypointId)
             return (
               <Card key={waypoint.waypointId}>
@@ -248,24 +262,17 @@ export default function Locations() {
                         color={waypointStatus === 'gold' ? 'success' : 'default'}
                       />
                     </Stack>
+                    <CardDetailRow icon={<RouteIcon fontSize="small" />}>
+                      {distance === undefined ? 'Distance unknown' : `${distance.toFixed(1)} miles from Brockworth`}
+                    </CardDetailRow>
                     {source ? (
-                      <>
-                        <CardDetailRow icon={<RouteIcon fontSize="small" />}>
-                          {source.travel.distanceMiles} miles from Brockworth
-                        </CardDetailRow>
-                        <CardDetailRow icon={<DirectionsCarIcon fontSize="small" />}>
-                          {source.travel.driveTimeMinutes} min drive
-                        </CardDetailRow>
-                      </>
+                      <CardDetailRow icon={<DirectionsCarIcon fontSize="small" />}>
+                        {source.travel.driveTimeMinutes} min drive
+                      </CardDetailRow>
                     ) : (
-                      <>
-                        <CardDetailRow icon={<RouteIcon fontSize="small" />}>
-                          Distance unavailable for custom waypoints
-                        </CardDetailRow>
-                        <CardDetailRow icon={<DirectionsCarIcon fontSize="small" />}>
-                          Drive time unavailable for custom waypoints
-                        </CardDetailRow>
-                      </>
+                      <CardDetailRow icon={<DirectionsCarIcon fontSize="small" />}>
+                        Drive time unavailable
+                      </CardDetailRow>
                     )}
                     <Button component={Link} to={`/waypoints/${waypoint.waypointId}`}>
                       View waypoint
