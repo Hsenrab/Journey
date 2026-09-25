@@ -139,7 +139,6 @@ export async function deleteEntity(
   id: string,
   ifMatch: string,
   loaded: { data: JourneyData; etags: Record<string, string> },
-  isDeletable: (deletedId: string) => boolean = () => true,
 ) {
   const plan = deletionPlan(loaded.data, type, id)
   const etagFor = (documentId: string) => {
@@ -147,12 +146,11 @@ export async function deleteEntity(
     if (!etag) throw new Error(`Journey document "${documentId}" has no ETag for a transactional delete.`)
     return etag
   }
-  const deletes = plan.deletes.filter((deletedId) => deletedId === id || isDeletable(deletedId))
   await runBatch(container, datasetId, [
-    ...deletes.map((deletedId) => ({
+    ...plan.deletes.map((target) => ({
       operationType: 'Delete' as const,
-      id: deletedId,
-      ifMatch: etagFor(deletedId),
+      id: target.id,
+      ifMatch: etagFor(target.id),
     })),
     ...plan.updates.map((update) => {
       const document = documentFor(datasetId, update.type, update.entity)

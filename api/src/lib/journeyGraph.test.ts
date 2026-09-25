@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { deletionPlan, ownerIdOf, referenceIntegrityError, upsertEntity } from './journeyGraph.js'
+import { deletionPlan, referenceIntegrityError, upsertEntity } from './journeyGraph.js'
 import type { JourneyData } from './journeySchema.js'
 
 function data(): JourneyData {
@@ -100,7 +100,7 @@ describe('deletionPlan', () => {
   it('detaches ideas and activities when a waypoint is deleted', () => {
     const plan = deletionPlan(data(), 'waypoint', 'waypoint-1')
 
-    expect(plan.deletes).toEqual(['waypoint-1'])
+    expect(plan.deletes).toEqual([{ type: 'waypoint', id: 'waypoint-1' }])
     expect(plan.updates).toEqual([
       { type: 'challenge', entity: expect.objectContaining({ challengeId: 'challenge-1', waypointIds: [] }) },
       { type: 'idea', entity: expect.objectContaining({ ideaId: 'idea-1', waypointIds: [] }) },
@@ -112,7 +112,10 @@ describe('deletionPlan', () => {
   it('removes idea links from activities and prunes orphaned references', () => {
     const plan = deletionPlan(data(), 'idea', 'idea-1')
 
-    expect(plan.deletes).toEqual(['idea-1', 'reference-1'])
+    expect(plan.deletes).toEqual([
+      { type: 'idea', id: 'idea-1' },
+      { type: 'reference', id: 'reference-1' },
+    ])
     expect(plan.updates).toEqual([
       { type: 'activity', entity: expect.objectContaining({ activityId: 'activity-1', ideaIds: [] }) },
     ])
@@ -129,7 +132,11 @@ describe('deletionPlan', () => {
 
     const plan = deletionPlan(withOrphan, 'activity', 'activity-1')
 
-    expect(plan.deletes).toEqual(['activity-1', 'reference-2', 'photo-1'])
+    expect(plan.deletes).toEqual([
+      { type: 'activity', id: 'activity-1' },
+      { type: 'reference', id: 'reference-2' },
+      { type: 'photoReference', id: 'photo-1' },
+    ])
     expect(plan.updates).toEqual([])
   })
 
@@ -142,14 +149,14 @@ describe('deletionPlan', () => {
     linked.activities[0]!.referenceIds = ['reference-1', 'reference-2']
 
     expect(deletionPlan(linked, 'challenge', 'challenge-1')).toEqual({
-      deletes: ['challenge-1'],
+      deletes: [{ type: 'challenge', id: 'challenge-1' }],
       updates: [
         { type: 'waypoint', entity: expect.objectContaining({ waypointId: 'waypoint-1', challengeIds: [] }) },
         { type: 'activity', entity: expect.not.objectContaining({ challengeId: expect.anything() }) },
       ],
     })
     expect(deletionPlan(linked, 'reference', 'reference-1')).toEqual({
-      deletes: ['reference-1'],
+      deletes: [{ type: 'reference', id: 'reference-1' }],
       updates: [
         { type: 'waypoint', entity: expect.objectContaining({ waypointId: 'waypoint-1', referenceIds: [] }) },
         { type: 'idea', entity: expect.objectContaining({ ideaId: 'idea-1', referenceIds: [] }) },
@@ -160,24 +167,11 @@ describe('deletionPlan', () => {
       ],
     })
     expect(deletionPlan(linked, 'photoReference', 'photo-1')).toEqual({
-      deletes: ['photo-1'],
+      deletes: [{ type: 'photoReference', id: 'photo-1' }],
       updates: [
         { type: 'waypoint', entity: expect.objectContaining({ waypointId: 'waypoint-1', photoReferenceIds: [] }) },
         { type: 'activity', entity: expect.objectContaining({ activityId: 'activity-1', photoReferenceIds: [] }) },
       ],
     })
-  })
-})
-
-describe('ownerIdOf', () => {
-  it('finds the owning entity across every entity type', () => {
-    const withOwners: JourneyData = {
-      ...data(),
-      waypoints: data().waypoints.map((waypoint) => ({ ...waypoint, ownerId: 'owner-a' })),
-      references: data().references.map((reference) => ({ ...reference, ownerId: 'owner-b' })),
-    }
-    expect(ownerIdOf(withOwners, 'waypoint-1')).toBe('owner-a')
-    expect(ownerIdOf(withOwners, 'reference-1')).toBe('owner-b')
-    expect(ownerIdOf(withOwners, 'unknown-id')).toBeUndefined()
   })
 })

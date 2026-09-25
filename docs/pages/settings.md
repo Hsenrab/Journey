@@ -47,10 +47,12 @@ fallbacks, and document the challenge rules and status definitions.
 
 ## Shared access note
 
-- Viewers can view and link to every entity but cannot edit or delete anything.
-- Editors can create entities and links everywhere, but can edit or delete only the
-  entities they created, plus any entity marked with the shared `ownerId` (used by the
-  seeded Demo Cosmos dataset so every editor can edit it).
+- Viewers can view every entity but cannot create, edit, delete, or change links.
+- Editors can create and mutate only their own entities. An editor cannot delete an
+  entity when the required transactional link cleanup would change another owner's
+  entity.
+- The seeded Demo Cosmos dataset uses the shared `ownerId`, which every editor may
+  mutate. Production rejects that sentinel owner ID.
 - The owner can edit or delete any entity.
 - Restore JSON and Clear data are limited to the owner role; editors and viewers see
   these controls disabled instead of a guaranteed failure after submission. Export

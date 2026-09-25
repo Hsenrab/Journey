@@ -225,7 +225,6 @@ describe('journey', () => {
       ownedActivity.activityId,
       'etag-1',
       expect.objectContaining({ data: expect.objectContaining({ activities: [ownedActivity] }) }),
-      expect.any(Function),
     )
   })
 
@@ -428,7 +427,7 @@ describe('journey', () => {
     )
   })
 
-  it('allows any editor to delete a shared-owned entity', async () => {
+  it('allows any editor to delete a shared-owned demo entity', async () => {
     const sharedActivity = { ...ownedActivity, ownerId: 'shared' }
     loadDataset.mockResolvedValue({
       data: { ...emptyData, activities: [sharedActivity] },
@@ -438,7 +437,7 @@ describe('journey', () => {
 
     expect(
       await journey(
-        request('production', {
+        request('demo', {
           method: 'DELETE',
           header: principal('editor', 'editor-user'),
           body: { operation: 'delete', type: 'activity', id: sharedActivity.activityId, ifMatch: 'etag-1' },
@@ -448,17 +447,25 @@ describe('journey', () => {
     ).toEqual({ status: 204 })
   })
 
-  it('retains an orphaned reference owned by another user instead of deleting it', async () => {
+  it('forbids an editor delete when cleanup would mutate another owner’s entity', async () => {
     const otherOwnedReference = {
-      referenceId: 'reference-1',
+      referenceId: ownedActivity.activityId,
       ownerId: 'other-user',
       title: 'Guide',
       url: 'https://example.com',
     }
     const ownedIdeaWithReference = { ...ownedIdea, referenceIds: [otherOwnedReference.referenceId] }
     loadDataset.mockResolvedValue({
-      data: { ...emptyData, ideas: [ownedIdeaWithReference], references: [otherOwnedReference] },
-      etags: { [ownedIdeaWithReference.ideaId]: 'etag-idea', [otherOwnedReference.referenceId]: 'etag-ref' },
+      data: {
+        ...emptyData,
+        ideas: [ownedIdeaWithReference],
+        activities: [ownedActivity],
+        references: [otherOwnedReference],
+      },
+      etags: {
+        [ownedIdeaWithReference.ideaId]: 'etag-idea',
+        [ownedActivity.activityId]: 'etag-activity',
+      },
     })
     const { journey } = await import('./journey.js')
 
@@ -471,20 +478,33 @@ describe('journey', () => {
         }),
         context() as InvocationContext,
       ),
-    ).toEqual({ status: 204 })
+    ).toEqual({ status: 403, jsonBody: { error: 'forbidden' } })
+    expect(deleteEntity).not.toHaveBeenCalled()
+  })
 
-    expect(deleteEntity).toHaveBeenCalledWith(
-      {},
-      'production',
-      'idea',
-      ownedIdeaWithReference.ideaId,
-      'etag-idea',
-      expect.anything(),
-      expect.any(Function),
-    )
-    const isDeletable = deleteEntity.mock.calls[0][6]
-    expect(isDeletable(ownedIdeaWithReference.ideaId)).toBe(true)
-    expect(isDeletable(otherOwnedReference.referenceId)).toBe(false)
+  it('rejects the shared owner ID in production writes and imports', async () => {
+    loadDataset.mockResolvedValue({ data: emptyData, etags: {} })
+    const { journey } = await import('./journey.js')
+    const sharedActivity = { ...ownedActivity, ownerId: 'shared' }
+
+    expect(
+      await journey(
+        request('production', {
+          method: 'POST',
+          body: { operation: 'create', type: 'activity', entity: sharedActivity },
+        }),
+        context() as InvocationContext,
+      ),
+    ).toEqual({ status: 400, jsonBody: { error: 'shared_owner_id_not_allowed' } })
+    expect(
+      await journey(
+        request('production', {
+          method: 'POST',
+          body: { operation: 'import', data: { ...emptyData, activities: [sharedActivity] } },
+        }),
+        context() as InvocationContext,
+      ),
+    ).toEqual({ status: 400, jsonBody: { error: 'shared_owner_id_not_allowed' } })
   })
 
   it('rejects updates whose request and entity identifiers differ', async () => {

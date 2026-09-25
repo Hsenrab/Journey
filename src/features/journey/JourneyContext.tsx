@@ -503,7 +503,7 @@ export function WaypointsProvider({ children }: { children: ReactNode }) {
     const canMutate = (ownerId?: string) => {
       if (!principal || principal.role === 'viewer') return false
       if (principal.role === 'owner') return true
-      return ownerId === principal.userId || ownerId === SHARED_OWNER_ID
+      return ownerId === principal.userId || (activeDataMode === 'demo-cosmos' && ownerId === SHARED_OWNER_ID)
     }
     const canBulkMutate = !readOnly && principal?.role === 'owner'
     const writableContainer = (): JourneyContainer => {

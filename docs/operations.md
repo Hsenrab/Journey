@@ -48,6 +48,13 @@ redundancy. Restore requests create a new account/container; validate the restor
 dataset and redirect configuration only after verification. JSON export remains
 the user-controlled backup.
 
+Before deploying the immutable per-entity ownership model, inspect the production
+dataset. Existing documents without `entity.ownerId` are intentionally incompatible
+and cause the API load to fail. If such records exist, retain the required data and
+clear the production dataset with a Cosmos operator before deploying; do not attempt
+to add a default or shared owner. Newly imported and created production records are
+stamped with the authenticated principal's owner ID.
+
 ### Journey data modes
 
 The app exposes three explicit modes in the header:
@@ -183,6 +190,10 @@ Assigned work user
    resource does not grant access to another resource.
 5. Manage and revoke access from the Static Web App's **Role management** page.
    This repository does not build a roles or administration UI.
+
+Pull-request previews use an owner-only configuration, even though the shared test
+resource supports all three roles outside previews. The deployment workflow selects
+that configuration only for pull-request uploads.
 
 Accepting an Entra consent prompt only authenticates the account; it does not
 assign a Journey role. After accepting, changing, or revoking a role, sign out

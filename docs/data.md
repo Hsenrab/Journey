@@ -16,9 +16,12 @@ are not included in JSON exports.
 Each document type declares its own schema version (`activity` is version 3, `idea`
 and `waypoint` are version 2, and the other types are version 1). A document whose
 version or entity shape does not match the current schema fails validation with its
-specific error. There is no
-migration, compatibility parser, or fallback for obsolete documents; production data
-may be deleted and recreated instead.
+specific error. There is no migration, compatibility parser, or fallback for obsolete
+documents; production data may be deleted and recreated instead. Every entity also
+requires an immutable `ownerId`. Before deploying this ownership model to a container
+with older ownerless records, export or otherwise retain the required data and clear
+that dataset with a Cosmos operator. Do not deploy the new API against ownerless
+records: they fail validation and make the dataset unavailable.
 
 `src/data/demo.json` is the canonical demo fixture. Demo local loads it directly in the
 browser and is always read-only. The deployment workflow also reseeds the Cosmos `demo`

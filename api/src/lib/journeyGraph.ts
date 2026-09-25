@@ -35,19 +35,6 @@ export function upsertEntity(data: JourneyData, type: EntityType, entity: Entity
   return { ...data, [key]: [...entities, entity] }
 }
 
-const idKeysByType = (Object.keys(entityKeys) as EntityType[]).map(
-  (type) => [type, type === 'photoReference' ? 'photoReferenceId' : `${type}Id`] as const,
-)
-
-/** Finds the owning entity's `ownerId` for a document id, searching across every entity type. */
-export function ownerIdOf(data: JourneyData, id: string): string | undefined {
-  for (const [type, idKey] of idKeysByType) {
-    const entity = (data[entityKey(type)] as Entity[]).find((item) => item[idKey] === id)
-    if (entity) return entity.ownerId as string | undefined
-  }
-  return undefined
-}
-
 function linkError(owner: string, ownerId: string, label: string, ids: readonly string[], known: Set<string>) {
   if (new Set(ids).size !== ids.length) return `${owner} "${ownerId}" repeats a ${label} link.`
   const missing = ids.find((id) => !known.has(id))
@@ -113,12 +100,23 @@ function unreferencedIds(data: JourneyData): string[] {
   ]
 }
 
-function newlyUnreferencedIds(before: JourneyData, after: JourneyData): string[] {
+function newlyUnreferencedTargets(before: JourneyData, after: JourneyData): DeletionTarget[] {
   const alreadyUnreferenced = new Set(unreferencedIds(before))
-  return unreferencedIds(after).filter((id) => !alreadyUnreferenced.has(id))
+  const unreferenced = new Set(unreferencedIds(after))
+  return [
+    ...after.references
+      .filter((reference) => !alreadyUnreferenced.has(reference.referenceId))
+      .filter((reference) => unreferenced.has(reference.referenceId))
+      .map((reference) => ({ type: 'reference' as const, id: reference.referenceId })),
+    ...after.photoReferences
+      .filter((photoReference) => !alreadyUnreferenced.has(photoReference.photoReferenceId))
+      .filter((photoReference) => unreferenced.has(photoReference.photoReferenceId))
+      .map((photoReference) => ({ type: 'photoReference' as const, id: photoReference.photoReferenceId })),
+  ]
 }
 
-export type DeletionPlan = { deletes: string[]; updates: { type: EntityType; entity: Entity }[] }
+export type DeletionTarget = { type: EntityType; id: string }
+export type DeletionPlan = { deletes: DeletionTarget[]; updates: { type: EntityType; entity: Entity }[] }
 
 export function deletionPlan(data: JourneyData, type: EntityType, id: string): DeletionPlan {
   if (type === 'waypoint') {
@@ -137,7 +135,7 @@ export function deletionPlan(data: JourneyData, type: EntityType, id: string): D
     const activities = data.activities
       .filter((activity) => activity.waypointId === id)
       .map(({ waypointId: _removed, ...activity }) => ({ type: 'activity' as const, entity: { ...activity } }))
-    return { deletes: [id], updates: [...challenges, ...ideas, ...activities] }
+    return { deletes: [{ type, id }], updates: [...challenges, ...ideas, ...activities] }
   }
 
   if (type === 'idea') {
@@ -152,7 +150,7 @@ export function deletionPlan(data: JourneyData, type: EntityType, id: string): D
       ),
     }
     return {
-      deletes: [id, ...newlyUnreferencedIds(data, remaining)],
+      deletes: [{ type, id }, ...newlyUnreferencedTargets(data, remaining)],
       updates: activities.map((activity) => ({ type: 'activity' as const, entity: { ...activity } })),
     }
   }
@@ -162,12 +160,12 @@ export function deletionPlan(data: JourneyData, type: EntityType, id: string): D
       ...data,
       activities: data.activities.filter((activity) => activity.activityId !== id),
     }
-    return { deletes: [id, ...newlyUnreferencedIds(data, remaining)], updates: [] }
+    return { deletes: [{ type, id }, ...newlyUnreferencedTargets(data, remaining)], updates: [] }
   }
 
   if (type === 'challenge') {
     return {
-      deletes: [id],
+      deletes: [{ type, id }],
       updates: [
         ...data.waypoints
           .filter((waypoint) => waypoint.challengeIds.includes(id))
@@ -185,7 +183,7 @@ export function deletionPlan(data: JourneyData, type: EntityType, id: string): D
   if (type === 'reference' || type === 'photoReference') {
     const key = type === 'reference' ? 'referenceIds' : 'photoReferenceIds'
     return {
-      deletes: [id],
+      deletes: [{ type, id }],
       updates: [
         ...data.waypoints
           .filter((waypoint) => waypoint[key].includes(id))
@@ -211,5 +209,5 @@ export function deletionPlan(data: JourneyData, type: EntityType, id: string): D
     }
   }
 
-  return { deletes: [id], updates: [] }
+  return { deletes: [{ type, id }], updates: [] }
 }
