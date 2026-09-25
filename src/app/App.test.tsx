@@ -22,7 +22,8 @@ describe('waypoint list', () => {
   it('shows each waypoint driving distance', async () => {
     render(<App />)
 
-    expect(screen.getByText('Driving distance: 49 miles from Brockworth (~75 min drive)')).toBeInTheDocument()
+    expect(screen.getAllByText('49 miles from Brockworth').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('75 min drive').length).toBeGreaterThan(0)
   })
 
   it('sorts waypoints by nearest driving distance first', async () => {
@@ -73,8 +74,8 @@ describe('activity logging', () => {
     expect(screen.getByText('Category summary: Gold')).toBeInTheDocument()
 
     await logActivity(user, 'Bronze', '2026-08-02')
-    expect(screen.getByText('2026-08-01')).toBeInTheDocument()
-    expect(screen.getByText('2026-08-02')).toBeInTheDocument()
+    expect(screen.getByText(new Date('2026-08-01T00:00:00').toLocaleDateString())).toBeInTheDocument()
+    expect(screen.getByText(new Date('2026-08-02T00:00:00').toLocaleDateString())).toBeInTheDocument()
     expect(screen.getByText('Category summary: Gold')).toBeInTheDocument()
 
     cleanup()

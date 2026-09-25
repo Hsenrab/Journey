@@ -740,7 +740,6 @@ export default function MapPage() {
                 label="Nearby origin"
                 value={originQuery}
                 onChange={(event) => setOriginQuery(event.target.value)}
-                size="small"
                 sx={{ flex: { sm: 1 }, minWidth: 0 }}
               />
               <Button type="submit" variant="contained" sx={{ alignSelf: { sm: 'flex-start' } }}>

@@ -73,27 +73,43 @@ describe('Activities', () => {
     })
   })
 
-  it('shows waypoint title labels instead of raw ids', () => {
+  it('shows activity names, formatted fallback dates, waypoint labels and detail counts', () => {
     const seed = createDefaultData()
-    const seededActivity: Activity = {
+    const namedActivity: Activity = {
       activityId: 'a1',
       ideaIds: [],
       waypointId: 'stourhead',
       challengeId: 'national-trust',
       date: '2026-08-01',
+      name: 'Summer visit',
       category: 'gold',
       location: { kind: 'postcode', postcode: 'BA12 6QF' },
       notes: '',
-      referenceIds: [],
-      photoReferenceIds: [],
+      referenceIds: ['ref-1'],
+      photoReferenceIds: ['photo-1'],
       createdAt: '2026-08-01T10:00:00.000Z',
       updatedAt: '2026-08-01T10:00:00.000Z',
     }
-    save({ ...seed, activities: [seededActivity] })
+    const unnamedActivity: Activity = {
+      activityId: 'a2',
+      ideaIds: [],
+      date: '2026-08-02',
+      location: { kind: 'postcode', postcode: 'GL1 1AA' },
+      notes: '',
+      referenceIds: [],
+      photoReferenceIds: [],
+      createdAt: '2026-08-02T10:00:00.000Z',
+      updatedAt: '2026-08-02T10:00:00.000Z',
+    }
+    save({ ...seed, activities: [namedActivity, unnamedActivity] })
 
     renderActivities()
 
+    expect(screen.getByRole('link', { name: 'Summer visit' })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: new Date('2026-08-02T00:00:00').toLocaleDateString() })).toBeInTheDocument()
     expect(screen.getByText('Waypoint: Stourhead')).toBeInTheDocument()
+    expect(screen.getByText('1 photo')).toBeInTheDocument()
+    expect(screen.getByText('1 link')).toBeInTheDocument()
   })
 
   it('does not offer activity mutations to a viewer', async () => {
