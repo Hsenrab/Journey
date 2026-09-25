@@ -10,13 +10,11 @@ import { FilterBar } from '../components/FilterBar'
 import { PageHeader } from '../components/PageHeader'
 import { WaypointEditor } from '../components/WaypointEditor'
 import { locations } from '../data/locations'
-import { distanceMiles, waypointCoordinates } from '../domain/map'
+import { brockworth, distanceMiles, waypointCoordinates } from '../domain/map'
 import { lastActivityDates, statusLabels, statusOrder } from '../domain/visit'
 import { useWaypoints } from '../features/journey/JourneyContext'
 
 const locationById = new Map(locations.map((location) => [location.locationId, location]))
-const brockworth = { latitude: 51.844, longitude: -2.153 }
-
 type SortKey = 'name' | 'travel' | 'distance' | 'status' | 'lastActivity'
 
 export default function Locations() {
@@ -67,14 +65,23 @@ export default function Locations() {
       ).sort(),
     [data.waypoints],
   )
+  const distanceByWaypointId = useMemo(
+    () =>
+      new Map(
+        data.waypoints.map((waypoint) => {
+          const coordinates = waypointCoordinates(waypoint)
+          return [waypoint.waypointId, coordinates ? distanceMiles(brockworth, coordinates) : undefined]
+        }),
+      ),
+    [data.waypoints],
+  )
 
   const list = useMemo(() => {
     const dates = lastActivityDates(activities)
     return data.waypoints
       .filter((waypoint) => {
         const source = locationById.get(waypoint.waypointId)
-        const coordinates = waypointCoordinates(waypoint)
-        const distance = coordinates ? distanceMiles(brockworth, coordinates) : undefined
+        const distance = distanceByWaypointId.get(waypoint.waypointId)
         const waypointArea = source?.area ?? 'Custom'
         const waypointCategory = source?.category ?? waypoint.category
         const waypointStatus = statusFor(waypoint.waypointId)
@@ -97,10 +104,8 @@ export default function Locations() {
             if (!sourceB) return -1
             return sourceA.travel.driveTimeMinutes - sourceB.travel.driveTimeMinutes
           case 'distance': {
-            const coordinatesA = waypointCoordinates(a)
-            const coordinatesB = waypointCoordinates(b)
-            const distanceA = coordinatesA ? distanceMiles(brockworth, coordinatesA) : undefined
-            const distanceB = coordinatesB ? distanceMiles(brockworth, coordinatesB) : undefined
+            const distanceA = distanceByWaypointId.get(a.waypointId)
+            const distanceB = distanceByWaypointId.get(b.waypointId)
             if (distanceA === undefined && distanceB === undefined) return a.title.localeCompare(b.title)
             if (distanceA === undefined) return 1
             if (distanceB === undefined) return -1
@@ -114,7 +119,7 @@ export default function Locations() {
             return a.title.localeCompare(b.title)
         }
       })
-  }, [activities, area, category, data.waypoints, maxDistance, query, sort, status, statusFor])
+  }, [activities, area, category, data.waypoints, distanceByWaypointId, maxDistance, query, sort, status, statusFor])
 
   return (
     <Stack spacing={2}>
@@ -240,8 +245,7 @@ export default function Locations() {
         >
           {list.map((waypoint) => {
             const source = locationById.get(waypoint.waypointId)
-            const coordinates = waypointCoordinates(waypoint)
-            const distance = coordinates ? distanceMiles(brockworth, coordinates) : undefined
+            const distance = distanceByWaypointId.get(waypoint.waypointId)
             const waypointStatus = statusFor(waypoint.waypointId)
             return (
               <Card key={waypoint.waypointId}>
@@ -257,20 +261,18 @@ export default function Locations() {
                         color={waypointStatus === 'gold' ? 'success' : 'default'}
                       />
                     </Stack>
-                    <>
-                      <CardDetailRow icon={<RouteIcon fontSize="small" />}>
-                        {distance === undefined ? 'Distance unknown' : `${distance.toFixed(1)} miles from Brockworth`}
+                    <CardDetailRow icon={<RouteIcon fontSize="small" />}>
+                      {distance === undefined ? 'Distance unknown' : `${distance.toFixed(1)} miles from Brockworth`}
+                    </CardDetailRow>
+                    {source ? (
+                      <CardDetailRow icon={<DirectionsCarIcon fontSize="small" />}>
+                        {source.travel.driveTimeMinutes} min drive
                       </CardDetailRow>
-                      {source ? (
-                        <CardDetailRow icon={<DirectionsCarIcon fontSize="small" />}>
-                          {source.travel.driveTimeMinutes} min drive
-                        </CardDetailRow>
-                      ) : (
-                        <CardDetailRow icon={<DirectionsCarIcon fontSize="small" />}>
-                          Drive time unavailable
-                        </CardDetailRow>
-                      )}
-                    </>
+                    ) : (
+                      <CardDetailRow icon={<DirectionsCarIcon fontSize="small" />}>
+                        Drive time unavailable
+                      </CardDetailRow>
+                    )}
                     <Button component={Link} to={`/waypoints/${waypoint.waypointId}`}>
                       View waypoint
                     </Button>
