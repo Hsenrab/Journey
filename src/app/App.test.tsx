@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import App from './App'
@@ -79,7 +79,7 @@ describe('activity logging', () => {
 
     cleanup()
     render(<App />)
-    await user.click(screen.getByRole('link', { name: 'Waypoints' }))
+    await user.click(within(screen.getByTestId('detail-breadcrumbs')).getByRole('link', { name: 'Waypoints' }))
     await user.click(screen.getAllByRole('link', { name: 'View waypoint' })[0])
     expect(screen.getByText('Category summary: Gold')).toBeInTheDocument()
   }, 20000)
