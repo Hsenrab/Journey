@@ -70,9 +70,9 @@ describe('Dashboard', () => {
     const silverCard = getByRole('heading', { name: 'Silver' }).closest('div')
     expect(silverCard).toHaveTextContent('1')
 
-    expect(getByRole('link', { name: 'Bronze 0' })).toHaveAttribute('href', '/waypoints?status=bronze')
-    expect(getByRole('link', { name: 'Silver 1' })).toHaveAttribute('href', '/waypoints?status=silver')
-    expect(getByRole('link', { name: 'Gold 0' })).toHaveAttribute('href', '/waypoints?status=gold')
+    expect(getByRole('link', { name: 'Bronze: 0 waypoints' })).toHaveAttribute('href', '/waypoints?status=bronze')
+    expect(getByRole('link', { name: 'Silver: 1 waypoints' })).toHaveAttribute('href', '/waypoints?status=silver')
+    expect(getByRole('link', { name: 'Gold: 0 waypoints' })).toHaveAttribute('href', '/waypoints?status=gold')
   })
 
   it('formats recent activity dates for the user locale', () => {
