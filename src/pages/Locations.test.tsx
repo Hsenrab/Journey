@@ -189,9 +189,7 @@ describe('Locations', () => {
     await user.click(screen.getByRole('button', { name: 'Reload latest' }))
 
     await waitFor(() => expect(screen.queryByRole('alert')).not.toBeInTheDocument())
-    await waitFor(() =>
-      expect(screen.queryByRole('button', { name: 'Save waypoint' })).not.toBeInTheDocument(),
-    )
+    await waitFor(() => expect(screen.queryByRole('button', { name: 'Save waypoint' })).not.toBeInTheDocument())
     expect(fetch.mock.calls.filter(([, init]) => !init?.method)).toHaveLength(2)
   })
 })
