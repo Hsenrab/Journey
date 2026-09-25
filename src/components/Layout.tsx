@@ -73,11 +73,11 @@ export function Layout({ children }: { children: ReactNode }) {
       ? 'error'
       : role === 'viewer'
         ? 'viewer'
-      : readOnly
-        ? 'readOnly'
-        : activeDataMode === 'demo-cosmos'
-          ? 'demoWritable'
-          : 'production'
+        : readOnly
+          ? 'readOnly'
+          : activeDataMode === 'demo-cosmos'
+            ? 'demoWritable'
+            : 'production'
   const chip = dataModeStatusView[status]
   const changeMode = (event: SelectChangeEvent) => {
     void setDataMode(event.target.value as JourneyDataMode)

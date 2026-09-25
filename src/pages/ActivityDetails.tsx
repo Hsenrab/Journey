@@ -245,40 +245,42 @@ export default function ActivityDetails() {
             Delete activity
           </Button>
         </Stack>
-      )}
+      ) : null}
 
-      {!readOnly && <Dialog open={showDeleteDialog} onClose={() => setShowDeleteDialog(false)}>
-        <DialogTitle>Delete activity?</DialogTitle>
-        <DialogContent>
-          <Typography>
-            Delete activity on {activity.date}
-            {waypoint ? ` linked to ${waypoint.title}` : ''}? Linked ideas and waypoints are preserved, and idea usage
-            updates after reloading the dataset.
-          </Typography>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setShowDeleteDialog(false)}>Cancel</Button>
-          <Button
-            color="error"
-            onClick={async () => {
-              try {
-                await deleteActivity(activity.activityId)
-                await reload()
-                setShowDeleteDialog(false)
-                navigate(backTarget)
-              } catch (error) {
-                setMessage({
-                  severity: 'error',
-                  text: error instanceof Error ? error.message : 'Failed to delete activity.',
-                  conflict: error instanceof JourneyConflictError,
-                })
-              }
-            }}
-          >
-            Delete
-          </Button>
-        </DialogActions>
-      </Dialog>}
+      {!readOnly && (
+        <Dialog open={showDeleteDialog} onClose={() => setShowDeleteDialog(false)}>
+          <DialogTitle>Delete activity?</DialogTitle>
+          <DialogContent>
+            <Typography>
+              Delete activity on {activity.date}
+              {waypoint ? ` linked to ${waypoint.title}` : ''}? Linked ideas and waypoints are preserved, and idea usage
+              updates after reloading the dataset.
+            </Typography>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setShowDeleteDialog(false)}>Cancel</Button>
+            <Button
+              color="error"
+              onClick={async () => {
+                try {
+                  await deleteActivity(activity.activityId)
+                  await reload()
+                  setShowDeleteDialog(false)
+                  navigate(backTarget)
+                } catch (error) {
+                  setMessage({
+                    severity: 'error',
+                    text: error instanceof Error ? error.message : 'Failed to delete activity.',
+                    conflict: error instanceof JourneyConflictError,
+                  })
+                }
+              }}
+            >
+              Delete
+            </Button>
+          </DialogActions>
+        </Dialog>
+      )}
     </Stack>
   )
 }

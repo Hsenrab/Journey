@@ -246,9 +246,9 @@ describe('WaypointsContext in production mode', () => {
 
   it('keeps viewer data read-only even when mutation methods are called directly', async () => {
     const seeded = createDefaultData()
-    const fetch = vi.fn().mockResolvedValue(
-      new Response(JSON.stringify({ data: seeded, etags: {}, role: 'viewer' }), { status: 200 }),
-    )
+    const fetch = vi
+      .fn()
+      .mockResolvedValue(new Response(JSON.stringify({ data: seeded, etags: {}, role: 'viewer' }), { status: 200 }))
     vi.stubGlobal('fetch', fetch)
 
     const { result } = renderHook(() => useWaypoints(), { wrapper: WaypointsProvider })

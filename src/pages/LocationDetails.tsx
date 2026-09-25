@@ -105,7 +105,7 @@ export default function LocationDetails() {
         <Button variant="contained" onClick={() => setShowEditor(true)}>
           Log activity
         </Button>
-      )}
+      ) : null}
 
       <Stack spacing={2}>
         <Stack

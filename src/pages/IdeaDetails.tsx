@@ -152,31 +152,33 @@ export default function IdeaDetails() {
             Delete idea
           </Button>
         </Stack>
+      ) : null}
+      {!readOnly && (
+        <Dialog open={showDeleteDialog} onClose={() => setShowDeleteDialog(false)}>
+          <DialogTitle>Delete idea?</DialogTitle>
+          <DialogContent>
+            <Typography>
+              Deleting this idea removes its links from activities but keeps the activities and any linked waypoints.
+            </Typography>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setShowDeleteDialog(false)}>Cancel</Button>
+            <Button
+              color="error"
+              onClick={async () => {
+                try {
+                  await deleteIdea(idea.ideaId)
+                  navigate('/ideas')
+                } catch (cause) {
+                  setError(cause instanceof Error ? cause.message : 'Failed to delete idea.')
+                }
+              }}
+            >
+              Delete
+            </Button>
+          </DialogActions>
+        </Dialog>
       )}
-      {!readOnly && <Dialog open={showDeleteDialog} onClose={() => setShowDeleteDialog(false)}>
-        <DialogTitle>Delete idea?</DialogTitle>
-        <DialogContent>
-          <Typography>
-            Deleting this idea removes its links from activities but keeps the activities and any linked waypoints.
-          </Typography>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setShowDeleteDialog(false)}>Cancel</Button>
-          <Button
-            color="error"
-            onClick={async () => {
-              try {
-                await deleteIdea(idea.ideaId)
-                navigate('/ideas')
-              } catch (cause) {
-                setError(cause instanceof Error ? cause.message : 'Failed to delete idea.')
-              }
-            }}
-          >
-            Delete
-          </Button>
-        </DialogActions>
-      </Dialog>}
     </Stack>
   )
 }

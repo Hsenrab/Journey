@@ -39,9 +39,9 @@ describe('parseClientPrincipalHeader', () => {
 describe('journeyRoleForPrincipal', () => {
   it('returns the single assigned Journey role', () => {
     expect(journeyRoleForPrincipal(parseClientPrincipalHeader(principalHeader()))).toBe('admin')
-    expect(journeyRoleForPrincipal(parseClientPrincipalHeader(principalHeader({ userRoles: ['authenticated', 'viewer'] })))).toBe(
-      'viewer',
-    )
+    expect(
+      journeyRoleForPrincipal(parseClientPrincipalHeader(principalHeader({ userRoles: ['authenticated', 'viewer'] }))),
+    ).toBe('viewer')
   })
 
   it('rejects a different identity provider', () => {
@@ -50,14 +50,16 @@ describe('journeyRoleForPrincipal', () => {
   })
 
   it('fails closed for anonymous, unassigned, and ambiguously assigned principals', () => {
-    expect(() => journeyRoleForPrincipal(parseClientPrincipalHeader(principalHeader({ userRoles: ['anonymous'] })))).toThrow(
-      PrincipalValidationError,
-    )
+    expect(() =>
+      journeyRoleForPrincipal(parseClientPrincipalHeader(principalHeader({ userRoles: ['anonymous'] }))),
+    ).toThrow(PrincipalValidationError)
     expect(() =>
       journeyRoleForPrincipal(parseClientPrincipalHeader(principalHeader({ userRoles: ['authenticated'] }))),
     ).toThrow(PrincipalValidationError)
     expect(() =>
-      journeyRoleForPrincipal(parseClientPrincipalHeader(principalHeader({ userRoles: ['authenticated', 'admin', 'viewer'] }))),
+      journeyRoleForPrincipal(
+        parseClientPrincipalHeader(principalHeader({ userRoles: ['authenticated', 'admin', 'viewer'] })),
+      ),
     ).toThrow(PrincipalValidationError)
   })
 })

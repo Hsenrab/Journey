@@ -448,7 +448,10 @@ export function WaypointsProvider({ children }: { children: ReactNode }) {
   }, [reload])
   const value = useMemo<WaypointsValue>(() => {
     const readOnly =
-      loading || role === 'viewer' || activeDataMode === 'demo-local' || (dataMode === 'production' && Boolean(loadError))
+      loading ||
+      role === 'viewer' ||
+      activeDataMode === 'demo-local' ||
+      (dataMode === 'production' && Boolean(loadError))
     const writableContainer = (): JourneyContainer => {
       if (loading)
         throw new Error('Journey data is still loading. Wait for the selected data mode before making changes.')

@@ -1,5 +1,10 @@
 import { app, type HttpRequest, type HttpResponseInit, type InvocationContext } from '@azure/functions'
-import { journeyRoleForPrincipal, parseClientPrincipalHeader, PrincipalValidationError, type JourneyRole } from '../lib/principal.js'
+import {
+  journeyRoleForPrincipal,
+  parseClientPrincipalHeader,
+  PrincipalValidationError,
+  type JourneyRole,
+} from '../lib/principal.js'
 import {
   createDocument,
   datasetIdFor,

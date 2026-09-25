@@ -125,7 +125,9 @@ describe('journey', () => {
     loadDataset.mockResolvedValue({ data: emptyData, etags: {} })
     const { journey } = await import('./journey.js')
 
-    expect(await journey(request('production', 'GET', undefined, ['authenticated', 'viewer']), context())).toMatchObject({
+    expect(
+      await journey(request('production', 'GET', undefined, ['authenticated', 'viewer']), context()),
+    ).toMatchObject({
       status: 200,
       jsonBody: { role: 'viewer' },
     })
