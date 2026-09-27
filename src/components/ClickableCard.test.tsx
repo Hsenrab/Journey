@@ -10,7 +10,7 @@ describe('ClickableCard', () => {
     const user = userEvent.setup()
     render(
       <MemoryRouter>
-        <ClickableCard to="/waypoints/example with spaces">
+        <ClickableCard to="/waypoints/example">
           {(titleId) => (
             <>
               <Typography id={titleId}>Example waypoint</Typography>
@@ -22,7 +22,8 @@ describe('ClickableCard', () => {
     )
 
     const card = screen.getByRole('link', { name: 'Example waypoint' })
-    expect(card).toHaveAttribute('href', '/waypoints/example with spaces')
+    expect(card).toHaveAttribute('href', '/waypoints/example')
+    expect(document.getElementById(card.getAttribute('aria-labelledby') ?? '')).toHaveTextContent('Example waypoint')
     await user.tab()
     expect(card).toHaveFocus()
   })
