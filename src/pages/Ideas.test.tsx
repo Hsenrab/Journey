@@ -129,6 +129,37 @@ describe('Ideas', () => {
     expect(screen.getByText('Weekend hill walk')).toBeInTheDocument()
   })
 
+  it('offers to view matches in other states when a state filter excludes them', async () => {
+    const seed = createDefaultData()
+    save({
+      ...seed,
+      ideas: [
+        {
+          ideaId: 'idea-1',
+          title: 'Weekend hill walk',
+          description: '',
+          notes: '',
+          waypointIds: [],
+          planningState: 'someday',
+          difficulty: 1,
+          referenceIds: [],
+          createdAt: '2026-08-01T00:00:00.000Z',
+          updatedAt: '2026-08-01T00:00:00.000Z',
+        },
+      ],
+    })
+
+    const user = userEvent.setup()
+    renderIdeas('/ideas?state=active')
+    await user.type(screen.getByLabelText('Search ideas'), 'hill walk')
+
+    expect(
+      screen.getByText('No ideas match your filters in this state, but 1 match in other states.'),
+    ).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'View matches in all states' }))
+    expect(screen.getByText('Weekend hill walk')).toBeInTheDocument()
+  })
+
   it('validates idea location coordinates and reference https URLs', async () => {
     const user = userEvent.setup()
     renderIdeas('/ideas?mode=add')

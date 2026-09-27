@@ -76,10 +76,9 @@ export default function Ideas() {
   )
   const allCount = data.ideas.length
 
-  const filteredIdeas = useMemo(() => {
+  const ideasMatchingSearchAndUsage = useMemo(() => {
     const loweredQuery = query.trim().toLowerCase()
     return data.ideas
-      .filter((idea) => selectedState === 'all' || idea.planningState === selectedState)
       .filter((idea) => {
         const count = ideaUsageCount(data.activities, idea.ideaId)
         if (usage === 'used') return count > 0
@@ -100,6 +99,11 @@ export default function Ideas() {
           .toLowerCase()
           .includes(loweredQuery)
       })
+  }, [data.activities, data.ideas, query, referenceById, usage, waypointById])
+
+  const filteredIdeas = useMemo(() => {
+    return ideasMatchingSearchAndUsage
+      .filter((idea) => selectedState === 'all' || idea.planningState === selectedState)
       .sort((a, b) => {
         if (sort === 'updated') return b.updatedAt.localeCompare(a.updatedAt)
         if (sort === 'difficulty') return a.difficulty - b.difficulty || a.title.localeCompare(b.title)
@@ -110,7 +114,10 @@ export default function Ideas() {
         if (distanceB === undefined) return -1
         return distanceA - distanceB || a.title.localeCompare(b.title)
       })
-  }, [data.activities, data.ideas, query, referenceById, selectedState, sort, usage, waypointById])
+  }, [ideasMatchingSearchAndUsage, selectedState, sort])
+
+  const otherStateMatchCount =
+    selectedState === 'all' || filteredIdeas.length > 0 ? 0 : ideasMatchingSearchAndUsage.length
 
   const initialWaypointId = searchParams.get('waypoint') ?? undefined
   const clearFilters = () => {
@@ -222,8 +229,30 @@ export default function Ideas() {
       {filteredIdeas.length === 0 ? (
         <EmptyState
           icon={<SearchOffIcon color="disabled" />}
-          message={allCount === 0 ? 'You have no ideas yet.' : 'No ideas match your filters.'}
-          action={allCount > 0 ? <Button onClick={clearFilters}>Clear filters</Button> : undefined}
+          message={
+            allCount === 0
+              ? 'You have no ideas yet.'
+              : otherStateMatchCount > 0
+                ? `No ideas match your filters in this state, but ${otherStateMatchCount} match in other states.`
+                : 'No ideas match your filters.'
+          }
+          action={
+            otherStateMatchCount > 0 ? (
+              <Button
+                onClick={() =>
+                  setSearchParams((previous) => {
+                    const next = new URLSearchParams(previous)
+                    next.delete('state')
+                    return next
+                  })
+                }
+              >
+                View matches in all states
+              </Button>
+            ) : allCount > 0 ? (
+              <Button onClick={clearFilters}>Clear filters</Button>
+            ) : undefined
+          }
         />
       ) : (
         <Box sx={{ display: 'grid', gap: 2, gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))' }}>
