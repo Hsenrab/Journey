@@ -48,6 +48,8 @@ type AccessRole = JourneyRole | 'local'
 type DraftReference = Pick<Reference, 'title' | 'url' | 'description' | 'previewImageUrl'> & { referenceId?: string }
 type DraftPhotoReference = Pick<ExternalPhotoReference, 'title' | 'url' | 'altText'> & { photoReferenceId?: string }
 
+type ReloadResult = { status: 'success' } | { status: 'failure'; message: string } | { status: 'superseded' }
+
 export type ActivityDraft = {
   name?: string
   waypointId?: string
@@ -111,7 +113,8 @@ type WaypointsValue = {
   deleteIdea: (ideaId: string) => Promise<void>
   restore: (data: WaypointsData) => Promise<void>
   clear: () => Promise<void>
-  reload: () => Promise<void>
+  /** Resolves with whether the refresh succeeded, failed, or was superseded by another load. */
+  reload: () => Promise<ReloadResult>
   activitiesFor: (waypointId: string) => Activity[]
   statusFor: (waypointId: string) => Status
 }
@@ -388,7 +391,7 @@ export function WaypointsProvider({ children }: { children: ReactNode }) {
     setRole(loaded.role)
   }, [])
   const loadMode = useCallback(
-    async (mode: JourneyDataMode) => {
+    async (mode: JourneyDataMode): Promise<ReloadResult> => {
       const generation = loadGeneration.current + 1
       loadGeneration.current = generation
       setLoading(true)
@@ -396,37 +399,35 @@ export function WaypointsProvider({ children }: { children: ReactNode }) {
         loaded: { data: WaypointsData; etags: Record<string, string>; role: AccessRole },
         active: JourneyDataMode,
         error?: string,
-      ) => {
-        if (loadGeneration.current !== generation) return
+      ): ReloadResult => {
+        if (loadGeneration.current !== generation) return { status: 'superseded' }
         apply(loaded)
         setActiveDataMode(active)
         setLoadError(error)
         setLoading(false)
+        return error ? { status: 'failure', message: error } : { status: 'success' }
       }
 
       if (mode === 'demo-local') {
-        settle({ data: createDemoModeData(), etags: {}, role: 'local' }, 'demo-local')
-        return
+        return settle({ data: createDemoModeData(), etags: {}, role: 'local' }, 'demo-local')
       }
 
       if (localTestMode && mode === 'production') {
-        settle({ data: load(), etags: {}, role: 'local' }, 'production')
-        return
+        return settle({ data: load(), etags: {}, role: 'local' }, 'production')
       }
 
       try {
-        settle(await loadJourney(mode === 'demo-cosmos' ? 'demo' : 'production'), mode)
+        return settle(await loadJourney(mode === 'demo-cosmos' ? 'demo' : 'production'), mode)
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error)
         if (mode === 'demo-cosmos') {
-          settle(
+          return settle(
             { data: createDemoModeData(), etags: {}, role: 'local' },
             'demo-local',
             `Demo Cosmos could not be loaded, so read-only local demo data is shown: ${message}`,
           )
-          return
         }
-        settle(
+        return settle(
           { data: emptyData(), etags: {}, role: 'local' },
           'production',
           `Production data could not be loaded. Check the Journey API and Cosmos configuration: ${message}`,
@@ -435,9 +436,7 @@ export function WaypointsProvider({ children }: { children: ReactNode }) {
     },
     [apply, localTestMode],
   )
-  const reload = useCallback(async () => {
-    await loadMode(dataMode)
-  }, [dataMode, loadMode])
+  const reload = useCallback(async () => loadMode(dataMode), [dataMode, loadMode])
   const changeDataMode = useCallback(async (mode: JourneyDataMode) => {
     saveDataMode(mode)
     setDataModeState(mode)

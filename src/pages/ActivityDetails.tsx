@@ -18,7 +18,14 @@ import InboxOutlinedIcon from '@mui/icons-material/InboxOutlined'
 import { ActivityEditor } from '../components/ActivityEditor'
 import { DetailPageHeader } from '../components/DetailPageHeader'
 import { EmptyState } from '../components/EmptyState'
-import { ideasForActivity, locationSummary, statusLabels } from '../domain/visit'
+import {
+  activitySubtitle,
+  activityTitle,
+  formatActivityDate,
+  ideasForActivity,
+  locationSummary,
+  statusLabels,
+} from '../domain/visit'
 import { useWaypoints } from '../features/journey/JourneyContext'
 import { JourneyConflictError } from '../services/journeyApi'
 
@@ -70,25 +77,24 @@ export default function ActivityDetails() {
     }
   }
 
-  const detailHeading = [activity.date, waypoint?.title].filter(Boolean).join(' · ')
+  const detailSubtitle = [activitySubtitle(activity), waypoint?.title].filter(Boolean).join(' · ')
   const reloadLatest = async () => {
-    try {
-      await reload()
-      setMessage(null)
-      setEditing(false)
-      setShowDeleteDialog(false)
-    } catch (error) {
-      setMessage({
-        severity: 'error',
-        text: error instanceof Error ? error.message : 'Failed to reload activity.',
-        conflict: error instanceof JourneyConflictError,
-      })
+    const result = await reload()
+    if (result.status === 'failure') {
+      setMessage({ severity: 'error', text: result.message, conflict: true })
+      return
     }
+    if (result.status === 'superseded') {
+      return
+    }
+    setMessage(null)
+    setEditing(false)
+    setShowDeleteDialog(false)
   }
 
   return (
     <Stack spacing={3}>
-      <DetailPageHeader breadcrumbs={breadcrumbs} title={detailHeading}>
+      <DetailPageHeader breadcrumbs={breadcrumbs} title={activityTitle(activity)}>
         {!readOnly && !editing && (
           <>
             <Button variant="contained" onClick={() => setEditing(true)}>
@@ -116,6 +122,7 @@ export default function ActivityDetails() {
         </Alert>
       )}
 
+      {detailSubtitle && <Typography color="text.secondary">{detailSubtitle}</Typography>}
       <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: 'wrap' }}>
         {activity.category && <Chip label={statusLabels[activity.category]} />}
         {waypoint && (
@@ -256,7 +263,7 @@ export default function ActivityDetails() {
           <DialogTitle>Delete activity?</DialogTitle>
           <DialogContent>
             <Typography>
-              Delete activity on {activity.date}
+              Delete activity on {formatActivityDate(activity.date)}
               {waypoint ? ` linked to ${waypoint.title}` : ''}? Linked ideas and waypoints are preserved, and idea usage
               updates after reloading the dataset.
             </Typography>
@@ -268,7 +275,14 @@ export default function ActivityDetails() {
               onClick={async () => {
                 try {
                   await deleteActivity(activity.activityId)
-                  await reload()
+                  const result = await reload()
+                  if (result.status === 'failure') {
+                    setMessage({ severity: 'error', text: result.message, conflict: true })
+                    return
+                  }
+                  if (result.status === 'superseded') {
+                    return
+                  }
                   setShowDeleteDialog(false)
                   navigate(backTarget)
                 } catch (error) {
