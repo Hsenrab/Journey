@@ -79,18 +79,17 @@ export default function ActivityDetails() {
 
   const detailSubtitle = [activitySubtitle(activity), waypoint?.title].filter(Boolean).join(' · ')
   const reloadLatest = async () => {
-    try {
-      await reload()
-      setMessage(null)
-      setEditing(false)
-      setShowDeleteDialog(false)
-    } catch (error) {
-      setMessage({
-        severity: 'error',
-        text: error instanceof Error ? error.message : 'Failed to reload activity.',
-        conflict: error instanceof JourneyConflictError,
-      })
+    const result = await reload()
+    if (result.status === 'failure') {
+      setMessage({ severity: 'error', text: result.message, conflict: true })
+      return
     }
+    if (result.status === 'superseded') {
+      return
+    }
+    setMessage(null)
+    setEditing(false)
+    setShowDeleteDialog(false)
   }
 
   return (
@@ -276,7 +275,14 @@ export default function ActivityDetails() {
               onClick={async () => {
                 try {
                   await deleteActivity(activity.activityId)
-                  await reload()
+                  const result = await reload()
+                  if (result.status === 'failure') {
+                    setMessage({ severity: 'error', text: result.message, conflict: true })
+                    return
+                  }
+                  if (result.status === 'superseded') {
+                    return
+                  }
                   setShowDeleteDialog(false)
                   navigate(backTarget)
                 } catch (error) {
