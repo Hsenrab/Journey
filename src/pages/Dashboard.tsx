@@ -62,11 +62,15 @@ export default function Dashboard() {
           }}
         >
           {awardableStatuses.map((status) => (
-            <ClickableCard key={status} titleId={`status-${status}-title`} to={`/waypoints?status=${status}`}>
-              <Typography id={`status-${status}-title`} variant="h6">
-                {statusLabels[status]}
-              </Typography>
-              <Typography variant="h4">{counts[status]}</Typography>
+            <ClickableCard key={status} to={`/waypoints?status=${status}`}>
+              {(titleId) => (
+                <>
+                  <Typography id={titleId} variant="h6">
+                    {statusLabels[status]}
+                  </Typography>
+                  <Typography variant="h4">{counts[status]}</Typography>
+                </>
+              )}
             </ClickableCard>
           ))}
         </Box>
@@ -81,24 +85,22 @@ export default function Dashboard() {
             {recent.map((waypoint) => {
               const date = lastActivityDate(activities, waypoint.waypointId)
               return (
-                <ClickableCard
-                  key={waypoint.waypointId}
-                  titleId={`waypoint-${waypoint.waypointId}-title`}
-                  to={`/waypoints/${waypoint.waypointId}`}
-                >
-                  <Stack
-                    direction={{ xs: 'column', sm: 'row' }}
-                    spacing={{ xs: 0.5, sm: 2 }}
-                    sx={{ justifyContent: 'space-between', alignItems: { xs: 'flex-start', sm: 'center' } }}
-                  >
-                    <Typography id={`waypoint-${waypoint.waypointId}-title`} variant="h6">
-                      {waypoint.title}
-                    </Typography>
-                    <Typography color="text.secondary">
-                      {statusLabels[statusForWaypoint(activities, waypoint.waypointId)]}
-                      {date ? ` · ${new Date(`${date}T00:00:00`).toLocaleDateString()}` : ''}
-                    </Typography>
-                  </Stack>
+                <ClickableCard key={waypoint.waypointId} to={`/waypoints/${waypoint.waypointId}`}>
+                  {(titleId) => (
+                    <Stack
+                      direction={{ xs: 'column', sm: 'row' }}
+                      spacing={{ xs: 0.5, sm: 2 }}
+                      sx={{ justifyContent: 'space-between', alignItems: { xs: 'flex-start', sm: 'center' } }}
+                    >
+                      <Typography id={titleId} variant="h6">
+                        {waypoint.title}
+                      </Typography>
+                      <Typography color="text.secondary">
+                        {statusLabels[statusForWaypoint(activities, waypoint.waypointId)]}
+                        {date ? ` · ${new Date(`${date}T00:00:00`).toLocaleDateString()}` : ''}
+                      </Typography>
+                    </Stack>
+                  )}
                 </ClickableCard>
               )
             })}

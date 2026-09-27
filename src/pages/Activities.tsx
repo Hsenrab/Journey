@@ -90,31 +90,29 @@ export default function Activities() {
             const title = activityTitle(activity)
             const subtitle = [activitySubtitle(activity), waypoint?.title].filter(Boolean).join(' · ')
             return (
-              <ClickableCard
-                key={activity.activityId}
-                titleId={`activity-${activity.activityId}-title`}
-                to={`/activities/${activity.activityId}`}
-              >
-                <Stack spacing={1}>
-                  <Typography id={`activity-${activity.activityId}-title`} variant="h6">
-                    {title}
-                  </Typography>
-                  {subtitle && <Typography color="text.secondary">{subtitle}</Typography>}
-                  <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: 'wrap' }}>
-                    {activity.category && <Chip label={statusLabels[activity.category]} />}
-                    {waypoint && <Chip label={`Waypoint: ${waypoint.title}`} variant="outlined" />}
+              <ClickableCard key={activity.activityId} to={`/activities/${activity.activityId}`}>
+                {(titleId) => (
+                  <Stack spacing={1}>
+                    <Typography id={titleId} variant="h6">
+                      {title}
+                    </Typography>
+                    {subtitle && <Typography color="text.secondary">{subtitle}</Typography>}
+                    <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: 'wrap' }}>
+                      {activity.category && <Chip label={statusLabels[activity.category]} />}
+                      {waypoint && <Chip label={`Waypoint: ${waypoint.title}`} variant="outlined" />}
+                    </Stack>
+                    <CardDetailRow icon={<PlaceIcon fontSize="small" />}>
+                      {locationSummary(activity.location)}
+                    </CardDetailRow>
+                    {activity.notes && <Typography>{activity.notes.slice(0, 140)}</Typography>}
+                    <CardDetailRow icon={<PhotoLibraryIcon fontSize="small" />}>
+                      {countLabel(activity.photoReferenceIds.length, 'photo')}
+                    </CardDetailRow>
+                    <CardDetailRow icon={<LinkIcon fontSize="small" />}>
+                      {countLabel(activity.referenceIds.length, 'link')}
+                    </CardDetailRow>
                   </Stack>
-                  <CardDetailRow icon={<PlaceIcon fontSize="small" />}>
-                    {locationSummary(activity.location)}
-                  </CardDetailRow>
-                  {activity.notes && <Typography>{activity.notes.slice(0, 140)}</Typography>}
-                  <CardDetailRow icon={<PhotoLibraryIcon fontSize="small" />}>
-                    {countLabel(activity.photoReferenceIds.length, 'photo')}
-                  </CardDetailRow>
-                  <CardDetailRow icon={<LinkIcon fontSize="small" />}>
-                    {countLabel(activity.referenceIds.length, 'link')}
-                  </CardDetailRow>
-                </Stack>
+                )}
               </ClickableCard>
             )
           })

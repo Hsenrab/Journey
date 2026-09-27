@@ -236,44 +236,42 @@ export default function Locations() {
             const source = locationById.get(waypoint.waypointId)
             const waypointStatus = statusFor(waypoint.waypointId)
             return (
-              <ClickableCard
-                key={waypoint.waypointId}
-                titleId={`waypoint-${waypoint.waypointId}-title`}
-                to={`/waypoints/${waypoint.waypointId}`}
-              >
-                <Stack spacing={1}>
-                  <Typography id={`waypoint-${waypoint.waypointId}-title`} variant="h6">
-                    {waypoint.title}
-                  </Typography>
-                  <Typography color="text.secondary">
-                    {(source?.area ?? 'Custom') + ' · ' + (source?.category ?? waypoint.category)}
-                  </Typography>
-                  <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: 'wrap' }}>
-                    <Chip
-                      label={statusLabels[waypointStatus]}
-                      color={waypointStatus === 'gold' ? 'success' : 'default'}
-                    />
+              <ClickableCard key={waypoint.waypointId} to={`/waypoints/${waypoint.waypointId}`}>
+                {(titleId) => (
+                  <Stack spacing={1}>
+                    <Typography id={titleId} variant="h6">
+                      {waypoint.title}
+                    </Typography>
+                    <Typography color="text.secondary">
+                      {(source?.area ?? 'Custom') + ' · ' + (source?.category ?? waypoint.category)}
+                    </Typography>
+                    <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: 'wrap' }}>
+                      <Chip
+                        label={statusLabels[waypointStatus]}
+                        color={waypointStatus === 'gold' ? 'success' : 'default'}
+                      />
+                    </Stack>
+                    {source ? (
+                      <>
+                        <CardDetailRow icon={<RouteIcon fontSize="small" />}>
+                          {source.travel.distanceMiles} miles from Brockworth
+                        </CardDetailRow>
+                        <CardDetailRow icon={<DirectionsCarIcon fontSize="small" />}>
+                          {source.travel.driveTimeMinutes} min drive
+                        </CardDetailRow>
+                      </>
+                    ) : (
+                      <>
+                        <CardDetailRow icon={<RouteIcon fontSize="small" />}>
+                          Distance unavailable for custom waypoints
+                        </CardDetailRow>
+                        <CardDetailRow icon={<DirectionsCarIcon fontSize="small" />}>
+                          Drive time unavailable for custom waypoints
+                        </CardDetailRow>
+                      </>
+                    )}
                   </Stack>
-                  {source ? (
-                    <>
-                      <CardDetailRow icon={<RouteIcon fontSize="small" />}>
-                        {source.travel.distanceMiles} miles from Brockworth
-                      </CardDetailRow>
-                      <CardDetailRow icon={<DirectionsCarIcon fontSize="small" />}>
-                        {source.travel.driveTimeMinutes} min drive
-                      </CardDetailRow>
-                    </>
-                  ) : (
-                    <>
-                      <CardDetailRow icon={<RouteIcon fontSize="small" />}>
-                        Distance unavailable for custom waypoints
-                      </CardDetailRow>
-                      <CardDetailRow icon={<DirectionsCarIcon fontSize="small" />}>
-                        Drive time unavailable for custom waypoints
-                      </CardDetailRow>
-                    </>
-                  )}
-                </Stack>
+                )}
               </ClickableCard>
             )
           })}

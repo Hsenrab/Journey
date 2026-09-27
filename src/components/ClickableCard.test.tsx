@@ -10,16 +10,37 @@ describe('ClickableCard', () => {
     const user = userEvent.setup()
     render(
       <MemoryRouter>
-        <ClickableCard titleId="example-waypoint-title" to="/waypoints/example">
-          <Typography id="example-waypoint-title">Example waypoint</Typography>
-          Card content
+        <ClickableCard to="/waypoints/example with spaces">
+          {(titleId) => (
+            <>
+              <Typography id={titleId}>Example waypoint</Typography>
+              Card content
+            </>
+          )}
         </ClickableCard>
       </MemoryRouter>,
     )
 
     const card = screen.getByRole('link', { name: 'Example waypoint' })
-    expect(card).toHaveAttribute('href', '/waypoints/example')
+    expect(card).toHaveAttribute('href', '/waypoints/example with spaces')
     await user.tab()
     expect(card).toHaveFocus()
+  })
+
+  it('gives each card a distinct title id', () => {
+    render(
+      <MemoryRouter>
+        <ClickableCard to="/waypoints/one">
+          {(titleId) => <Typography id={titleId}>First waypoint</Typography>}
+        </ClickableCard>
+        <ClickableCard to="/waypoints/two">
+          {(titleId) => <Typography id={titleId}>Second waypoint</Typography>}
+        </ClickableCard>
+      </MemoryRouter>,
+    )
+
+    const first = screen.getByRole('link', { name: 'First waypoint' })
+    const second = screen.getByRole('link', { name: 'Second waypoint' })
+    expect(first.getAttribute('aria-labelledby')).not.toBe(second.getAttribute('aria-labelledby'))
   })
 })

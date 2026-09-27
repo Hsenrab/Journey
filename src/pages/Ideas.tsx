@@ -216,35 +216,37 @@ export default function Ideas() {
               .filter((name): name is string => Boolean(name))
             const distance = distanceFromBrockworth(idea)
             return (
-              <ClickableCard key={idea.ideaId} titleId={`idea-${idea.ideaId}-title`} to={`/ideas/${idea.ideaId}`}>
-                <Stack spacing={1}>
-                  <Typography id={`idea-${idea.ideaId}-title`} variant="h6">
-                    {idea.title}
-                  </Typography>
-                  <Typography color="text.secondary">{idea.description || 'No description'}</Typography>
-                  <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: 'wrap' }}>
-                    <Chip label={planningStateLabels[idea.planningState]} />
-                    <Chip label={difficultyLabels[idea.difficulty]} />
-                    <Chip label={ideaUsageLabel(count)} />
-                  </Stack>
-                  <CardDetailRow icon={<FlagIcon fontSize="small" />}>
-                    {linkedWaypointNames.length > 0
-                      ? `${linkedWaypointNames.length} waypoint${linkedWaypointNames.length === 1 ? '' : 's'}: ${linkedWaypointNames.join(', ')}`
-                      : 'No linked waypoints'}
-                  </CardDetailRow>
-                  <CardDetailRow icon={<PlaceIcon fontSize="small" />}>
-                    Location: {ideaLocationSummary(idea.location)}
-                  </CardDetailRow>
-                  {distance !== undefined && (
-                    <CardDetailRow icon={<RouteIcon fontSize="small" />}>
-                      {distance.toFixed(1)} miles from Brockworth
+              <ClickableCard key={idea.ideaId} to={`/ideas/${idea.ideaId}`}>
+                {(titleId) => (
+                  <Stack spacing={1}>
+                    <Typography id={titleId} variant="h6">
+                      {idea.title}
+                    </Typography>
+                    <Typography color="text.secondary">{idea.description || 'No description'}</Typography>
+                    <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: 'wrap' }}>
+                      <Chip label={planningStateLabels[idea.planningState]} />
+                      <Chip label={difficultyLabels[idea.difficulty]} />
+                      <Chip label={ideaUsageLabel(count)} />
+                    </Stack>
+                    <CardDetailRow icon={<FlagIcon fontSize="small" />}>
+                      {linkedWaypointNames.length > 0
+                        ? `${linkedWaypointNames.length} waypoint${linkedWaypointNames.length === 1 ? '' : 's'}: ${linkedWaypointNames.join(', ')}`
+                        : 'No linked waypoints'}
                     </CardDetailRow>
-                  )}
-                  <CardDetailRow icon={<LinkIcon fontSize="small" />}>
-                    {countLabel(references.length, 'link')}
-                    {references[0] ? ` · ${referenceHostname(references[0].url)}` : ''}
-                  </CardDetailRow>
-                </Stack>
+                    <CardDetailRow icon={<PlaceIcon fontSize="small" />}>
+                      Location: {ideaLocationSummary(idea.location)}
+                    </CardDetailRow>
+                    {distance !== undefined && (
+                      <CardDetailRow icon={<RouteIcon fontSize="small" />}>
+                        {distance.toFixed(1)} miles from Brockworth
+                      </CardDetailRow>
+                    )}
+                    <CardDetailRow icon={<LinkIcon fontSize="small" />}>
+                      {countLabel(references.length, 'link')}
+                      {references[0] ? ` · ${referenceHostname(references[0].url)}` : ''}
+                    </CardDetailRow>
+                  </Stack>
+                )}
               </ClickableCard>
             )
           })}

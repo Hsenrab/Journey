@@ -125,17 +125,19 @@ export default function LocationDetails() {
           <EmptyState icon={<InboxOutlinedIcon color="disabled" />} message="No ideas linked to this waypoint." />
         ) : (
           waypointIdeas.map((idea) => (
-            <ClickableCard key={idea.ideaId} titleId={`idea-${idea.ideaId}-title`} to={`/ideas/${idea.ideaId}`}>
-              <Stack spacing={1}>
-                <Typography id={`idea-${idea.ideaId}-title`} variant="h6">
-                  {idea.title}
-                </Typography>
-                <Typography color="text.secondary">
-                  {planningStateLabels[idea.planningState]} ·{' '}
-                  {ideaUsageLabel(ideaUsageCount(data.activities, idea.ideaId))}
-                </Typography>
-                <Typography color="text.secondary">{idea.description || 'No description'}</Typography>
-              </Stack>
+            <ClickableCard key={idea.ideaId} to={`/ideas/${idea.ideaId}`}>
+              {(titleId) => (
+                <Stack spacing={1}>
+                  <Typography id={titleId} variant="h6">
+                    {idea.title}
+                  </Typography>
+                  <Typography color="text.secondary">
+                    {planningStateLabels[idea.planningState]} ·{' '}
+                    {ideaUsageLabel(ideaUsageCount(data.activities, idea.ideaId))}
+                  </Typography>
+                  <Typography color="text.secondary">{idea.description || 'No description'}</Typography>
+                </Stack>
+              )}
             </ClickableCard>
           ))
         )}
@@ -150,32 +152,30 @@ export default function LocationDetails() {
           const subtitle = activitySubtitle(activity)
           const title = activityTitle(activity)
           return (
-            <ClickableCard
-              key={activity.activityId}
-              titleId={`activity-${activity.activityId}-title`}
-              to={`/activities/${activity.activityId}`}
-            >
-              <Stack spacing={1}>
-                <Typography id={`activity-${activity.activityId}-title`} variant="h6">
-                  {title}
-                </Typography>
-                {subtitle && <Typography color="text.secondary">{subtitle}</Typography>}
-                {activity.category && (
-                  <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: 'wrap' }}>
-                    <Chip label={statusLabels[activity.category]} />
-                  </Stack>
-                )}
-                {activity.notes && <Typography>{activity.notes}</Typography>}
-                <CardDetailRow icon={<PlaceIcon fontSize="small" />}>
-                  {locationSummary(activity.location)}
-                </CardDetailRow>
-                <CardDetailRow icon={<PhotoLibraryIcon fontSize="small" />}>
-                  {countLabel(activity.photoReferenceIds.length, 'photo')}
-                </CardDetailRow>
-                <CardDetailRow icon={<LinkIcon fontSize="small" />}>
-                  {countLabel(activity.referenceIds.length, 'link')}
-                </CardDetailRow>
-              </Stack>
+            <ClickableCard key={activity.activityId} to={`/activities/${activity.activityId}`}>
+              {(titleId) => (
+                <Stack spacing={1}>
+                  <Typography id={titleId} variant="h6">
+                    {title}
+                  </Typography>
+                  {subtitle && <Typography color="text.secondary">{subtitle}</Typography>}
+                  {activity.category && (
+                    <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: 'wrap' }}>
+                      <Chip label={statusLabels[activity.category]} />
+                    </Stack>
+                  )}
+                  {activity.notes && <Typography>{activity.notes}</Typography>}
+                  <CardDetailRow icon={<PlaceIcon fontSize="small" />}>
+                    {locationSummary(activity.location)}
+                  </CardDetailRow>
+                  <CardDetailRow icon={<PhotoLibraryIcon fontSize="small" />}>
+                    {countLabel(activity.photoReferenceIds.length, 'photo')}
+                  </CardDetailRow>
+                  <CardDetailRow icon={<LinkIcon fontSize="small" />}>
+                    {countLabel(activity.referenceIds.length, 'link')}
+                  </CardDetailRow>
+                </Stack>
+              )}
             </ClickableCard>
           )
         })}
