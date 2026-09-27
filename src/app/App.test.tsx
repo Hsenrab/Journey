@@ -67,7 +67,7 @@ describe('activity logging', () => {
     const user = userEvent.setup()
     render(<App />)
 
-    await user.click(screen.getAllByRole('link', { name: 'View waypoint' })[0])
+    await user.click(screen.getByRole('link', { name: 'Chedworth Roman Villa' }))
 
     await logActivity(user, 'Gold', '2026-08-01')
     expect(screen.getByText('Activity saved.')).toBeInTheDocument()
@@ -81,7 +81,7 @@ describe('activity logging', () => {
     cleanup()
     render(<App />)
     await user.click(within(screen.getByTestId('detail-breadcrumbs')).getByRole('link', { name: 'Waypoints' }))
-    await user.click(screen.getAllByRole('link', { name: 'View waypoint' })[0])
+    await user.click(screen.getByRole('link', { name: 'Chedworth Roman Villa' }))
     expect(screen.getByText('Category summary: Gold')).toBeInTheDocument()
   }, 20000)
 })

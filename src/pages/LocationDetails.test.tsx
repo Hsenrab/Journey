@@ -93,8 +93,34 @@ describe('LocationDetails', () => {
     })
     renderDetails(lacockId)
     expect(screen.getByRole('heading', { name: 'Ideas' })).toBeInTheDocument()
-    expect(screen.getByText('Scout route')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Scout route' })).toHaveAttribute('href', '/ideas/idea-1')
     expect(screen.getByText('Active · Not used')).toBeInTheDocument()
+  })
+
+  it('links each logged activity card to its activity', () => {
+    const seed = createDefaultData()
+    save({
+      ...seed,
+      activities: [
+        {
+          activityId: 'activity-1',
+          name: 'Abbey cloisters walk',
+          waypointId: lacockId,
+          ideaIds: [],
+          date: '2026-08-02',
+          category: 'gold',
+          notes: '',
+          location: { kind: 'postcode', postcode: 'SN15 2LG' },
+          photoReferenceIds: [],
+          referenceIds: [],
+          createdAt: '2026-08-02T00:00:00.000Z',
+          updatedAt: '2026-08-02T00:00:00.000Z',
+        },
+      ],
+    })
+    renderDetails(lacockId)
+    expect(screen.getByRole('heading', { name: 'Activity history' })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Abbey cloisters walk' })).toHaveAttribute('href', '/activities/activity-1')
   })
 
   it('does not offer waypoint mutations to a viewer', async () => {
