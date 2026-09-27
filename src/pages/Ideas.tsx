@@ -30,6 +30,9 @@ const brockworth = { latitude: 51.844, longitude: -2.153 }
 
 type SortKey = 'distance' | 'updated' | 'difficulty'
 type UsageFilter = 'all' | 'used' | 'not-used'
+type StateFilter = Idea['planningState'] | 'all'
+
+const stateFilters: StateFilter[] = ['all', ...planningStates]
 
 function distanceFromBrockworth(idea: Idea): number | undefined {
   if (idea.location?.latitude === undefined || idea.location?.longitude === undefined) return undefined
@@ -48,9 +51,9 @@ export default function Ideas() {
   const { data, addIdea, readOnly, reload } = useWaypoints()
   const [searchParams, setSearchParams] = useSearchParams()
   const stateParam = searchParams.get('state')
-  const selectedState = planningStates.includes(stateParam as Idea['planningState'])
+  const selectedState: StateFilter = planningStates.includes(stateParam as Idea['planningState'])
     ? (stateParam as Idea['planningState'])
-    : 'active'
+    : 'all'
   const showEditor = searchParams.get('mode') === 'add'
   const [query, setQuery] = useState('')
   const [usage, setUsage] = useState<UsageFilter>('all')
@@ -95,11 +98,11 @@ export default function Ideas() {
       ),
     [data.ideas],
   )
+  const allCount = data.ideas.length
 
-  const filteredIdeas = useMemo(() => {
+  const ideasMatchingSearchAndUsage = useMemo(() => {
     const loweredQuery = query.trim().toLowerCase()
     return data.ideas
-      .filter((idea) => idea.planningState === selectedState)
       .filter((idea) => {
         const count = ideaUsageCount(data.activities, idea.ideaId)
         if (usage === 'used') return count > 0
@@ -120,6 +123,11 @@ export default function Ideas() {
           .toLowerCase()
           .includes(loweredQuery)
       })
+  }, [data.activities, data.ideas, query, referenceById, usage, waypointById])
+
+  const filteredIdeas = useMemo(() => {
+    return ideasMatchingSearchAndUsage
+      .filter((idea) => selectedState === 'all' || idea.planningState === selectedState)
       .sort((a, b) => {
         if (sort === 'updated') return b.updatedAt.localeCompare(a.updatedAt)
         if (sort === 'difficulty') return a.difficulty - b.difficulty || a.title.localeCompare(b.title)
@@ -130,9 +138,24 @@ export default function Ideas() {
         if (distanceB === undefined) return -1
         return distanceA - distanceB || a.title.localeCompare(b.title)
       })
-  }, [data.activities, data.ideas, query, referenceById, selectedState, sort, usage, waypointById])
+  }, [ideasMatchingSearchAndUsage, selectedState, sort])
+
+  const otherStateMatchCount =
+    selectedState === 'all' || filteredIdeas.length > 0 ? 0 : ideasMatchingSearchAndUsage.length
 
   const initialWaypointId = searchParams.get('waypoint') ?? undefined
+  const clearStateFilter = () => {
+    setSearchParams((previous) => {
+      const next = new URLSearchParams(previous)
+      next.delete('state')
+      return next
+    })
+  }
+  const clearFilters = () => {
+    setQuery('')
+    setUsage('all')
+    clearStateFilter()
+  }
 
   return (
     <Stack spacing={2}>
@@ -153,22 +176,28 @@ export default function Ideas() {
           </Button>
         )}
         <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: 'wrap' }}>
-          {planningStates.map((state) => (
-            <Button
-              key={state}
-              variant={selectedState === state ? 'contained' : 'outlined'}
-              onClick={() =>
-                setSearchParams((previous) => {
-                  const next = new URLSearchParams(previous)
-                  next.set('state', state)
-                  return next
-                })
-              }
-              aria-label={`${planningStateLabels[state]} ideas (${counts[state]})`}
-            >
-              {planningStateLabels[state]} ({counts[state]})
-            </Button>
-          ))}
+          {stateFilters.map((state) => {
+            const label = state === 'all' ? 'All' : planningStateLabels[state]
+            const count = state === 'all' ? allCount : counts[state]
+            return (
+              <Button
+                key={state}
+                variant={selectedState === state ? 'contained' : 'outlined'}
+                onClick={() =>
+                  state === 'all'
+                    ? clearStateFilter()
+                    : setSearchParams((previous) => {
+                        const next = new URLSearchParams(previous)
+                        next.set('state', state)
+                        return next
+                      })
+                }
+                aria-label={`${label} ideas (${count})`}
+              >
+                {label} ({count})
+              </Button>
+            )
+          })}
         </Stack>
       </PageHeader>
       <FilterBar>
@@ -237,7 +266,23 @@ export default function Ideas() {
       )}
 
       {filteredIdeas.length === 0 ? (
-        <EmptyState icon={<SearchOffIcon color="disabled" />} message="No ideas match your filters." />
+        <EmptyState
+          icon={<SearchOffIcon color="disabled" />}
+          message={
+            allCount === 0
+              ? 'You have no ideas yet.'
+              : otherStateMatchCount > 0
+                ? `No ideas match your filters in this state, but ${otherStateMatchCount} match in other states.`
+                : 'No ideas match your filters.'
+          }
+          action={
+            otherStateMatchCount > 0 ? (
+              <Button onClick={clearStateFilter}>View matches in all states</Button>
+            ) : allCount > 0 ? (
+              <Button onClick={clearFilters}>Clear filters</Button>
+            ) : undefined
+          }
+        />
       ) : (
         <Box sx={{ display: 'grid', gap: 2, gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))' }}>
           {filteredIdeas.map((idea) => {
