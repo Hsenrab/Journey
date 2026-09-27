@@ -19,10 +19,10 @@ describe('waypoint list', () => {
     expect(screen.queryByText('Dyrham Park')).not.toBeInTheDocument()
   })
 
-  it('shows each waypoint driving distance', async () => {
+  it('shows waypoint distance and drive time', async () => {
     render(<App />)
 
-    expect(screen.getAllByText('49 miles from Brockworth').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('33.3 miles from Brockworth').length).toBeGreaterThan(0)
     expect(screen.getAllByText('75 min drive').length).toBeGreaterThan(0)
   })
 
@@ -38,15 +38,16 @@ describe('waypoint list', () => {
     expect(nearest.compareDocumentPosition(farther) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
   })
 
-  it('filters waypoints at the maximum driving distance inclusively', async () => {
+  it('filters waypoints by maximum distance', async () => {
     const user = userEvent.setup()
     render(<App />)
 
     await user.click(screen.getByRole('combobox', { name: 'Maximum driving distance' }))
-    await user.click(screen.getByRole('option', { name: 'Up to 25 miles' }))
+    await user.click(screen.getByRole('option', { name: 'Up to 25 miles (plus unknown)' }))
 
     expect(screen.getByText('Croome')).toBeInTheDocument()
-    expect(screen.queryByText('Snowshill Manor and Garden')).not.toBeInTheDocument()
+    expect(screen.getByText('Snowshill Manor and Garden')).toBeInTheDocument()
+    expect(screen.queryByText('Bath Skyline')).not.toBeInTheDocument()
   })
 })
 
