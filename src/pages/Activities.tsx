@@ -4,6 +4,7 @@ import LinkIcon from '@mui/icons-material/Link'
 import PhotoLibraryIcon from '@mui/icons-material/PhotoLibrary'
 import PlaceIcon from '@mui/icons-material/Place'
 import InboxOutlinedIcon from '@mui/icons-material/InboxOutlined'
+import { Link } from 'react-router-dom'
 import { ActivityEditor } from '../components/ActivityEditor'
 import { CardDetailRow } from '../components/CardDetailRow'
 import { ClickableCard } from '../components/ClickableCard'
@@ -102,30 +103,37 @@ export default function Activities() {
             const title = activityTitle(activity)
             const subtitle = [activitySubtitle(activity), waypoint?.title].filter(Boolean).join(' · ')
             return (
-              <ClickableCard key={activity.activityId} to={`/activities/${activity.activityId}`}>
-                {(titleId) => (
-                  <Stack spacing={1}>
-                    <Typography id={titleId} variant="h6">
-                      {title}
-                    </Typography>
-                    {subtitle && <Typography color="text.secondary">{subtitle}</Typography>}
-                    <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: 'wrap' }}>
-                      {activity.category && <Chip label={statusLabels[activity.category]} />}
-                      {waypoint && <Chip label={`Waypoint: ${waypoint.title}`} variant="outlined" />}
+              <Stack key={activity.activityId} spacing={1}>
+                <ClickableCard to={`/activities/${activity.activityId}`}>
+                  {(titleId) => (
+                    <Stack spacing={1}>
+                      <Typography id={titleId} variant="h6">
+                        {title}
+                      </Typography>
+                      {subtitle && <Typography color="text.secondary">{subtitle}</Typography>}
+                      <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: 'wrap' }}>
+                        {activity.category && <Chip label={statusLabels[activity.category]} />}
+                        {waypoint && <Chip label={`Waypoint: ${waypoint.title}`} variant="outlined" />}
+                      </Stack>
+                      <CardDetailRow icon={<PlaceIcon fontSize="small" />}>
+                        {locationSummary(activity.location)}
+                      </CardDetailRow>
+                      {activity.notes && <Typography>{activity.notes.slice(0, 140)}</Typography>}
+                      <CardDetailRow icon={<PhotoLibraryIcon fontSize="small" />}>
+                        {countLabel(activity.photoReferenceIds.length, 'photo')}
+                      </CardDetailRow>
+                      <CardDetailRow icon={<LinkIcon fontSize="small" />}>
+                        {countLabel(activity.referenceIds.length, 'link')}
+                      </CardDetailRow>
                     </Stack>
-                    <CardDetailRow icon={<PlaceIcon fontSize="small" />}>
-                      {locationSummary(activity.location)}
-                    </CardDetailRow>
-                    {activity.notes && <Typography>{activity.notes.slice(0, 140)}</Typography>}
-                    <CardDetailRow icon={<PhotoLibraryIcon fontSize="small" />}>
-                      {countLabel(activity.photoReferenceIds.length, 'photo')}
-                    </CardDetailRow>
-                    <CardDetailRow icon={<LinkIcon fontSize="small" />}>
-                      {countLabel(activity.referenceIds.length, 'link')}
-                    </CardDetailRow>
-                  </Stack>
+                  )}
+                </ClickableCard>
+                {waypoint && (
+                  <Button component={Link} to={`/waypoints/${waypoint.waypointId}`} variant="outlined">
+                    View waypoint
+                  </Button>
                 )}
-              </ClickableCard>
+              </Stack>
             )
           })
         )}

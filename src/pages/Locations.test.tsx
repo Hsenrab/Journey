@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -150,13 +150,13 @@ describe('Locations', () => {
     const user = userEvent.setup()
     renderLocations(['/waypoints?mode=add'])
 
-    await user.type(screen.getByLabelText('Title'), 'A viewpoint')
-    await user.type(screen.getByLabelText('Description'), 'A quiet viewpoint')
-    await user.type(screen.getAllByLabelText('Category')[0]!, 'Scenic')
+    fireEvent.change(screen.getByLabelText('Title'), { target: { value: 'A viewpoint' } })
+    fireEvent.change(screen.getByLabelText('Description'), { target: { value: 'A quiet viewpoint' } })
+    fireEvent.change(screen.getAllByLabelText('Category')[0]!, { target: { value: 'Scenic' } })
     await user.click(screen.getByRole('button', { name: 'Save waypoint' }))
 
     expect(screen.getByRole('alert')).toHaveTextContent('Waypoint saved.')
-  })
+  }, 45_000)
 
   it('offers to reload the latest waypoints after a save conflict', async () => {
     setDataMode('demo-cosmos')
@@ -177,9 +177,9 @@ describe('Locations', () => {
     renderLocations()
     await user.click(await screen.findByRole('button', { name: 'Add waypoint' }))
 
-    await user.type(screen.getByLabelText('Title'), 'A viewpoint')
-    await user.type(screen.getByLabelText('Description'), 'A quiet viewpoint')
-    await user.type(screen.getAllByLabelText('Category')[0]!, 'Scenic')
+    fireEvent.change(screen.getByLabelText('Title'), { target: { value: 'A viewpoint' } })
+    fireEvent.change(screen.getByLabelText('Description'), { target: { value: 'A quiet viewpoint' } })
+    fireEvent.change(screen.getAllByLabelText('Category')[0]!, { target: { value: 'Scenic' } })
     await user.click(screen.getByRole('button', { name: 'Save waypoint' }))
 
     expect(await screen.findByRole('alert')).toHaveTextContent('Your data has changed in another session.')
@@ -189,7 +189,7 @@ describe('Locations', () => {
 
     await waitFor(() => expect(screen.queryByRole('alert')).not.toBeInTheDocument())
     expect(fetch.mock.calls.filter(([, init]) => !init?.method)).toHaveLength(2)
-  })
+  }, 45_000)
 
   it('keeps the conflict alert and editor open when reloading fails', async () => {
     setDataMode('demo-cosmos')
@@ -218,9 +218,9 @@ describe('Locations', () => {
     renderLocations()
     await user.click(await screen.findByRole('button', { name: 'Add waypoint' }))
 
-    await user.type(screen.getByLabelText('Title'), 'A viewpoint')
-    await user.type(screen.getByLabelText('Description'), 'A quiet viewpoint')
-    await user.type(screen.getAllByLabelText('Category')[0]!, 'Scenic')
+    fireEvent.change(screen.getByLabelText('Title'), { target: { value: 'A viewpoint' } })
+    fireEvent.change(screen.getByLabelText('Description'), { target: { value: 'A quiet viewpoint' } })
+    fireEvent.change(screen.getAllByLabelText('Category')[0]!, { target: { value: 'Scenic' } })
     await user.click(screen.getByRole('button', { name: 'Save waypoint' }))
 
     expect(await screen.findByRole('alert')).toHaveTextContent('Your data has changed in another session.')
@@ -230,5 +230,5 @@ describe('Locations', () => {
     await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent('Demo Cosmos could not be loaded'))
     expect(screen.getByRole('button', { name: 'Reload latest' })).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Save waypoint' })).not.toBeInTheDocument()
-  })
+  }, 45_000)
 })

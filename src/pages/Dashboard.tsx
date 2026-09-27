@@ -62,7 +62,11 @@ export default function Dashboard() {
           }}
         >
           {awardableStatuses.map((status) => (
-            <ClickableCard key={status} to={`/waypoints?status=${status}`}>
+            <ClickableCard
+              key={status}
+              to={`/waypoints?status=${status}`}
+              ariaLabel={`${statusLabels[status]} ${counts[status]}`}
+            >
               {(titleId) => (
                 <>
                   <Typography id={titleId} variant="h6">
