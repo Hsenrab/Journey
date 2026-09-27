@@ -1,7 +1,7 @@
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
-import { beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import LocationDetails from './LocationDetails'
 import { WaypointsProvider } from '../features/journey/JourneyContext'
 import { createDefaultData, load, save } from '../services/storage'
@@ -22,15 +22,24 @@ function renderDetails(id: string) {
 
 describe('LocationDetails', () => {
   beforeEach(() => localStorage.clear())
+  afterEach(() => {
+    vi.restoreAllMocks()
+    vi.unstubAllGlobals()
+    vi.unstubAllEnvs()
+  })
 
   it('shows an error when the waypoint is not found', () => {
     renderDetails('does-not-exist')
     expect(screen.getByText('Waypoint not found.')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Waypoints' })).toHaveAttribute('href', '/waypoints')
   })
 
   it('shows the waypoint details', () => {
     renderDetails(lacockId)
-    expect(screen.getByRole('heading', { name: 'Lacock Abbey, Fox Talbot Museum and Village' })).toBeInTheDocument()
+    expect(
+      screen.getByRole('heading', { name: 'Lacock Abbey, Fox Talbot Museum and Village', level: 1 }),
+    ).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Waypoints' })).toHaveAttribute('href', '/waypoints')
   })
 
   it('adds a linked activity', async () => {
@@ -86,5 +95,21 @@ describe('LocationDetails', () => {
     expect(screen.getByRole('heading', { name: 'Ideas' })).toBeInTheDocument()
     expect(screen.getByText('Scout route')).toBeInTheDocument()
     expect(screen.getByText('Active · Not used')).toBeInTheDocument()
+  })
+
+  it('does not offer waypoint mutations to a viewer', async () => {
+    vi.stubEnv('MODE', 'production')
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(new Response(JSON.stringify({ data: createDefaultData(), etags: {}, role: 'viewer' }))),
+    )
+
+    renderDetails(lacockId)
+
+    expect(
+      await screen.findByRole('heading', { name: 'Lacock Abbey, Fox Talbot Museum and Village', level: 1 }),
+    ).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Log activity' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Add idea' })).not.toBeInTheDocument()
   })
 })

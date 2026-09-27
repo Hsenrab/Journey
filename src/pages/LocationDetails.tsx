@@ -1,11 +1,19 @@
 import { useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { Alert, Button, Card, CardContent, Chip, Stack, Typography } from '@mui/material'
+import LinkIcon from '@mui/icons-material/Link'
+import PhotoLibraryIcon from '@mui/icons-material/PhotoLibrary'
+import PlaceIcon from '@mui/icons-material/Place'
 import InboxOutlinedIcon from '@mui/icons-material/InboxOutlined'
 import { ActivityEditor } from '../components/ActivityEditor'
+import { CardDetailRow } from '../components/CardDetailRow'
+import { DetailPageHeader } from '../components/DetailPageHeader'
 import { EmptyState } from '../components/EmptyState'
 import { locations } from '../data/locations'
 import {
+  activitySubtitle,
+  activityTitle,
+  countLabel,
   ideaUsageCount,
   ideaUsageLabel,
   ideasForWaypoint,
@@ -25,15 +33,14 @@ export default function LocationDetails() {
   const [message, setMessage] = useState<{ severity: 'success' | 'error'; text: string; conflict: boolean } | null>(
     null,
   )
+  const breadcrumbs = [{ label: 'Waypoints', to: '/waypoints' }]
   const waypoint = data.waypoints.find((item) => item.waypointId === id)
   const sourceLocation = waypoint ? catalogueLocationById.get(waypoint.waypointId) : undefined
 
   if (!waypoint) {
     return (
       <Stack spacing={3}>
-        <Button component={Link} to="/waypoints">
-          ← All waypoints
-        </Button>
+        <DetailPageHeader breadcrumbs={breadcrumbs} title="Waypoint" />
         <Alert severity="error">Waypoint not found.</Alert>
       </Stack>
     )
@@ -56,10 +63,24 @@ export default function LocationDetails() {
 
   return (
     <Stack spacing={3}>
-      <Button component={Link} to="/waypoints">
-        ← All waypoints
-      </Button>
-      <Typography variant="h4">{waypoint.title}</Typography>
+      <DetailPageHeader breadcrumbs={breadcrumbs} title={waypoint.title}>
+        {!readOnly && !showEditor && (
+          <Button
+            variant="contained"
+            onClick={() => {
+              setMessage(null)
+              setShowEditor(true)
+            }}
+          >
+            Log activity
+          </Button>
+        )}
+        {!readOnly && (
+          <Button component={Link} to={`/ideas?mode=add&waypoint=${encodeURIComponent(id)}`}>
+            Add idea
+          </Button>
+        )}
+      </DetailPageHeader>
       <Chip label={`Category summary: ${statusLabels[statusFor(id)]}`} />
       <Typography>{waypoint.description}</Typography>
       {sourceLocation && (
@@ -84,55 +105,33 @@ export default function LocationDetails() {
         </Alert>
       )}
 
-      {!readOnly &&
-        (showEditor ? (
-          <ActivityEditor
-            data={data}
-            initialWaypointId={id}
-            submitLabel="Save activity"
-            onSubmit={async (draft) => {
-              try {
-                await addActivity(draft)
-                setShowEditor(false)
-                setMessage({ severity: 'success', text: 'Activity saved.', conflict: false })
-              } catch (error) {
-                setMessage({
-                  severity: 'error',
-                  text: error instanceof Error ? error.message : 'Failed to save activity.',
-                  conflict: error instanceof JourneyConflictError,
-                })
-              }
-            }}
-            onCancel={() => {
-              setMessage(null)
+      {!readOnly && showEditor && (
+        <ActivityEditor
+          data={data}
+          initialWaypointId={id}
+          submitLabel="Save activity"
+          onSubmit={async (draft) => {
+            try {
+              await addActivity(draft)
               setShowEditor(false)
-            }}
-          />
-        ) : (
-          <Button
-            variant="contained"
-            onClick={() => {
-              setMessage(null)
-              setShowEditor(true)
-            }}
-          >
-            Log activity
-          </Button>
-        ))}
+              setMessage({ severity: 'success', text: 'Activity saved.', conflict: false })
+            } catch (error) {
+              setMessage({
+                severity: 'error',
+                text: error instanceof Error ? error.message : 'Failed to save activity.',
+                conflict: error instanceof JourneyConflictError,
+              })
+            }
+          }}
+          onCancel={() => {
+            setMessage(null)
+            setShowEditor(false)
+          }}
+        />
+      )}
 
       <Stack spacing={2}>
-        <Stack
-          direction={{ xs: 'column', sm: 'row' }}
-          spacing={1}
-          sx={{ justifyContent: 'space-between', alignItems: { sm: 'center' } }}
-        >
-          <Typography variant="h5">Ideas</Typography>
-          {!readOnly && (
-            <Button component={Link} to={`/ideas?mode=add&waypoint=${encodeURIComponent(id)}`}>
-              Add idea
-            </Button>
-          )}
-        </Stack>
+        <Typography variant="h5">Ideas</Typography>
         {waypointIdeas.length === 0 ? (
           <EmptyState icon={<InboxOutlinedIcon color="disabled" />} message="No ideas linked to this waypoint." />
         ) : (
@@ -160,19 +159,36 @@ export default function LocationDetails() {
         {activities.length === 0 && (
           <EmptyState icon={<InboxOutlinedIcon color="disabled" />} message="No activities logged yet." />
         )}
-        {activities.map((activity) => (
-          <Card key={activity.activityId}>
-            <CardContent>
-              <Stack spacing={1}>
-                <Typography variant="h6" component={Link} to={`/activities/${activity.activityId}`}>
-                  {activity.date}
-                </Typography>
-                {activity.notes && <Typography>{activity.notes}</Typography>}
-                <Typography color="text.secondary">{locationSummary(activity.location)}</Typography>
-              </Stack>
-            </CardContent>
-          </Card>
-        ))}
+        {activities.map((activity) => {
+          const subtitle = activitySubtitle(activity)
+          return (
+            <Card key={activity.activityId}>
+              <CardContent>
+                <Stack spacing={1}>
+                  <Typography variant="h6" component={Link} to={`/activities/${activity.activityId}`}>
+                    {activityTitle(activity)}
+                  </Typography>
+                  {subtitle && <Typography color="text.secondary">{subtitle}</Typography>}
+                  {activity.category && (
+                    <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: 'wrap' }}>
+                      <Chip label={statusLabels[activity.category]} />
+                    </Stack>
+                  )}
+                  {activity.notes && <Typography>{activity.notes}</Typography>}
+                  <CardDetailRow icon={<PlaceIcon fontSize="small" />}>
+                    {locationSummary(activity.location)}
+                  </CardDetailRow>
+                  <CardDetailRow icon={<PhotoLibraryIcon fontSize="small" />}>
+                    {countLabel(activity.photoReferenceIds.length, 'photo')}
+                  </CardDetailRow>
+                  <CardDetailRow icon={<LinkIcon fontSize="small" />}>
+                    {countLabel(activity.referenceIds.length, 'link')}
+                  </CardDetailRow>
+                </Stack>
+              </CardContent>
+            </Card>
+          )
+        })}
       </Stack>
     </Stack>
   )

@@ -16,8 +16,16 @@ import {
 } from '@mui/material'
 import InboxOutlinedIcon from '@mui/icons-material/InboxOutlined'
 import { ActivityEditor } from '../components/ActivityEditor'
+import { DetailPageHeader } from '../components/DetailPageHeader'
 import { EmptyState } from '../components/EmptyState'
-import { ideasForActivity, locationSummary, statusLabels } from '../domain/visit'
+import {
+  activitySubtitle,
+  activityTitle,
+  formatActivityDate,
+  ideasForActivity,
+  locationSummary,
+  statusLabels,
+} from '../domain/visit'
 import { useWaypoints } from '../features/journey/JourneyContext'
 import { JourneyConflictError } from '../services/journeyApi'
 
@@ -37,14 +45,18 @@ export default function ActivityDetails() {
   const waypoint = activity?.waypointId
     ? data.waypoints.find((item) => item.waypointId === activity.waypointId)
     : undefined
-  const backTarget = waypoint ? `/waypoints/${waypoint.waypointId}` : '/activities'
+  const breadcrumbs = waypoint
+    ? [
+        { label: 'Waypoints', to: '/waypoints' },
+        { label: waypoint.title, to: `/waypoints/${waypoint.waypointId}` },
+      ]
+    : [{ label: 'Activities', to: '/activities' }]
+  const backTarget = breadcrumbs[breadcrumbs.length - 1].to
 
   if (!activity) {
     return (
       <Stack spacing={3}>
-        <Button component={Link} to={backTarget}>
-          ← Activity log
-        </Button>
+        <DetailPageHeader breadcrumbs={breadcrumbs} title="Activity" />
         <Alert severity="error">Activity not found.</Alert>
       </Stack>
     )
@@ -65,7 +77,7 @@ export default function ActivityDetails() {
     }
   }
 
-  const detailHeading = [activity.date, waypoint?.title].filter(Boolean).join(' · ')
+  const detailSubtitle = [activitySubtitle(activity), waypoint?.title].filter(Boolean).join(' · ')
   const reloadLatest = async () => {
     const result = await reload()
     if (result.status === 'failure') {
@@ -82,9 +94,18 @@ export default function ActivityDetails() {
 
   return (
     <Stack spacing={3}>
-      <Button component={Link} to={backTarget}>
-        ← Activity log
-      </Button>
+      <DetailPageHeader breadcrumbs={breadcrumbs} title={activityTitle(activity)}>
+        {!readOnly && !editing && (
+          <>
+            <Button variant="contained" onClick={() => setEditing(true)}>
+              Edit activity
+            </Button>
+            <Button color="error" onClick={() => setShowDeleteDialog(true)}>
+              Delete activity
+            </Button>
+          </>
+        )}
+      </DetailPageHeader>
 
       {message && (
         <Alert
@@ -101,7 +122,7 @@ export default function ActivityDetails() {
         </Alert>
       )}
 
-      <Typography variant="h4">{detailHeading}</Typography>
+      {detailSubtitle && <Typography color="text.secondary">{detailSubtitle}</Typography>}
       <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: 'wrap' }}>
         {activity.category && <Chip label={statusLabels[activity.category]} />}
         {waypoint && (
@@ -212,47 +233,37 @@ export default function ActivityDetails() {
         )}
       </Stack>
 
-      {!readOnly &&
-        (editing ? (
-          <ActivityEditor
-            data={data}
-            initialActivity={activity}
-            initialReferences={references}
-            initialPhotoReferences={photoReferences}
-            submitLabel="Save changes"
-            onSubmit={async (draft) => {
-              try {
-                await updateActivity(activity.activityId, draft)
-                setEditing(false)
-                setMessage({ severity: 'success', text: 'Activity updated.' })
-              } catch (error) {
-                setMessage({
-                  severity: 'error',
-                  text: error instanceof Error ? error.message : 'Failed to update activity.',
-                  conflict: error instanceof JourneyConflictError,
-                })
-              }
-            }}
-            onCancel={() => setEditing(false)}
-            onDelete={() => setShowDeleteDialog(true)}
-          />
-        ) : (
-          <Stack direction="row" spacing={1}>
-            <Button variant="contained" onClick={() => setEditing(true)}>
-              Edit activity
-            </Button>
-            <Button color="error" onClick={() => setShowDeleteDialog(true)}>
-              Delete activity
-            </Button>
-          </Stack>
-        ))}
+      {!readOnly && editing && (
+        <ActivityEditor
+          data={data}
+          initialActivity={activity}
+          initialReferences={references}
+          initialPhotoReferences={photoReferences}
+          submitLabel="Save changes"
+          onSubmit={async (draft) => {
+            try {
+              await updateActivity(activity.activityId, draft)
+              setEditing(false)
+              setMessage({ severity: 'success', text: 'Activity updated.' })
+            } catch (error) {
+              setMessage({
+                severity: 'error',
+                text: error instanceof Error ? error.message : 'Failed to update activity.',
+                conflict: error instanceof JourneyConflictError,
+              })
+            }
+          }}
+          onCancel={() => setEditing(false)}
+          onDelete={() => setShowDeleteDialog(true)}
+        />
+      )}
 
       {!readOnly && (
         <Dialog open={showDeleteDialog} onClose={() => setShowDeleteDialog(false)}>
           <DialogTitle>Delete activity?</DialogTitle>
           <DialogContent>
             <Typography>
-              Delete activity on {activity.date}
+              Delete activity on {formatActivityDate(activity.date)}
               {waypoint ? ` linked to ${waypoint.title}` : ''}? Linked ideas and waypoints are preserved, and idea usage
               updates after reloading the dataset.
             </Typography>

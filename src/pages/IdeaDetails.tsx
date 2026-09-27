@@ -13,10 +13,13 @@ import {
   Typography,
 } from '@mui/material'
 import InboxOutlinedIcon from '@mui/icons-material/InboxOutlined'
+import { DetailPageHeader } from '../components/DetailPageHeader'
 import { EmptyState } from '../components/EmptyState'
 import { IdeaEditor } from '../components/IdeaEditor'
 import {
   activitiesUsingIdea,
+  activitySubtitle,
+  activityTitle,
   difficultyDescriptions,
   difficultyLabels,
   ideaLocationSummary,
@@ -34,13 +37,12 @@ export default function IdeaDetails() {
   const [error, setError] = useState<string | null>(null)
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
 
+  const breadcrumbs = [{ label: 'Ideas', to: '/ideas' }]
   const idea = data.ideas.find((item) => item.ideaId === ideaId)
   if (!idea) {
     return (
       <Stack spacing={3}>
-        <Button component={Link} to="/ideas">
-          ← Ideas
-        </Button>
+        <DetailPageHeader breadcrumbs={breadcrumbs} title="Idea" />
         <Alert severity="error">Idea not found.</Alert>
       </Stack>
     )
@@ -57,10 +59,18 @@ export default function IdeaDetails() {
 
   return (
     <Stack spacing={3}>
-      <Button component={Link} to="/ideas">
-        ← Ideas
-      </Button>
-      <Typography variant="h4">{idea.title}</Typography>
+      <DetailPageHeader breadcrumbs={breadcrumbs} title={idea.title}>
+        {!readOnly && !editing && (
+          <>
+            <Button variant="contained" onClick={() => setEditing(true)}>
+              Edit idea
+            </Button>
+            <Button color="error" onClick={() => setShowDeleteDialog(true)}>
+              Delete idea
+            </Button>
+          </>
+        )}
+      </DetailPageHeader>
       {!editing && error && <Alert severity="error">{error}</Alert>}
       <Typography color="text.secondary">{idea.description || 'No description'}</Typography>
       <Typography sx={{ whiteSpace: 'pre-wrap' }}>{idea.notes || 'No notes'}</Typography>
@@ -106,11 +116,13 @@ export default function IdeaDetails() {
               const waypoint = activity.waypointId
                 ? data.waypoints.find((item) => item.waypointId === activity.waypointId)
                 : undefined
+              const subtitle = activitySubtitle(activity)
               return (
                 <Card key={activity.activityId}>
                   <CardContent>
                     <Stack spacing={1}>
-                      <Typography>{activity.date}</Typography>
+                      <Typography>{activityTitle(activity)}</Typography>
+                      {subtitle && <Typography color="text.secondary">{subtitle}</Typography>}
                       <Typography color="text.secondary">
                         {waypoint ? `Waypoint: ${waypoint.title}` : 'No linked waypoint'}
                       </Typography>
@@ -125,35 +137,25 @@ export default function IdeaDetails() {
           </>
         )}
       </Stack>
-      {!readOnly &&
-        (editing ? (
-          <IdeaEditor
-            data={data}
-            initialIdea={idea}
-            initialReferences={references}
-            submitLabel="Save changes"
-            onSubmit={async (draft) => {
-              try {
-                await updateIdea(idea.ideaId, draft)
-                setEditing(false)
-              } catch (cause) {
-                setError(cause instanceof Error ? cause.message : 'Failed to update idea.')
-              }
-            }}
-            onCancel={() => setEditing(false)}
-            onDelete={() => setShowDeleteDialog(true)}
-            errorMessage={error}
-          />
-        ) : (
-          <Stack direction="row" spacing={1}>
-            <Button variant="contained" onClick={() => setEditing(true)}>
-              Edit idea
-            </Button>
-            <Button color="error" onClick={() => setShowDeleteDialog(true)}>
-              Delete idea
-            </Button>
-          </Stack>
-        ))}
+      {!readOnly && editing && (
+        <IdeaEditor
+          data={data}
+          initialIdea={idea}
+          initialReferences={references}
+          submitLabel="Save changes"
+          onSubmit={async (draft) => {
+            try {
+              await updateIdea(idea.ideaId, draft)
+              setEditing(false)
+            } catch (cause) {
+              setError(cause instanceof Error ? cause.message : 'Failed to update idea.')
+            }
+          }}
+          onCancel={() => setEditing(false)}
+          onDelete={() => setShowDeleteDialog(true)}
+          errorMessage={error}
+        />
+      )}
       {!readOnly && (
         <Dialog open={showDeleteDialog} onClose={() => setShowDeleteDialog(false)}>
           <DialogTitle>Delete idea?</DialogTitle>

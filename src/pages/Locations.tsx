@@ -1,7 +1,10 @@
 import { useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { Alert, Box, Button, Card, CardContent, Chip, MenuItem, Stack, TextField, Typography } from '@mui/material'
+import DirectionsCarIcon from '@mui/icons-material/DirectionsCar'
+import RouteIcon from '@mui/icons-material/Route'
 import SearchOffIcon from '@mui/icons-material/SearchOff'
+import { CardDetailRow } from '../components/CardDetailRow'
 import { EmptyState } from '../components/EmptyState'
 import { FilterBar } from '../components/FilterBar'
 import { PageHeader } from '../components/PageHeader'
@@ -193,21 +196,13 @@ export default function Locations() {
         />
       )}
       <FilterBar>
-        <TextField
-          label="Search waypoints"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          size="small"
-          fullWidth
-        />
+        <TextField label="Search waypoints" value={query} onChange={(e) => setQuery(e.target.value)} />
         <TextField
           id="waypoint-status"
           select
           label="Status"
           value={status}
           onChange={(e) => setStatus(e.target.value)}
-          size="small"
-          fullWidth
         >
           <MenuItem value="all">All statuses</MenuItem>
           {statusOrder.map((s) => (
@@ -222,8 +217,6 @@ export default function Locations() {
           label="Sort"
           value={sort}
           onChange={(e) => setSort(e.target.value as SortKey)}
-          size="small"
-          fullWidth
         >
           <MenuItem value="name">Name</MenuItem>
           <MenuItem value="status">Progress</MenuItem>
@@ -237,8 +230,6 @@ export default function Locations() {
           label="Maximum driving distance"
           value={maxDistance}
           onChange={(e) => setMaxDistance(e.target.value)}
-          size="small"
-          fullWidth
         >
           <MenuItem value="all">Any distance</MenuItem>
           <MenuItem value="25">Up to 25 miles</MenuItem>
@@ -246,7 +237,7 @@ export default function Locations() {
           <MenuItem value="100">Up to 100 miles</MenuItem>
           <MenuItem value="200">Up to 200 miles</MenuItem>
         </TextField>
-        <TextField select label="Area" value={area} onChange={(e) => setArea(e.target.value)} size="small" fullWidth>
+        <TextField select label="Area" value={area} onChange={(e) => setArea(e.target.value)}>
           <MenuItem value="all">All areas</MenuItem>
           {areas.map((item) => (
             <MenuItem key={item} value={item}>
@@ -254,14 +245,7 @@ export default function Locations() {
             </MenuItem>
           ))}
         </TextField>
-        <TextField
-          select
-          label="Category"
-          value={category}
-          onChange={(e) => setCategory(e.target.value)}
-          size="small"
-          fullWidth
-        >
+        <TextField select label="Category" value={category} onChange={(e) => setCategory(e.target.value)}>
           <MenuItem value="all">All categories</MenuItem>
           {categories.map((item) => (
             <MenuItem key={item} value={item}>
@@ -282,6 +266,7 @@ export default function Locations() {
         >
           {list.map((waypoint) => {
             const source = locationById.get(waypoint.waypointId)
+            const waypointStatus = statusFor(waypoint.waypointId)
             return (
               <Card key={waypoint.waypointId}>
                 <CardContent>
@@ -290,20 +275,31 @@ export default function Locations() {
                     <Typography color="text.secondary">
                       {(source?.area ?? 'Custom') + ' · ' + (source?.category ?? waypoint.category)}
                     </Typography>
+                    <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: 'wrap' }}>
+                      <Chip
+                        label={statusLabels[waypointStatus]}
+                        color={waypointStatus === 'gold' ? 'success' : 'default'}
+                      />
+                    </Stack>
                     {source ? (
-                      <Typography variant="body2" color="text.secondary">
-                        Driving distance: {source.travel.distanceMiles} miles from Brockworth (~
-                        {source.travel.driveTimeMinutes} min drive)
-                      </Typography>
+                      <>
+                        <CardDetailRow icon={<RouteIcon fontSize="small" />}>
+                          {source.travel.distanceMiles} miles from Brockworth
+                        </CardDetailRow>
+                        <CardDetailRow icon={<DirectionsCarIcon fontSize="small" />}>
+                          {source.travel.driveTimeMinutes} min drive
+                        </CardDetailRow>
+                      </>
                     ) : (
-                      <Typography variant="body2" color="text.secondary">
-                        Driving distance unavailable for custom waypoints.
-                      </Typography>
+                      <>
+                        <CardDetailRow icon={<RouteIcon fontSize="small" />}>
+                          Distance unavailable for custom waypoints
+                        </CardDetailRow>
+                        <CardDetailRow icon={<DirectionsCarIcon fontSize="small" />}>
+                          Drive time unavailable for custom waypoints
+                        </CardDetailRow>
+                      </>
                     )}
-                    <Chip
-                      label={statusLabels[statusFor(waypoint.waypointId)]}
-                      color={statusFor(waypoint.waypointId) === 'gold' ? 'success' : 'default'}
-                    />
                     <Button component={Link} to={`/waypoints/${waypoint.waypointId}`}>
                       View waypoint
                     </Button>

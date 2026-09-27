@@ -198,6 +198,23 @@ export type Activity = z.infer<typeof ActivitySchema>
 export type ActivityLocation = z.infer<typeof ActivityLocationSchema>
 export type WaypointsData = z.infer<typeof DataSchema>
 
+export function formatActivityDate(date: string) {
+  // Parse as local midnight so date-only activity values do not shift by UTC offset when displayed.
+  return new Date(`${date}T00:00:00`).toLocaleDateString()
+}
+
+export function activityTitle(activity: Activity) {
+  return activity.name ?? formatActivityDate(activity.date)
+}
+
+export function activitySubtitle(activity: Activity) {
+  return activity.name ? formatActivityDate(activity.date) : undefined
+}
+
+export function countLabel(count: number, singular: string) {
+  return `${count} ${singular}${count === 1 ? '' : 's'}`
+}
+
 export function locationSummary(location: ActivityLocation): string {
   return location.kind === 'postcode'
     ? `Postcode: ${location.postcode}`
