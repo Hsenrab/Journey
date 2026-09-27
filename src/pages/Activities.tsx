@@ -111,10 +111,11 @@ export default function Activities() {
                         {title}
                       </Typography>
                       {subtitle && <Typography color="text.secondary">{subtitle}</Typography>}
-                      <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: 'wrap' }}>
-                        {activity.category && <Chip label={statusLabels[activity.category]} />}
-                        {waypoint && <Chip label={`Waypoint: ${waypoint.title}`} variant="outlined" />}
-                      </Stack>
+                      {activity.category && (
+                        <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: 'wrap' }}>
+                          <Chip label={statusLabels[activity.category]} />
+                        </Stack>
+                      )}
                       <CardDetailRow icon={<PlaceIcon fontSize="small" />}>
                         {locationSummary(activity.location)}
                       </CardDetailRow>
@@ -130,7 +131,7 @@ export default function Activities() {
                 </ClickableCard>
                 {waypoint && (
                   <Button component={Link} to={`/waypoints/${waypoint.waypointId}`} variant="outlined">
-                    View waypoint
+                    View {waypoint.title} waypoint
                   </Button>
                 )}
               </Stack>

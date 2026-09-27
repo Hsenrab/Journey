@@ -272,7 +272,9 @@ export default function Ideas() {
             allCount === 0
               ? 'You have no ideas yet.'
               : otherStateMatchCount > 0
-                ? `No ideas match your filters in this state, but ${otherStateMatchCount} match in other states.`
+                ? `No ideas match your filters in this state, but ${otherStateMatchCount} ${
+                    otherStateMatchCount === 1 ? 'match' : 'matches'
+                  } in other states.`
                 : 'No ideas match your filters.'
           }
           action={

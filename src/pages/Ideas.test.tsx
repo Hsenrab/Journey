@@ -149,6 +149,18 @@ describe('Ideas', () => {
           createdAt: '2026-08-01T00:00:00.000Z',
           updatedAt: '2026-08-01T00:00:00.000Z',
         },
+        {
+          ideaId: 'idea-2',
+          title: 'Evening hill walk',
+          description: '',
+          notes: '',
+          waypointIds: [],
+          planningState: 'someday',
+          difficulty: 2,
+          referenceIds: [],
+          createdAt: '2026-08-02T00:00:00.000Z',
+          updatedAt: '2026-08-02T00:00:00.000Z',
+        },
       ],
     })
 
@@ -157,7 +169,7 @@ describe('Ideas', () => {
     await user.type(screen.getByLabelText('Search ideas'), 'hill walk')
 
     expect(
-      screen.getByText('No ideas match your filters in this state, but 1 match in other states.'),
+      screen.getByText('No ideas match your filters in this state, but 2 matches in other states.'),
     ).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: 'View matches in all states' }))
     expect(screen.getByText('Weekend hill walk')).toBeInTheDocument()
