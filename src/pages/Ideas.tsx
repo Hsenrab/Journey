@@ -120,14 +120,17 @@ export default function Ideas() {
     selectedState === 'all' || filteredIdeas.length > 0 ? 0 : ideasMatchingSearchAndUsage.length
 
   const initialWaypointId = searchParams.get('waypoint') ?? undefined
-  const clearFilters = () => {
-    setQuery('')
-    setUsage('all')
+  const clearStateFilter = () => {
     setSearchParams((previous) => {
       const next = new URLSearchParams(previous)
       next.delete('state')
       return next
     })
+  }
+  const clearFilters = () => {
+    setQuery('')
+    setUsage('all')
+    clearStateFilter()
   }
 
   return (
@@ -157,12 +160,13 @@ export default function Ideas() {
                 key={state}
                 variant={selectedState === state ? 'contained' : 'outlined'}
                 onClick={() =>
-                  setSearchParams((previous) => {
-                    const next = new URLSearchParams(previous)
-                    if (state === 'all') next.delete('state')
-                    else next.set('state', state)
-                    return next
-                  })
+                  state === 'all'
+                    ? clearStateFilter()
+                    : setSearchParams((previous) => {
+                        const next = new URLSearchParams(previous)
+                        next.set('state', state)
+                        return next
+                      })
                 }
                 aria-label={`${label} ideas (${count})`}
               >
@@ -238,17 +242,7 @@ export default function Ideas() {
           }
           action={
             otherStateMatchCount > 0 ? (
-              <Button
-                onClick={() =>
-                  setSearchParams((previous) => {
-                    const next = new URLSearchParams(previous)
-                    next.delete('state')
-                    return next
-                  })
-                }
-              >
-                View matches in all states
-              </Button>
+              <Button onClick={clearStateFilter}>View matches in all states</Button>
             ) : allCount > 0 ? (
               <Button onClick={clearFilters}>Clear filters</Button>
             ) : undefined
