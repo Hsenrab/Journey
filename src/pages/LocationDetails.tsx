@@ -31,7 +31,7 @@ export default function LocationDetails() {
   const { id = '' } = useParams()
   const { addActivity, activitiesFor, statusFor, data, readOnly, reload } = useWaypoints()
   const [showEditor, setShowEditor] = useState(false)
-  const [message, setMessage] = useState<{ severity: 'success' | 'error'; text: string; conflict?: boolean } | null>(
+  const [message, setMessage] = useState<{ severity: 'success' | 'error'; text: string; conflict: boolean } | null>(
     null,
   )
   const breadcrumbs = [{ label: 'Waypoints', to: '/waypoints' }]
@@ -50,20 +50,29 @@ export default function LocationDetails() {
   const activities = activitiesFor(id)
   const waypointIdeas = ideasForWaypoint(data.ideas, id)
   const reloadLatest = async () => {
-    try {
-      await reload()
-      setMessage(null)
-      setShowEditor(false)
-    } catch (error) {
-      setMessage({ severity: 'error', text: error instanceof Error ? error.message : 'Failed to reload activities.' })
+    const result = await reload()
+    if (result.status === 'failure') {
+      setMessage({ severity: 'error', text: result.message, conflict: true })
+      return
     }
+    if (result.status === 'superseded') {
+      return
+    }
+    setMessage(null)
+    setShowEditor(false)
   }
 
   return (
     <Stack spacing={3}>
       <DetailPageHeader breadcrumbs={breadcrumbs} title={waypoint.title}>
         {!readOnly && !showEditor && (
-          <Button variant="contained" onClick={() => setShowEditor(true)}>
+          <Button
+            variant="contained"
+            onClick={() => {
+              setMessage(null)
+              setShowEditor(true)
+            }}
+          >
             Log activity
           </Button>
         )}
@@ -106,7 +115,7 @@ export default function LocationDetails() {
             try {
               await addActivity(draft)
               setShowEditor(false)
-              setMessage({ severity: 'success', text: 'Activity saved.' })
+              setMessage({ severity: 'success', text: 'Activity saved.', conflict: false })
             } catch (error) {
               setMessage({
                 severity: 'error',
@@ -115,7 +124,10 @@ export default function LocationDetails() {
               })
             }
           }}
-          onCancel={() => setShowEditor(false)}
+          onCancel={() => {
+            setMessage(null)
+            setShowEditor(false)
+          }}
         />
       )}
 

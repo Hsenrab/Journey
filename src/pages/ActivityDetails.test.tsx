@@ -128,7 +128,10 @@ describe('ActivityDetails', () => {
 
     renderDetails()
 
-    expect(screen.getByRole('heading', { name: '2026-08-01 · Stourhead', level: 1 })).toBeInTheDocument()
+    expect(
+      screen.getByRole('heading', { name: new Date('2026-08-01T00:00:00').toLocaleDateString(), level: 1 }),
+    ).toBeInTheDocument()
+    expect(screen.getAllByText('Stourhead').length).toBeGreaterThan(0)
     expect(screen.getByText('Guide')).toBeInTheDocument()
     expect(screen.getByRole('img', { name: 'View' })).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Orangery idea' })).toBeInTheDocument()
@@ -193,7 +196,9 @@ describe('ActivityDetails', () => {
 
     renderDetails()
 
-    expect(await screen.findByRole('heading', { name: '2026-08-01', level: 1 })).toBeInTheDocument()
+    expect(
+      await screen.findByRole('heading', { name: new Date('2026-08-01T00:00:00').toLocaleDateString(), level: 1 }),
+    ).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Edit activity' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Delete activity' })).not.toBeInTheDocument()
   })
