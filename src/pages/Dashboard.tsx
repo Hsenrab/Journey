@@ -6,6 +6,7 @@ import { PageHeader } from '../components/PageHeader'
 import {
   awardableStatuses,
   completedWaypointCount,
+  countLabel,
   lastActivityDate,
   recentlyVisited,
   statusCounts,
@@ -65,7 +66,7 @@ export default function Dashboard() {
             <ClickableCard
               key={status}
               to={`/waypoints?status=${status}`}
-              ariaLabel={`${statusLabels[status]} ${counts[status]}`}
+              ariaLabel={`${statusLabels[status]}: ${countLabel(counts[status], 'waypoint')}`}
             >
               {(titleId) => (
                 <>
