@@ -115,7 +115,9 @@ export function applyPlan(data: JourneyData, plan: DeletionPlan | UpdatePlan): J
     Object.fromEntries(
       Object.entries(data).map(([key, entities]) => [
         key,
-        (entities as Entity[]).filter((entity) => !deleteIds.has(entityId(entityTypeFor(key as keyof JourneyData), entity))),
+        (entities as Entity[]).filter(
+          (entity) => !deleteIds.has(entityId(entityTypeFor(key as keyof JourneyData), entity)),
+        ),
       ]),
     ) as JourneyData,
   )
@@ -126,12 +128,12 @@ export function updatePlan(data: JourneyData, type: EntityType, entity: Entity):
 
   const waypointId = entityId(type, entity)
   const challengeIds = new Set((entity.challengeIds as string[] | undefined) ?? [])
-  const challenges = data.challenges
-    .map((challenge) => {
-      const shouldLink = challengeIds.has(challenge.challengeId)
-      const linked = challenge.waypointIds.includes(waypointId)
-      if (shouldLink === linked) return undefined
-      return {
+  const challenges = data.challenges.flatMap((challenge) => {
+    const shouldLink = challengeIds.has(challenge.challengeId)
+    const linked = challenge.waypointIds.includes(waypointId)
+    if (shouldLink === linked) return []
+    return [
+      {
         type: 'challenge' as const,
         entity: {
           ...challenge,
@@ -139,9 +141,9 @@ export function updatePlan(data: JourneyData, type: EntityType, entity: Entity):
             ? [...challenge.waypointIds, waypointId]
             : challenge.waypointIds.filter((id) => id !== waypointId),
         },
-      }
-    })
-    .filter((update): update is { type: 'challenge'; entity: Entity } => update !== undefined)
+      },
+    ]
+  })
 
   return { updates: [{ type, entity }, ...challenges] }
 }
@@ -180,7 +182,9 @@ export function deletionPlan(data: JourneyData, type: EntityType, id: string): D
       deletes: [id, ...newlyUnreferencedIds(data, remaining)],
       updates: [
         ...challenges
-          .filter((challenge) => data.challenges.find((item) => item.challengeId === challenge.challengeId) !== challenge)
+          .filter(
+            (challenge) => data.challenges.find((item) => item.challengeId === challenge.challengeId) !== challenge,
+          )
           .map((challenge) => ({
             type: 'challenge' as const,
             entity: { ...challenge },

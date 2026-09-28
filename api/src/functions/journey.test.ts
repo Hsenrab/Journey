@@ -357,7 +357,13 @@ describe('journey', () => {
     const linkedIdea = { ...idea, waypointIds: ['waypoint-1'] }
     const linkedActivity = { ...activity, ideaIds: [], waypointId: 'waypoint-1' }
     const loaded = {
-      data: { ...emptyData, waypoints: [waypoint], challenges: [challenge], ideas: [linkedIdea], activities: [linkedActivity] },
+      data: {
+        ...emptyData,
+        waypoints: [waypoint],
+        challenges: [challenge],
+        ideas: [linkedIdea],
+        activities: [linkedActivity],
+      },
       etags: {
         'waypoint-1': 'waypoint-etag',
         'challenge-1': 'challenge-etag',

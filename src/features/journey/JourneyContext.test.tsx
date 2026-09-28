@@ -114,9 +114,7 @@ describe('WaypointsContext', () => {
     expect(result.current.data.waypoints.some((waypoint) => waypoint.waypointId === lacockId)).toBe(false)
     expect(result.current.data.activities[0]?.waypointId).toBeUndefined()
     expect(result.current.data.ideas[0]?.waypointIds).toEqual([])
-    expect(
-      result.current.data.challenges.some((challenge) => challenge.waypointIds.includes(lacockId)),
-    ).toBe(false)
+    expect(result.current.data.challenges.some((challenge) => challenge.waypointIds.includes(lacockId))).toBe(false)
   })
 
   it('updates and deletes while preserving cleanup of unreferenced records', () => {

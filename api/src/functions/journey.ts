@@ -113,8 +113,11 @@ export async function journey(request: HttpRequest, context: InvocationContext):
       const entity = await geocodedEntity(parsed.data.type, parsed.data.entity)
       const document = entityDocument(datasetId, parsed.data.type, entity)
       const loaded = await loadDataset(cosmos, datasetId)
-      const plan = parsed.data.operation === 'update' ? updatePlan(loaded.data, document.type, document.entity) : undefined
-      const invalid = referenceIntegrityError(plan ? applyPlan(loaded.data, plan) : upsertEntity(loaded.data, document.type, document.entity))
+      const plan =
+        parsed.data.operation === 'update' ? updatePlan(loaded.data, document.type, document.entity) : undefined
+      const invalid = referenceIntegrityError(
+        plan ? applyPlan(loaded.data, plan) : upsertEntity(loaded.data, document.type, document.entity),
+      )
       if (invalid) return { status: 400, jsonBody: { error: invalid } }
       if (parsed.data.operation === 'create') {
         return { status: 201, jsonBody: savedDocument(await createDocument(cosmos, document)) }

@@ -51,30 +51,41 @@ type Errors = Record<string, string>
 type EditorMode = 'form' | 'json'
 
 export function WaypointEditor({ data, submitLabel, onSubmit, onCancel, errorMessage, initialWaypoint }: Props) {
-  const defaultChallengeIds =
-    initialWaypoint?.challengeIds ??
-    (data.challenges.some((challenge) => challenge.challengeId === 'national-trust') ? ['national-trust'] : [])
-  const defaultReferences: EditorReference[] = initialWaypoint
-    ? data.references
-        .filter((reference) => initialWaypoint.referenceIds.includes(reference.referenceId))
-        .map((reference) => ({
-          referenceId: reference.referenceId,
-          title: reference.title,
-          description: reference.description ?? '',
-          url: reference.url,
-          previewImageUrl: reference.previewImageUrl ?? '',
-        }))
-    : []
-  const defaultPhotoReferences: EditorPhotoReference[] = initialWaypoint
-    ? data.photoReferences
-        .filter((photoReference) => initialWaypoint.photoReferenceIds.includes(photoReference.photoReferenceId))
-        .map((photoReference) => ({
-          photoReferenceId: photoReference.photoReferenceId,
-          title: photoReference.title,
-          altText: photoReference.altText ?? '',
-          url: photoReference.url,
-        }))
-    : []
+  const defaultChallengeIds = useMemo(
+    () =>
+      initialWaypoint?.challengeIds ??
+      (data.challenges.some((challenge) => challenge.challengeId === 'national-trust') ? ['national-trust'] : []),
+    [data.challenges, initialWaypoint],
+  )
+  const defaultReferences: EditorReference[] = useMemo(
+    () =>
+      initialWaypoint
+        ? data.references
+            .filter((reference) => initialWaypoint.referenceIds.includes(reference.referenceId))
+            .map((reference) => ({
+              referenceId: reference.referenceId,
+              title: reference.title,
+              description: reference.description ?? '',
+              url: reference.url,
+              previewImageUrl: reference.previewImageUrl ?? '',
+            }))
+        : [],
+    [data.references, initialWaypoint],
+  )
+  const defaultPhotoReferences: EditorPhotoReference[] = useMemo(
+    () =>
+      initialWaypoint
+        ? data.photoReferences
+            .filter((photoReference) => initialWaypoint.photoReferenceIds.includes(photoReference.photoReferenceId))
+            .map((photoReference) => ({
+              photoReferenceId: photoReference.photoReferenceId,
+              title: photoReference.title,
+              altText: photoReference.altText ?? '',
+              url: photoReference.url,
+            }))
+        : [],
+    [data.photoReferences, initialWaypoint],
+  )
   const [title, setTitle] = useState(initialWaypoint?.title ?? '')
   const [description, setDescription] = useState(initialWaypoint?.description ?? '')
   const [category, setCategory] = useState(initialWaypoint?.category ?? '')

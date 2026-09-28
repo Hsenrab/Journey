@@ -1,6 +1,16 @@
 import { useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { Alert, Button, Chip, Dialog, DialogActions, DialogContent, DialogTitle, Stack, Typography } from '@mui/material'
+import {
+  Alert,
+  Button,
+  Chip,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  Stack,
+  Typography,
+} from '@mui/material'
 import LinkIcon from '@mui/icons-material/Link'
 import PhotoLibraryIcon from '@mui/icons-material/PhotoLibrary'
 import PlaceIcon from '@mui/icons-material/Place'
