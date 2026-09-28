@@ -89,7 +89,7 @@ describe('WaypointsContext', () => {
         description: 'Updated description',
         category: 'Updated category',
         tags: ['updated'],
-        challengeIds: [],
+        challengeIds: ['national-trust'],
         completion: { mode: 'count', target: 2 },
         references: [],
         photoReferences: [],
@@ -99,13 +99,13 @@ describe('WaypointsContext', () => {
     expect(result.current.data.waypoints.find((waypoint) => waypoint.waypointId === lacockId)).toEqual(
       expect.objectContaining({
         title: 'Updated Lacock',
-        challengeIds: [],
+        challengeIds: ['national-trust'],
         completion: { mode: 'count', target: 2 },
       }),
     )
     expect(
       result.current.data.challenges.find((challenge) => challenge.challengeId === 'national-trust')?.waypointIds,
-    ).not.toContain(lacockId)
+    ).toContain(lacockId)
 
     act(() => {
       result.current.deleteWaypoint(lacockId)
@@ -116,6 +116,26 @@ describe('WaypointsContext', () => {
     expect(result.current.data.activities[0]?.category).toBeUndefined()
     expect(result.current.data.ideas[0]?.waypointIds).toEqual([])
     expect(result.current.data.challenges.some((challenge) => challenge.waypointIds.includes(lacockId))).toBe(false)
+  })
+
+  it('rejects waypoint updates that invalidate an activity category', async () => {
+    const { result } = renderHook(() => useWaypoints(), { wrapper: WaypointsProvider })
+
+    await act(async () => {
+      await result.current.addActivity(draft)
+    })
+
+    await expect(
+      result.current.updateWaypoint(lacockId, {
+        ...result.current.data.waypoints.find((waypoint) => waypoint.waypointId === lacockId)!,
+        challengeIds: [],
+        references: [],
+        photoReferences: [],
+      }),
+    ).rejects.toThrow('Selected waypoint does not support Bronze, Silver or Gold categories.')
+    expect(result.current.data.waypoints.find((waypoint) => waypoint.waypointId === lacockId)?.challengeIds).toEqual([
+      'national-trust',
+    ])
   })
 
   it('updates and deletes while preserving cleanup of unreferenced records', () => {

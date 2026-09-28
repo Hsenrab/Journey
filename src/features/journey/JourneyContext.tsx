@@ -279,13 +279,15 @@ function reducer(data: WaypointsData, action: Action): WaypointsData {
             : challenge.waypointIds.filter((waypointId) => waypointId !== waypoint.waypointId),
         }
       })
-      return pruneUnreferenced({
+      const next = pruneUnreferenced({
         ...data,
         waypoints: data.waypoints.map((item) => (item.waypointId === action.waypointId ? waypoint : item)),
         challenges,
         references: refs.references,
         photoReferences: photos.photoReferences,
       })
+      next.activities.forEach((activity) => validateActivityCategory(next, activity))
+      return next
     }
     case 'delete-waypoint':
       return pruneUnreferenced({

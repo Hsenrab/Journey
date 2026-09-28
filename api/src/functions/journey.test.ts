@@ -346,6 +346,53 @@ describe('journey', () => {
     )
   })
 
+  it('rejects a waypoint update that invalidates an activity category', async () => {
+    const challenge = {
+      challengeId: 'challenge-1',
+      title: 'Heritage weekend',
+      description: 'Heritage weekend',
+      waypointIds: ['waypoint-1'],
+      supportsActivityCategories: true,
+    }
+    const categorizedActivity = {
+      ...activity,
+      ideaIds: [],
+      waypointId: 'waypoint-1',
+      category: 'silver',
+    }
+    loadDataset.mockResolvedValue({
+      data: {
+        ...emptyData,
+        waypoints: [{ ...waypoint, challengeIds: ['challenge-1'] }],
+        challenges: [challenge],
+        activities: [categorizedActivity],
+      },
+      etags: {
+        'waypoint-1': 'waypoint-etag',
+        'challenge-1': 'challenge-etag',
+        'activity-1': 'activity-etag',
+      },
+    })
+    const { journey } = await import('./journey.js')
+
+    expect(
+      await journey(
+        request('production', 'PUT', {
+          operation: 'update',
+          type: 'waypoint',
+          id: 'waypoint-1',
+          entity: waypoint,
+          ifMatch: 'waypoint-etag',
+        }),
+        context(),
+      ),
+    ).toEqual({
+      status: 400,
+      jsonBody: { error: 'Selected waypoint does not support Bronze, Silver or Gold categories.' },
+    })
+    expect(replaceEntities).not.toHaveBeenCalled()
+  })
+
   it('rejects a waypoint update whose entity ID differs from the request ID', async () => {
     const { journey } = await import('./journey.js')
 

@@ -80,6 +80,18 @@ export function referenceIntegrityError(data: JourneyData): string | undefined {
       linkError('Activity', activity.activityId, 'reference', activity.referenceIds, referenceIds),
       linkError('Activity', activity.activityId, 'photo reference', activity.photoReferenceIds, photoIds),
     ]),
+    ...data.activities.map((activity) =>
+      activity.category &&
+      !data.waypoints
+        .find((waypoint) => waypoint.waypointId === activity.waypointId)
+        ?.challengeIds.some((challengeId) =>
+          data.challenges.some(
+            (challenge) => challenge.challengeId === challengeId && challenge.supportsActivityCategories,
+          ),
+        )
+        ? 'Selected waypoint does not support Bronze, Silver or Gold categories.'
+        : undefined,
+    ),
   ]
   return errors.find((error) => error !== undefined)
 }

@@ -89,6 +89,15 @@ describe('referenceIntegrityError', () => {
     expect(next.activities).toHaveLength(1)
     expect(referenceIntegrityError(next)).toBe('Activity "activity-1" references unknown idea "idea-2".')
   })
+
+  it('rejects categorized activities without a category-supporting waypoint challenge', () => {
+    const invalid = data()
+    invalid.activities[0]!.category = 'silver'
+
+    expect(referenceIntegrityError(invalid)).toBe(
+      'Selected waypoint does not support Bronze, Silver or Gold categories.',
+    )
+  })
 })
 
 describe('deletionPlan', () => {
@@ -120,6 +129,21 @@ describe('deletionPlan', () => {
       { type: 'challenge', entity: expect.objectContaining({ challengeId: 'challenge-1', waypointIds: [] }) },
     ])
     expect(referenceIntegrityError(applyPlan(data(), plan))).toBeUndefined()
+  })
+
+  it('rejects waypoint challenge updates that invalidate an activity category', () => {
+    const withCategory = data()
+    withCategory.challenges[0]!.supportsActivityCategories = true
+    withCategory.waypoints[0]!.challengeIds = ['challenge-1']
+    withCategory.activities[0]!.category = 'silver'
+    const plan = updatePlan(withCategory, 'waypoint', {
+      ...withCategory.waypoints[0]!,
+      challengeIds: [],
+    })
+
+    expect(referenceIntegrityError(applyPlan(withCategory, plan))).toBe(
+      'Selected waypoint does not support Bronze, Silver or Gold categories.',
+    )
   })
 
   it('removes idea links from activities and prunes orphaned references', () => {
