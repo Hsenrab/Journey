@@ -728,174 +728,184 @@ export default function MapPage() {
       {loadState.status === 'failed' && (
         <LoadFailureAlert message={loadState.message} description="This is a load failure, not an empty map dataset." />
       )}
-      <Card ref={filters}>
-        <CardContent>
-          <Stack
-            component="form"
-            spacing={1}
-            aria-label="Find nearby waypoints"
-            onSubmit={(event) => {
-              event.preventDefault()
-              void findNearby()
-            }}
-          >
-            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
-              <TextField
-                label="Nearby origin"
-                value={originQuery}
-                onChange={(event) => setOriginQuery(event.target.value)}
-                sx={{ flex: { sm: 1 }, minWidth: 0 }}
-              />
-              <Button type="submit" variant="contained" sx={{ alignSelf: { sm: 'flex-start' } }}>
-                Search
-              </Button>
-            </Stack>
-            {mode === 'waypoints' && (
-              <Stack direction="row" useFlexGap sx={{ flexWrap: 'wrap' }} role="group" aria-label="Waypoint filters">
-                {statusOrder.map((status) => (
-                  <FormControlLabel
-                    key={status}
-                    control={
-                      <Checkbox
-                        checked={statuses.includes(status)}
-                        onChange={(event) =>
-                          setStatuses((current) =>
-                            event.target.checked ? [...current, status] : current.filter((item) => item !== status),
-                          )
+      {loadState.status !== 'failed' && (
+        <>
+          <Card ref={filters}>
+            <CardContent>
+              <Stack
+                component="form"
+                spacing={1}
+                aria-label="Find nearby waypoints"
+                onSubmit={(event) => {
+                  event.preventDefault()
+                  void findNearby()
+                }}
+              >
+                <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
+                  <TextField
+                    label="Nearby origin"
+                    value={originQuery}
+                    onChange={(event) => setOriginQuery(event.target.value)}
+                    sx={{ flex: { sm: 1 }, minWidth: 0 }}
+                  />
+                  <Button type="submit" variant="contained" sx={{ alignSelf: { sm: 'flex-start' } }}>
+                    Search
+                  </Button>
+                </Stack>
+                {mode === 'waypoints' && (
+                  <Stack
+                    direction="row"
+                    useFlexGap
+                    sx={{ flexWrap: 'wrap' }}
+                    role="group"
+                    aria-label="Waypoint filters"
+                  >
+                    {statusOrder.map((status) => (
+                      <FormControlLabel
+                        key={status}
+                        control={
+                          <Checkbox
+                            checked={statuses.includes(status)}
+                            onChange={(event) =>
+                              setStatuses((current) =>
+                                event.target.checked ? [...current, status] : current.filter((item) => item !== status),
+                              )
+                            }
+                          />
                         }
+                        label={statusLabels[status]}
                       />
-                    }
-                    label={statusLabels[status]}
-                  />
-                ))}
+                    ))}
+                  </Stack>
+                )}
               </Stack>
-            )}
-          </Stack>
-          {originResults.length > 0 && (
-            <Stack spacing={1} sx={{ mt: 2 }}>
-              <Typography variant="h6">Choose a nearby origin</Typography>
-              <Typography color="text.secondary">
-                Azure Maps found multiple approximate matches. Select the intended place.
-              </Typography>
-              {originResults.map((result, index) => (
-                <Button
-                  key={`${result.address?.freeformAddress ?? 'result'}-${index}`}
-                  onClick={() => selectOrigin(result)}
-                >
-                  {result.address?.freeformAddress ?? 'Unnamed Azure Maps result'}
-                </Button>
-              ))}
-            </Stack>
-          )}
-        </CardContent>
-      </Card>
-      {isMobile && (
-        <ToggleButtonGroup
-          exclusive
-          value={mobilePanel}
-          onChange={(_, value: 'map' | 'list' | null) => {
-            if (value) setMobilePanel(value)
-          }}
-          aria-label="Map view"
-          size="small"
-        >
-          <ToggleButton value="map">Map</ToggleButton>
-          <ToggleButton value="list">List</ToggleButton>
-        </ToggleButtonGroup>
-      )}
-      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} sx={{ alignItems: 'stretch' }}>
-        <Box
-          sx={{
-            border: '1px solid',
-            borderColor: 'divider',
-            borderRadius: 1,
-            bgcolor: 'white',
-            p: { xs: 1.5, sm: 2 },
-            width: { sm: 280 },
-            flexShrink: 0,
-            display: isMobile && mobilePanel !== 'list' ? 'none' : 'block',
-          }}
-          aria-label={mode === 'waypoints' ? 'Nearest visible waypoints' : 'Nearest activities'}
-        >
-          <Stack spacing={0}>
-            {mode === 'waypoints'
-              ? nearby.map(({ waypoint, distanceMiles: miles }) => {
-                  const status = statusFor(waypoint.waypointId)
-                  return (
-                    <CompactMapListItem
-                      key={waypoint.waypointId}
-                      to={`/waypoints/${waypoint.waypointId}`}
-                      name={waypointDisplayName(waypoint)}
-                      complete={completionStateForWaypoint(waypoint, data.activities) === 'complete'}
-                      tier={status === 'not-started' ? undefined : status}
-                      distance={formatMiles(miles)}
-                      onClick={() => setSelectedWaypointId(waypoint.waypointId)}
-                    />
-                  )
-                })
-              : nearbyActivities.map(({ activity, distanceMiles: miles }) => (
-                  <CompactMapListItem
-                    key={activity.activityId}
-                    to={`/activities/${activity.activityId}`}
-                    name={activityDisplayName(activity)}
-                    complete={true}
-                    tier={activity.category}
-                    distance={formatMiles(miles)}
-                    date={activity.date}
-                  />
-                ))}
-            {mode === 'waypoints' && nearby.length === 0 && (
-              <Typography color="text.secondary">No visible waypoints.</Typography>
-            )}
-            {mode === 'activities' && nearbyActivities.length === 0 && (
-              <Typography color="text.secondary">No mapped activities yet.</Typography>
-            )}
-            {selectedWaypointId && <Typography role="status">Opening waypoint details.</Typography>}
-          </Stack>
-        </Box>
-        <Box
-          sx={{
-            overflow: 'hidden',
-            border: '1px solid',
-            borderColor: 'divider',
-            borderRadius: 1,
-            bgcolor: 'white',
-            flex: 1,
-            display: isMobile && mobilePanel !== 'map' ? 'none' : 'block',
-          }}
-        >
-          <Box id="map-panel" role="tabpanel" aria-labelledby={`${mode}-tab`} tabIndex={0}>
-            <Box ref={mapBox} sx={{ position: 'relative', height: mapHeight }}>
-              <Box ref={container} aria-label="Azure Maps interactive map" sx={{ height: '100%', width: '100%' }} />
-              {!mapReady && !error && (
-                <Stack
-                  role="status"
-                  spacing={1}
-                  sx={{
-                    position: 'absolute',
-                    inset: 0,
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    bgcolor: 'rgba(255, 255, 255, 0.88)',
-                  }}
-                >
-                  <CircularProgress size={30} color="primary" />
-                  <Typography variant="body2" color="text.secondary">
-                    Loading map
+              {originResults.length > 0 && (
+                <Stack spacing={1} sx={{ mt: 2 }}>
+                  <Typography variant="h6">Choose a nearby origin</Typography>
+                  <Typography color="text.secondary">
+                    Azure Maps found multiple approximate matches. Select the intended place.
                   </Typography>
+                  {originResults.map((result, index) => (
+                    <Button
+                      key={`${result.address?.freeformAddress ?? 'result'}-${index}`}
+                      onClick={() => selectOrigin(result)}
+                    >
+                      {result.address?.freeformAddress ?? 'Unnamed Azure Maps result'}
+                    </Button>
+                  ))}
                 </Stack>
               )}
+            </CardContent>
+          </Card>
+          {isMobile && (
+            <ToggleButtonGroup
+              exclusive
+              value={mobilePanel}
+              onChange={(_, value: 'map' | 'list' | null) => {
+                if (value) setMobilePanel(value)
+              }}
+              aria-label="Map view"
+              size="small"
+            >
+              <ToggleButton value="map">Map</ToggleButton>
+              <ToggleButton value="list">List</ToggleButton>
+            </ToggleButtonGroup>
+          )}
+          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} sx={{ alignItems: 'stretch' }}>
+            <Box
+              sx={{
+                border: '1px solid',
+                borderColor: 'divider',
+                borderRadius: 1,
+                bgcolor: 'white',
+                p: { xs: 1.5, sm: 2 },
+                width: { sm: 280 },
+                flexShrink: 0,
+                display: isMobile && mobilePanel !== 'list' ? 'none' : 'block',
+              }}
+              aria-label={mode === 'waypoints' ? 'Nearest visible waypoints' : 'Nearest activities'}
+            >
+              <Stack spacing={0}>
+                {mode === 'waypoints'
+                  ? nearby.map(({ waypoint, distanceMiles: miles }) => {
+                      const status = statusFor(waypoint.waypointId)
+                      return (
+                        <CompactMapListItem
+                          key={waypoint.waypointId}
+                          to={`/waypoints/${waypoint.waypointId}`}
+                          name={waypointDisplayName(waypoint)}
+                          complete={completionStateForWaypoint(waypoint, data.activities) === 'complete'}
+                          tier={status === 'not-started' ? undefined : status}
+                          distance={formatMiles(miles)}
+                          onClick={() => setSelectedWaypointId(waypoint.waypointId)}
+                        />
+                      )
+                    })
+                  : nearbyActivities.map(({ activity, distanceMiles: miles }) => (
+                      <CompactMapListItem
+                        key={activity.activityId}
+                        to={`/activities/${activity.activityId}`}
+                        name={activityDisplayName(activity)}
+                        complete={true}
+                        tier={activity.category}
+                        distance={formatMiles(miles)}
+                        date={activity.date}
+                      />
+                    ))}
+                {mode === 'waypoints' && nearby.length === 0 && (
+                  <Typography color="text.secondary">No visible waypoints.</Typography>
+                )}
+                {mode === 'activities' && nearbyActivities.length === 0 && (
+                  <Typography color="text.secondary">No mapped activities yet.</Typography>
+                )}
+                {selectedWaypointId && <Typography role="status">Opening waypoint details.</Typography>}
+              </Stack>
             </Box>
-          </Box>
-        </Box>
-      </Stack>
-      {waypointWithoutCoordinates + activityWithoutCoordinates > 0 && (
-        <Alert severity="info">
-          {waypointWithoutCoordinates} waypoint{waypointWithoutCoordinates === 1 ? '' : 's'} and{' '}
-          {activityWithoutCoordinates} {activityWithoutCoordinates === 1 ? 'activity' : 'activities'} have no
-          coordinates and are not shown. Locations are geocoded when they are saved, so re-saving a record resolves its
-          coordinates.
-        </Alert>
+            <Box
+              sx={{
+                overflow: 'hidden',
+                border: '1px solid',
+                borderColor: 'divider',
+                borderRadius: 1,
+                bgcolor: 'white',
+                flex: 1,
+                display: isMobile && mobilePanel !== 'map' ? 'none' : 'block',
+              }}
+            >
+              <Box id="map-panel" role="tabpanel" aria-labelledby={`${mode}-tab`} tabIndex={0}>
+                <Box ref={mapBox} sx={{ position: 'relative', height: mapHeight }}>
+                  <Box ref={container} aria-label="Azure Maps interactive map" sx={{ height: '100%', width: '100%' }} />
+                  {!mapReady && !error && (
+                    <Stack
+                      role="status"
+                      spacing={1}
+                      sx={{
+                        position: 'absolute',
+                        inset: 0,
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        bgcolor: 'rgba(255, 255, 255, 0.88)',
+                      }}
+                    >
+                      <CircularProgress size={30} color="primary" />
+                      <Typography variant="body2" color="text.secondary">
+                        Loading map
+                      </Typography>
+                    </Stack>
+                  )}
+                </Box>
+              </Box>
+            </Box>
+          </Stack>
+          {waypointWithoutCoordinates + activityWithoutCoordinates > 0 && (
+            <Alert severity="info">
+              {waypointWithoutCoordinates} waypoint{waypointWithoutCoordinates === 1 ? '' : 's'} and{' '}
+              {activityWithoutCoordinates} {activityWithoutCoordinates === 1 ? 'activity' : 'activities'} have no
+              coordinates and are not shown. Locations are geocoded when they are saved, so re-saving a record resolves
+              its coordinates.
+            </Alert>
+          )}
+        </>
       )}
     </Stack>
   )
