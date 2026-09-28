@@ -2,8 +2,9 @@
 
 Waypoints is a private planner for destinations, experiences, and activities. Real
 data is persisted in Azure Cosmos DB through the authenticated Functions API.
-The first built-in challenge is **National Trust**, represented directly as a challenge made
-up of waypoints.
+Challenges are collections of waypoints that can be added, edited and removed from the
+**Challenges** page. **National Trust** is seeded as an ordinary challenge made up of
+waypoints.
 
 ## Core concepts
 
@@ -20,7 +21,7 @@ See [docs/waypoints-model.md](docs/waypoints-model.md) for full definitions and 
 Navigation includes:
 
 - Waypoints
-- Progress
+- Challenges
 - Ideas
 - Activities
 - Map
@@ -32,15 +33,17 @@ Navigation includes:
 - National Trust catalogue entries are seeded as waypoints using
   `src/data/locations.json`.
 - National Trust visits are saved as activities linked to waypoint/challenge IDs.
-- The root route redirects to `/challenges`, so the app opens on the progress
-  dashboard; the **Progress** navigation item and the app bar title lead to the same
-  route.
-- The `/challenges` page presents the National Trust Challenge dashboard: overall
-  completion percentage and completed waypoint count are the primary summary, with
-  Bronze/Silver/Gold activity-category counts shown underneath as secondary
-  information. Bronze/Silver/Gold describe how well an activity fits the challenge;
-  they are not challenge completion milestones. Each category count links to a
-  filtered Waypoints view (e.g. `/waypoints?status=bronze`).
+- The root route redirects to `/challenges`, which lists every challenge; the
+  **Challenges** navigation item and the app bar title lead to the same route. Admins
+  can add, edit and delete challenges there (see
+  [docs/pages/challenges.md](docs/pages/challenges.md)).
+- Each `/challenges/:challengeId` page shows that challenge's progress: overall
+  completion percentage and completed waypoint count are the primary summary. For
+  challenges that support categories, Bronze/Silver/Gold activity-category counts are
+  shown underneath as secondary information. Bronze/Silver/Gold describe how well an
+  activity fits the challenge; they are not challenge completion milestones. Each
+  category count links to a filtered Waypoints view (e.g.
+  `/waypoints?challenge=national-trust&status=bronze`).
 
 ## Data and validation
 

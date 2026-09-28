@@ -28,12 +28,13 @@ export default function Locations() {
   const [searchParams, setSearchParams] = useSearchParams()
   const showEditor = searchParams.get('mode') === 'add'
   const status = searchParams.get('status') ?? 'all'
-  const setStatus = (value: string) => {
+  const challenge = searchParams.get('challenge') ?? 'all'
+  const setFilterParam = (key: 'status' | 'challenge', value: string) => {
     setSearchParams(
       (previous) => {
         const next = new URLSearchParams(previous)
-        if (value === 'all') next.delete('status')
-        else next.set('status', value)
+        if (value === 'all') next.delete(key)
+        else next.set(key, value)
         return next
       },
       { replace: true },
@@ -115,6 +116,7 @@ export default function Locations() {
         const withinDistance = maxDistance === 'all' || distance === undefined || distance <= Number(maxDistance)
         return (
           (status === 'all' || waypointStatus === status) &&
+          (challenge === 'all' || waypoint.challengeIds.includes(challenge)) &&
           withinDistance &&
           (area === 'all' || waypointArea === area) &&
           (category === 'all' || waypointCategory === category) &&
@@ -146,7 +148,19 @@ export default function Locations() {
             return a.title.localeCompare(b.title)
         }
       })
-  }, [activities, area, category, data.waypoints, distanceByWaypointId, maxDistance, query, sort, status, statusFor])
+  }, [
+    activities,
+    area,
+    category,
+    challenge,
+    data.waypoints,
+    distanceByWaypointId,
+    maxDistance,
+    query,
+    sort,
+    status,
+    statusFor,
+  ])
 
   return (
     <Stack spacing={2}>
@@ -191,6 +205,7 @@ export default function Locations() {
       {!readOnly && showEditor && (
         <WaypointEditor
           data={data}
+          initialChallengeIds={challenge === 'all' ? [] : [challenge]}
           submitLabel="Save waypoint"
           onSubmit={async (draft) => {
             try {
@@ -227,7 +242,7 @@ export default function Locations() {
             select
             label="Status"
             value={status}
-            onChange={(e) => setStatus(e.target.value)}
+            onChange={(e) => setFilterParam('status', e.target.value)}
           >
             <MenuItem value="all">All statuses</MenuItem>
             {statusOrder.map((s) => (
@@ -275,6 +290,20 @@ export default function Locations() {
             {categories.map((item) => (
               <MenuItem key={item} value={item}>
                 {item}
+              </MenuItem>
+            ))}
+          </TextField>
+          <TextField
+            id="waypoint-challenge"
+            select
+            label="Challenge"
+            value={challenge}
+            onChange={(e) => setFilterParam('challenge', e.target.value)}
+          >
+            <MenuItem value="all">All challenges</MenuItem>
+            {data.challenges.map((item) => (
+              <MenuItem key={item.challengeId} value={item.challengeId}>
+                {item.title}
               </MenuItem>
             ))}
           </TextField>

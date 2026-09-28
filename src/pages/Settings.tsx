@@ -193,8 +193,9 @@ export default function Settings() {
       <Stack spacing={2}>
         <Typography variant="h5">Challenge rules</Typography>
         <Typography>
-          National Trust is represented as a challenge made up of waypoints. Activities link to waypoints and require
-          location data before they can be saved.
+          A challenge, such as National Trust, is a collection of waypoints managed from the Challenges page. Activities
+          link to waypoints and require location data before they can be saved. Bronze, Silver and Gold categories are
+          available only for waypoints in a challenge that supports them.
         </Typography>
         {statusOrder.map((status) => (
           <Card key={status}>

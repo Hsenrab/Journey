@@ -12,10 +12,20 @@ describe('landing route', () => {
   })
   afterEach(cleanup)
 
-  it('opens on the progress dashboard', () => {
+  it('opens on the challenges list', () => {
     render(<App />)
 
-    expect(screen.getByRole('heading', { name: 'National Trust Challenge' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { level: 1, name: 'Challenges' })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'National Trust' })).toHaveAttribute('href', '/challenges/national-trust')
+  })
+
+  it('opens challenge progress details from the list', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+
+    await user.click(screen.getByRole('link', { name: 'National Trust' }))
+
+    expect(screen.getByRole('heading', { level: 1, name: 'National Trust' })).toBeInTheDocument()
     expect(screen.getByText('Activity categories')).toBeInTheDocument()
   })
 

@@ -207,6 +207,46 @@ describe('Locations', () => {
     expect(screen.getByText('Westbury Court Garden')).toBeInTheDocument()
   })
 
+  it('filters by challenge from the URL and the challenge filter', async () => {
+    const data = createDefaultData()
+    save({
+      ...data,
+      waypoints: data.waypoints.map((waypoint) =>
+        waypoint.waypointId === 'stourhead'
+          ? { ...waypoint, challengeIds: [...waypoint.challengeIds, 'gardens'] }
+          : waypoint,
+      ),
+      challenges: [
+        ...data.challenges,
+        {
+          challengeId: 'gardens',
+          title: 'Gardens',
+          description: 'Garden visits.',
+          waypointIds: ['stourhead'],
+          supportsActivityCategories: false,
+        },
+      ],
+    })
+    const user = userEvent.setup()
+    renderLocations(['/waypoints?challenge=gardens'])
+
+    expect(screen.getByText('Stourhead')).toBeInTheDocument()
+    expect(screen.queryByText('Dyrham Park')).not.toBeInTheDocument()
+
+    await user.click(screen.getByRole('combobox', { name: 'Challenge' }))
+    await user.click(screen.getByRole('option', { name: 'All challenges' }))
+    expect(screen.getByText('Dyrham Park')).toBeInTheDocument()
+  })
+
+  it('requires a challenge when adding a waypoint without a challenge filter', async () => {
+    const user = userEvent.setup()
+    renderLocations(['/waypoints?mode=add'])
+
+    await user.click(screen.getByRole('button', { name: 'Save waypoint' }))
+
+    expect(screen.getByText('Select at least one challenge.')).toBeInTheDocument()
+  })
+
   it('shows the waypoint editor and paste-json mode on add', async () => {
     const user = userEvent.setup()
     renderLocations(['/waypoints?mode=add'])
@@ -220,7 +260,7 @@ describe('Locations', () => {
     'shows waypoint save success in an alert',
     async () => {
       const user = userEvent.setup({ delay: null })
-      renderLocations(['/waypoints?mode=add'])
+      renderLocations(['/waypoints?mode=add&challenge=national-trust'])
 
       await user.type(screen.getByLabelText('Title'), 'A viewpoint')
       await user.type(screen.getByLabelText('Description'), 'A quiet viewpoint')
@@ -250,7 +290,7 @@ describe('Locations', () => {
       })
       vi.stubGlobal('fetch', fetch)
       const user = userEvent.setup({ delay: null })
-      renderLocations()
+      renderLocations(['/waypoints?challenge=national-trust'])
       await user.click(await screen.findByRole('button', { name: 'Add waypoint' }))
 
       await user.type(screen.getByLabelText('Title'), 'A viewpoint')
@@ -295,7 +335,7 @@ describe('Locations', () => {
       })
       vi.stubGlobal('fetch', fetch)
       const user = userEvent.setup({ delay: null })
-      renderLocations()
+      renderLocations(['/waypoints?challenge=national-trust'])
       await user.click(await screen.findByRole('button', { name: 'Add waypoint' }))
 
       await user.type(screen.getByLabelText('Title'), 'A viewpoint')

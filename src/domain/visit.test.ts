@@ -5,6 +5,7 @@ import {
   activitiesForWaypoint,
   activitiesUsingIdea,
   awardableStatuses,
+  challengeDeletionImpact,
   completedWaypointCount,
   createActivity,
   createDemoData,
@@ -13,6 +14,7 @@ import {
   ideaUsageCount,
   ideasForActivity,
   ideasForWaypoint,
+  removeChallenge,
   statusForWaypoint,
   validateActivityCategory,
   waypointSupportsActivityCategory,
@@ -334,5 +336,61 @@ describe('idea and activity relationships', () => {
     expect(data.ideas.filter((item) => item.planningState === 'rejected').every((item) => item.rejectionReason)).toBe(
       true,
     )
+  })
+})
+
+describe('removeChallenge', () => {
+  const categorized = (waypointId: string, activityId: string) =>
+    createActivity({
+      activityId,
+      waypointId,
+      challengeId: 'medals',
+      date: '2026-08-01',
+      category: 'gold',
+      location: { kind: 'postcode', postcode: 'GL1 1AA' },
+    })
+  const data: WaypointsData = {
+    waypoints: [
+      { ...waypoint('only-medals'), challengeIds: ['medals'] },
+      { ...waypoint('both'), challengeIds: ['medals', 'other-medals'] },
+      { ...waypoint('unrelated'), challengeIds: ['other-medals'] },
+    ],
+    challenges: [
+      {
+        challengeId: 'medals',
+        title: 'Medals',
+        description: 'Scored',
+        waypointIds: ['only-medals', 'both'],
+        supportsActivityCategories: true,
+      },
+      {
+        challengeId: 'other-medals',
+        title: 'Other medals',
+        description: 'Also scored',
+        waypointIds: ['both', 'unrelated'],
+        supportsActivityCategories: true,
+      },
+    ],
+    ideas: [],
+    activities: [categorized('only-medals', 'a1'), categorized('both', 'a2')],
+    references: [],
+    photoReferences: [],
+  }
+
+  it('detaches the challenge and clears only categories that lose support', () => {
+    const next = removeChallenge(data, 'medals')
+
+    expect(next.challenges.map((challenge) => challenge.challengeId)).toEqual(['other-medals'])
+    expect(next.waypoints.map((item) => item.challengeIds)).toEqual([[], ['other-medals'], ['other-medals']])
+    expect(next.activities[0]).not.toHaveProperty('category')
+    expect(next.activities[0]).not.toHaveProperty('challengeId')
+    expect(next.activities[0]?.waypointId).toBe('only-medals')
+    expect(next.activities[1]?.category).toBe('gold')
+    expect(next.activities[1]).not.toHaveProperty('challengeId')
+    expect(challengeDeletionImpact(data, 'medals')).toEqual({ waypoints: 2, clearedCategories: 1 })
+  })
+
+  it('rejects an unknown challenge', () => {
+    expect(() => removeChallenge(data, 'missing')).toThrow('Challenge not found')
   })
 })

@@ -28,13 +28,17 @@ import {
 } from '../../services/journeyApi'
 import {
   activitiesForWaypoint,
+  ChallengeSchema,
   createActivity,
   createIdea,
+  removeChallenge,
   statusForWaypoint,
   validateActivityCategory,
+  waypointSupportsActivityCategory,
   type Activity,
   type ActivityLocation,
   type AwardedStatus,
+  type Challenge,
   type ExternalPhotoReference,
   type Idea,
   type Reference,
@@ -89,7 +93,12 @@ export type WaypointDraft = {
   photoReferences: DraftPhotoReference[]
 }
 
+export type ChallengeDraft = Pick<Challenge, 'title' | 'description' | 'supportsActivityCategories'>
+
 type Action =
+  | { type: 'add-challenge'; input: ChallengeDraft }
+  | { type: 'update-challenge'; challengeId: string; input: ChallengeDraft }
+  | { type: 'delete-challenge'; challengeId: string }
   | { type: 'add-waypoint'; input: WaypointDraft }
   | { type: 'update-waypoint'; waypointId: string; input: WaypointDraft }
   | { type: 'delete-waypoint'; waypointId: string }
@@ -111,6 +120,9 @@ type WaypointsValue = {
   loadError?: string
   loadState: JourneyLoadState
   setDataMode: (mode: JourneyDataMode) => Promise<void>
+  addChallenge: (input: ChallengeDraft) => Promise<void>
+  updateChallenge: (challengeId: string, input: ChallengeDraft) => Promise<void>
+  deleteChallenge: (challengeId: string) => Promise<void>
   addWaypoint: (input: WaypointDraft) => Promise<void>
   updateWaypoint: (waypointId: string, input: WaypointDraft) => Promise<void>
   deleteWaypoint: (waypointId: string) => Promise<void>
@@ -209,6 +221,30 @@ function reducer(data: WaypointsData, action: Action): WaypointsData {
   switch (action.type) {
     case 'restore':
       return action.data
+    case 'add-challenge': {
+      const challenge = ChallengeSchema.parse({ challengeId: crypto.randomUUID(), waypointIds: [], ...action.input })
+      return { ...data, challenges: [...data.challenges, challenge] }
+    }
+    case 'update-challenge': {
+      const existing = data.challenges.find((challenge) => challenge.challengeId === action.challengeId)
+      if (!existing) throw new Error('Challenge not found')
+      const challenge = ChallengeSchema.parse({ ...existing, ...action.input })
+      const next = {
+        ...data,
+        challenges: data.challenges.map((item) => (item.challengeId === action.challengeId ? challenge : item)),
+      }
+      if (
+        next.activities.some(
+          (activity) => activity.category && !waypointSupportsActivityCategory(next, activity.waypointId),
+        )
+      )
+        throw new Error(
+          'Activity categories cannot be turned off while Bronze, Silver or Gold activities depend on this challenge. Clear those activity categories first.',
+        )
+      return next
+    }
+    case 'delete-challenge':
+      return removeChallenge(data, action.challengeId)
     case 'add-waypoint': {
       const refs = upsertReferences(data, action.input.references)
       const photos = upsertPhotoReferences(data, action.input.photoReferences)
@@ -560,6 +596,21 @@ export function WaypointsProvider({ children }: { children: ReactNode }) {
       loadError,
       loadState,
       setDataMode: changeDataMode,
+      addChallenge: async (input) => {
+        const container = writableContainer()
+        const action = { type: 'add-challenge' as const, input }
+        await persist(container, action, reducer(data, action))
+      },
+      updateChallenge: async (challengeId, input) => {
+        const container = writableContainer()
+        const action = { type: 'update-challenge' as const, challengeId, input }
+        await persist(container, action, reducer(data, action))
+      },
+      deleteChallenge: async (challengeId) => {
+        const container = writableContainer()
+        const action = { type: 'delete-challenge' as const, challengeId }
+        await persist(container, action, reducer(data, action))
+      },
       addWaypoint: async (input) => {
         const container = writableContainer()
         const action = { type: 'add-waypoint' as const, input }

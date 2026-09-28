@@ -11,9 +11,11 @@ review a visit.
 
 - Search by name, area or category
 - Filter by maximum driving distance from Brockworth
-- Filter by status (all, Not Started, Bronze, Silver, Gold), area and category
+- Filter by status (all, Not Started, Bronze, Silver, Gold), area, category and challenge
+  (`?status=` and `?challenge=` query parameters are kept in the URL)
 - Sort by name, progress, distance (nearest first), travel time or last visit date
-- Add a waypoint with the shared waypoint add form
+- Add a waypoint with the shared waypoint add form. The active challenge filter is
+  preselected in the form's **Challenges** field; otherwise at least one challenge must be chosen.
 - Open a location's details page
 
 ## Data read

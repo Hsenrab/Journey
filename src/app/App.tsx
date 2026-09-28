@@ -4,7 +4,8 @@ import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { theme } from './theme'
 import { Layout } from '../components/Layout'
 import { WaypointsProvider } from '../features/journey/JourneyContext'
-import Dashboard from '../pages/Dashboard'
+import Challenges from '../pages/Challenges'
+import ChallengeDetails from '../pages/ChallengeDetails'
 import Locations from '../pages/Locations'
 import LocationDetails from '../pages/LocationDetails'
 import Settings from '../pages/Settings'
@@ -25,7 +26,8 @@ export default function App() {
               <Route path="/" element={<Navigate to="/challenges" replace />} />
               <Route path="/waypoints" element={<Locations />} />
               <Route path="/waypoints/:id" element={<LocationDetails />} />
-              <Route path="/challenges" element={<Dashboard />} />
+              <Route path="/challenges" element={<Challenges />} />
+              <Route path="/challenges/:challengeId" element={<ChallengeDetails />} />
               <Route path="/ideas" element={<Ideas />} />
               <Route path="/ideas/:ideaId" element={<IdeaDetails />} />
               <Route path="/activities" element={<Activities />} />

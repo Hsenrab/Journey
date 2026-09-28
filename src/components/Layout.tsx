@@ -29,7 +29,7 @@ import { useWaypoints } from '../features/journey/JourneyContext'
 
 const navItems = [
   { label: 'Waypoints', to: '/waypoints', icon: <PlaceIcon /> },
-  { label: 'Progress', to: '/challenges', icon: <EmojiEventsIcon /> },
+  { label: 'Challenges', to: '/challenges', icon: <EmojiEventsIcon /> },
   { label: 'Ideas', to: '/ideas', icon: <LightbulbIcon /> },
   { label: 'Activities', to: '/activities', icon: <HikingIcon /> },
   { label: 'Map', to: '/map', icon: <MapIcon /> },

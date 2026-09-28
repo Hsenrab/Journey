@@ -129,6 +129,11 @@ batch in the dataset's `/datasetId` logical partition:
   `waypointIds` and Idea `waypointIds` array, and clear `waypointId` on Activities
   recorded under it. All Challenges, Ideas, Activities, references, and photos are
   preserved.
+- **Delete a Challenge** — the browser removes the Challenge, removes its ID from every
+  Waypoint `challengeIds` array, clears a matching Activity `challengeId`, and clears an
+  Activity `category` whose Waypoint no longer belongs to a Challenge that supports
+  categories. The complete result is saved through the validated `replace` operation.
+  Waypoints, Ideas and Activities are preserved.
 - **Delete an Idea** — delete the Idea and remove its ID from every Activity `ideaIds`
   array. Activities are preserved; only Reference documents that become unreferenced by
   every remaining entity are deleted.

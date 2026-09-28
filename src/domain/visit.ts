@@ -282,6 +282,56 @@ export function validateActivityCategory(data: WaypointsData, activity: Activity
   }
 }
 
+export function challengeWaypoints(challenge: Challenge, waypoints: readonly Waypoint[]): Waypoint[] {
+  return waypoints.filter((waypoint) => challenge.waypointIds.includes(waypoint.waypointId))
+}
+
+/**
+ * Removes a challenge, detaches it from waypoints and activities, and clears activity
+ * categories whose waypoint no longer belongs to any challenge that supports them.
+ */
+export function removeChallenge(data: WaypointsData, challengeId: string): WaypointsData {
+  if (!data.challenges.some((challenge) => challenge.challengeId === challengeId))
+    throw new Error('Challenge not found')
+  const remaining: WaypointsData = {
+    ...data,
+    challenges: data.challenges.filter((challenge) => challenge.challengeId !== challengeId),
+    waypoints: data.waypoints.map((waypoint) =>
+      waypoint.challengeIds.includes(challengeId)
+        ? { ...waypoint, challengeIds: waypoint.challengeIds.filter((id) => id !== challengeId) }
+        : waypoint,
+    ),
+  }
+  return {
+    ...remaining,
+    activities: data.activities.map((activity) => {
+      let next = activity
+      if (next.challengeId === challengeId) {
+        const { challengeId: _removed, ...detached } = next
+        next = detached
+      }
+      if (next.category && !waypointSupportsActivityCategory(remaining, next.waypointId)) {
+        const { category: _category, ...uncategorized } = next
+        next = uncategorized
+      }
+      return next
+    }),
+  }
+}
+
+export function challengeDeletionImpact(
+  data: WaypointsData,
+  challengeId: string,
+): { waypoints: number; clearedCategories: number } {
+  const remaining = removeChallenge(data, challengeId)
+  return {
+    waypoints: data.waypoints.filter((waypoint) => waypoint.challengeIds.includes(challengeId)).length,
+    clearedCategories: data.activities.filter(
+      (activity, index) => activity.category && !remaining.activities[index]?.category,
+    ).length,
+  }
+}
+
 export function createActivity(input: {
   activityId?: string
   name?: string

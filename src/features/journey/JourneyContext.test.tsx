@@ -118,6 +118,70 @@ describe('WaypointsContext', () => {
     expect(result.current.data.challenges.some((challenge) => challenge.waypointIds.includes(lacockId))).toBe(false)
   })
 
+  it('adds, updates and deletes a challenge while keeping waypoint links consistent', async () => {
+    const { result } = renderHook(() => useWaypoints(), { wrapper: WaypointsProvider })
+
+    await act(async () => {
+      await result.current.addChallenge({
+        title: 'Gardens',
+        description: 'Garden visits',
+        supportsActivityCategories: false,
+      })
+    })
+    const created = result.current.data.challenges.find((challenge) => challenge.title === 'Gardens')!
+    expect(created).toEqual(expect.objectContaining({ waypointIds: [], supportsActivityCategories: false }))
+
+    await act(async () => {
+      await result.current.updateWaypoint(lacockId, {
+        ...result.current.data.waypoints.find((waypoint) => waypoint.waypointId === lacockId)!,
+        challengeIds: ['national-trust', created.challengeId],
+        references: [],
+        photoReferences: [],
+      })
+    })
+    await act(async () => {
+      await result.current.updateChallenge(created.challengeId, {
+        title: 'Great gardens',
+        description: 'Updated',
+        supportsActivityCategories: true,
+      })
+    })
+    expect(result.current.data.challenges.find((challenge) => challenge.challengeId === created.challengeId)).toEqual({
+      challengeId: created.challengeId,
+      title: 'Great gardens',
+      description: 'Updated',
+      waypointIds: [lacockId],
+      supportsActivityCategories: true,
+    })
+
+    await act(async () => {
+      await result.current.deleteChallenge(created.challengeId)
+    })
+    expect(result.current.data.challenges.some((challenge) => challenge.challengeId === created.challengeId)).toBe(
+      false,
+    )
+    expect(result.current.data.waypoints.find((waypoint) => waypoint.waypointId === lacockId)?.challengeIds).toEqual([
+      'national-trust',
+    ])
+    expect(load().challenges.map((challenge) => challenge.challengeId)).toEqual(['national-trust'])
+  })
+
+  it('rejects turning off categories that activities depend on', async () => {
+    const { result } = renderHook(() => useWaypoints(), { wrapper: WaypointsProvider })
+    await act(async () => {
+      await result.current.addActivity(draft)
+    })
+
+    await expect(
+      result.current.updateChallenge('national-trust', {
+        title: 'National Trust',
+        description: 'No categories',
+        supportsActivityCategories: false,
+      }),
+    ).rejects.toThrow('Activity categories cannot be turned off')
+    expect(result.current.data.challenges[0]?.supportsActivityCategories).toBe(true)
+  })
+
   it('rejects waypoint updates that invalidate an activity category', async () => {
     const { result } = renderHook(() => useWaypoints(), { wrapper: WaypointsProvider })
 

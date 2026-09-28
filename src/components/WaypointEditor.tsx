@@ -30,6 +30,7 @@ type Props = {
   onCancel?: () => void
   errorMessage?: string | null
   initialWaypoint?: Waypoint
+  initialChallengeIds?: string[]
 }
 
 type EditorReference = {
@@ -50,12 +51,18 @@ type EditorPhotoReference = {
 type Errors = Record<string, string>
 type EditorMode = 'form' | 'json'
 
-export function WaypointEditor({ data, submitLabel, onSubmit, onCancel, errorMessage, initialWaypoint }: Props) {
+export function WaypointEditor({
+  data,
+  submitLabel,
+  onSubmit,
+  onCancel,
+  errorMessage,
+  initialWaypoint,
+  initialChallengeIds,
+}: Props) {
   const defaultChallengeIds = useMemo(
-    () =>
-      initialWaypoint?.challengeIds ??
-      (data.challenges.some((challenge) => challenge.challengeId === 'national-trust') ? ['national-trust'] : []),
-    [data.challenges, initialWaypoint],
+    () => initialWaypoint?.challengeIds ?? initialChallengeIds ?? [],
+    [initialChallengeIds, initialWaypoint],
   )
   const defaultReferences: EditorReference[] = useMemo(
     () =>

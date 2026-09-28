@@ -57,7 +57,7 @@ describe('WaypointEditor', () => {
 
   it('submits trimmed fields with a valid count completion and coordinates', async () => {
     const user = userEvent.setup()
-    const { onSubmit } = renderEditor()
+    const { onSubmit } = renderEditor({ initialChallengeIds: ['national-trust'] })
 
     await user.type(screen.getByLabelText('Title'), ' A viewpoint ')
     await user.type(screen.getByLabelText('Description'), ' A quiet viewpoint ')
@@ -105,7 +105,7 @@ describe('WaypointEditor', () => {
 
   it('loads valid pasted JSON into the form before submit', async () => {
     const user = userEvent.setup()
-    const { onSubmit } = renderEditor()
+    const { onSubmit } = renderEditor({ initialChallengeIds: ['national-trust'] })
     const payload = {
       title: 'Load from JSON',
       description: 'A waypoint loaded from pasted JSON',
