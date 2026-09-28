@@ -286,7 +286,9 @@ function reducer(data: WaypointsData, action: Action): WaypointsData {
         references: refs.references,
         photoReferences: photos.photoReferences,
       })
-      next.activities.forEach((activity) => validateActivityCategory(next, activity))
+      next.activities
+        .filter((activity) => activity.waypointId === waypoint.waypointId)
+        .forEach((activity) => validateActivityCategory(next, activity))
       return next
     }
     case 'delete-waypoint':

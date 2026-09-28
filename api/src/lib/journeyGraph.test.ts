@@ -98,6 +98,16 @@ describe('referenceIntegrityError', () => {
       'Activity "activity-1" has a category but its waypoint does not support Bronze, Silver or Gold categories.',
     )
   })
+
+  it('distinguishes categorized activities without a waypoint', () => {
+    const invalid = data()
+    delete invalid.activities[0]!.waypointId
+    invalid.activities[0]!.category = 'silver'
+
+    expect(referenceIntegrityError(invalid)).toBe(
+      'Activity "activity-1" has a category but is not linked to a waypoint.',
+    )
+  })
 })
 
 describe('deletionPlan', () => {

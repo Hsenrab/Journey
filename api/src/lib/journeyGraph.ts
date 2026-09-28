@@ -90,11 +90,14 @@ export function referenceIntegrityError(data: JourneyData): string | undefined {
       linkError('Activity', activity.activityId, 'reference', activity.referenceIds, referenceIds),
       linkError('Activity', activity.activityId, 'photo reference', activity.photoReferenceIds, photoIds),
     ]),
-    ...data.activities.map((activity) =>
-      activity.category && (!activity.waypointId || !categoryWaypointIds.has(activity.waypointId))
+    ...data.activities.map((activity) => {
+      if (!activity.category) return undefined
+      if (!activity.waypointId)
+        return `Activity "${activity.activityId}" has a category but is not linked to a waypoint.`
+      return !categoryWaypointIds.has(activity.waypointId)
         ? `Activity "${activity.activityId}" has a category but its waypoint does not support Bronze, Silver or Gold categories.`
-        : undefined,
-    ),
+        : undefined
+    }),
   ]
   return errors.find((error) => error !== undefined)
 }
