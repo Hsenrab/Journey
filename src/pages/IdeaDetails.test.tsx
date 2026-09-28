@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import Activities from './Activities'
 import IdeaDetails from './IdeaDetails'
 import { WaypointsProvider } from '../features/journey/JourneyContext'
-import { createDefaultData, load, save } from '../services/storage'
+import { createDefaultData, load, save, setDataMode } from '../services/storage'
 
 function renderDetails(path = '/ideas/idea-1') {
   return render(
@@ -361,6 +361,49 @@ describe('IdeaDetails', () => {
     expect(screen.getByText('Used in 1 activity')).toBeInTheDocument()
     expect(load().activities[0]?.ideaIds).toEqual(['idea-1'])
     expect(load().activities[0]?.waypointId).toBe('stourhead')
+  })
+
+  it('keeps the user on the activity editor and shows an error when logging an activity fails', async () => {
+    setDataMode('demo-cosmos')
+    const data = createDefaultData()
+    data.ideas = [
+      {
+        ideaId: 'idea-1',
+        title: 'Try the outer trail',
+        description: '',
+        notes: '',
+        waypointIds: ['stourhead'],
+        planningState: 'active',
+        difficulty: 2,
+        referenceIds: [],
+        createdAt: '2026-08-01T00:00:00.000Z',
+        updatedAt: '2026-08-01T00:00:00.000Z',
+      },
+    ]
+    const fetch = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+      if (init?.method === 'POST') {
+        return new Response(JSON.stringify({ error: 'conflict' }), {
+          status: 409,
+          headers: { 'content-type': 'application/json' },
+        })
+      }
+      return new Response(JSON.stringify({ data, etags: {}, role: 'admin' }), {
+        headers: { 'content-type': 'application/json' },
+      })
+    })
+    vi.stubGlobal('fetch', fetch)
+
+    const user = userEvent.setup()
+    renderDetailsWithActivities()
+    await user.click(await screen.findByRole('link', { name: 'Log activity from this idea' }))
+
+    expect(await screen.findByText('Activities')).toBeInTheDocument()
+    await user.click(screen.getByRole('combobox', { name: 'Activity category' }))
+    await user.click(await screen.findByRole('option', { name: 'Gold' }))
+    await user.click(screen.getByRole('button', { name: 'Save activity' }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Your data has changed in another session.')
+    expect(screen.getByRole('button', { name: 'Save activity' })).toBeInTheDocument()
   })
 
   it('enters and exits edit mode', async () => {

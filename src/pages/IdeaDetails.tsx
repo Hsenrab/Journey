@@ -67,9 +67,14 @@ export default function IdeaDetails() {
             </Button>
             <Button
               component={Link}
-              to={`/activities?mode=add&idea=${encodeURIComponent(idea.ideaId)}${
-                linkedWaypoints.length === 1 ? `&waypoint=${encodeURIComponent(linkedWaypoints[0].waypointId)}` : ''
-              }`}
+              to={{
+                pathname: '/activities',
+                search: new URLSearchParams({
+                  mode: 'add',
+                  idea: idea.ideaId,
+                  ...(linkedWaypoints.length === 1 ? { waypoint: linkedWaypoints[0].waypointId } : {}),
+                }).toString(),
+              }}
             >
               Log activity from this idea
             </Button>
