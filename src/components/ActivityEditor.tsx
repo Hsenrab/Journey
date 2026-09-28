@@ -41,6 +41,7 @@ type Props = {
   data: WaypointsData
   initialActivity?: Activity
   initialWaypointId?: string
+  initialIdeaIds?: string[]
   initialReferences?: Reference[]
   initialPhotoReferences?: ExternalPhotoReference[]
   submitLabel: string
@@ -81,6 +82,7 @@ export function ActivityEditor({
   data,
   initialActivity,
   initialWaypointId,
+  initialIdeaIds,
   initialReferences,
   initialPhotoReferences,
   submitLabel,
@@ -98,7 +100,7 @@ export function ActivityEditor({
   const [date, setDate] = useState(initialActivity?.date ?? new Date().toISOString().slice(0, 10))
   const [notes, setNotes] = useState(initialActivity?.notes ?? '')
   const [waypointId, setWaypointId] = useState(initialActivity?.waypointId ?? initialWaypointId ?? '')
-  const [ideaIds, setIdeaIds] = useState<string[]>(initialActivity?.ideaIds ?? [])
+  const [ideaIds, setIdeaIds] = useState<string[]>(initialActivity?.ideaIds ?? initialIdeaIds ?? [])
   const [category, setCategory] = useState<AwardedStatus | ''>(initialActivity?.category ?? '')
   const [locationKind, setLocationKind] = useState<ActivityLocation['kind']>(initialLocation.kind)
   const [postcode, setPostcode] = useState(initialLocation.kind === 'postcode' ? initialLocation.postcode : '')
@@ -158,7 +160,7 @@ export function ActivityEditor({
       date: initialActivity?.date ?? new Date().toISOString().slice(0, 10),
       notes: initialActivity?.notes ?? '',
       waypointId: initialActivity?.waypointId ?? initialWaypointId ?? '',
-      ideaIds: initialActivity?.ideaIds ?? [],
+      ideaIds: initialActivity?.ideaIds ?? initialIdeaIds ?? [],
       category: initialActivity?.category ?? '',
       location: initialLocation,
       references: (initialReferences ?? []).map((item) => ({
@@ -197,6 +199,7 @@ export function ActivityEditor({
     category,
     date,
     initialActivity,
+    initialIdeaIds,
     initialLocation,
     initialPhotoReferences,
     initialReferences,

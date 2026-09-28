@@ -65,6 +65,14 @@ export default function IdeaDetails() {
             <Button variant="contained" onClick={() => setEditing(true)}>
               Edit idea
             </Button>
+            <Button
+              component={Link}
+              to={`/activities?mode=add&idea=${encodeURIComponent(idea.ideaId)}${
+                linkedWaypoints.length === 1 ? `&waypoint=${encodeURIComponent(linkedWaypoints[0].waypointId)}` : ''
+              }`}
+            >
+              Log activity from this idea
+            </Button>
             <Button color="error" onClick={() => setShowDeleteDialog(true)}>
               Delete idea
             </Button>
