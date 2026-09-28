@@ -15,8 +15,8 @@ import {
 import InboxOutlinedIcon from '@mui/icons-material/InboxOutlined'
 import { DetailPageHeader } from '../components/DetailPageHeader'
 import { EmptyState } from '../components/EmptyState'
-import { ReadOnlyNotice } from '../components/ReadOnlyNotice'
 import { IdeaEditor } from '../components/IdeaEditor'
+import { ReadOnlyNotice } from '../components/ReadOnlyNotice'
 import {
   activitiesUsingIdea,
   activitySubtitle,
