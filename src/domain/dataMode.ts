@@ -24,7 +24,7 @@ export function dataModeStatus(state: DataModeState): DataModeStatus {
   return 'production'
 }
 
-/** Why writes are unavailable, or undefined when there is no explainable read-only reason. */
+/** Why writes are unavailable, or undefined while loading or without an explainable read-only reason. */
 export function readOnlyReason(state: DataModeState): ReadOnlyReason | undefined {
   if (state.loading || !state.readOnly) return undefined
   const status = dataModeStatus(state)
