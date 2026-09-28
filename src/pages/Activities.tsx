@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { Link } from 'react-router-dom'
+import { useMemo, useState } from 'react'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { Alert, Button, Chip, Stack, Typography } from '@mui/material'
 import LinkIcon from '@mui/icons-material/Link'
 import PhotoLibraryIcon from '@mui/icons-material/PhotoLibrary'
@@ -18,7 +18,12 @@ import { JourneyConflictError } from '../services/journeyApi'
 export default function Activities() {
   const { data, addActivity, readOnly, reload } = useWaypoints()
   const waypointById = new Map(data.waypoints.map((waypoint) => [waypoint.waypointId, waypoint]))
-  const [showEditor, setShowEditor] = useState(false)
+  const navigate = useNavigate()
+  const [searchParams, setSearchParams] = useSearchParams()
+  const showEditor = searchParams.get('mode') === 'add'
+  const initialWaypointId = searchParams.get('waypoint') ?? undefined
+  const initialIdeaId = searchParams.get('idea') ?? undefined
+  const initialIdeaIds = useMemo(() => (initialIdeaId ? [initialIdeaId] : undefined), [initialIdeaId])
   const [message, setMessage] = useState<{ severity: 'success' | 'error'; text: string; conflict: boolean } | null>(
     null,
   )
@@ -26,6 +31,24 @@ export default function Activities() {
   const activities = [...data.activities].sort(
     (a, b) => b.date.localeCompare(a.date) || b.updatedAt.localeCompare(a.updatedAt),
   )
+  const clearEditorParams = () => {
+    setSearchParams((previous) => {
+      const next = new URLSearchParams(previous)
+      next.delete('mode')
+      next.delete('waypoint')
+      next.delete('idea')
+      return next
+    })
+  }
+  const openEditor = () => {
+    setSearchParams((previous) => {
+      const next = new URLSearchParams(previous)
+      next.delete('waypoint')
+      next.delete('idea')
+      next.set('mode', 'add')
+      return next
+    })
+  }
   const reloadLatest = async () => {
     const result = await reload()
     if (result.status === 'failure') {
@@ -36,7 +59,7 @@ export default function Activities() {
       return
     }
     setMessage(null)
-    setShowEditor(false)
+    clearEditorParams()
   }
 
   return (
@@ -47,7 +70,7 @@ export default function Activities() {
             variant="contained"
             onClick={() => {
               setMessage(null)
-              setShowEditor(true)
+              openEditor()
             }}
           >
             Add activity
@@ -74,11 +97,17 @@ export default function Activities() {
       {!readOnly && showEditor && (
         <ActivityEditor
           data={data}
+          initialWaypointId={initialWaypointId}
+          initialIdeaIds={initialIdeaIds}
           submitLabel="Save activity"
           onSubmit={async (draft) => {
             try {
               await addActivity(draft)
-              setShowEditor(false)
+              if (initialIdeaId && draft.ideaIds.includes(initialIdeaId)) {
+                navigate(`/ideas/${initialIdeaId}`, { replace: true })
+                return
+              }
+              clearEditorParams()
               setMessage({ severity: 'success', text: 'Activity saved.', conflict: false })
             } catch (error) {
               setMessage({
@@ -90,7 +119,7 @@ export default function Activities() {
           }}
           onCancel={() => {
             setMessage(null)
-            setShowEditor(false)
+            clearEditorParams()
           }}
         />
       )}
