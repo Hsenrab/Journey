@@ -14,6 +14,7 @@ function renderDetails(id: string) {
       <WaypointsProvider>
         <Routes>
           <Route path="/waypoints/:id" element={<LocationDetails />} />
+          <Route path="/waypoints" element={<div>Waypoint list</div>} />
         </Routes>
       </WaypointsProvider>
     </MemoryRouter>,
@@ -97,6 +98,70 @@ describe('LocationDetails', () => {
     expect(screen.getByText('Active · Not used')).toBeInTheDocument()
   })
 
+  it('edits a waypoint', async () => {
+    const user = userEvent.setup()
+    renderDetails(lacockId)
+
+    await user.click(screen.getByRole('button', { name: 'Edit waypoint' }))
+    const titleInput = screen.getAllByLabelText('Title')[0]
+    await user.clear(titleInput)
+    await user.type(titleInput, 'Updated Lacock Abbey')
+    await user.click(screen.getByRole('button', { name: 'Save waypoint' }))
+
+    expect(screen.getByText('Waypoint saved.')).toBeInTheDocument()
+    expect(load().waypoints.find((waypoint) => waypoint.waypointId === lacockId)?.title).toBe('Updated Lacock Abbey')
+  })
+
+  it('deletes a waypoint after confirming linked activity and idea counts', async () => {
+    const user = userEvent.setup()
+    const seed = createDefaultData()
+    save({
+      ...seed,
+      ideas: [
+        {
+          ideaId: 'idea-1',
+          title: 'Scout route',
+          description: '',
+          notes: '',
+          waypointIds: [lacockId],
+          planningState: 'active',
+          difficulty: 1,
+          referenceIds: [],
+          createdAt: '2026-08-01T00:00:00.000Z',
+          updatedAt: '2026-08-01T00:00:00.000Z',
+        },
+      ],
+      activities: [
+        {
+          activityId: 'activity-1',
+          name: 'Abbey visit',
+          waypointId: lacockId,
+          ideaIds: [],
+          date: '2026-08-02',
+          category: 'gold',
+          notes: '',
+          location: { kind: 'postcode', postcode: 'SN15 2LG' },
+          photoReferenceIds: [],
+          referenceIds: [],
+          createdAt: '2026-08-02T00:00:00.000Z',
+          updatedAt: '2026-08-02T00:00:00.000Z',
+        },
+      ],
+    })
+    renderDetails(lacockId)
+
+    await user.click(screen.getByRole('button', { name: 'Delete waypoint' }))
+
+    expect(screen.getByText(/1 linked activity and 1 linked idea/)).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Delete' }))
+
+    expect(screen.getByText('Waypoint list')).toBeInTheDocument()
+    const data = load()
+    expect(data.waypoints.some((waypoint) => waypoint.waypointId === lacockId)).toBe(false)
+    expect(data.activities[0]?.waypointId).toBeUndefined()
+    expect(data.ideas[0]?.waypointIds).toEqual([])
+  })
+
   it('links each logged activity card to its activity', () => {
     const seed = createDefaultData()
     save({
@@ -137,5 +202,7 @@ describe('LocationDetails', () => {
     ).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Log activity' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Add idea' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Edit waypoint' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Delete waypoint' })).not.toBeInTheDocument()
   })
 })
