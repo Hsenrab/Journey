@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { Alert, Button, Chip, Stack, Typography } from '@mui/material'
 import LinkIcon from '@mui/icons-material/Link'
@@ -22,6 +22,7 @@ export default function Activities() {
   const showEditor = searchParams.get('mode') === 'add'
   const initialWaypointId = searchParams.get('waypoint') ?? undefined
   const initialIdeaId = searchParams.get('idea') ?? undefined
+  const initialIdeaIds = useMemo(() => (initialIdeaId ? [initialIdeaId] : undefined), [initialIdeaId])
   const [message, setMessage] = useState<{ severity: 'success' | 'error'; text: string; conflict: boolean } | null>(
     null,
   )
@@ -93,7 +94,7 @@ export default function Activities() {
         <ActivityEditor
           data={data}
           initialWaypointId={initialWaypointId}
-          initialIdeaIds={initialIdeaId ? [initialIdeaId] : undefined}
+          initialIdeaIds={initialIdeaIds}
           submitLabel="Save activity"
           onSubmit={async (draft) => {
             try {
