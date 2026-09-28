@@ -47,6 +47,16 @@ export function referenceIntegrityError(data: JourneyData): string | undefined {
   const ideaIds = new Set(data.ideas.map((idea) => idea.ideaId))
   const referenceIds = new Set(data.references.map((reference) => reference.referenceId))
   const photoIds = new Set(data.photoReferences.map((photo) => photo.photoReferenceId))
+  const categoryChallengeIds = new Set(
+    data.challenges
+      .filter((challenge) => challenge.supportsActivityCategories)
+      .map((challenge) => challenge.challengeId),
+  )
+  const categoryWaypointIds = new Set(
+    data.waypoints
+      .filter((waypoint) => waypoint.challengeIds.some((challengeId) => categoryChallengeIds.has(challengeId)))
+      .map((waypoint) => waypoint.waypointId),
+  )
 
   const errors = [
     ...data.waypoints.flatMap((waypoint) => [
@@ -80,6 +90,14 @@ export function referenceIntegrityError(data: JourneyData): string | undefined {
       linkError('Activity', activity.activityId, 'reference', activity.referenceIds, referenceIds),
       linkError('Activity', activity.activityId, 'photo reference', activity.photoReferenceIds, photoIds),
     ]),
+    ...data.activities.map((activity) => {
+      if (!activity.category) return undefined
+      if (!activity.waypointId)
+        return `Activity "${activity.activityId}" has a category but is not linked to a waypoint.`
+      return !categoryWaypointIds.has(activity.waypointId)
+        ? `Activity "${activity.activityId}" has a category but its waypoint does not support Bronze, Silver or Gold categories.`
+        : undefined
+    }),
   ]
   return errors.find((error) => error !== undefined)
 }
@@ -106,25 +124,90 @@ function newlyUnreferencedIds(before: JourneyData, after: JourneyData): string[]
 }
 
 export type DeletionPlan = { deletes: string[]; updates: { type: EntityType; entity: Entity }[] }
+export type UpdatePlan = { updates: { type: EntityType; entity: Entity }[] }
+
+export function applyPlan(data: JourneyData, plan: DeletionPlan | UpdatePlan): JourneyData {
+  const deleteIds = 'deletes' in plan ? new Set(plan.deletes) : new Set<string>()
+  return plan.updates.reduce(
+    (next, update) => upsertEntity(next, update.type, update.entity),
+    Object.fromEntries(
+      Object.entries(data).map(([key, entities]) => [
+        key,
+        (entities as Entity[]).filter(
+          (entity) => !deleteIds.has(entityId(entityTypeFor(key as keyof JourneyData), entity)),
+        ),
+      ]),
+    ) as JourneyData,
+  )
+}
+
+export function updatePlan(data: JourneyData, type: EntityType, entity: Entity): UpdatePlan {
+  if (type !== 'waypoint') return { updates: [{ type, entity }] }
+
+  const waypointId = entityId(type, entity)
+  const challengeIds = new Set((entity.challengeIds as string[] | undefined) ?? [])
+  const challenges = data.challenges.flatMap((challenge) => {
+    const shouldLink = challengeIds.has(challenge.challengeId)
+    const linked = challenge.waypointIds.includes(waypointId)
+    if (shouldLink === linked) return []
+    return [
+      {
+        type: 'challenge' as const,
+        entity: {
+          ...challenge,
+          waypointIds: shouldLink
+            ? [...challenge.waypointIds, waypointId]
+            : challenge.waypointIds.filter((id) => id !== waypointId),
+        },
+      },
+    ]
+  })
+
+  return { updates: [{ type, entity }, ...challenges] }
+}
 
 export function deletionPlan(data: JourneyData, type: EntityType, id: string): DeletionPlan {
   if (type === 'waypoint') {
-    const challenges = data.challenges
+    const challengeUpdates = data.challenges
       .filter((challenge) => challenge.waypointIds.includes(id))
       .map((challenge) => ({
-        type: 'challenge' as const,
-        entity: { ...challenge, waypointIds: challenge.waypointIds.filter((waypointId) => waypointId !== id) },
+        ...challenge,
+        waypointIds: challenge.waypointIds.filter((waypointId) => waypointId !== id),
       }))
-    const ideas = data.ideas
+    const ideaUpdates = data.ideas
       .filter((idea) => idea.waypointIds.includes(id))
       .map((idea) => ({
-        type: 'idea' as const,
-        entity: { ...idea, waypointIds: idea.waypointIds.filter((waypointId) => waypointId !== id) },
+        ...idea,
+        waypointIds: idea.waypointIds.filter((waypointId) => waypointId !== id),
       }))
-    const activities = data.activities
+    const activityUpdates = data.activities
       .filter((activity) => activity.waypointId === id)
-      .map(({ waypointId: _removed, ...activity }) => ({ type: 'activity' as const, entity: { ...activity } }))
-    return { deletes: [id], updates: [...challenges, ...ideas, ...activities] }
+      .map((activity) => {
+        const { waypointId: _removed, category: _category, ...detached } = activity
+        return detached
+      })
+    const challenges = data.challenges.map(
+      (challenge) => challengeUpdates.find((updated) => updated.challengeId === challenge.challengeId) ?? challenge,
+    )
+    const ideas = data.ideas.map((idea) => ideaUpdates.find((updated) => updated.ideaId === idea.ideaId) ?? idea)
+    const activities = data.activities.map(
+      (activity) => activityUpdates.find((updated) => updated.activityId === activity.activityId) ?? activity,
+    )
+    const remaining: JourneyData = {
+      ...data,
+      waypoints: data.waypoints.filter((waypoint) => waypoint.waypointId !== id),
+      challenges,
+      ideas,
+      activities,
+    }
+    return {
+      deletes: [id, ...newlyUnreferencedIds(data, remaining)],
+      updates: [
+        ...challengeUpdates.map((challenge) => ({ type: 'challenge' as const, entity: { ...challenge } })),
+        ...ideaUpdates.map((idea) => ({ type: 'idea' as const, entity: { ...idea } })),
+        ...activityUpdates.map((activity) => ({ type: 'activity' as const, entity: { ...activity } })),
+      ],
+    }
   }
 
   if (type === 'idea') {

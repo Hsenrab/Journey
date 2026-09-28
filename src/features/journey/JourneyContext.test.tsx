@@ -65,6 +65,79 @@ describe('WaypointsContext', () => {
     ).toContain(waypoint?.waypointId)
   })
 
+  it('updates and deletes a waypoint while detaching linked records', () => {
+    const { result } = renderHook(() => useWaypoints(), { wrapper: WaypointsProvider })
+
+    act(() => {
+      result.current.addIdea({
+        title: 'Waypoint idea',
+        description: '',
+        notes: '',
+        waypointIds: [lacockId],
+        planningState: 'active',
+        difficulty: 2,
+        references: [],
+      })
+    })
+    act(() => {
+      result.current.addActivity(draft)
+    })
+
+    act(() => {
+      result.current.updateWaypoint(lacockId, {
+        title: 'Updated Lacock',
+        description: 'Updated description',
+        category: 'Updated category',
+        tags: ['updated'],
+        challengeIds: ['national-trust'],
+        completion: { mode: 'count', target: 2 },
+        references: [],
+        photoReferences: [],
+      })
+    })
+
+    expect(result.current.data.waypoints.find((waypoint) => waypoint.waypointId === lacockId)).toEqual(
+      expect.objectContaining({
+        title: 'Updated Lacock',
+        challengeIds: ['national-trust'],
+        completion: { mode: 'count', target: 2 },
+      }),
+    )
+    expect(
+      result.current.data.challenges.find((challenge) => challenge.challengeId === 'national-trust')?.waypointIds,
+    ).toContain(lacockId)
+
+    act(() => {
+      result.current.deleteWaypoint(lacockId)
+    })
+
+    expect(result.current.data.waypoints.some((waypoint) => waypoint.waypointId === lacockId)).toBe(false)
+    expect(result.current.data.activities[0]?.waypointId).toBeUndefined()
+    expect(result.current.data.activities[0]?.category).toBeUndefined()
+    expect(result.current.data.ideas[0]?.waypointIds).toEqual([])
+    expect(result.current.data.challenges.some((challenge) => challenge.waypointIds.includes(lacockId))).toBe(false)
+  })
+
+  it('rejects waypoint updates that invalidate an activity category', async () => {
+    const { result } = renderHook(() => useWaypoints(), { wrapper: WaypointsProvider })
+
+    await act(async () => {
+      await result.current.addActivity(draft)
+    })
+
+    await expect(
+      result.current.updateWaypoint(lacockId, {
+        ...result.current.data.waypoints.find((waypoint) => waypoint.waypointId === lacockId)!,
+        challengeIds: [],
+        references: [],
+        photoReferences: [],
+      }),
+    ).rejects.toThrow('Selected waypoint does not support Bronze, Silver or Gold categories.')
+    expect(result.current.data.waypoints.find((waypoint) => waypoint.waypointId === lacockId)?.challengeIds).toEqual([
+      'national-trust',
+    ])
+  })
+
   it('updates and deletes while preserving cleanup of unreferenced records', () => {
     const { result } = renderHook(() => useWaypoints(), { wrapper: WaypointsProvider })
 
@@ -244,6 +317,80 @@ describe('WaypointsContext in production mode', () => {
     })
 
     expect(fetch).toHaveBeenCalledTimes(9)
+  })
+
+  it('persists waypoint reference edits, additions, and removals with the waypoint in remote mode', async () => {
+    const seeded = createDefaultData()
+    const waypoint = seeded.waypoints.find((item) => item.waypointId === lacockId)!
+    seeded.waypoints = [waypoint]
+    seeded.challenges = seeded.challenges.map((challenge) => ({ ...challenge, waypointIds: [lacockId] }))
+    waypoint.referenceIds = ['ref-keep', 'ref-remove']
+    waypoint.photoReferenceIds = ['photo-keep', 'photo-remove']
+    seeded.references = [
+      { referenceId: 'ref-keep', title: 'Old guide', url: 'https://example.com/guide' },
+      { referenceId: 'ref-remove', title: 'Remove guide', url: 'https://example.com/removed' },
+    ]
+    seeded.photoReferences = [
+      { photoReferenceId: 'photo-keep', title: 'Old photo', url: 'https://example.com/photo.jpg' },
+      { photoReferenceId: 'photo-remove', title: 'Remove photo', url: 'https://example.com/removed.jpg' },
+    ]
+    const etags = {
+      [lacockId]: 'waypoint-etag',
+      'ref-keep': 'ref-etag',
+      'ref-remove': 'removed-ref-etag',
+      'photo-keep': 'photo-etag',
+      'photo-remove': 'removed-photo-etag',
+    }
+    const fetch = vi.fn().mockImplementation((_url: string, init?: RequestInit) => {
+      const body = init?.body ? JSON.parse(init.body as string) : undefined
+      return new Response(JSON.stringify({ data: body?.data ?? seeded, etags, role: 'admin' }), { status: 200 })
+    })
+    vi.stubGlobal('fetch', fetch)
+
+    const { result } = renderHook(() => useWaypoints(), { wrapper: WaypointsProvider })
+    await waitFor(() => expect(result.current.data.waypoints).toHaveLength(seeded.waypoints.length))
+
+    await act(async () => {
+      await result.current.updateWaypoint(lacockId, {
+        title: 'Updated Lacock',
+        description: waypoint.description,
+        category: waypoint.category,
+        tags: waypoint.tags,
+        challengeIds: waypoint.challengeIds,
+        completion: waypoint.completion,
+        location: waypoint.location,
+        references: [
+          { referenceId: 'ref-keep', title: 'Edited guide', url: 'https://example.com/guide' },
+          { title: 'New guide', url: 'https://example.com/new-guide' },
+        ],
+        photoReferences: [
+          { photoReferenceId: 'photo-keep', title: 'Edited photo', url: 'https://example.com/photo.jpg' },
+          { title: 'New photo', url: 'https://example.com/new-photo.jpg' },
+        ],
+      })
+    })
+
+    const requestBody = JSON.parse(fetch.mock.calls[1]![1].body)
+    expect(fetch.mock.calls[1]![1].method).toBe('POST')
+    expect(requestBody.operation).toBe('replace')
+    expect(requestBody.etags).toEqual(etags)
+    expect(requestBody.data.waypoints.find((item: { waypointId: string }) => item.waypointId === lacockId)).toEqual(
+      expect.objectContaining({
+        title: 'Updated Lacock',
+        referenceIds: ['ref-keep', expect.any(String)],
+        photoReferenceIds: ['photo-keep', expect.any(String)],
+      }),
+    )
+    expect(requestBody.data.references).toEqual([
+      expect.objectContaining({ referenceId: 'ref-keep', title: 'Edited guide' }),
+      expect.objectContaining({ title: 'New guide' }),
+    ])
+    expect(requestBody.data.photoReferences).toEqual([
+      expect.objectContaining({ photoReferenceId: 'photo-keep', title: 'Edited photo' }),
+      expect.objectContaining({ title: 'New photo' }),
+    ])
+    expect(result.current.data.references).toEqual(requestBody.data.references)
+    expect(result.current.data.photoReferences).toEqual(requestBody.data.photoReferences)
   })
 
   it('keeps viewer data read-only even when mutation methods are called directly', async () => {
