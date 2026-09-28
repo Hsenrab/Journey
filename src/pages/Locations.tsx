@@ -165,9 +165,7 @@ export default function Locations() {
         )}
       </PageHeader>
       {loadState.status === 'failed' && (
-        <Alert severity="error">
-          {loadState.message} This is a load failure, not an empty waypoint dataset.
-        </Alert>
+        <Alert severity="error">{loadState.message} This is a load failure, not an empty waypoint dataset.</Alert>
       )}
       {message && (
         <Alert
@@ -216,63 +214,63 @@ export default function Locations() {
       )}
       {loadState.status !== 'failed' && (
         <FilterBar>
-        <TextField label="Search waypoints" value={query} onChange={(e) => setQuery(e.target.value)} />
-        <TextField
-          id="waypoint-status"
-          select
-          label="Status"
-          value={status}
-          onChange={(e) => setStatus(e.target.value)}
-        >
-          <MenuItem value="all">All statuses</MenuItem>
-          {statusOrder.map((s) => (
-            <MenuItem key={s} value={s}>
-              {statusLabels[s]}
-            </MenuItem>
-          ))}
-        </TextField>
-        <TextField
-          id="waypoint-sort"
-          select
-          label="Sort"
-          value={sort}
-          onChange={(e) => setSort(e.target.value as SortKey)}
-        >
-          <MenuItem value="name">Name</MenuItem>
-          <MenuItem value="status">Progress</MenuItem>
-          <MenuItem value="distance">Distance (nearest first)</MenuItem>
-          <MenuItem value="travel">Drive time (where available)</MenuItem>
-          <MenuItem value="lastActivity">Last activity date</MenuItem>
-        </TextField>
-        <TextField
-          id="maximum-driving-distance"
-          select
-          label="Maximum driving distance"
-          value={maxDistance}
-          onChange={(e) => setMaxDistance(e.target.value)}
-        >
-          <MenuItem value="all">Any distance</MenuItem>
-          <MenuItem value="25">Up to 25 miles (plus unknown)</MenuItem>
-          <MenuItem value="50">Up to 50 miles (plus unknown)</MenuItem>
-          <MenuItem value="100">Up to 100 miles (plus unknown)</MenuItem>
-          <MenuItem value="200">Up to 200 miles (plus unknown)</MenuItem>
-        </TextField>
-        <TextField select label="Area" value={area} onChange={(e) => setArea(e.target.value)}>
-          <MenuItem value="all">All areas</MenuItem>
-          {areas.map((item) => (
-            <MenuItem key={item} value={item}>
-              {item}
-            </MenuItem>
-          ))}
-        </TextField>
-        <TextField select label="Category" value={category} onChange={(e) => setCategory(e.target.value)}>
-          <MenuItem value="all">All categories</MenuItem>
-          {categories.map((item) => (
-            <MenuItem key={item} value={item}>
-              {item}
-            </MenuItem>
-          ))}
-        </TextField>
+          <TextField label="Search waypoints" value={query} onChange={(e) => setQuery(e.target.value)} />
+          <TextField
+            id="waypoint-status"
+            select
+            label="Status"
+            value={status}
+            onChange={(e) => setStatus(e.target.value)}
+          >
+            <MenuItem value="all">All statuses</MenuItem>
+            {statusOrder.map((s) => (
+              <MenuItem key={s} value={s}>
+                {statusLabels[s]}
+              </MenuItem>
+            ))}
+          </TextField>
+          <TextField
+            id="waypoint-sort"
+            select
+            label="Sort"
+            value={sort}
+            onChange={(e) => setSort(e.target.value as SortKey)}
+          >
+            <MenuItem value="name">Name</MenuItem>
+            <MenuItem value="status">Progress</MenuItem>
+            <MenuItem value="distance">Distance (nearest first)</MenuItem>
+            <MenuItem value="travel">Drive time (where available)</MenuItem>
+            <MenuItem value="lastActivity">Last activity date</MenuItem>
+          </TextField>
+          <TextField
+            id="maximum-driving-distance"
+            select
+            label="Maximum driving distance"
+            value={maxDistance}
+            onChange={(e) => setMaxDistance(e.target.value)}
+          >
+            <MenuItem value="all">Any distance</MenuItem>
+            <MenuItem value="25">Up to 25 miles (plus unknown)</MenuItem>
+            <MenuItem value="50">Up to 50 miles (plus unknown)</MenuItem>
+            <MenuItem value="100">Up to 100 miles (plus unknown)</MenuItem>
+            <MenuItem value="200">Up to 200 miles (plus unknown)</MenuItem>
+          </TextField>
+          <TextField select label="Area" value={area} onChange={(e) => setArea(e.target.value)}>
+            <MenuItem value="all">All areas</MenuItem>
+            {areas.map((item) => (
+              <MenuItem key={item} value={item}>
+                {item}
+              </MenuItem>
+            ))}
+          </TextField>
+          <TextField select label="Category" value={category} onChange={(e) => setCategory(e.target.value)}>
+            <MenuItem value="all">All categories</MenuItem>
+            {categories.map((item) => (
+              <MenuItem key={item} value={item}>
+                {item}
+              </MenuItem>
+            ))}
+          </TextField>
         </FilterBar>
       )}
       {loadState.status === 'failed' ? null : list.length === 0 ? (

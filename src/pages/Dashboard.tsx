@@ -23,9 +23,7 @@ export default function Dashboard() {
     return (
       <Stack spacing={2}>
         <PageHeader title="National Trust Challenge" />
-        <Alert severity="error">
-          {loadState.message} This is a load failure, not an empty challenge dataset.
-        </Alert>
+        <Alert severity="error">{loadState.message} This is a load failure, not an empty challenge dataset.</Alert>
       </Stack>
     )
   }

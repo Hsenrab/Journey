@@ -439,7 +439,10 @@ export function WaypointsProvider({ children }: { children: ReactNode }) {
             `Demo Cosmos could not be loaded, so read-only local demo data is shown: ${message}`,
           )
         }
-        return fail('production', `Production data could not be loaded. Check the Journey API and Cosmos configuration: ${message}`)
+        return fail(
+          'production',
+          `Production data could not be loaded. Check the Journey API and Cosmos configuration: ${message}`,
+        )
       }
     },
     [apply, localTestMode],
@@ -542,7 +545,20 @@ export function WaypointsProvider({ children }: { children: ReactNode }) {
       activitiesFor: (waypointId) => activitiesForWaypoint(data.activities, waypointId),
       statusFor: (waypointId) => statusForWaypoint(data.activities, waypointId),
     }
-  }, [activeDataMode, apply, changeDataMode, data, dataMode, etags, loadError, loadState, loading, localTestMode, reload, role])
+  }, [
+    activeDataMode,
+    apply,
+    changeDataMode,
+    data,
+    dataMode,
+    etags,
+    loadError,
+    loadState,
+    loading,
+    localTestMode,
+    reload,
+    role,
+  ])
   return <Context.Provider value={value}>{children}</Context.Provider>
 }
 

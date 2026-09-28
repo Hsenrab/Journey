@@ -87,9 +87,7 @@ export default function LocationDetails() {
         )}
       </DetailPageHeader>
       {loadState.status === 'failed' && (
-        <Alert severity="error">
-          {loadState.message} This is a load failure, not an empty waypoint dataset.
-        </Alert>
+        <Alert severity="error">{loadState.message} This is a load failure, not an empty waypoint dataset.</Alert>
       )}
       <Chip label={`Category summary: ${statusLabels[statusFor(id)]}`} />
       <Typography>{waypoint.description}</Typography>

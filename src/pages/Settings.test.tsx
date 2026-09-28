@@ -182,7 +182,11 @@ describe('Settings', () => {
     vi.stubEnv('MODE', 'production')
     vi.stubGlobal(
       'fetch',
-      vi.fn().mockResolvedValue(new Response(JSON.stringify({ error: 'unavailable' }), { status: 500, statusText: 'Broken' })),
+      vi
+        .fn()
+        .mockResolvedValue(
+          new Response(JSON.stringify({ error: 'unavailable' }), { status: 500, statusText: 'Broken' }),
+        ),
     )
     const createObjectURL = vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:mock-url')
     renderSettings()
@@ -190,7 +194,9 @@ describe('Settings', () => {
     const exportButton = await screen.findByRole('button', { name: 'Export JSON' })
     expect(exportButton).toBeDisabled()
     expect(
-      screen.getByText('Export is disabled because the active dataset did not load. Reload production before creating a backup.'),
+      screen.getByText(
+        'Export is disabled because the active dataset did not load. Reload production before creating a backup.',
+      ),
     ).toBeInTheDocument()
 
     expect(createObjectURL).not.toHaveBeenCalled()

@@ -201,9 +201,7 @@ export default function Ideas() {
         )}
       </PageHeader>
       {loadState.status === 'failed' && (
-        <Alert severity="error">
-          {loadState.message} This is a load failure, not an empty ideas dataset.
-        </Alert>
+        <Alert severity="error">{loadState.message} This is a load failure, not an empty ideas dataset.</Alert>
       )}
       {loadState.status !== 'failed' && (
         <FilterBar>

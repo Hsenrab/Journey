@@ -55,9 +55,7 @@ export default function Activities() {
       </PageHeader>
 
       {loadState.status === 'failed' && (
-        <Alert severity="error">
-          {loadState.message} This is a load failure, not an empty activity log.
-        </Alert>
+        <Alert severity="error">{loadState.message} This is a load failure, not an empty activity log.</Alert>
       )}
 
       {message && (
