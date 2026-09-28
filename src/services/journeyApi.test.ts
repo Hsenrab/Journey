@@ -46,13 +46,19 @@ describe('journey API client', () => {
     const fetch = vi
       .fn()
       .mockResolvedValueOnce(new Response(JSON.stringify({ etag: 'next' }), { status: 201 }))
-      .mockResolvedValueOnce(new Response(JSON.stringify({ data, etags: { a: 'next' } }), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ etag: 'next' }), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ data, etags: { waypoint: 'next' } }), { status: 200 }))
       .mockResolvedValueOnce(new Response(null, { status: 204 }))
     vi.stubGlobal('fetch', fetch)
     await expect(createJourneyEntity('production', 'activity', { activityId: 'a' })).resolves.toEqual({ etag: 'next' })
     await expect(updateJourneyEntity('production', 'activity', { activityId: 'a' }, 'a', 'old')).resolves.toEqual({
+      etag: 'next',
+    })
+    await expect(
+      updateJourneyEntity('production', 'waypoint', { waypointId: 'waypoint' }, 'waypoint', 'old'),
+    ).resolves.toEqual({
       data,
-      etags: { a: 'next' },
+      etags: { waypoint: 'next' },
     })
     await deleteJourneyEntity('production', 'activity', 'a', 'old')
     expect(fetch).toHaveBeenCalledWith(

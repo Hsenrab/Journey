@@ -125,10 +125,9 @@ export async function journey(request: HttpRequest, context: InvocationContext):
       if (document.type === 'waypoint') {
         if (!plan) throw new Error('Waypoint update plan was not created.')
         await replaceEntities(cosmos, datasetId, plan, parsed.data.id, parsed.data.ifMatch, loaded)
-      } else {
-        await replaceDocument(cosmos, document, parsed.data.ifMatch)
+        return { status: 200, jsonBody: await loadDataset(cosmos, datasetId) }
       }
-      return { status: 200, jsonBody: await loadDataset(cosmos, datasetId) }
+      return { status: 200, jsonBody: savedDocument(await replaceDocument(cosmos, document, parsed.data.ifMatch)) }
     }
     if (request.method !== 'DELETE') throw new ResponseError(405, 'method_not_allowed')
     const loaded = await loadDataset(cosmos, datasetId)
