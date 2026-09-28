@@ -38,6 +38,13 @@ export default function Activities() {
       return next
     })
   }
+  const openEditor = () => {
+    setSearchParams((previous) => {
+      const next = new URLSearchParams(previous)
+      next.set('mode', 'add')
+      return next
+    })
+  }
   const reloadLatest = async () => {
     const result = await reload()
     if (result.status === 'failure') {
@@ -59,11 +66,7 @@ export default function Activities() {
             variant="contained"
             onClick={() => {
               setMessage(null)
-              setSearchParams((previous) => {
-                const next = new URLSearchParams(previous)
-                next.set('mode', 'add')
-                return next
-              })
+              openEditor()
             }}
           >
             Add activity
@@ -96,6 +99,7 @@ export default function Activities() {
             try {
               await addActivity(draft)
               if (initialIdeaId) {
+                clearEditorParams()
                 navigate(`/ideas/${initialIdeaId}`)
                 return
               }
