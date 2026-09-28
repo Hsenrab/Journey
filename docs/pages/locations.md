@@ -10,8 +10,9 @@ review a visit.
 ## Supported actions
 
 - Search by name, area or category
-- Filter by maximum driving distance from Brockworth
-- Filter by status (all, Not Started, Bronze, Silver, Gold), area and category
+- Filter by status (all, Not Started, Bronze, Silver, Gold)
+- Filter by maximum driving distance from Brockworth, area and category under **More filters**, a
+  closed-by-default accordion whose summary reports how many of those filters are active
 - Sort by name, progress, distance (nearest first), travel time or last visit date
 - Add a waypoint with the shared waypoint add form
 - Open a location's details page

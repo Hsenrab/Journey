@@ -1,6 +1,19 @@
 import { useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { Alert, Box, Button, Chip, MenuItem, Stack, TextField, Typography } from '@mui/material'
+import {
+  Accordion,
+  AccordionDetails,
+  AccordionSummary,
+  Alert,
+  Box,
+  Button,
+  Chip,
+  MenuItem,
+  Stack,
+  TextField,
+  Typography,
+} from '@mui/material'
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
 import DirectionsCarIcon from '@mui/icons-material/DirectionsCar'
 import RouteIcon from '@mui/icons-material/Route'
 import SearchOffIcon from '@mui/icons-material/SearchOff'
@@ -44,6 +57,7 @@ export default function Locations() {
   const [maxDistance, setMaxDistance] = useState('all')
   const [area, setArea] = useState('all')
   const [category, setCategory] = useState('all')
+  const activeMoreFilterCount = [maxDistance, area, category].filter((value) => value !== 'all').length
   const [message, setMessage] = useState<{
     severity: 'success' | 'error'
     text: string
@@ -249,36 +263,47 @@ export default function Locations() {
             <MenuItem value="travel">Drive time (where available)</MenuItem>
             <MenuItem value="lastActivity">Last activity date</MenuItem>
           </TextField>
-          <TextField
-            id="maximum-driving-distance"
-            select
-            label="Maximum driving distance"
-            value={maxDistance}
-            onChange={(e) => setMaxDistance(e.target.value)}
-          >
-            <MenuItem value="all">Any distance</MenuItem>
-            <MenuItem value="25">Up to 25 miles (plus unknown)</MenuItem>
-            <MenuItem value="50">Up to 50 miles (plus unknown)</MenuItem>
-            <MenuItem value="100">Up to 100 miles (plus unknown)</MenuItem>
-            <MenuItem value="200">Up to 200 miles (plus unknown)</MenuItem>
-          </TextField>
-          <TextField select label="Area" value={area} onChange={(e) => setArea(e.target.value)}>
-            <MenuItem value="all">All areas</MenuItem>
-            {areas.map((item) => (
-              <MenuItem key={item} value={item}>
-                {item}
-              </MenuItem>
-            ))}
-          </TextField>
-          <TextField select label="Category" value={category} onChange={(e) => setCategory(e.target.value)}>
-            <MenuItem value="all">All categories</MenuItem>
-            {categories.map((item) => (
-              <MenuItem key={item} value={item}>
-                {item}
-              </MenuItem>
-            ))}
-          </TextField>
         </FilterBar>
+      )}
+      {loadState.status !== 'failed' && (
+        <Accordion disableGutters>
+          <AccordionSummary expandIcon={<ExpandMoreIcon />} aria-controls="more-filters" id="more-filters-header">
+            <Typography>More filters ({activeMoreFilterCount} active)</Typography>
+          </AccordionSummary>
+          <AccordionDetails id="more-filters">
+            <FilterBar>
+              <TextField
+                id="maximum-driving-distance"
+                select
+                label="Maximum driving distance"
+                value={maxDistance}
+                onChange={(e) => setMaxDistance(e.target.value)}
+              >
+                <MenuItem value="all">Any distance</MenuItem>
+                <MenuItem value="25">Up to 25 miles (plus unknown)</MenuItem>
+                <MenuItem value="50">Up to 50 miles (plus unknown)</MenuItem>
+                <MenuItem value="100">Up to 100 miles (plus unknown)</MenuItem>
+                <MenuItem value="200">Up to 200 miles (plus unknown)</MenuItem>
+              </TextField>
+              <TextField select label="Area" value={area} onChange={(e) => setArea(e.target.value)}>
+                <MenuItem value="all">All areas</MenuItem>
+                {areas.map((item) => (
+                  <MenuItem key={item} value={item}>
+                    {item}
+                  </MenuItem>
+                ))}
+              </TextField>
+              <TextField select label="Category" value={category} onChange={(e) => setCategory(e.target.value)}>
+                <MenuItem value="all">All categories</MenuItem>
+                {categories.map((item) => (
+                  <MenuItem key={item} value={item}>
+                    {item}
+                  </MenuItem>
+                ))}
+              </TextField>
+            </FilterBar>
+          </AccordionDetails>
+        </Accordion>
       )}
       {loadState.status === 'failed' ? null : loadState.status === 'loading' ? (
         <LoadingNotice message="Loading waypoints…" />
