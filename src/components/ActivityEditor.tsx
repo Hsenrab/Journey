@@ -133,6 +133,8 @@ export function ActivityEditor({
   const [jsonError, setJsonError] = useState<string | null>(null)
   const [jsonIssues, setJsonIssues] = useState<string[]>([])
   const addMode = !initialActivity
+  const canPrefillLocation =
+    !locationEdited && initialLocation.kind === 'postcode' && initialLocation.postcode.trim() === ''
 
   const supportsCategories = waypointSupportsActivityCategory(data, waypointId || undefined)
   const sortedIdeas = useMemo(
@@ -450,9 +452,7 @@ export function ActivityEditor({
                 onChange={(_, value) => {
                   const nextWaypointId = value?.waypointId ?? ''
                   setWaypointId(nextWaypointId)
-                  if (locationEdited || initialLocation.kind !== 'postcode' || initialLocation.postcode.trim() !== '') {
-                    return
-                  }
+                  if (!canPrefillLocation) return
                   const location = waypointInitialLocation(data, nextWaypointId)
                   if (!location) {
                     setLocationKind('postcode')
