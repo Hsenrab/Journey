@@ -293,11 +293,10 @@ export default function ActivityDetails() {
               color="error"
               onClick={async () => {
                 try {
-                  const deleted = activity
-                  await deleteActivity(deleted.activityId)
+                  await deleteActivity(activity.activityId)
                   const result = await reload()
                   if (result.status === 'failure') {
-                    setDeletedActivity(deleted)
+                    setDeletedActivity(activity)
                     setShowDeleteDialog(false)
                     setMessage({
                       severity: 'error',
