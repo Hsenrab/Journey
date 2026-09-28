@@ -316,8 +316,14 @@ describe('ActivityDetails', () => {
     save({
       ...seed,
       photoReferences: [
-        { photoReferenceId: 'p1', title: 'View one', url: 'https://example.com/one.jpg' },
+        {
+          photoReferenceId: 'p1',
+          title: 'View one',
+          url: 'https://example.com/one.jpg',
+          altText: 'First photo alt text',
+        },
         { photoReferenceId: 'p2', title: 'View two', url: 'https://example.com/two.jpg' },
+        { photoReferenceId: 'p3', title: 'View three', url: 'https://example.com/three.jpg' },
       ],
       activities: [
         {
@@ -329,7 +335,7 @@ describe('ActivityDetails', () => {
           location: { kind: 'postcode', postcode: 'BA12 6QF' },
           notes: 'Excellent visit',
           referenceIds: [],
-          photoReferenceIds: ['p1', 'p2'],
+          photoReferenceIds: ['p1', 'p2', 'p3'],
           createdAt: '2026-08-01T10:00:00.000Z',
           updatedAt: '2026-08-01T10:00:00.000Z',
         },
@@ -338,14 +344,36 @@ describe('ActivityDetails', () => {
 
     renderDetails()
 
-    await user.click(screen.getByRole('button', { name: 'Next photo' }))
-    expect(screen.getByText('2 of 2: View two')).toBeInTheDocument()
-    await user.click(screen.getByRole('button', { name: 'Previous photo' }))
-    expect(screen.getByText('1 of 2: View one')).toBeInTheDocument()
+    expect(screen.getAllByRole('button', { name: /^Show photo/ })).toHaveLength(3)
+    expect(screen.getByRole('img', { name: 'First photo alt text' })).toBeInTheDocument()
+    expect(screen.getByRole('img', { name: 'First photo alt text' })).toHaveStyle({ objectFit: 'contain' })
 
-    const img = screen.getByRole('img', { name: 'View one' })
+    await user.click(screen.getByRole('button', { name: 'Next photo' }))
+    expect(screen.getByRole('status')).toHaveTextContent('2 of 3: View two')
+    await user.click(screen.getByRole('button', { name: 'Previous photo' }))
+    expect(screen.getByRole('status')).toHaveTextContent('1 of 3: View one')
+
+    const gallery = screen.getByRole('region', { name: /Photos for/ })
+    fireEvent.keyDown(gallery, { key: 'ArrowRight' })
+    expect(screen.getByRole('status')).toHaveTextContent('2 of 3: View two')
+    await user.click(screen.getByRole('button', { name: 'Show photo 3: View three' }))
+    expect(screen.getByRole('status')).toHaveTextContent('3 of 3: View three')
+
+    fireEvent.touchStart(gallery, {
+      touches: [{ identifier: 1, target: gallery, clientX: 100, clientY: 10 }],
+    })
+    fireEvent.touchEnd(gallery, {
+      changedTouches: [{ identifier: 1, target: gallery, clientX: 40, clientY: 10 }],
+      touches: [],
+    })
+    expect(screen.getByRole('status')).toHaveTextContent('1 of 3: View one')
+
+    const img = screen.getByRole('img', { name: 'First photo alt text' })
     fireEvent.error(img)
+    expect(screen.queryByRole('img', { name: 'First photo alt text' })).not.toBeInTheDocument()
+    expect(screen.getByRole('alert')).toHaveTextContent('Image failed to load: View one')
     expect(screen.getByText('Image failed to load: View one')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Show photo 1: View one, failed to load' })).toHaveTextContent('Failed')
 
     await user.click(screen.getByRole('button', { name: 'Edit activity' }))
     await user.clear(screen.getByLabelText('Description / notes'))
