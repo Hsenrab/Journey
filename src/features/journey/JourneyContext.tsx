@@ -19,9 +19,11 @@ import {
 } from '../../services/storage'
 import {
   clearJourney,
+  deleteJourneyEntity,
   importJourney,
   loadJourney,
   replaceJourney,
+  updateJourneyEntity,
   type JourneyContainer,
   type JourneyRole,
 } from '../../services/journeyApi'
@@ -88,6 +90,8 @@ export type WaypointDraft = {
 
 type Action =
   | { type: 'add-waypoint'; input: WaypointDraft }
+  | { type: 'update-waypoint'; waypointId: string; input: WaypointDraft }
+  | { type: 'delete-waypoint'; waypointId: string }
   | { type: 'add-activity'; input: ActivityDraft }
   | { type: 'update-activity'; activityId: string; input: ActivityDraft }
   | { type: 'delete-activity'; activityId: string }
@@ -105,6 +109,8 @@ type WaypointsValue = {
   loadError?: string
   setDataMode: (mode: JourneyDataMode) => Promise<void>
   addWaypoint: (input: WaypointDraft) => Promise<void>
+  updateWaypoint: (waypointId: string, input: WaypointDraft) => Promise<void>
+  deleteWaypoint: (waypointId: string) => Promise<void>
   addActivity: (input: ActivityDraft) => Promise<void>
   updateActivity: (activityId: string, input: ActivityDraft) => Promise<void>
   deleteActivity: (activityId: string) => Promise<void>
@@ -240,6 +246,66 @@ function reducer(data: WaypointsData, action: Action): WaypointsData {
         photoReferences: photos.photoReferences,
       })
     }
+    case 'update-waypoint': {
+      const existing = data.waypoints.find((waypoint) => waypoint.waypointId === action.waypointId)
+      if (!existing) throw new Error('Waypoint not found')
+      const refs = upsertReferences(data, action.input.references)
+      const photos = upsertPhotoReferences(data, action.input.photoReferences)
+      const missingChallenges = action.input.challengeIds.filter(
+        (challengeId) => !data.challenges.some((challenge) => challenge.challengeId === challengeId),
+      )
+      if (missingChallenges.length > 0) {
+        throw new Error(`Unknown challenge ID: ${missingChallenges[0]}`)
+      }
+      const waypoint = WaypointSchema.parse({
+        waypointId: existing.waypointId,
+        title: action.input.title,
+        description: action.input.description,
+        category: action.input.category,
+        tags: action.input.tags,
+        challengeIds: action.input.challengeIds,
+        completion: action.input.completion,
+        location: action.input.location,
+        referenceIds: refs.referenceIds,
+        photoReferenceIds: photos.photoReferenceIds,
+      })
+      const challenges = data.challenges.map((challenge) => {
+        const linked = waypoint.challengeIds.includes(challenge.challengeId)
+        return {
+          ...challenge,
+          waypointIds: linked
+            ? challenge.waypointIds.includes(waypoint.waypointId)
+              ? challenge.waypointIds
+              : [...challenge.waypointIds, waypoint.waypointId]
+            : challenge.waypointIds.filter((waypointId) => waypointId !== waypoint.waypointId),
+        }
+      })
+      return pruneUnreferenced({
+        ...data,
+        waypoints: data.waypoints.map((item) => (item.waypointId === action.waypointId ? waypoint : item)),
+        challenges,
+        references: refs.references,
+        photoReferences: photos.photoReferences,
+      })
+    }
+    case 'delete-waypoint':
+      return pruneUnreferenced({
+        ...data,
+        waypoints: data.waypoints.filter((waypoint) => waypoint.waypointId !== action.waypointId),
+        challenges: data.challenges.map((challenge) => ({
+          ...challenge,
+          waypointIds: challenge.waypointIds.filter((waypointId) => waypointId !== action.waypointId),
+        })),
+        ideas: data.ideas.map((idea) => ({
+          ...idea,
+          waypointIds: idea.waypointIds.filter((waypointId) => waypointId !== action.waypointId),
+        })),
+        activities: data.activities.map((activity) => {
+          if (activity.waypointId !== action.waypointId) return activity
+          const { waypointId: _removed, ...detached } = activity
+          return detached
+        }),
+      })
     case 'add-activity': {
       const refs = upsertReferences(data, action.input.references)
       const photos = upsertPhotoReferences(data, action.input.photoReferences)
@@ -484,6 +550,34 @@ export function WaypointsProvider({ children }: { children: ReactNode }) {
         const action = { type: 'add-waypoint' as const, input }
         const next = reducer(data, action)
         await persist(container, action, next)
+      },
+      updateWaypoint: async (waypointId, input) => {
+        const container = writableContainer()
+        const action = { type: 'update-waypoint' as const, waypointId, input }
+        const next = reducer(data, action)
+        if (localTestMode && dataMode === 'production') {
+          dispatch(action)
+          return
+        }
+        const updated = next.waypoints.find((waypoint) => waypoint.waypointId === waypointId)
+        if (!updated) throw new Error('Waypoint not found')
+        const etag = etags[waypointId]
+        if (!etag) throw new Error(`Waypoint "${waypointId}" has no ETag for update.`)
+        await updateJourneyEntity(container, 'waypoint', updated, waypointId, etag)
+        apply({ ...(await loadJourney(container)), role })
+      },
+      deleteWaypoint: async (waypointId) => {
+        const container = writableContainer()
+        const action = { type: 'delete-waypoint' as const, waypointId }
+        reducer(data, action)
+        if (localTestMode && dataMode === 'production') {
+          dispatch(action)
+          return
+        }
+        const etag = etags[waypointId]
+        if (!etag) throw new Error(`Waypoint "${waypointId}" has no ETag for delete.`)
+        await deleteJourneyEntity(container, 'waypoint', waypointId, etag)
+        apply({ ...(await loadJourney(container)), role })
       },
       addActivity: async (input) => {
         const container = writableContainer()

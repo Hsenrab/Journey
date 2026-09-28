@@ -1,6 +1,6 @@
 import { useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
-import { Alert, Button, Chip, Stack, Typography } from '@mui/material'
+import { Link, useNavigate, useParams } from 'react-router-dom'
+import { Alert, Button, Chip, Dialog, DialogActions, DialogContent, DialogTitle, Stack, Typography } from '@mui/material'
 import LinkIcon from '@mui/icons-material/Link'
 import PhotoLibraryIcon from '@mui/icons-material/PhotoLibrary'
 import PlaceIcon from '@mui/icons-material/Place'
@@ -10,6 +10,7 @@ import { CardDetailRow } from '../components/CardDetailRow'
 import { ClickableCard } from '../components/ClickableCard'
 import { DetailPageHeader } from '../components/DetailPageHeader'
 import { EmptyState } from '../components/EmptyState'
+import { WaypointEditor } from '../components/WaypointEditor'
 import { locations } from '../data/locations'
 import {
   activitySubtitle,
@@ -29,8 +30,12 @@ const catalogueLocationById = new Map(locations.map((location) => [location.loca
 
 export default function LocationDetails() {
   const { id = '' } = useParams()
-  const { addActivity, activitiesFor, statusFor, data, readOnly, reload } = useWaypoints()
+  const navigate = useNavigate()
+  const { addActivity, updateWaypoint, deleteWaypoint, activitiesFor, statusFor, data, readOnly, reload } =
+    useWaypoints()
   const [showEditor, setShowEditor] = useState(false)
+  const [editingWaypoint, setEditingWaypoint] = useState(false)
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false)
   const [message, setMessage] = useState<{ severity: 'success' | 'error'; text: string; conflict: boolean } | null>(
     null,
   )
@@ -60,23 +65,38 @@ export default function LocationDetails() {
     }
     setMessage(null)
     setShowEditor(false)
+    setEditingWaypoint(false)
+    setShowDeleteDialog(false)
   }
 
   return (
     <Stack spacing={3}>
       <DetailPageHeader breadcrumbs={breadcrumbs} title={waypoint.title}>
-        {!readOnly && !showEditor && (
-          <Button
-            variant="contained"
-            onClick={() => {
-              setMessage(null)
-              setShowEditor(true)
-            }}
-          >
-            Log activity
-          </Button>
+        {!readOnly && !showEditor && !editingWaypoint && (
+          <>
+            <Button
+              variant="contained"
+              onClick={() => {
+                setMessage(null)
+                setShowEditor(true)
+              }}
+            >
+              Log activity
+            </Button>
+            <Button
+              onClick={() => {
+                setMessage(null)
+                setEditingWaypoint(true)
+              }}
+            >
+              Edit waypoint
+            </Button>
+            <Button color="error" onClick={() => setShowDeleteDialog(true)}>
+              Delete waypoint
+            </Button>
+          </>
         )}
-        {!readOnly && (
+        {!readOnly && !editingWaypoint && (
           <Button component={Link} to={`/ideas?mode=add&waypoint=${encodeURIComponent(id)}`}>
             Add idea
           </Button>
@@ -104,6 +124,31 @@ export default function LocationDetails() {
         >
           {message.text}
         </Alert>
+      )}
+
+      {!readOnly && editingWaypoint && (
+        <WaypointEditor
+          data={data}
+          initialWaypoint={waypoint}
+          submitLabel="Save waypoint"
+          onSubmit={async (draft) => {
+            try {
+              await updateWaypoint(id, draft)
+              setEditingWaypoint(false)
+              setMessage({ severity: 'success', text: 'Waypoint saved.', conflict: false })
+            } catch (error) {
+              setMessage({
+                severity: 'error',
+                text: error instanceof Error ? error.message : 'Failed to save waypoint.',
+                conflict: error instanceof JourneyConflictError,
+              })
+            }
+          }}
+          onCancel={() => {
+            setMessage(null)
+            setEditingWaypoint(false)
+          }}
+        />
       )}
 
       {!readOnly && showEditor && (
@@ -192,6 +237,39 @@ export default function LocationDetails() {
           )
         })}
       </Stack>
+      {!readOnly && (
+        <Dialog open={showDeleteDialog} onClose={() => setShowDeleteDialog(false)}>
+          <DialogTitle>Delete waypoint?</DialogTitle>
+          <DialogContent>
+            <Typography>
+              Deleting this waypoint clears it from {countLabel(activities.length, 'linked activity')} and{' '}
+              {countLabel(waypointIdeas.length, 'linked idea')}. Activities and ideas are kept, and the waypoint is
+              removed from linked challenges.
+            </Typography>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setShowDeleteDialog(false)}>Cancel</Button>
+            <Button
+              color="error"
+              onClick={async () => {
+                try {
+                  await deleteWaypoint(id)
+                  navigate('/waypoints')
+                } catch (error) {
+                  setMessage({
+                    severity: 'error',
+                    text: error instanceof Error ? error.message : 'Failed to delete waypoint.',
+                    conflict: error instanceof JourneyConflictError,
+                  })
+                  setShowDeleteDialog(false)
+                }
+              }}
+            >
+              Delete
+            </Button>
+          </DialogActions>
+        </Dialog>
+      )}
     </Stack>
   )
 }

@@ -65,6 +65,60 @@ describe('WaypointsContext', () => {
     ).toContain(waypoint?.waypointId)
   })
 
+  it('updates and deletes a waypoint while detaching linked records', () => {
+    const { result } = renderHook(() => useWaypoints(), { wrapper: WaypointsProvider })
+
+    act(() => {
+      result.current.addIdea({
+        title: 'Waypoint idea',
+        description: '',
+        notes: '',
+        waypointIds: [lacockId],
+        planningState: 'active',
+        difficulty: 2,
+        references: [],
+      })
+    })
+    act(() => {
+      result.current.addActivity(draft)
+    })
+
+    act(() => {
+      result.current.updateWaypoint(lacockId, {
+        title: 'Updated Lacock',
+        description: 'Updated description',
+        category: 'Updated category',
+        tags: ['updated'],
+        challengeIds: [],
+        completion: { mode: 'count', target: 2 },
+        references: [],
+        photoReferences: [],
+      })
+    })
+
+    expect(result.current.data.waypoints.find((waypoint) => waypoint.waypointId === lacockId)).toEqual(
+      expect.objectContaining({
+        title: 'Updated Lacock',
+        challengeIds: [],
+        completion: { mode: 'count', target: 2 },
+      }),
+    )
+    expect(
+      result.current.data.challenges.find((challenge) => challenge.challengeId === 'national-trust')?.waypointIds,
+    ).not.toContain(lacockId)
+
+    act(() => {
+      result.current.deleteWaypoint(lacockId)
+    })
+
+    expect(result.current.data.waypoints.some((waypoint) => waypoint.waypointId === lacockId)).toBe(false)
+    expect(result.current.data.activities[0]?.waypointId).toBeUndefined()
+    expect(result.current.data.ideas[0]?.waypointIds).toEqual([])
+    expect(
+      result.current.data.challenges.some((challenge) => challenge.waypointIds.includes(lacockId)),
+    ).toBe(false)
+  })
+
   it('updates and deletes while preserving cleanup of unreferenced records', () => {
     const { result } = renderHook(() => useWaypoints(), { wrapper: WaypointsProvider })
 

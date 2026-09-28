@@ -29,6 +29,7 @@ type Props = {
   onSubmit: (draft: WaypointDraft) => void
   onCancel?: () => void
   errorMessage?: string | null
+  initialWaypoint?: Waypoint
 }
 
 type EditorReference = {
@@ -49,24 +50,54 @@ type EditorPhotoReference = {
 type Errors = Record<string, string>
 type EditorMode = 'form' | 'json'
 
-export function WaypointEditor({ data, submitLabel, onSubmit, onCancel, errorMessage }: Props) {
-  const [title, setTitle] = useState('')
-  const [description, setDescription] = useState('')
-  const [category, setCategory] = useState('')
-  const [tagsInput, setTagsInput] = useState('')
-  const [challengeIds, setChallengeIds] = useState<string[]>(
-    data.challenges.some((challenge) => challenge.challengeId === 'national-trust') ? ['national-trust'] : [],
+export function WaypointEditor({ data, submitLabel, onSubmit, onCancel, errorMessage, initialWaypoint }: Props) {
+  const defaultChallengeIds =
+    initialWaypoint?.challengeIds ??
+    (data.challenges.some((challenge) => challenge.challengeId === 'national-trust') ? ['national-trust'] : [])
+  const defaultReferences: EditorReference[] = initialWaypoint
+    ? data.references
+        .filter((reference) => initialWaypoint.referenceIds.includes(reference.referenceId))
+        .map((reference) => ({
+          referenceId: reference.referenceId,
+          title: reference.title,
+          description: reference.description ?? '',
+          url: reference.url,
+          previewImageUrl: reference.previewImageUrl ?? '',
+        }))
+    : []
+  const defaultPhotoReferences: EditorPhotoReference[] = initialWaypoint
+    ? data.photoReferences
+        .filter((photoReference) => initialWaypoint.photoReferenceIds.includes(photoReference.photoReferenceId))
+        .map((photoReference) => ({
+          photoReferenceId: photoReference.photoReferenceId,
+          title: photoReference.title,
+          altText: photoReference.altText ?? '',
+          url: photoReference.url,
+        }))
+    : []
+  const [title, setTitle] = useState(initialWaypoint?.title ?? '')
+  const [description, setDescription] = useState(initialWaypoint?.description ?? '')
+  const [category, setCategory] = useState(initialWaypoint?.category ?? '')
+  const [tagsInput, setTagsInput] = useState(initialWaypoint?.tags.join(', ') ?? '')
+  const [challengeIds, setChallengeIds] = useState<string[]>(defaultChallengeIds)
+  const [completionMode, setCompletionMode] = useState<Waypoint['completion']['mode']>(
+    initialWaypoint?.completion.mode ?? 'once',
   )
-  const [completionMode, setCompletionMode] = useState<Waypoint['completion']['mode']>('once')
-  const [completionTarget, setCompletionTarget] = useState('1')
-  const [placeName, setPlaceName] = useState('')
-  const [addressOrRegion, setAddressOrRegion] = useState('')
-  const [source, setSource] = useState('')
-  const [latitude, setLatitude] = useState('')
-  const [longitude, setLongitude] = useState('')
-  const [approximate, setApproximate] = useState(false)
-  const [references, setReferences] = useState<EditorReference[]>([])
-  const [photoReferences, setPhotoReferences] = useState<EditorPhotoReference[]>([])
+  const [completionTarget, setCompletionTarget] = useState(
+    initialWaypoint?.completion.mode === 'count' ? String(initialWaypoint.completion.target) : '1',
+  )
+  const [placeName, setPlaceName] = useState(initialWaypoint?.location?.placeName ?? '')
+  const [addressOrRegion, setAddressOrRegion] = useState(initialWaypoint?.location?.addressOrRegion ?? '')
+  const [source, setSource] = useState(initialWaypoint?.location?.source ?? '')
+  const [latitude, setLatitude] = useState(
+    initialWaypoint?.location?.latitude === undefined ? '' : String(initialWaypoint.location.latitude),
+  )
+  const [longitude, setLongitude] = useState(
+    initialWaypoint?.location?.longitude === undefined ? '' : String(initialWaypoint.location.longitude),
+  )
+  const [approximate, setApproximate] = useState(initialWaypoint?.location?.approximate ?? false)
+  const [references, setReferences] = useState<EditorReference[]>(defaultReferences)
+  const [photoReferences, setPhotoReferences] = useState<EditorPhotoReference[]>(defaultPhotoReferences)
   const [errors, setErrors] = useState<Errors>({})
   const [mode, setMode] = useState<EditorMode>('form')
   const [jsonInput, setJsonInput] = useState('')
@@ -93,23 +124,22 @@ export function WaypointEditor({ data, submitLabel, onSubmit, onCancel, errorMes
         photoReferences,
       }) !==
       JSON.stringify({
-        title: '',
-        description: '',
-        category: '',
-        tagsInput: '',
-        challengeIds: data.challenges.some((challenge) => challenge.challengeId === 'national-trust')
-          ? ['national-trust']
-          : [],
-        completionMode: 'once',
-        completionTarget: '1',
-        placeName: '',
-        addressOrRegion: '',
-        source: '',
-        latitude: '',
-        longitude: '',
-        approximate: false,
-        references: [],
-        photoReferences: [],
+        title: initialWaypoint?.title ?? '',
+        description: initialWaypoint?.description ?? '',
+        category: initialWaypoint?.category ?? '',
+        tagsInput: initialWaypoint?.tags.join(', ') ?? '',
+        challengeIds: defaultChallengeIds,
+        completionMode: initialWaypoint?.completion.mode ?? 'once',
+        completionTarget:
+          initialWaypoint?.completion.mode === 'count' ? String(initialWaypoint.completion.target) : '1',
+        placeName: initialWaypoint?.location?.placeName ?? '',
+        addressOrRegion: initialWaypoint?.location?.addressOrRegion ?? '',
+        source: initialWaypoint?.location?.source ?? '',
+        latitude: initialWaypoint?.location?.latitude === undefined ? '' : String(initialWaypoint.location.latitude),
+        longitude: initialWaypoint?.location?.longitude === undefined ? '' : String(initialWaypoint.location.longitude),
+        approximate: initialWaypoint?.location?.approximate ?? false,
+        references: defaultReferences,
+        photoReferences: defaultPhotoReferences,
       }),
     [
       addressOrRegion,
@@ -118,8 +148,11 @@ export function WaypointEditor({ data, submitLabel, onSubmit, onCancel, errorMes
       challengeIds,
       completionMode,
       completionTarget,
-      data.challenges,
+      defaultChallengeIds,
+      defaultPhotoReferences,
+      defaultReferences,
       description,
+      initialWaypoint,
       latitude,
       longitude,
       photoReferences,

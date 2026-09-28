@@ -106,25 +106,99 @@ function newlyUnreferencedIds(before: JourneyData, after: JourneyData): string[]
 }
 
 export type DeletionPlan = { deletes: string[]; updates: { type: EntityType; entity: Entity }[] }
+export type UpdatePlan = { updates: { type: EntityType; entity: Entity }[] }
+
+export function applyPlan(data: JourneyData, plan: DeletionPlan | UpdatePlan): JourneyData {
+  const deleteIds = 'deletes' in plan ? new Set(plan.deletes) : new Set<string>()
+  return plan.updates.reduce(
+    (next, update) => upsertEntity(next, update.type, update.entity),
+    Object.fromEntries(
+      Object.entries(data).map(([key, entities]) => [
+        key,
+        (entities as Entity[]).filter((entity) => !deleteIds.has(entityId(entityTypeFor(key as keyof JourneyData), entity))),
+      ]),
+    ) as JourneyData,
+  )
+}
+
+export function updatePlan(data: JourneyData, type: EntityType, entity: Entity): UpdatePlan {
+  if (type !== 'waypoint') return { updates: [{ type, entity }] }
+
+  const waypointId = entityId(type, entity)
+  const challengeIds = new Set((entity.challengeIds as string[] | undefined) ?? [])
+  const challenges = data.challenges
+    .map((challenge) => {
+      const shouldLink = challengeIds.has(challenge.challengeId)
+      const linked = challenge.waypointIds.includes(waypointId)
+      if (shouldLink === linked) return undefined
+      return {
+        type: 'challenge' as const,
+        entity: {
+          ...challenge,
+          waypointIds: shouldLink
+            ? [...challenge.waypointIds, waypointId]
+            : challenge.waypointIds.filter((id) => id !== waypointId),
+        },
+      }
+    })
+    .filter((update): update is { type: 'challenge'; entity: Entity } => update !== undefined)
+
+  return { updates: [{ type, entity }, ...challenges] }
+}
 
 export function deletionPlan(data: JourneyData, type: EntityType, id: string): DeletionPlan {
   if (type === 'waypoint') {
-    const challenges = data.challenges
-      .filter((challenge) => challenge.waypointIds.includes(id))
-      .map((challenge) => ({
-        type: 'challenge' as const,
-        entity: { ...challenge, waypointIds: challenge.waypointIds.filter((waypointId) => waypointId !== id) },
-      }))
-    const ideas = data.ideas
-      .filter((idea) => idea.waypointIds.includes(id))
-      .map((idea) => ({
-        type: 'idea' as const,
-        entity: { ...idea, waypointIds: idea.waypointIds.filter((waypointId) => waypointId !== id) },
-      }))
-    const activities = data.activities
-      .filter((activity) => activity.waypointId === id)
-      .map(({ waypointId: _removed, ...activity }) => ({ type: 'activity' as const, entity: { ...activity } }))
-    return { deletes: [id], updates: [...challenges, ...ideas, ...activities] }
+    const challenges = data.challenges.map((challenge) =>
+      challenge.waypointIds.includes(id)
+        ? {
+            ...challenge,
+            waypointIds: challenge.waypointIds.filter((waypointId) => waypointId !== id),
+          }
+        : challenge,
+    )
+    const ideas = data.ideas.map((idea) =>
+      idea.waypointIds.includes(id)
+        ? {
+            ...idea,
+            waypointIds: idea.waypointIds.filter((waypointId) => waypointId !== id),
+          }
+        : idea,
+    )
+    const activities = data.activities.map((activity) => {
+      if (activity.waypointId !== id) return activity
+      const { waypointId: _removed, ...detached } = activity
+      return detached
+    })
+    const remaining: JourneyData = {
+      ...data,
+      waypoints: data.waypoints.filter((waypoint) => waypoint.waypointId !== id),
+      challenges,
+      ideas,
+      activities,
+    }
+    return {
+      deletes: [id, ...newlyUnreferencedIds(data, remaining)],
+      updates: [
+        ...challenges
+          .filter((challenge) => data.challenges.find((item) => item.challengeId === challenge.challengeId) !== challenge)
+          .map((challenge) => ({
+            type: 'challenge' as const,
+            entity: { ...challenge },
+          })),
+        ...ideas
+          .filter((idea) => data.ideas.find((item) => item.ideaId === idea.ideaId) !== idea)
+          .map((idea) => ({
+            type: 'idea' as const,
+            entity: { ...idea },
+          })),
+        ...activities
+          .filter((activity) => data.activities.find((item) => item.activityId === activity.activityId) !== activity)
+          .map((activity) => ({
+            type: 'activity' as const,
+            entity: { ...activity },
+          })),
+      ],
+    }
   }
 
   if (type === 'idea') {

@@ -5,6 +5,7 @@ const loadDataset = vi.fn()
 const journeyContainer = vi.fn()
 const createDocument = vi.fn()
 const deleteEntity = vi.fn()
+const replaceEntities = vi.fn()
 
 vi.mock('../lib/cosmos.js', async () => {
   const actual = await vi.importActual<typeof import('../lib/cosmos.js')>('../lib/cosmos.js')
@@ -14,6 +15,7 @@ vi.mock('../lib/cosmos.js', async () => {
     loadDataset,
     createDocument,
     deleteEntity,
+    replaceEntities,
     documentFor: actual.documentFor,
     documentsFor: vi.fn(),
     emptyJourneyData: vi.fn(),
@@ -102,6 +104,7 @@ describe('journey', () => {
     journeyContainer.mockReset()
     createDocument.mockReset()
     deleteEntity.mockReset()
+    replaceEntities.mockReset()
     journeyContainer.mockReturnValue({})
     process.env.AZURE_MAPS_CLIENT_ID = 'maps-client-id'
     searchResults([{ position: { lat: 51.844, lon: -2.153 } }])
@@ -298,5 +301,84 @@ describe('journey', () => {
 
     deleteEntity.mockRejectedValueOnce(Object.assign(new Error('conflict'), { code: 412 }))
     expect(await journey(deleteRequest, context())).toEqual({ status: 409, jsonBody: { error: 'conflict' } })
+  })
+
+  it('updates a waypoint transactionally with reverse challenge links', async () => {
+    const challenge = {
+      challengeId: 'challenge-1',
+      title: 'Heritage weekend',
+      description: 'Heritage weekend',
+      waypointIds: [],
+      supportsActivityCategories: false,
+    }
+    const loaded = {
+      data: { ...emptyData, waypoints: [waypoint], challenges: [challenge] },
+      etags: { 'waypoint-1': 'waypoint-etag', 'challenge-1': 'challenge-etag' },
+    }
+    loadDataset.mockResolvedValue(loaded)
+    const { journey } = await import('./journey.js')
+    const updated = { ...waypoint, title: 'Updated waypoint', challengeIds: ['challenge-1'] }
+
+    expect(
+      await journey(
+        request('production', 'PUT', {
+          operation: 'update',
+          type: 'waypoint',
+          id: 'waypoint-1',
+          entity: updated,
+          ifMatch: 'waypoint-etag',
+        }),
+        context(),
+      ),
+    ).toMatchObject({ status: 200 })
+    expect(replaceEntities).toHaveBeenCalledWith(
+      {},
+      'production',
+      {
+        updates: [
+          { type: 'waypoint', entity: expect.objectContaining({ title: 'Updated waypoint' }) },
+          { type: 'challenge', entity: expect.objectContaining({ waypointIds: ['waypoint-1'] }) },
+        ],
+      },
+      'waypoint-1',
+      'waypoint-etag',
+      loaded,
+    )
+  })
+
+  it('deletes a waypoint transactionally after detaching linked entities', async () => {
+    const challenge = {
+      challengeId: 'challenge-1',
+      title: 'Heritage weekend',
+      description: 'Heritage weekend',
+      waypointIds: ['waypoint-1'],
+      supportsActivityCategories: false,
+    }
+    const linkedIdea = { ...idea, waypointIds: ['waypoint-1'] }
+    const linkedActivity = { ...activity, ideaIds: [], waypointId: 'waypoint-1' }
+    const loaded = {
+      data: { ...emptyData, waypoints: [waypoint], challenges: [challenge], ideas: [linkedIdea], activities: [linkedActivity] },
+      etags: {
+        'waypoint-1': 'waypoint-etag',
+        'challenge-1': 'challenge-etag',
+        'idea-1': 'idea-etag',
+        'activity-1': 'activity-etag',
+      },
+    }
+    loadDataset.mockResolvedValue(loaded)
+    const { journey } = await import('./journey.js')
+
+    expect(
+      await journey(
+        request('production', 'DELETE', {
+          operation: 'delete',
+          type: 'waypoint',
+          id: 'waypoint-1',
+          ifMatch: 'waypoint-etag',
+        }),
+        context(),
+      ),
+    ).toEqual({ status: 204 })
+    expect(deleteEntity).toHaveBeenCalledWith({}, 'production', 'waypoint', 'waypoint-1', 'waypoint-etag', loaded)
   })
 })
