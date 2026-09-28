@@ -133,7 +133,7 @@ describe('ActivityEditor', () => {
     const user = userEvent.setup()
     const data = createDefaultData()
     const waypoint = data.waypoints[0]!
-    renderEditor({ data })
+    const { onSubmit } = renderEditor({ data })
 
     const picker = screen.getByRole('combobox', { name: 'Linked waypoint' })
     await user.click(picker)
@@ -142,6 +142,21 @@ describe('ActivityEditor', () => {
 
     expect(screen.getByLabelText('Latitude')).toHaveValue(String(waypoint.location!.latitude))
     expect(screen.getByLabelText('Longitude')).toHaveValue(String(waypoint.location!.longitude))
+
+    if (screen.queryByRole('combobox', { name: 'Activity category' })) {
+      await user.click(screen.getByRole('combobox', { name: 'Activity category' }))
+      await user.click(screen.getByRole('option', { name: 'Gold' }))
+    }
+    await user.click(screen.getByRole('button', { name: 'Save' }))
+    expect(onSubmit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        location: {
+          kind: 'coordinates',
+          latitude: waypoint.location!.latitude,
+          longitude: waypoint.location!.longitude,
+        },
+      }),
+    )
   })
 
   it('does not replace a location the user entered when selecting a waypoint', async () => {
@@ -169,6 +184,10 @@ describe('ActivityEditor', () => {
     await user.click(screen.getByRole('option', { name: waypoint.title }))
     await user.click(screen.getByRole('combobox', { name: 'Linked waypoint' }))
     await user.click(screen.getByRole('option', { name: 'No linked waypoint' }))
+
+    expect(screen.getByLabelText('Postcode')).toHaveValue('')
+    expect(screen.queryByLabelText('Latitude')).not.toBeInTheDocument()
+
     await user.click(screen.getByRole('button', { name: 'Cancel' }))
 
     expect(confirmSpy).not.toHaveBeenCalled()

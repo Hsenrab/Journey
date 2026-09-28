@@ -450,16 +450,17 @@ export function ActivityEditor({
                 onChange={(_, value) => {
                   const nextWaypointId = value?.waypointId ?? ''
                   setWaypointId(nextWaypointId)
-                  if (
-                    locationEdited ||
-                    initialLocation.kind !== 'postcode' ||
-                    initialLocation.postcode.trim() ||
-                    !nextWaypointId
-                  ) {
+                  if (locationEdited || initialLocation.kind !== 'postcode' || initialLocation.postcode.trim() !== '') {
                     return
                   }
                   const location = waypointInitialLocation(data, nextWaypointId)
-                  if (!location) return
+                  if (!location) {
+                    setLocationKind('postcode')
+                    setPostcode('')
+                    setLatitude('')
+                    setLongitude('')
+                    return
+                  }
                   setLocationKind('coordinates')
                   setLatitude(String(location.latitude))
                   setLongitude(String(location.longitude))
