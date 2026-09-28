@@ -9,6 +9,8 @@ import { ActivityEditor } from '../components/ActivityEditor'
 import { CardDetailRow } from '../components/CardDetailRow'
 import { ClickableCard } from '../components/ClickableCard'
 import { EmptyState } from '../components/EmptyState'
+import { LoadFailureAlert } from '../components/LoadFailureAlert'
+import { LoadingNotice } from '../components/LoadingNotice'
 import { PageHeader } from '../components/PageHeader'
 import { ReadOnlyNotice } from '../components/ReadOnlyNotice'
 import { activitySubtitle, activityTitle, countLabel, locationSummary, statusLabels } from '../domain/visit'
@@ -16,7 +18,7 @@ import { useWaypoints } from '../features/journey/JourneyContext'
 import { JourneyConflictError } from '../services/journeyApi'
 
 export default function Activities() {
-  const { data, addActivity, readOnly, reload } = useWaypoints()
+  const { data, addActivity, loadState, readOnly, reload } = useWaypoints()
   const waypointById = new Map(data.waypoints.map((waypoint) => [waypoint.waypointId, waypoint]))
   const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
@@ -79,6 +81,13 @@ export default function Activities() {
       </PageHeader>
       <ReadOnlyNotice />
 
+      {loadState.status === 'failed' && (
+        <LoadFailureAlert
+          message={loadState.message}
+          description="This is a load failure, not an empty activity log."
+        />
+      )}
+
       {message && (
         <Alert
           severity={message.severity}
@@ -126,7 +135,9 @@ export default function Activities() {
 
       <Stack spacing={2}>
         <Typography variant="h5">Activity log</Typography>
-        {activities.length === 0 ? (
+        {loadState.status === 'failed' ? null : loadState.status === 'loading' ? (
+          <LoadingNotice message="Loading activities…" />
+        ) : activities.length === 0 ? (
           <EmptyState icon={<InboxOutlinedIcon color="disabled" />} message="No activities logged yet." />
         ) : (
           activities.map((activity) => {

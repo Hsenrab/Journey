@@ -533,4 +533,41 @@ describe('WaypointsContext in production mode', () => {
     expect(result.current.data).not.toEqual(createDemoModeData())
     await expect(result.current.addActivity(draft)).rejects.toThrow('Production data is not loaded')
   })
+
+  it('keeps the loaded production data when a later reload fails', async () => {
+    setDataMode('production')
+    const seeded = createDefaultData()
+    seeded.activities = [
+      createActivity({
+        waypointId: lacockId,
+        ideaIds: [],
+        date: '2026-08-01',
+        location: draft.location,
+        notes: '',
+      }),
+    ]
+    const fetch = vi
+      .fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify({ data: seeded, etags: {}, role: 'admin' }), { status: 200 }))
+      .mockResolvedValue(new Response(JSON.stringify({ error: 'unavailable' }), { status: 500, statusText: 'Broken' }))
+    vi.stubGlobal('fetch', fetch)
+
+    const { result } = renderHook(() => useWaypoints(), { wrapper: WaypointsProvider })
+    await waitFor(() => expect(result.current.data.activities).toHaveLength(1))
+    const loaded = result.current.data
+
+    await act(async () => {
+      await expect(result.current.reload()).resolves.toEqual({
+        status: 'failure',
+        message: expect.stringContaining('Production data could not be loaded'),
+      })
+    })
+
+    expect(result.current.loadState).toEqual({
+      status: 'failed',
+      message: expect.stringContaining('Production data could not be loaded'),
+    })
+    expect(result.current.data).toEqual(loaded)
+    expect(result.current.data.activities).toHaveLength(1)
+  })
 })

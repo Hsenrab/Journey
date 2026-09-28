@@ -115,6 +115,19 @@ describe('Activities', () => {
     expect(screen.getByText('1 link')).toBeInTheDocument()
   })
 
+  it('shows a loading notice instead of the empty state while production data is in flight', async () => {
+    vi.stubEnv('MODE', 'production')
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockImplementation(() => new Promise<Response>(() => {})),
+    )
+
+    renderActivities()
+
+    expect(await screen.findByText('Loading activities…')).toBeInTheDocument()
+    expect(screen.queryByText('No activities logged yet.')).not.toBeInTheDocument()
+  })
+
   it('does not offer activity mutations to a viewer', async () => {
     vi.stubEnv('MODE', 'production')
     vi.stubGlobal(

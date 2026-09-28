@@ -8,6 +8,8 @@ import { CardDetailRow } from '../components/CardDetailRow'
 import { ClickableCard } from '../components/ClickableCard'
 import { EmptyState } from '../components/EmptyState'
 import { FilterBar } from '../components/FilterBar'
+import { LoadFailureAlert } from '../components/LoadFailureAlert'
+import { LoadingNotice } from '../components/LoadingNotice'
 import { PageHeader } from '../components/PageHeader'
 import { ReadOnlyNotice } from '../components/ReadOnlyNotice'
 import { WaypointEditor } from '../components/WaypointEditor'
@@ -21,7 +23,7 @@ const locationById = new Map(locations.map((location) => [location.locationId, l
 type SortKey = 'name' | 'travel' | 'distance' | 'status' | 'lastActivity'
 
 export default function Locations() {
-  const { addWaypoint, data, readOnly, reload, statusFor } = useWaypoints()
+  const { addWaypoint, data, loadState, readOnly, reload, statusFor } = useWaypoints()
   const activities = data.activities
   const [searchParams, setSearchParams] = useSearchParams()
   const showEditor = searchParams.get('mode') === 'add'
@@ -166,6 +168,12 @@ export default function Locations() {
         )}
       </PageHeader>
       <ReadOnlyNotice />
+      {loadState.status === 'failed' && (
+        <LoadFailureAlert
+          message={loadState.message}
+          description="This is a load failure, not an empty waypoint dataset."
+        />
+      )}
       {message && (
         <Alert
           severity={message.severity}
@@ -211,66 +219,70 @@ export default function Locations() {
           }}
         />
       )}
-      <FilterBar>
-        <TextField label="Search waypoints" value={query} onChange={(e) => setQuery(e.target.value)} />
-        <TextField
-          id="waypoint-status"
-          select
-          label="Status"
-          value={status}
-          onChange={(e) => setStatus(e.target.value)}
-        >
-          <MenuItem value="all">All statuses</MenuItem>
-          {statusOrder.map((s) => (
-            <MenuItem key={s} value={s}>
-              {statusLabels[s]}
-            </MenuItem>
-          ))}
-        </TextField>
-        <TextField
-          id="waypoint-sort"
-          select
-          label="Sort"
-          value={sort}
-          onChange={(e) => setSort(e.target.value as SortKey)}
-        >
-          <MenuItem value="name">Name</MenuItem>
-          <MenuItem value="status">Progress</MenuItem>
-          <MenuItem value="distance">Distance (nearest first)</MenuItem>
-          <MenuItem value="travel">Drive time (where available)</MenuItem>
-          <MenuItem value="lastActivity">Last activity date</MenuItem>
-        </TextField>
-        <TextField
-          id="maximum-driving-distance"
-          select
-          label="Maximum driving distance"
-          value={maxDistance}
-          onChange={(e) => setMaxDistance(e.target.value)}
-        >
-          <MenuItem value="all">Any distance</MenuItem>
-          <MenuItem value="25">Up to 25 miles (plus unknown)</MenuItem>
-          <MenuItem value="50">Up to 50 miles (plus unknown)</MenuItem>
-          <MenuItem value="100">Up to 100 miles (plus unknown)</MenuItem>
-          <MenuItem value="200">Up to 200 miles (plus unknown)</MenuItem>
-        </TextField>
-        <TextField select label="Area" value={area} onChange={(e) => setArea(e.target.value)}>
-          <MenuItem value="all">All areas</MenuItem>
-          {areas.map((item) => (
-            <MenuItem key={item} value={item}>
-              {item}
-            </MenuItem>
-          ))}
-        </TextField>
-        <TextField select label="Category" value={category} onChange={(e) => setCategory(e.target.value)}>
-          <MenuItem value="all">All categories</MenuItem>
-          {categories.map((item) => (
-            <MenuItem key={item} value={item}>
-              {item}
-            </MenuItem>
-          ))}
-        </TextField>
-      </FilterBar>
-      {list.length === 0 ? (
+      {loadState.status !== 'failed' && (
+        <FilterBar>
+          <TextField label="Search waypoints" value={query} onChange={(e) => setQuery(e.target.value)} />
+          <TextField
+            id="waypoint-status"
+            select
+            label="Status"
+            value={status}
+            onChange={(e) => setStatus(e.target.value)}
+          >
+            <MenuItem value="all">All statuses</MenuItem>
+            {statusOrder.map((s) => (
+              <MenuItem key={s} value={s}>
+                {statusLabels[s]}
+              </MenuItem>
+            ))}
+          </TextField>
+          <TextField
+            id="waypoint-sort"
+            select
+            label="Sort"
+            value={sort}
+            onChange={(e) => setSort(e.target.value as SortKey)}
+          >
+            <MenuItem value="name">Name</MenuItem>
+            <MenuItem value="status">Progress</MenuItem>
+            <MenuItem value="distance">Distance (nearest first)</MenuItem>
+            <MenuItem value="travel">Drive time (where available)</MenuItem>
+            <MenuItem value="lastActivity">Last activity date</MenuItem>
+          </TextField>
+          <TextField
+            id="maximum-driving-distance"
+            select
+            label="Maximum driving distance"
+            value={maxDistance}
+            onChange={(e) => setMaxDistance(e.target.value)}
+          >
+            <MenuItem value="all">Any distance</MenuItem>
+            <MenuItem value="25">Up to 25 miles (plus unknown)</MenuItem>
+            <MenuItem value="50">Up to 50 miles (plus unknown)</MenuItem>
+            <MenuItem value="100">Up to 100 miles (plus unknown)</MenuItem>
+            <MenuItem value="200">Up to 200 miles (plus unknown)</MenuItem>
+          </TextField>
+          <TextField select label="Area" value={area} onChange={(e) => setArea(e.target.value)}>
+            <MenuItem value="all">All areas</MenuItem>
+            {areas.map((item) => (
+              <MenuItem key={item} value={item}>
+                {item}
+              </MenuItem>
+            ))}
+          </TextField>
+          <TextField select label="Category" value={category} onChange={(e) => setCategory(e.target.value)}>
+            <MenuItem value="all">All categories</MenuItem>
+            {categories.map((item) => (
+              <MenuItem key={item} value={item}>
+                {item}
+              </MenuItem>
+            ))}
+          </TextField>
+        </FilterBar>
+      )}
+      {loadState.status === 'failed' ? null : loadState.status === 'loading' ? (
+        <LoadingNotice message="Loading waypoints…" />
+      ) : list.length === 0 ? (
         <EmptyState icon={<SearchOffIcon color="disabled" />} message="No waypoints match your search and filters." />
       ) : (
         <Box

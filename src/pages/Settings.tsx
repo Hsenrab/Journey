@@ -29,17 +29,19 @@ const dataModeLabels: Record<JourneyDataMode, string> = {
 }
 
 export default function Settings() {
-  const { activeDataMode, clear, data, dataMode, loadError, readOnly, restore, setDataMode } = useWaypoints()
+  const { activeDataMode, clear, data, dataMode, loadError, loadState, readOnly, restore, setDataMode } = useWaypoints()
   const input = useRef<HTMLInputElement>(null)
   const [message, setMessage] = useState<{ text: string; error: boolean } | null>(null)
   const [confirmingClear, setConfirmingClear] = useState(false)
   const usingLocalFallback = dataMode === 'demo-cosmos' && activeDataMode === 'demo-local' && Boolean(loadError)
   const activeLabel = usingLocalFallback ? 'Demo local fallback data' : dataModeLabels[activeDataMode]
+  const exportDisabled = loadState.status !== 'loaded'
   const changeMode = (event: SelectChangeEvent) => {
     void setDataMode(event.target.value as JourneyDataMode)
   }
 
   const exportData = () => {
+    if (exportDisabled) return
     const exportMode = usingLocalFallback ? 'demo-local' : activeDataMode
     const blob = new Blob([JSON.stringify(createBackup(data), null, 2)], { type: 'application/json' })
     const url = URL.createObjectURL(blob)
@@ -126,8 +128,12 @@ export default function Settings() {
           Export, restore, and clear apply only to the active dataset. Demo local and fallback data are read-only; Demo
           Cosmos changes are temporary and reset on redeploy.
         </Typography>
+        <Typography color="text.secondary">
+          Restoring a backup to production is allowed only when production is empty. Clear production first if you need
+          to replace it.
+        </Typography>
         <Stack direction="row" spacing={2}>
-          <Button variant="contained" onClick={exportData}>
+          <Button variant="contained" disabled={exportDisabled} onClick={exportData}>
             Export JSON
           </Button>
           <Button component="label" disabled={readOnly}>
@@ -148,15 +154,20 @@ export default function Settings() {
             Clear data
           </Button>
         </Stack>
+        {loadState.status === 'failed' && (
+          <Alert severity="error">
+            Export is disabled because the active dataset did not load. Reload production before creating a backup.
+          </Alert>
+        )}
         {message && <Alert severity={message.error ? 'error' : 'success'}>{message.text}</Alert>}
       </Stack>
 
       <Dialog open={confirmingClear} onClose={() => setConfirmingClear(false)}>
-        <DialogTitle>Clear all activity data?</DialogTitle>
+        <DialogTitle>Clear all Journey data?</DialogTitle>
         <DialogContent>
           <DialogContentText>
-            This permanently removes every activity, note and photo reference from the active writable dataset. Export a
-            backup first if you want to keep it.
+            This permanently removes every waypoint, challenge, idea, activity, note, reference and photo reference from
+            the active writable dataset. Export a backup first if you want to keep it.
           </DialogContentText>
         </DialogContent>
         <DialogActions>

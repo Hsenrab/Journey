@@ -20,6 +20,8 @@ import { CardDetailRow } from '../components/CardDetailRow'
 import { ClickableCard } from '../components/ClickableCard'
 import { DetailPageHeader } from '../components/DetailPageHeader'
 import { EmptyState } from '../components/EmptyState'
+import { LoadFailureAlert } from '../components/LoadFailureAlert'
+import { LoadingNotice } from '../components/LoadingNotice'
 import { ReadOnlyNotice } from '../components/ReadOnlyNotice'
 import { WaypointEditor } from '../components/WaypointEditor'
 import { locations } from '../data/locations'
@@ -42,7 +44,7 @@ const catalogueLocationById = new Map(locations.map((location) => [location.loca
 export default function LocationDetails() {
   const { id = '' } = useParams()
   const navigate = useNavigate()
-  const { addActivity, updateWaypoint, deleteWaypoint, activitiesFor, statusFor, data, readOnly, reload } =
+  const { addActivity, updateWaypoint, deleteWaypoint, activitiesFor, statusFor, data, loadState, readOnly, reload } =
     useWaypoints()
   const [showEditor, setShowEditor] = useState(false)
   const [editingWaypoint, setEditingWaypoint] = useState(false)
@@ -58,7 +60,13 @@ export default function LocationDetails() {
     return (
       <Stack spacing={3}>
         <DetailPageHeader breadcrumbs={breadcrumbs} title="Waypoint" />
-        <Alert severity="error">Waypoint not found.</Alert>
+        {loadState.status === 'failed' ? (
+          <LoadFailureAlert message={loadState.message} description="This is a load failure, not a missing waypoint." />
+        ) : loadState.status === 'loading' ? (
+          <LoadingNotice message="Loading waypoint…" />
+        ) : (
+          <Alert severity="error">Waypoint not found.</Alert>
+        )}
       </Stack>
     )
   }
@@ -114,6 +122,12 @@ export default function LocationDetails() {
         )}
       </DetailPageHeader>
       <ReadOnlyNotice />
+      {loadState.status === 'failed' && (
+        <LoadFailureAlert
+          message={loadState.message}
+          description="This is a load failure, not an empty waypoint dataset."
+        />
+      )}
       <Chip label={`Category summary: ${statusLabels[statusFor(id)]}`} />
       <Typography>{waypoint.description}</Typography>
       {sourceLocation && (

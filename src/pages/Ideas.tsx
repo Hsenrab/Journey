@@ -10,6 +10,8 @@ import { CardDetailRow } from '../components/CardDetailRow'
 import { ClickableCard } from '../components/ClickableCard'
 import { EmptyState } from '../components/EmptyState'
 import { FilterBar } from '../components/FilterBar'
+import { LoadFailureAlert } from '../components/LoadFailureAlert'
+import { LoadingNotice } from '../components/LoadingNotice'
 import { PageHeader } from '../components/PageHeader'
 import { ReadOnlyNotice } from '../components/ReadOnlyNotice'
 import { brockworth, distanceMiles } from '../domain/map'
@@ -47,7 +49,7 @@ function referenceHostname(url: string): string {
 }
 
 export default function Ideas() {
-  const { data, addIdea, readOnly, reload } = useWaypoints()
+  const { data, addIdea, loadState, readOnly, reload } = useWaypoints()
   const [searchParams, setSearchParams] = useSearchParams()
   const stateParam = searchParams.get('state')
   const selectedState: StateFilter = planningStates.includes(stateParam as Idea['planningState'])
@@ -174,45 +176,60 @@ export default function Ideas() {
             Add idea
           </Button>
         )}
-        <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: 'wrap' }}>
-          {stateFilters.map((state) => {
-            const label = state === 'all' ? 'All' : planningStateLabels[state]
-            const count = state === 'all' ? allCount : counts[state]
-            return (
-              <Button
-                key={state}
-                variant={selectedState === state ? 'contained' : 'outlined'}
-                onClick={() =>
-                  state === 'all'
-                    ? clearStateFilter()
-                    : setSearchParams((previous) => {
-                        const next = new URLSearchParams(previous)
-                        next.set('state', state)
-                        return next
-                      })
-                }
-                aria-label={`${label} ideas (${count})`}
-              >
-                {label} ({count})
-              </Button>
-            )
-          })}
-        </Stack>
+        {loadState.status !== 'failed' && (
+          <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: 'wrap' }}>
+            {stateFilters.map((state) => {
+              const label = state === 'all' ? 'All' : planningStateLabels[state]
+              const count = state === 'all' ? allCount : counts[state]
+              return (
+                <Button
+                  key={state}
+                  variant={selectedState === state ? 'contained' : 'outlined'}
+                  onClick={() =>
+                    state === 'all'
+                      ? clearStateFilter()
+                      : setSearchParams((previous) => {
+                          const next = new URLSearchParams(previous)
+                          next.set('state', state)
+                          return next
+                        })
+                  }
+                  aria-label={`${label} ideas (${count})`}
+                >
+                  {label} ({count})
+                </Button>
+              )
+            })}
+          </Stack>
+        )}
       </PageHeader>
       <ReadOnlyNotice />
-      <FilterBar>
-        <TextField label="Search ideas" value={query} onChange={(event) => setQuery(event.target.value)} />
-        <TextField select label="Usage" value={usage} onChange={(event) => setUsage(event.target.value as UsageFilter)}>
-          <MenuItem value="all">All usage</MenuItem>
-          <MenuItem value="used">Used ideas</MenuItem>
-          <MenuItem value="not-used">Not used</MenuItem>
-        </TextField>
-        <TextField select label="Sort" value={sort} onChange={(event) => setSort(event.target.value as SortKey)}>
-          <MenuItem value="distance">Distance from Brockworth</MenuItem>
-          <MenuItem value="updated">Recently updated</MenuItem>
-          <MenuItem value="difficulty">Difficulty</MenuItem>
-        </TextField>
-      </FilterBar>
+      {loadState.status === 'failed' && (
+        <LoadFailureAlert
+          message={loadState.message}
+          description="This is a load failure, not an empty ideas dataset."
+        />
+      )}
+      {loadState.status !== 'failed' && (
+        <FilterBar>
+          <TextField label="Search ideas" value={query} onChange={(event) => setQuery(event.target.value)} />
+          <TextField
+            select
+            label="Usage"
+            value={usage}
+            onChange={(event) => setUsage(event.target.value as UsageFilter)}
+          >
+            <MenuItem value="all">All usage</MenuItem>
+            <MenuItem value="used">Used ideas</MenuItem>
+            <MenuItem value="not-used">Not used</MenuItem>
+          </TextField>
+          <TextField select label="Sort" value={sort} onChange={(event) => setSort(event.target.value as SortKey)}>
+            <MenuItem value="distance">Distance from Brockworth</MenuItem>
+            <MenuItem value="updated">Recently updated</MenuItem>
+            <MenuItem value="difficulty">Difficulty</MenuItem>
+          </TextField>
+        </FilterBar>
+      )}
 
       {message && (
         <Alert
@@ -265,7 +282,9 @@ export default function Ideas() {
         />
       )}
 
-      {filteredIdeas.length === 0 ? (
+      {loadState.status === 'failed' ? null : loadState.status === 'loading' ? (
+        <LoadingNotice message="Loading ideas…" />
+      ) : filteredIdeas.length === 0 ? (
         <EmptyState
           icon={<SearchOffIcon color="disabled" />}
           message={

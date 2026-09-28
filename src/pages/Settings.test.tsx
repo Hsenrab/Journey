@@ -51,7 +51,11 @@ describe('Settings', () => {
     cleanup()
     localStorage.clear()
   })
-  afterEach(() => vi.restoreAllMocks())
+  afterEach(() => {
+    vi.restoreAllMocks()
+    vi.unstubAllEnvs()
+    vi.unstubAllGlobals()
+  })
 
   it('shows the challenge rules', () => {
     renderSettings()
@@ -172,6 +176,46 @@ describe('Settings', () => {
 
     URL.createObjectURL = createObjectURL
     URL.revokeObjectURL = revokeObjectURL
+  })
+
+  it('disables export when production data failed to load', async () => {
+    vi.stubEnv('MODE', 'production')
+    vi.stubGlobal(
+      'fetch',
+      vi
+        .fn()
+        .mockResolvedValue(
+          new Response(JSON.stringify({ error: 'unavailable' }), { status: 500, statusText: 'Broken' }),
+        ),
+    )
+    const createObjectURL = vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:mock-url')
+    renderSettings()
+
+    const exportButton = await screen.findByRole('button', { name: 'Export JSON' })
+    expect(exportButton).toBeDisabled()
+    expect(
+      screen.getByText(
+        'Export is disabled because the active dataset did not load. Reload production before creating a backup.',
+      ),
+    ).toBeInTheDocument()
+
+    expect(createObjectURL).not.toHaveBeenCalled()
+  })
+
+  it('disables export while production data is still loading', async () => {
+    vi.stubEnv('MODE', 'production')
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockImplementation(() => new Promise<Response>(() => {})),
+    )
+    renderSettings()
+
+    expect(await screen.findByRole('button', { name: 'Export JSON' })).toBeDisabled()
+    expect(
+      screen.queryByText(
+        'Export is disabled because the active dataset did not load. Reload production before creating a backup.',
+      ),
+    ).not.toBeInTheDocument()
   })
 
   it('clears data only after confirmation', async () => {

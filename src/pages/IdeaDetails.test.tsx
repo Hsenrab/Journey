@@ -57,6 +57,24 @@ describe('IdeaDetails', () => {
     expect(screen.getByText('Ideas list')).toBeInTheDocument()
   })
 
+  it('reports a failed production load instead of a missing idea', async () => {
+    vi.stubEnv('MODE', 'production')
+    vi.stubGlobal(
+      'fetch',
+      vi
+        .fn()
+        .mockResolvedValue(
+          new Response(JSON.stringify({ error: 'unavailable' }), { status: 500, statusText: 'Broken' }),
+        ),
+    )
+
+    renderDetails()
+
+    expect(await screen.findByText(/Production data could not be loaded/)).toBeInTheDocument()
+    expect(screen.getByText('This is a load failure, not a missing idea.')).toBeInTheDocument()
+    expect(screen.queryByText('Idea not found.')).not.toBeInTheDocument()
+  })
+
   it('shows usage and linked activities', () => {
     const seed = createDefaultData()
     save({
