@@ -16,7 +16,7 @@ const reasonText: Record<ReadOnlyReason, string> = {
  */
 export function ReadOnlyNotice() {
   const { activeDataMode, dataMode, loadError, loading, readOnly, role } = useWaypoints()
-  const reason = readOnlyReason({ activeDataMode, dataMode, loadError, readOnly, role }, loading)
+  const reason = readOnlyReason({ activeDataMode, dataMode, loadError, loading, readOnly, role })
   if (!reason) return null
 
   return (

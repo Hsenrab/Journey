@@ -4,6 +4,7 @@ import { dataModeStatus, readOnlyReason, type DataModeState } from './dataMode'
 const base: DataModeState = {
   activeDataMode: 'production',
   dataMode: 'production',
+  loading: false,
   readOnly: false,
   role: 'admin',
 }
@@ -35,42 +36,37 @@ describe('dataModeStatus', () => {
 
 describe('readOnlyReason', () => {
   it('returns no reason when data is writable', () => {
-    expect(readOnlyReason(base, false)).toBeUndefined()
+    expect(readOnlyReason(base)).toBeUndefined()
   })
 
   it('returns no reason while a load is still in flight', () => {
-    expect(readOnlyReason({ ...base, readOnly: true }, true)).toBeUndefined()
+    expect(readOnlyReason({ ...base, loading: true, readOnly: true })).toBeUndefined()
     expect(
-      readOnlyReason(
-        {
-          ...base,
-          activeDataMode: 'demo-local',
-          dataMode: 'production',
-          loadError: 'Demo Cosmos could not be loaded',
-          readOnly: true,
-        },
-        true,
-      ),
+      readOnlyReason({
+        ...base,
+        activeDataMode: 'demo-local',
+        dataMode: 'production',
+        loadError: 'Demo Cosmos could not be loaded',
+        loading: true,
+        readOnly: true,
+      }),
     ).toBeUndefined()
-    expect(readOnlyReason({ ...base, activeDataMode: 'demo-local', readOnly: true }, true)).toBeUndefined()
+    expect(readOnlyReason({ ...base, activeDataMode: 'demo-local', loading: true, readOnly: true })).toBeUndefined()
   })
 
   it('distinguishes viewer, demo local and local fallback', () => {
-    expect(readOnlyReason({ ...base, role: 'viewer', readOnly: true }, false)).toBe('viewer')
+    expect(readOnlyReason({ ...base, role: 'viewer', readOnly: true })).toBe('viewer')
+    expect(readOnlyReason({ ...base, activeDataMode: 'demo-local', dataMode: 'demo-local', readOnly: true })).toBe(
+      'demoLocal',
+    )
     expect(
-      readOnlyReason({ ...base, activeDataMode: 'demo-local', dataMode: 'demo-local', readOnly: true }, false),
-    ).toBe('demoLocal')
-    expect(
-      readOnlyReason(
-        {
-          ...base,
-          activeDataMode: 'demo-local',
-          dataMode: 'demo-cosmos',
-          loadError: 'Demo Cosmos could not be loaded',
-          readOnly: true,
-        },
-        false,
-      ),
+      readOnlyReason({
+        ...base,
+        activeDataMode: 'demo-local',
+        dataMode: 'demo-cosmos',
+        loadError: 'Demo Cosmos could not be loaded',
+        readOnly: true,
+      }),
     ).toBe('fallback')
   })
 })

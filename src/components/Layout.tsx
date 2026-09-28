@@ -55,8 +55,8 @@ export function Layout({ children }: { children: ReactNode }) {
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'))
   const [open, setOpen] = useState(false)
   const location = useLocation()
-  const { activeDataMode, dataMode, loadError, readOnly, role } = useWaypoints()
-  const chip = dataModeStatusView[dataModeStatus({ activeDataMode, dataMode, loadError, readOnly, role })]
+  const { activeDataMode, dataMode, loadError, loading, readOnly, role } = useWaypoints()
+  const chip = dataModeStatusView[dataModeStatus({ activeDataMode, dataMode, loadError, loading, readOnly, role })]
 
   const navList = (
     <List>

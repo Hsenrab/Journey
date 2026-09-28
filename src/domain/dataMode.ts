@@ -5,6 +5,7 @@ export type DataModeState = {
   activeDataMode: JourneyDataMode
   dataMode: JourneyDataMode
   loadError?: string
+  loading: boolean
   readOnly: boolean
   role: JourneyRole | 'local'
 }
@@ -24,8 +25,8 @@ export function dataModeStatus(state: DataModeState): DataModeStatus {
 }
 
 /** Why writes are unavailable, or undefined when there is no explainable read-only reason. */
-export function readOnlyReason(state: DataModeState, loading: boolean): ReadOnlyReason | undefined {
-  if (loading || !state.readOnly) return undefined
+export function readOnlyReason(state: DataModeState): ReadOnlyReason | undefined {
+  if (state.loading || !state.readOnly) return undefined
   const status = dataModeStatus(state)
   switch (status) {
     case 'fallback':
