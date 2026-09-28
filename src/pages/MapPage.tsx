@@ -370,7 +370,7 @@ const CLUSTER_LIST_LIMIT = 25
 
 export default function MapPage() {
   const navigate = useNavigate()
-  const { data, statusFor } = useWaypoints()
+  const { data, loadState, statusFor } = useWaypoints()
   const container = useRef<HTMLDivElement>(null)
   const mapBox = useRef<HTMLDivElement>(null)
   const filters = useRef<HTMLDivElement>(null)
@@ -724,6 +724,11 @@ export default function MapPage() {
         </Tabs>
       </PageHeader>
       {error && <Alert severity="error">{error}</Alert>}
+      {loadState.status === 'failed' && (
+        <Alert severity="error">
+          {loadState.message} This is a load failure, not an empty map dataset.
+        </Alert>
+      )}
       <Card ref={filters}>
         <CardContent>
           <Stack

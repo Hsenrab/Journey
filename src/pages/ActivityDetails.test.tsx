@@ -235,6 +235,51 @@ describe('ActivityDetails', () => {
     expect(load().references.some((reference) => reference.referenceId === 'r1')).toBe(false)
   })
 
+  it('keeps the delete success visible when the post-delete reload fails', async () => {
+    vi.stubEnv('MODE', 'production')
+    const user = userEvent.setup()
+    const seed = createDefaultData()
+    const activity = {
+      activityId: 'a1',
+      ideaIds: [],
+      waypointId: 'stourhead',
+      date: '2026-08-01',
+      category: 'gold' as const,
+      location: { kind: 'postcode' as const, postcode: 'BA12 6QF' },
+      notes: 'Excellent visit',
+      referenceIds: [],
+      photoReferenceIds: [],
+      createdAt: '2026-08-01T10:00:00.000Z',
+      updatedAt: '2026-08-01T10:00:00.000Z',
+    }
+    const withActivity = { ...seed, activities: [activity] }
+    const withoutActivity = { ...seed, activities: [] }
+    vi.stubGlobal(
+      'fetch',
+      vi
+        .fn()
+        .mockResolvedValueOnce(new Response(JSON.stringify({ data: withActivity, etags: {}, role: 'admin' })))
+        .mockResolvedValueOnce(new Response(JSON.stringify({ data: withoutActivity, etags: {} })))
+        .mockResolvedValueOnce(
+          new Response(JSON.stringify({ error: 'unavailable' }), { status: 500, statusText: 'Broken' }),
+        ),
+    )
+
+    renderDetails()
+
+    expect(
+      await screen.findByRole('heading', { name: new Date('2026-08-01T00:00:00').toLocaleDateString(), level: 1 }),
+    ).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Delete activity' }))
+    await user.click(screen.getByRole('button', { name: 'Delete' }))
+
+    expect(await screen.findByText(/Activity was deleted, but latest data could not be loaded/)).toBeInTheDocument()
+    expect(screen.getByText(/Production data could not be loaded/)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Reload latest' })).toBeInTheDocument()
+    expect(screen.queryByText('Activity not found.')).not.toBeInTheDocument()
+  })
+
   it('keeps data unchanged when delete is cancelled', async () => {
     const user = userEvent.setup()
     const seed = createDefaultData()

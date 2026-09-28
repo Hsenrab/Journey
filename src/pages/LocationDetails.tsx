@@ -29,7 +29,7 @@ const catalogueLocationById = new Map(locations.map((location) => [location.loca
 
 export default function LocationDetails() {
   const { id = '' } = useParams()
-  const { addActivity, activitiesFor, statusFor, data, readOnly, reload } = useWaypoints()
+  const { addActivity, activitiesFor, statusFor, data, loadState, readOnly, reload } = useWaypoints()
   const [showEditor, setShowEditor] = useState(false)
   const [message, setMessage] = useState<{ severity: 'success' | 'error'; text: string; conflict: boolean } | null>(
     null,
@@ -42,7 +42,11 @@ export default function LocationDetails() {
     return (
       <Stack spacing={3}>
         <DetailPageHeader breadcrumbs={breadcrumbs} title="Waypoint" />
-        <Alert severity="error">Waypoint not found.</Alert>
+        <Alert severity="error">
+          {loadState.status === 'failed'
+            ? `${loadState.message} This is a load failure, not a missing waypoint.`
+            : 'Waypoint not found.'}
+        </Alert>
       </Stack>
     )
   }
@@ -82,6 +86,11 @@ export default function LocationDetails() {
           </Button>
         )}
       </DetailPageHeader>
+      {loadState.status === 'failed' && (
+        <Alert severity="error">
+          {loadState.message} This is a load failure, not an empty waypoint dataset.
+        </Alert>
+      )}
       <Chip label={`Category summary: ${statusLabels[statusFor(id)]}`} />
       <Typography>{waypoint.description}</Typography>
       {sourceLocation && (

@@ -49,6 +49,7 @@ type DraftReference = Pick<Reference, 'title' | 'url' | 'description' | 'preview
 type DraftPhotoReference = Pick<ExternalPhotoReference, 'title' | 'url' | 'altText'> & { photoReferenceId?: string }
 
 type ReloadResult = { status: 'success' } | { status: 'failure'; message: string } | { status: 'superseded' }
+export type JourneyLoadState = { status: 'loaded' } | { status: 'failed'; message: string }
 
 export type ActivityDraft = {
   name?: string
@@ -103,6 +104,7 @@ type WaypointsValue = {
   readOnly: boolean
   role: AccessRole
   loadError?: string
+  loadState: JourneyLoadState
   setDataMode: (mode: JourneyDataMode) => Promise<void>
   addWaypoint: (input: WaypointDraft) => Promise<void>
   addActivity: (input: ActivityDraft) => Promise<void>
@@ -381,6 +383,7 @@ export function WaypointsProvider({ children }: { children: ReactNode }) {
   const [dataMode, setDataModeState] = useState<JourneyDataMode>(initialDataMode)
   const [activeDataMode, setActiveDataMode] = useState<JourneyDataMode>(initialDataMode)
   const [loadError, setLoadError] = useState<string>()
+  const [loadState, setLoadState] = useState<JourneyLoadState>({ status: 'loaded' })
   const [loading, setLoading] = useState(true)
   const [etags, setEtags] = useState<Record<string, string>>({})
   const [role, setRole] = useState<AccessRole>('local')
@@ -404,8 +407,17 @@ export function WaypointsProvider({ children }: { children: ReactNode }) {
         apply(loaded)
         setActiveDataMode(active)
         setLoadError(error)
+        setLoadState({ status: 'loaded' })
         setLoading(false)
         return error ? { status: 'failure', message: error } : { status: 'success' }
+      }
+      const fail = (active: JourneyDataMode, error: string): ReloadResult => {
+        if (loadGeneration.current !== generation) return { status: 'superseded' }
+        setActiveDataMode(active)
+        setLoadError(error)
+        setLoadState({ status: 'failed', message: error })
+        setLoading(false)
+        return { status: 'failure', message: error }
       }
 
       if (mode === 'demo-local') {
@@ -427,11 +439,7 @@ export function WaypointsProvider({ children }: { children: ReactNode }) {
             `Demo Cosmos could not be loaded, so read-only local demo data is shown: ${message}`,
           )
         }
-        return settle(
-          { data: emptyData(), etags: {}, role: 'local' },
-          'production',
-          `Production data could not be loaded. Check the Journey API and Cosmos configuration: ${message}`,
-        )
+        return fail('production', `Production data could not be loaded. Check the Journey API and Cosmos configuration: ${message}`)
       }
     },
     [apply, localTestMode],
@@ -452,12 +460,12 @@ export function WaypointsProvider({ children }: { children: ReactNode }) {
       loading ||
       role === 'viewer' ||
       activeDataMode === 'demo-local' ||
-      (dataMode === 'production' && Boolean(loadError))
+      (dataMode === 'production' && loadState.status === 'failed')
     const writableContainer = (): JourneyContainer => {
       if (loading)
         throw new Error('Journey data is still loading. Wait for the selected data mode before making changes.')
       if (activeDataMode === 'demo-local') throw new Error('Demo local data is read-only.')
-      if (loadError) throw new Error('Production data is not loaded. Reload before making changes.')
+      if (loadState.status === 'failed') throw new Error('Production data is not loaded. Reload before making changes.')
       if (role !== 'admin') {
         if (role === 'viewer') throw new Error('Viewer access is read-only.')
         if (!(localTestMode && dataMode === 'production'))
@@ -478,6 +486,7 @@ export function WaypointsProvider({ children }: { children: ReactNode }) {
       readOnly,
       role,
       loadError,
+      loadState,
       setDataMode: changeDataMode,
       addWaypoint: async (input) => {
         const container = writableContainer()
@@ -533,7 +542,7 @@ export function WaypointsProvider({ children }: { children: ReactNode }) {
       activitiesFor: (waypointId) => activitiesForWaypoint(data.activities, waypointId),
       statusFor: (waypointId) => statusForWaypoint(data.activities, waypointId),
     }
-  }, [activeDataMode, apply, changeDataMode, data, dataMode, etags, loadError, loading, localTestMode, reload, role])
+  }, [activeDataMode, apply, changeDataMode, data, dataMode, etags, loadError, loadState, loading, localTestMode, reload, role])
   return <Context.Provider value={value}>{children}</Context.Provider>
 }
 

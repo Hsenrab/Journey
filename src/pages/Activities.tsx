@@ -15,7 +15,7 @@ import { useWaypoints } from '../features/journey/JourneyContext'
 import { JourneyConflictError } from '../services/journeyApi'
 
 export default function Activities() {
-  const { data, addActivity, readOnly, reload } = useWaypoints()
+  const { data, addActivity, loadState, readOnly, reload } = useWaypoints()
   const waypointById = new Map(data.waypoints.map((waypoint) => [waypoint.waypointId, waypoint]))
   const [showEditor, setShowEditor] = useState(false)
   const [message, setMessage] = useState<{ severity: 'success' | 'error'; text: string; conflict: boolean } | null>(
@@ -53,6 +53,12 @@ export default function Activities() {
           </Button>
         )}
       </PageHeader>
+
+      {loadState.status === 'failed' && (
+        <Alert severity="error">
+          {loadState.message} This is a load failure, not an empty activity log.
+        </Alert>
+      )}
 
       {message && (
         <Alert
@@ -95,7 +101,7 @@ export default function Activities() {
 
       <Stack spacing={2}>
         <Typography variant="h5">Activity log</Typography>
-        {activities.length === 0 ? (
+        {loadState.status === 'failed' ? null : activities.length === 0 ? (
           <EmptyState icon={<InboxOutlinedIcon color="disabled" />} message="No activities logged yet." />
         ) : (
           activities.map((activity) => {

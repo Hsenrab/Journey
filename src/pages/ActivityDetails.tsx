@@ -25,6 +25,7 @@ import {
   ideasForActivity,
   locationSummary,
   statusLabels,
+  type Activity,
 } from '../domain/visit'
 import { useWaypoints } from '../features/journey/JourneyContext'
 import { JourneyConflictError } from '../services/journeyApi'
@@ -32,7 +33,7 @@ import { JourneyConflictError } from '../services/journeyApi'
 export default function ActivityDetails() {
   const { activityId = '' } = useParams()
   const navigate = useNavigate()
-  const { data, readOnly, reload, updateActivity, deleteActivity } = useWaypoints()
+  const { data, loadState, readOnly, reload, updateActivity, deleteActivity } = useWaypoints()
   const [editing, setEditing] = useState(false)
   const [photoIndex, setPhotoIndex] = useState(0)
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
@@ -40,8 +41,11 @@ export default function ActivityDetails() {
   const [message, setMessage] = useState<{ severity: 'success' | 'error'; text: string; conflict?: boolean } | null>(
     null,
   )
+  const [deletedActivity, setDeletedActivity] = useState<Activity | null>(null)
 
-  const activity = data.activities.find((item) => item.activityId === activityId)
+  const loadedActivity = data.activities.find((item) => item.activityId === activityId)
+  const activity = loadedActivity ?? (deletedActivity?.activityId === activityId ? deletedActivity : undefined)
+  const activityDeleted = !loadedActivity && deletedActivity?.activityId === activityId
   const waypoint = activity?.waypointId
     ? data.waypoints.find((item) => item.waypointId === activity.waypointId)
     : undefined
@@ -57,7 +61,11 @@ export default function ActivityDetails() {
     return (
       <Stack spacing={3}>
         <DetailPageHeader breadcrumbs={breadcrumbs} title="Activity" />
-        <Alert severity="error">Activity not found.</Alert>
+        <Alert severity="error">
+          {loadState.status === 'failed'
+            ? `${loadState.message} This is a load failure, not a missing activity.`
+            : 'Activity not found.'}
+        </Alert>
       </Stack>
     )
   }
@@ -81,7 +89,13 @@ export default function ActivityDetails() {
   const reloadLatest = async () => {
     const result = await reload()
     if (result.status === 'failure') {
-      setMessage({ severity: 'error', text: result.message, conflict: true })
+      setMessage({
+        severity: 'error',
+        text: deletedActivity
+          ? `Activity was deleted, but latest data could not be loaded. ${result.message}`
+          : result.message,
+        conflict: true,
+      })
       return
     }
     if (result.status === 'superseded') {
@@ -90,12 +104,16 @@ export default function ActivityDetails() {
     setMessage(null)
     setEditing(false)
     setShowDeleteDialog(false)
+    if (deletedActivity) {
+      setDeletedActivity(null)
+      navigate(backTarget)
+    }
   }
 
   return (
     <Stack spacing={3}>
       <DetailPageHeader breadcrumbs={breadcrumbs} title={activityTitle(activity)}>
-        {!readOnly && !editing && (
+        {!readOnly && !editing && !activityDeleted && (
           <>
             <Button variant="contained" onClick={() => setEditing(true)}>
               Edit activity
@@ -233,7 +251,7 @@ export default function ActivityDetails() {
         )}
       </Stack>
 
-      {!readOnly && editing && (
+      {!readOnly && editing && !activityDeleted && (
         <ActivityEditor
           data={data}
           initialActivity={activity}
@@ -258,7 +276,7 @@ export default function ActivityDetails() {
         />
       )}
 
-      {!readOnly && (
+      {!readOnly && !activityDeleted && (
         <Dialog open={showDeleteDialog} onClose={() => setShowDeleteDialog(false)}>
           <DialogTitle>Delete activity?</DialogTitle>
           <DialogContent>
@@ -274,10 +292,17 @@ export default function ActivityDetails() {
               color="error"
               onClick={async () => {
                 try {
-                  await deleteActivity(activity.activityId)
+                  const deleted = activity
+                  await deleteActivity(deleted.activityId)
                   const result = await reload()
                   if (result.status === 'failure') {
-                    setMessage({ severity: 'error', text: result.message, conflict: true })
+                    setDeletedActivity(deleted)
+                    setShowDeleteDialog(false)
+                    setMessage({
+                      severity: 'error',
+                      text: `Activity was deleted, but latest data could not be loaded. ${result.message}`,
+                      conflict: true,
+                    })
                     return
                   }
                   if (result.status === 'superseded') {

@@ -14,6 +14,7 @@ vi.mock('../features/journey/JourneyContext', () => ({
     data: { waypoints: [], challenges: [], ideas: [], activities: [], references: [], photoReferences: [] },
     dataMode: 'production',
     activeDataMode: 'production',
+    loadState: { status: 'loaded' },
     readOnly: false,
     restore,
   }),

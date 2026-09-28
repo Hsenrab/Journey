@@ -20,7 +20,7 @@ const locationById = new Map(locations.map((location) => [location.locationId, l
 type SortKey = 'name' | 'travel' | 'distance' | 'status' | 'lastActivity'
 
 export default function Locations() {
-  const { addWaypoint, data, readOnly, reload, statusFor } = useWaypoints()
+  const { addWaypoint, data, loadState, readOnly, reload, statusFor } = useWaypoints()
   const activities = data.activities
   const [searchParams, setSearchParams] = useSearchParams()
   const showEditor = searchParams.get('mode') === 'add'
@@ -164,6 +164,11 @@ export default function Locations() {
           </Button>
         )}
       </PageHeader>
+      {loadState.status === 'failed' && (
+        <Alert severity="error">
+          {loadState.message} This is a load failure, not an empty waypoint dataset.
+        </Alert>
+      )}
       {message && (
         <Alert
           severity={message.severity}
@@ -209,7 +214,8 @@ export default function Locations() {
           }}
         />
       )}
-      <FilterBar>
+      {loadState.status !== 'failed' && (
+        <FilterBar>
         <TextField label="Search waypoints" value={query} onChange={(e) => setQuery(e.target.value)} />
         <TextField
           id="waypoint-status"
@@ -267,8 +273,9 @@ export default function Locations() {
             </MenuItem>
           ))}
         </TextField>
-      </FilterBar>
-      {list.length === 0 ? (
+        </FilterBar>
+      )}
+      {loadState.status === 'failed' ? null : list.length === 0 ? (
         <EmptyState icon={<SearchOffIcon color="disabled" />} message="No waypoints match your search and filters." />
       ) : (
         <Box

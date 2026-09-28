@@ -1,4 +1,4 @@
-import { Box, Card, CardContent, LinearProgress, Stack, Typography } from '@mui/material'
+import { Alert, Box, Card, CardContent, LinearProgress, Stack, Typography } from '@mui/material'
 import InboxOutlinedIcon from '@mui/icons-material/InboxOutlined'
 import { EmptyState } from '../components/EmptyState'
 import { ClickableCard } from '../components/ClickableCard'
@@ -16,8 +16,19 @@ import {
 import { useWaypoints } from '../features/journey/JourneyContext'
 
 export default function Dashboard() {
-  const { data } = useWaypoints()
+  const { data, loadState } = useWaypoints()
   const challenge = data.challenges.find((item) => item.challengeId === 'national-trust')
+
+  if (loadState.status === 'failed') {
+    return (
+      <Stack spacing={2}>
+        <PageHeader title="National Trust Challenge" />
+        <Alert severity="error">
+          {loadState.message} This is a load failure, not an empty challenge dataset.
+        </Alert>
+      </Stack>
+    )
+  }
 
   if (!challenge) {
     return (
