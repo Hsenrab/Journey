@@ -24,11 +24,12 @@ import LightbulbIcon from '@mui/icons-material/Lightbulb'
 import HikingIcon from '@mui/icons-material/Hiking'
 import MapIcon from '@mui/icons-material/Map'
 import SettingsIcon from '@mui/icons-material/Settings'
+import { dataModeStatus, type DataModeStatus } from '../domain/dataMode'
 import { useWaypoints } from '../features/journey/JourneyContext'
 
 const navItems = [
   { label: 'Waypoints', to: '/waypoints', icon: <PlaceIcon /> },
-  { label: 'Challenges', to: '/challenges', icon: <EmojiEventsIcon /> },
+  { label: 'Progress', to: '/challenges', icon: <EmojiEventsIcon /> },
   { label: 'Ideas', to: '/ideas', icon: <LightbulbIcon /> },
   { label: 'Activities', to: '/activities', icon: <HikingIcon /> },
   { label: 'Map', to: '/map', icon: <MapIcon /> },
@@ -36,15 +37,15 @@ const navItems = [
 ]
 
 const drawerWidth = 240
-type DataModeStatus = 'fallback' | 'error' | 'readOnly' | 'viewer' | 'demoWritable' | 'production'
 const dataModeStatusView: Record<
   DataModeStatus,
   { label: string; color: 'default' | 'error' | 'info' | 'warning'; filled: boolean }
 > = {
   fallback: { label: 'Local fallback read-only', color: 'warning', filled: true },
   error: { label: 'Load error', color: 'error', filled: true },
-  readOnly: { label: 'Read-only', color: 'warning', filled: true },
   viewer: { label: 'Viewer read-only', color: 'warning', filled: true },
+  demoLocal: { label: 'Demo local read-only', color: 'warning', filled: true },
+  readOnly: { label: 'Read-only', color: 'warning', filled: true },
   demoWritable: { label: 'Demo writable', color: 'info', filled: false },
   production: { label: 'Production', color: 'default', filled: false },
 }
@@ -55,19 +56,7 @@ export function Layout({ children }: { children: ReactNode }) {
   const [open, setOpen] = useState(false)
   const location = useLocation()
   const { activeDataMode, dataMode, loadError, readOnly, role } = useWaypoints()
-  const usingLocalFallback = dataMode === 'demo-cosmos' && activeDataMode === 'demo-local' && Boolean(loadError)
-  const status: DataModeStatus = usingLocalFallback
-    ? 'fallback'
-    : loadError
-      ? 'error'
-      : role === 'viewer'
-        ? 'viewer'
-        : readOnly
-          ? 'readOnly'
-          : activeDataMode === 'demo-cosmos'
-            ? 'demoWritable'
-            : 'production'
-  const chip = dataModeStatusView[status]
+  const chip = dataModeStatusView[dataModeStatus({ activeDataMode, dataMode, loadError, readOnly, role })]
 
   const navList = (
     <List>

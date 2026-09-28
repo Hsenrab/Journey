@@ -6,7 +6,7 @@ test.describe('activity management flow', () => {
   })
 
   test('creates a linked categorized activity from waypoint details', async ({ page }) => {
-    await page.goto('/')
+    await page.goto('/waypoints')
     await page.getByLabel('Search waypoints').fill('Chedworth')
     await page.getByRole('link', { name: 'Chedworth Roman Villa' }).click()
 

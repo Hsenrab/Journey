@@ -1,6 +1,8 @@
 # Dashboard
 
-Route: `/challenges` — implemented in `src/pages/Dashboard.tsx`.
+Route: `/challenges` — implemented in `src/pages/Dashboard.tsx`. It is the landing
+view: `/` redirects here, and the **Progress** navigation item and app bar title point
+at the same route.
 
 ## Purpose
 

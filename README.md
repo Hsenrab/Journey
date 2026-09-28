@@ -20,7 +20,7 @@ See [docs/waypoints-model.md](docs/waypoints-model.md) for full definitions and 
 Navigation includes:
 
 - Waypoints
-- Challenges
+- Progress
 - Ideas
 - Activities
 - Map
@@ -32,6 +32,9 @@ Navigation includes:
 - National Trust catalogue entries are seeded as waypoints using
   `src/data/locations.json`.
 - National Trust visits are saved as activities linked to waypoint/challenge IDs.
+- The root route redirects to `/challenges`, so the app opens on the progress
+  dashboard; the **Progress** navigation item and the app bar title lead to the same
+  route.
 - The `/challenges` page presents the National Trust Challenge dashboard: overall
   completion percentage and completed waypoint count are the primary summary, with
   Bronze/Silver/Gold activity-category counts shown underneath as secondary
@@ -55,6 +58,9 @@ Shared domain validation lives in `src/domain/visit.ts` and is reused by UI + st
   Viewers can read every shared dataset but cannot make changes.
 - If Demo Cosmos cannot load, the app uses visible read-only Demo local fallback data for
   that session. Production load failures never fall back to demo data.
+- Every page that hides write actions renders the shared `ReadOnlyNotice`, which names the
+  read-only reason (local fallback, load error, viewer role or demo local) and links to
+  Settings.
 - Export is generated from the active dataset. Import is allowed only into an empty
   writable active dataset and is fully validated before writing.
 

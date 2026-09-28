@@ -10,6 +10,7 @@ import { CardDetailRow } from '../components/CardDetailRow'
 import { ClickableCard } from '../components/ClickableCard'
 import { EmptyState } from '../components/EmptyState'
 import { PageHeader } from '../components/PageHeader'
+import { ReadOnlyNotice } from '../components/ReadOnlyNotice'
 import { activitySubtitle, activityTitle, countLabel, locationSummary, statusLabels } from '../domain/visit'
 import { useWaypoints } from '../features/journey/JourneyContext'
 import { JourneyConflictError } from '../services/journeyApi'
@@ -53,6 +54,7 @@ export default function Activities() {
           </Button>
         )}
       </PageHeader>
+      <ReadOnlyNotice />
 
       {message && (
         <Alert

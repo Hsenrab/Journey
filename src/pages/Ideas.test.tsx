@@ -272,7 +272,10 @@ describe('Ideas', () => {
 
     await user.click(screen.getByRole('button', { name: 'Reload latest' }))
 
-    await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent('Demo Cosmos could not be loaded'))
+    await waitFor(() =>
+      expect(screen.getByText(/Demo Cosmos could not be loaded, so read-only local demo data/)).toBeInTheDocument(),
+    )
+    expect(screen.getByText('Read-only mode')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Reload latest' })).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Save idea' })).not.toBeInTheDocument()
   })

@@ -18,6 +18,7 @@ import InboxOutlinedIcon from '@mui/icons-material/InboxOutlined'
 import { ActivityEditor } from '../components/ActivityEditor'
 import { DetailPageHeader } from '../components/DetailPageHeader'
 import { EmptyState } from '../components/EmptyState'
+import { ReadOnlyNotice } from '../components/ReadOnlyNotice'
 import {
   activitySubtitle,
   activityTitle,
@@ -106,6 +107,7 @@ export default function ActivityDetails() {
           </>
         )}
       </DetailPageHeader>
+      <ReadOnlyNotice />
 
       {message && (
         <Alert
