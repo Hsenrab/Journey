@@ -9,6 +9,7 @@ import { ActivityEditor } from '../components/ActivityEditor'
 import { CardDetailRow } from '../components/CardDetailRow'
 import { ClickableCard } from '../components/ClickableCard'
 import { EmptyState } from '../components/EmptyState'
+import { LoadFailureAlert } from '../components/LoadFailureAlert'
 import { PageHeader } from '../components/PageHeader'
 import { activitySubtitle, activityTitle, countLabel, locationSummary, statusLabels } from '../domain/visit'
 import { useWaypoints } from '../features/journey/JourneyContext'
@@ -55,7 +56,10 @@ export default function Activities() {
       </PageHeader>
 
       {loadState.status === 'failed' && (
-        <Alert severity="error">{loadState.message} This is a load failure, not an empty activity log.</Alert>
+        <LoadFailureAlert
+          message={loadState.message}
+          description="This is a load failure, not an empty activity log."
+        />
       )}
 
       {message && (

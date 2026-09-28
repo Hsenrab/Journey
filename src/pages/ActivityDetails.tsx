@@ -18,6 +18,7 @@ import InboxOutlinedIcon from '@mui/icons-material/InboxOutlined'
 import { ActivityEditor } from '../components/ActivityEditor'
 import { DetailPageHeader } from '../components/DetailPageHeader'
 import { EmptyState } from '../components/EmptyState'
+import { LoadFailureAlert } from '../components/LoadFailureAlert'
 import {
   activitySubtitle,
   activityTitle,
@@ -61,11 +62,11 @@ export default function ActivityDetails() {
     return (
       <Stack spacing={3}>
         <DetailPageHeader breadcrumbs={breadcrumbs} title="Activity" />
-        <Alert severity="error">
-          {loadState.status === 'failed'
-            ? `${loadState.message} This is a load failure, not a missing activity.`
-            : 'Activity not found.'}
-        </Alert>
+        {loadState.status === 'failed' ? (
+          <LoadFailureAlert message={loadState.message} description="This is a load failure, not a missing activity." />
+        ) : (
+          <Alert severity="error">Activity not found.</Alert>
+        )}
       </Stack>
     )
   }

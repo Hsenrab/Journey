@@ -1,6 +1,7 @@
-import { Alert, Box, Card, CardContent, LinearProgress, Stack, Typography } from '@mui/material'
+import { Box, Card, CardContent, LinearProgress, Stack, Typography } from '@mui/material'
 import InboxOutlinedIcon from '@mui/icons-material/InboxOutlined'
 import { EmptyState } from '../components/EmptyState'
+import { LoadFailureAlert } from '../components/LoadFailureAlert'
 import { ClickableCard } from '../components/ClickableCard'
 import { PageHeader } from '../components/PageHeader'
 import {
@@ -23,7 +24,10 @@ export default function Dashboard() {
     return (
       <Stack spacing={2}>
         <PageHeader title="National Trust Challenge" />
-        <Alert severity="error">{loadState.message} This is a load failure, not an empty challenge dataset.</Alert>
+        <LoadFailureAlert
+          message={loadState.message}
+          description="This is a load failure, not an empty challenge dataset."
+        />
       </Stack>
     )
   }

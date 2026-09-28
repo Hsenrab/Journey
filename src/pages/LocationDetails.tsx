@@ -10,6 +10,7 @@ import { CardDetailRow } from '../components/CardDetailRow'
 import { ClickableCard } from '../components/ClickableCard'
 import { DetailPageHeader } from '../components/DetailPageHeader'
 import { EmptyState } from '../components/EmptyState'
+import { LoadFailureAlert } from '../components/LoadFailureAlert'
 import { locations } from '../data/locations'
 import {
   activitySubtitle,
@@ -42,11 +43,11 @@ export default function LocationDetails() {
     return (
       <Stack spacing={3}>
         <DetailPageHeader breadcrumbs={breadcrumbs} title="Waypoint" />
-        <Alert severity="error">
-          {loadState.status === 'failed'
-            ? `${loadState.message} This is a load failure, not a missing waypoint.`
-            : 'Waypoint not found.'}
-        </Alert>
+        {loadState.status === 'failed' ? (
+          <LoadFailureAlert message={loadState.message} description="This is a load failure, not a missing waypoint." />
+        ) : (
+          <Alert severity="error">Waypoint not found.</Alert>
+        )}
       </Stack>
     )
   }
@@ -87,7 +88,10 @@ export default function LocationDetails() {
         )}
       </DetailPageHeader>
       {loadState.status === 'failed' && (
-        <Alert severity="error">{loadState.message} This is a load failure, not an empty waypoint dataset.</Alert>
+        <LoadFailureAlert
+          message={loadState.message}
+          description="This is a load failure, not an empty waypoint dataset."
+        />
       )}
       <Chip label={`Category summary: ${statusLabels[statusFor(id)]}`} />
       <Typography>{waypoint.description}</Typography>

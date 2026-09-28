@@ -8,6 +8,7 @@ import { CardDetailRow } from '../components/CardDetailRow'
 import { ClickableCard } from '../components/ClickableCard'
 import { EmptyState } from '../components/EmptyState'
 import { FilterBar } from '../components/FilterBar'
+import { LoadFailureAlert } from '../components/LoadFailureAlert'
 import { PageHeader } from '../components/PageHeader'
 import { WaypointEditor } from '../components/WaypointEditor'
 import { locations } from '../data/locations'
@@ -165,7 +166,10 @@ export default function Locations() {
         )}
       </PageHeader>
       {loadState.status === 'failed' && (
-        <Alert severity="error">{loadState.message} This is a load failure, not an empty waypoint dataset.</Alert>
+        <LoadFailureAlert
+          message={loadState.message}
+          description="This is a load failure, not an empty waypoint dataset."
+        />
       )}
       {message && (
         <Alert

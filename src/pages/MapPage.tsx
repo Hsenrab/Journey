@@ -42,6 +42,7 @@ import {
   type Waypoint,
 } from '../domain/visit'
 import { PageHeader } from '../components/PageHeader'
+import { LoadFailureAlert } from '../components/LoadFailureAlert'
 import { useWaypoints } from '../features/journey/JourneyContext'
 
 type MapMode = 'waypoints' | 'activities'
@@ -725,7 +726,7 @@ export default function MapPage() {
       </PageHeader>
       {error && <Alert severity="error">{error}</Alert>}
       {loadState.status === 'failed' && (
-        <Alert severity="error">{loadState.message} This is a load failure, not an empty map dataset.</Alert>
+        <LoadFailureAlert message={loadState.message} description="This is a load failure, not an empty map dataset." />
       )}
       <Card ref={filters}>
         <CardContent>

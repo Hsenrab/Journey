@@ -49,7 +49,7 @@ type DraftReference = Pick<Reference, 'title' | 'url' | 'description' | 'preview
 type DraftPhotoReference = Pick<ExternalPhotoReference, 'title' | 'url' | 'altText'> & { photoReferenceId?: string }
 
 type ReloadResult = { status: 'success' } | { status: 'failure'; message: string } | { status: 'superseded' }
-export type JourneyLoadState = { status: 'loaded' } | { status: 'failed'; message: string }
+export type JourneyLoadState = { status: 'loaded'; warning?: string } | { status: 'failed'; message: string }
 
 export type ActivityDraft = {
   name?: string
@@ -382,7 +382,6 @@ export function WaypointsProvider({ children }: { children: ReactNode }) {
   const [data, dispatch] = useReducer(reducer, undefined, initialData)
   const [dataMode, setDataModeState] = useState<JourneyDataMode>(initialDataMode)
   const [activeDataMode, setActiveDataMode] = useState<JourneyDataMode>(initialDataMode)
-  const [loadError, setLoadError] = useState<string>()
   const [loadState, setLoadState] = useState<JourneyLoadState>({ status: 'loaded' })
   const [loading, setLoading] = useState(true)
   const [etags, setEtags] = useState<Record<string, string>>({})
@@ -406,15 +405,13 @@ export function WaypointsProvider({ children }: { children: ReactNode }) {
         if (loadGeneration.current !== generation) return { status: 'superseded' }
         apply(loaded)
         setActiveDataMode(active)
-        setLoadError(error)
-        setLoadState({ status: 'loaded' })
+        setLoadState(error ? { status: 'loaded', warning: error } : { status: 'loaded' })
         setLoading(false)
         return error ? { status: 'failure', message: error } : { status: 'success' }
       }
       const fail = (active: JourneyDataMode, error: string): ReloadResult => {
         if (loadGeneration.current !== generation) return { status: 'superseded' }
         setActiveDataMode(active)
-        setLoadError(error)
         setLoadState({ status: 'failed', message: error })
         setLoading(false)
         return { status: 'failure', message: error }
@@ -459,6 +456,7 @@ export function WaypointsProvider({ children }: { children: ReactNode }) {
     void reload()
   }, [reload])
   const value = useMemo<WaypointsValue>(() => {
+    const loadError = loadState.status === 'failed' ? loadState.message : loadState.warning
     const readOnly =
       loading ||
       role === 'viewer' ||
@@ -545,20 +543,7 @@ export function WaypointsProvider({ children }: { children: ReactNode }) {
       activitiesFor: (waypointId) => activitiesForWaypoint(data.activities, waypointId),
       statusFor: (waypointId) => statusForWaypoint(data.activities, waypointId),
     }
-  }, [
-    activeDataMode,
-    apply,
-    changeDataMode,
-    data,
-    dataMode,
-    etags,
-    loadError,
-    loadState,
-    loading,
-    localTestMode,
-    reload,
-    role,
-  ])
+  }, [activeDataMode, apply, changeDataMode, data, dataMode, etags, loadState, loading, localTestMode, reload, role])
   return <Context.Provider value={value}>{children}</Context.Provider>
 }
 
