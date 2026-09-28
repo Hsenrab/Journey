@@ -1,7 +1,7 @@
 import { CosmosClient, type Container, type Database, type ItemResponse } from '@azure/cosmos'
 import { DefaultAzureCredential } from '@azure/identity'
 import { readFile } from 'node:fs/promises'
-import { deletionPlan, entityId, entityKey, entityTypeFor } from './journeyGraph.js'
+import { deletionPlan, entityId, entityKey, entityTypeFor, type UpdatePlan } from './journeyGraph.js'
 import {
   JourneyDataSchema,
   JourneyDocumentSchema,
@@ -162,6 +162,34 @@ export async function deleteEntity(
       }
     }),
   ])
+}
+
+export async function replaceEntities(
+  container: Container,
+  datasetId: string,
+  plan: UpdatePlan,
+  id: string,
+  ifMatch: string,
+  loaded: { etags: Record<string, string> },
+) {
+  const etagFor = (documentId: string) => {
+    const etag = documentId === id ? ifMatch : loaded.etags[documentId]
+    if (!etag) throw new Error(`Journey document "${documentId}" has no ETag for a transactional update.`)
+    return etag
+  }
+  await runBatch(
+    container,
+    datasetId,
+    plan.updates.map((update) => {
+      const document = documentFor(datasetId, update.type, update.entity)
+      return {
+        operationType: 'Replace' as const,
+        id: document.id,
+        resourceBody: document,
+        ifMatch: etagFor(document.id),
+      }
+    }),
+  )
 }
 
 export async function seedDemoDataset(container: Container, datasetId: string): Promise<void> {
