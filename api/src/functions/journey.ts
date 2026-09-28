@@ -16,12 +16,13 @@ import {
   loadDataset,
   replaceDocument,
   replaceDataset,
+  replaceEntities,
   savedDocument,
 } from '../lib/cosmos.js'
 import { JourneyMutationSchema, type EntityType } from '../lib/journeySchema.js'
 import { GeocodeError, resolveEntityCoordinates } from '../lib/geocode.js'
 import { DefaultAzureCredential } from '@azure/identity'
-import { referenceIntegrityError, upsertEntity } from '../lib/journeyGraph.js'
+import { applyPlan, deletionPlan, referenceIntegrityError, updatePlan, upsertEntity } from '../lib/journeyGraph.js'
 import { ZodError } from 'zod'
 
 type ContainerName = 'production' | 'demo'
@@ -111,16 +112,32 @@ export async function journey(request: HttpRequest, context: InvocationContext):
       if (request.method !== method) throw new ResponseError(405, 'method_not_allowed')
       const entity = await geocodedEntity(parsed.data.type, parsed.data.entity)
       const document = entityDocument(datasetId, parsed.data.type, entity)
+      if (parsed.data.operation === 'update' && document.id !== parsed.data.id)
+        throw new ResponseError(400, 'Entity ID does not match update ID.')
       const loaded = await loadDataset(cosmos, datasetId)
-      const invalid = referenceIntegrityError(upsertEntity(loaded.data, document.type, document.entity))
+      const plan =
+        parsed.data.operation === 'update' && document.type === 'waypoint'
+          ? updatePlan(loaded.data, document.type, document.entity)
+          : undefined
+      const invalid = referenceIntegrityError(
+        plan ? applyPlan(loaded.data, plan) : upsertEntity(loaded.data, document.type, document.entity),
+      )
       if (invalid) return { status: 400, jsonBody: { error: invalid } }
       if (parsed.data.operation === 'create') {
         return { status: 201, jsonBody: savedDocument(await createDocument(cosmos, document)) }
+      }
+      if (document.type === 'waypoint') {
+        if (!plan) throw new Error('Waypoint update plan was not created.')
+        await replaceEntities(cosmos, datasetId, plan, parsed.data.id, parsed.data.ifMatch, loaded)
+        return { status: 200, jsonBody: await loadDataset(cosmos, datasetId) }
       }
       return { status: 200, jsonBody: savedDocument(await replaceDocument(cosmos, document, parsed.data.ifMatch)) }
     }
     if (request.method !== 'DELETE') throw new ResponseError(405, 'method_not_allowed')
     const loaded = await loadDataset(cosmos, datasetId)
+    const plan = deletionPlan(loaded.data, parsed.data.type, parsed.data.id)
+    const invalid = referenceIntegrityError(applyPlan(loaded.data, plan))
+    if (invalid) return { status: 400, jsonBody: { error: invalid } }
     await deleteEntity(cosmos, datasetId, parsed.data.type, parsed.data.id, parsed.data.ifMatch, loaded)
     return { status: 204 }
   } catch (error) {

@@ -1,4 +1,4 @@
-import { DataSchema, type WaypointsData } from '../domain/visit'
+import { DataSchema, type WaypointsData as JourneyData } from '../domain/visit'
 import { z } from 'zod'
 
 export type JourneyContainer = 'production' | 'demo'
@@ -39,7 +39,7 @@ async function request<T>(container: JourneyContainer, init?: RequestInit): Prom
 
 export async function loadJourney(
   container: JourneyContainer,
-): Promise<{ data: WaypointsData; etags: Record<string, string>; role: JourneyRole }> {
+): Promise<{ data: JourneyData; etags: Record<string, string>; role: JourneyRole }> {
   const result = await request<{ data: unknown; etags: Record<string, string>; role: unknown }>(container)
   return { data: DataSchema.parse(result.data), etags: result.etags, role: JourneyRoleSchema.parse(result.role) }
 }
@@ -52,17 +52,33 @@ export async function createJourneyEntity(
   return request(container, { method: 'POST', body: JSON.stringify({ operation: 'create', type, entity }) })
 }
 
+export function updateJourneyEntity(
+  container: JourneyContainer,
+  type: 'waypoint',
+  entity: Record<string, unknown>,
+  id: string,
+  etag: string,
+): Promise<{ data: JourneyData; etags: Record<string, string> }>
+export function updateJourneyEntity(
+  container: JourneyContainer,
+  type: Exclude<EntityType, 'waypoint'>,
+  entity: Record<string, unknown>,
+  id: string,
+  etag: string,
+): Promise<{ etag?: string }>
 export async function updateJourneyEntity(
   container: JourneyContainer,
   type: EntityType,
   entity: Record<string, unknown>,
   id: string,
   etag: string,
-): Promise<{ etag?: string }> {
-  return request(container, {
+): Promise<{ data: JourneyData; etags: Record<string, string> } | { etag?: string }> {
+  const result = await request<{ data?: unknown; etags?: Record<string, string>; etag?: string }>(container, {
     method: 'PUT',
     body: JSON.stringify({ operation: 'update', type, id, entity, ifMatch: etag }),
   })
+  if (type === 'waypoint') return { data: DataSchema.parse(result.data), etags: result.etags ?? {} }
+  return { etag: result.etag }
 }
 
 export async function deleteJourneyEntity(
@@ -76,8 +92,8 @@ export async function deleteJourneyEntity(
 
 export async function importJourney(
   container: JourneyContainer,
-  data: WaypointsData,
-): Promise<{ data: WaypointsData; etags: Record<string, string> }> {
+  data: JourneyData,
+): Promise<{ data: JourneyData; etags: Record<string, string> }> {
   const result = await request<{ data: unknown; etags: Record<string, string> }>(container, {
     method: 'POST',
     body: JSON.stringify({ operation: 'import', data }),
@@ -87,9 +103,9 @@ export async function importJourney(
 
 export async function replaceJourney(
   container: JourneyContainer,
-  data: WaypointsData,
+  data: JourneyData,
   etags: Record<string, string>,
-): Promise<{ data: WaypointsData; etags: Record<string, string> }> {
+): Promise<{ data: JourneyData; etags: Record<string, string> }> {
   const result = await request<{ data: unknown; etags: Record<string, string> }>(container, {
     method: 'POST',
     body: JSON.stringify({ operation: 'replace', data, etags }),
@@ -99,7 +115,7 @@ export async function replaceJourney(
 
 export async function clearJourney(
   container: JourneyContainer,
-): Promise<{ data: WaypointsData; etags: Record<string, string> }> {
+): Promise<{ data: JourneyData; etags: Record<string, string> }> {
   const result = await request<{ data: unknown; etags: Record<string, string> }>(container, {
     method: 'POST',
     body: JSON.stringify({ operation: 'clear' }),

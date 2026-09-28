@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { deletionPlan, referenceIntegrityError, upsertEntity } from './journeyGraph.js'
+import { applyPlan, deletionPlan, referenceIntegrityError, updatePlan, upsertEntity } from './journeyGraph.js'
 import type { JourneyData } from './journeySchema.js'
 
 function data(): JourneyData {
@@ -13,7 +13,7 @@ function data(): JourneyData {
         tags: [],
         challengeIds: [],
         completion: { mode: 'once' },
-        referenceIds: [],
+        referenceIds: ['reference-3'],
         photoReferenceIds: [],
       },
     ],
@@ -57,6 +57,7 @@ function data(): JourneyData {
     references: [
       { referenceId: 'reference-1', title: 'Idea link', url: 'https://example.com/idea' },
       { referenceId: 'reference-2', title: 'Activity link', url: 'https://example.com/activity' },
+      { referenceId: 'reference-3', title: 'Waypoint link', url: 'https://example.com/waypoint' },
     ],
     photoReferences: [{ photoReferenceId: 'photo-1', title: 'Photo', url: 'https://example.com/photo.jpg' }],
   }
@@ -88,19 +89,71 @@ describe('referenceIntegrityError', () => {
     expect(next.activities).toHaveLength(1)
     expect(referenceIntegrityError(next)).toBe('Activity "activity-1" references unknown idea "idea-2".')
   })
+
+  it('rejects categorized activities without a category-supporting waypoint challenge', () => {
+    const invalid = data()
+    invalid.activities[0]!.category = 'silver'
+
+    expect(referenceIntegrityError(invalid)).toBe(
+      'Activity "activity-1" has a category but its waypoint does not support Bronze, Silver or Gold categories.',
+    )
+  })
+
+  it('distinguishes categorized activities without a waypoint', () => {
+    const invalid = data()
+    delete invalid.activities[0]!.waypointId
+    invalid.activities[0]!.category = 'silver'
+
+    expect(referenceIntegrityError(invalid)).toBe(
+      'Activity "activity-1" has a category but is not linked to a waypoint.',
+    )
+  })
 })
 
 describe('deletionPlan', () => {
   it('detaches ideas and activities when a waypoint is deleted', () => {
-    const plan = deletionPlan(data(), 'waypoint', 'waypoint-1')
+    const withCategory = data()
+    withCategory.activities[0]!.category = 'silver'
+    const plan = deletionPlan(withCategory, 'waypoint', 'waypoint-1')
 
-    expect(plan.deletes).toEqual(['waypoint-1'])
+    expect(plan.deletes).toEqual(['waypoint-1', 'reference-3'])
     expect(plan.updates).toEqual([
       { type: 'challenge', entity: expect.objectContaining({ challengeId: 'challenge-1', waypointIds: [] }) },
       { type: 'idea', entity: expect.objectContaining({ ideaId: 'idea-1', waypointIds: [] }) },
       { type: 'activity', entity: expect.objectContaining({ activityId: 'activity-1', ideaIds: ['idea-1'] }) },
     ])
     expect(plan.updates[2]!.entity).not.toHaveProperty('waypointId')
+    expect(plan.updates[2]!.entity).not.toHaveProperty('category')
+    expect(referenceIntegrityError(applyPlan(withCategory, plan))).toBeUndefined()
+  })
+
+  it('updates challenge reverse links when a waypoint challenge list changes', () => {
+    const plan = updatePlan(data(), 'waypoint', {
+      ...data().waypoints[0]!,
+      challengeIds: [],
+      referenceIds: [],
+    })
+
+    expect(plan.updates).toEqual([
+      { type: 'waypoint', entity: expect.objectContaining({ waypointId: 'waypoint-1', challengeIds: [] }) },
+      { type: 'challenge', entity: expect.objectContaining({ challengeId: 'challenge-1', waypointIds: [] }) },
+    ])
+    expect(referenceIntegrityError(applyPlan(data(), plan))).toBeUndefined()
+  })
+
+  it('rejects waypoint challenge updates that invalidate an activity category', () => {
+    const withCategory = data()
+    withCategory.challenges[0]!.supportsActivityCategories = true
+    withCategory.waypoints[0]!.challengeIds = ['challenge-1']
+    withCategory.activities[0]!.category = 'silver'
+    const plan = updatePlan(withCategory, 'waypoint', {
+      ...withCategory.waypoints[0]!,
+      challengeIds: [],
+    })
+
+    expect(referenceIntegrityError(applyPlan(withCategory, plan))).toBe(
+      'Activity "activity-1" has a category but its waypoint does not support Bronze, Silver or Gold categories.',
+    )
   })
 
   it('removes idea links from activities and prunes orphaned references', () => {
