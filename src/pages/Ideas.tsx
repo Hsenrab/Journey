@@ -11,7 +11,7 @@ import { ClickableCard } from '../components/ClickableCard'
 import { EmptyState } from '../components/EmptyState'
 import { FilterBar } from '../components/FilterBar'
 import { PageHeader } from '../components/PageHeader'
-import { distanceMiles } from '../domain/map'
+import { brockworth, distanceMiles } from '../domain/map'
 import {
   countLabel,
   difficultyLabels,
@@ -25,8 +25,6 @@ import {
 import { IdeaEditor } from '../components/IdeaEditor'
 import { useWaypoints } from '../features/journey/JourneyContext'
 import { JourneyConflictError } from '../services/journeyApi'
-
-const brockworth = { latitude: 51.844, longitude: -2.153 }
 
 type SortKey = 'distance' | 'updated' | 'difficulty'
 type UsageFilter = 'all' | 'used' | 'not-used'
