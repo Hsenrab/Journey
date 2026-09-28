@@ -724,7 +724,7 @@ export default function MapPage() {
           <Tab id="activities-tab" aria-controls="map-panel" value="activities" label="Activities" />
         </Tabs>
       </PageHeader>
-      {error && <Alert severity="error">{error}</Alert>}
+      {error && loadState.status !== 'failed' && <Alert severity="error">{error}</Alert>}
       {loadState.status === 'failed' && (
         <LoadFailureAlert message={loadState.message} description="This is a load failure, not an empty map dataset." />
       )}

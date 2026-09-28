@@ -95,8 +95,8 @@ export default function Settings() {
       <Stack spacing={2}>
         <Typography variant="h5">Data mode</Typography>
         <Typography>
-          Choose Demo local data, Demo Cosmos data, or Production data here. Switching modes reloads that dataset and
-          never overwrites data that belongs to another mode.
+          Choose Demo local data, Demo Cosmos data, or Production data. Switching modes reloads that dataset and never
+          overwrites data that belongs to another mode.
         </Typography>
         <FormControl size="small" sx={{ maxWidth: 320 }}>
           <InputLabel id="journey-data-mode-label">Data mode</InputLabel>
