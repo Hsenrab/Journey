@@ -384,7 +384,7 @@ export function WaypointsProvider({ children }: { children: ReactNode }) {
   const [dataMode, setDataModeState] = useState<JourneyDataMode>(initialDataMode)
   const [activeDataMode, setActiveDataMode] = useState<JourneyDataMode>(initialDataMode)
   const [loadState, setLoadState] = useState<JourneyLoadState>({ status: 'loading' })
-  const [loading, setLoading] = useState(true)
+  const loading = loadState.status === 'loading'
   const [etags, setEtags] = useState<Record<string, string>>({})
   const [role, setRole] = useState<AccessRole>('local')
   const loadGeneration = useRef(0)
@@ -397,7 +397,6 @@ export function WaypointsProvider({ children }: { children: ReactNode }) {
     async (mode: JourneyDataMode): Promise<ReloadResult> => {
       const generation = loadGeneration.current + 1
       loadGeneration.current = generation
-      setLoading(true)
       setLoadState({ status: 'loading' })
       const settle = (
         loaded: { data: WaypointsData; etags: Record<string, string>; role: AccessRole },
@@ -408,14 +407,12 @@ export function WaypointsProvider({ children }: { children: ReactNode }) {
         apply(loaded)
         setActiveDataMode(active)
         setLoadState(error ? { status: 'loaded', warning: error } : { status: 'loaded' })
-        setLoading(false)
         return error ? { status: 'failure', message: error } : { status: 'success' }
       }
       const fail = (active: JourneyDataMode, error: string): ReloadResult => {
         if (loadGeneration.current !== generation) return { status: 'superseded' }
         setActiveDataMode(active)
         setLoadState({ status: 'failed', message: error })
-        setLoading(false)
         return { status: 'failure', message: error }
       }
 
