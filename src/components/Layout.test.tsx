@@ -52,13 +52,12 @@ describe('Layout', () => {
     renderLayout()
 
     expect(screen.getByRole('link', { name: 'Waypoints' })).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: 'Progress' })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Progress' })).toHaveAttribute('href', '/challenges')
     expect(screen.getByRole('link', { name: 'Ideas' })).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Activities' })).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Map' })).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Settings' })).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Journey' })).toHaveAttribute('href', '/challenges')
-    expect(screen.getByRole('link', { name: 'Progress' })).toHaveAttribute('href', '/challenges')
     expect(screen.getByText('Page content')).toBeInTheDocument()
   })
 
