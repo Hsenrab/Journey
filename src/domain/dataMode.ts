@@ -24,8 +24,8 @@ export function dataModeStatus(state: DataModeState): DataModeStatus {
 }
 
 /** Why writes are unavailable, or undefined when there is no explainable read-only reason. */
-export function readOnlyReason(state: DataModeState): ReadOnlyReason | undefined {
-  if (!state.readOnly) return undefined
+export function readOnlyReason(state: DataModeState, loading: boolean): ReadOnlyReason | undefined {
+  if (loading || !state.readOnly) return undefined
   const status = dataModeStatus(state)
   switch (status) {
     case 'fallback':

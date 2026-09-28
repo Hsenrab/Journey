@@ -15,8 +15,8 @@ const reasonText: Record<ReadOnlyReason, string> = {
  * when the data is writable; distinct from EmptyState, which covers empty collections.
  */
 export function ReadOnlyNotice() {
-  const { activeDataMode, dataMode, loadError, readOnly, role } = useWaypoints()
-  const reason = readOnlyReason({ activeDataMode, dataMode, loadError, readOnly, role })
+  const { activeDataMode, dataMode, loadError, loading, readOnly, role } = useWaypoints()
+  const reason = readOnlyReason({ activeDataMode, dataMode, loadError, readOnly, role }, loading)
   if (!reason) return null
 
   return (

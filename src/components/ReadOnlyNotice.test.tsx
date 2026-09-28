@@ -1,8 +1,8 @@
-import { cleanup, render, screen, waitFor } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { ReadOnlyNotice } from './ReadOnlyNotice'
-import { WaypointsProvider } from '../features/journey/JourneyContext'
+import { WaypointsProvider, useWaypoints } from '../features/journey/JourneyContext'
 import { createDefaultData, setDataMode } from '../services/storage'
 
 function renderNotice() {
@@ -59,5 +59,32 @@ describe('ReadOnlyNotice', () => {
     renderNotice()
 
     await waitFor(() => expect(screen.getByText(/Demo Cosmos data could not be loaded/)).toBeInTheDocument())
+  })
+
+  it('hides the previous explanation while a new data mode loads', async () => {
+    setDataMode('demo-local')
+    vi.stubEnv('MODE', 'production')
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockImplementation(() => new Promise(() => {})),
+    )
+
+    function SwitchMode() {
+      const { setDataMode: changeDataMode } = useWaypoints()
+      return <button onClick={() => void changeDataMode('production')}>Switch to production</button>
+    }
+
+    render(
+      <MemoryRouter>
+        <WaypointsProvider>
+          <ReadOnlyNotice />
+          <SwitchMode />
+        </WaypointsProvider>
+      </MemoryRouter>,
+    )
+
+    await screen.findByText(/Demo local data is bundled sample data/)
+    fireEvent.click(screen.getByRole('button', { name: 'Switch to production' }))
+    await waitFor(() => expect(screen.queryByText('Read-only mode')).not.toBeInTheDocument())
   })
 })
