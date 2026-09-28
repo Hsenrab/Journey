@@ -114,7 +114,9 @@ export async function journey(request: HttpRequest, context: InvocationContext):
       const document = entityDocument(datasetId, parsed.data.type, entity)
       const loaded = await loadDataset(cosmos, datasetId)
       const plan =
-        parsed.data.operation === 'update' ? updatePlan(loaded.data, document.type, document.entity) : undefined
+        parsed.data.operation === 'update' && document.type === 'waypoint'
+          ? updatePlan(loaded.data, document.type, document.entity)
+          : undefined
       const invalid = referenceIntegrityError(
         plan ? applyPlan(loaded.data, plan) : upsertEntity(loaded.data, document.type, document.entity),
       )

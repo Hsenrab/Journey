@@ -568,7 +568,8 @@ export function WaypointsProvider({ children }: { children: ReactNode }) {
       deleteWaypoint: async (waypointId) => {
         const container = writableContainer()
         const action = { type: 'delete-waypoint' as const, waypointId }
-        reducer(data, action)
+        if (!data.waypoints.some((waypoint) => waypoint.waypointId === waypointId))
+          throw new Error('Waypoint not found')
         if (localTestMode && dataMode === 'production') {
           dispatch(action)
           return
