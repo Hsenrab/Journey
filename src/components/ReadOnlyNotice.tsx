@@ -5,7 +5,7 @@ import { useWaypoints } from '../features/journey/JourneyContext'
 
 const reasonText: Record<ReadOnlyReason, string> = {
   fallback: 'Demo Cosmos data could not be loaded, so bundled demo data is shown and cannot be changed.',
-  error: 'The selected data could not be loaded, so nothing can be changed until it loads.',
+  error: 'The selected data failed to load, so nothing can be changed.',
   viewer: 'Your Journey access is viewer only, so you can read this data but not change it.',
   demoLocal: 'Demo local data is bundled sample data, so it cannot be changed.',
 }

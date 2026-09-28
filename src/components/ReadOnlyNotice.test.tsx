@@ -61,6 +61,19 @@ describe('ReadOnlyNotice', () => {
     await waitFor(() => expect(screen.getByText(/Demo Cosmos data could not be loaded/)).toBeInTheDocument())
   })
 
+  it('explains a terminal load error', async () => {
+    setDataMode('production')
+    vi.stubEnv('MODE', 'production')
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('Journey unavailable')))
+    renderNotice()
+
+    await waitFor(() =>
+      expect(screen.getByRole('alert')).toHaveTextContent(
+        'The selected data failed to load, so nothing can be changed.',
+      ),
+    )
+  })
+
   it('hides the previous explanation while a new data mode loads', async () => {
     setDataMode('demo-local')
     vi.stubEnv('MODE', 'production')
