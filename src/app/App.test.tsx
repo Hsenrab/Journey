@@ -5,8 +5,33 @@ import App from './App'
 
 afterEach(cleanup)
 
+describe('landing route', () => {
+  beforeEach(() => {
+    localStorage.clear()
+    window.history.pushState({}, '', '/')
+  })
+  afterEach(cleanup)
+
+  it('opens on the progress dashboard', () => {
+    render(<App />)
+
+    expect(screen.getByRole('heading', { name: 'National Trust Challenge' })).toBeInTheDocument()
+    expect(screen.getByText('Activity categories')).toBeInTheDocument()
+  })
+
+  it('keeps /waypoints reachable as its own route', () => {
+    window.history.pushState({}, '', '/waypoints')
+    render(<App />)
+
+    expect(screen.getByLabelText('Search waypoints')).toBeInTheDocument()
+  })
+})
+
 describe('waypoint list', () => {
-  beforeEach(() => localStorage.clear())
+  beforeEach(() => {
+    localStorage.clear()
+    window.history.pushState({}, '', '/waypoints')
+  })
   afterEach(cleanup)
 
   it('filters waypoints by a search term', async () => {
@@ -52,7 +77,10 @@ describe('waypoint list', () => {
 })
 
 describe('activity logging', () => {
-  beforeEach(() => localStorage.clear())
+  beforeEach(() => {
+    localStorage.clear()
+    window.history.pushState({}, '', '/waypoints')
+  })
 
   const logActivity = async (user: ReturnType<typeof userEvent.setup>, level: string, date: string) => {
     await user.click(screen.getByRole('button', { name: 'Log activity' }))

@@ -11,6 +11,7 @@ import { ClickableCard } from '../components/ClickableCard'
 import { EmptyState } from '../components/EmptyState'
 import { FilterBar } from '../components/FilterBar'
 import { PageHeader } from '../components/PageHeader'
+import { ReadOnlyNotice } from '../components/ReadOnlyNotice'
 import { brockworth, distanceMiles } from '../domain/map'
 import {
   countLabel,
@@ -198,6 +199,7 @@ export default function Ideas() {
           })}
         </Stack>
       </PageHeader>
+      <ReadOnlyNotice />
       <FilterBar>
         <TextField label="Search ideas" value={query} onChange={(event) => setQuery(event.target.value)} />
         <TextField select label="Usage" value={usage} onChange={(event) => setUsage(event.target.value as UsageFilter)}>

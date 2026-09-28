@@ -20,6 +20,7 @@ import { CardDetailRow } from '../components/CardDetailRow'
 import { ClickableCard } from '../components/ClickableCard'
 import { DetailPageHeader } from '../components/DetailPageHeader'
 import { EmptyState } from '../components/EmptyState'
+import { ReadOnlyNotice } from '../components/ReadOnlyNotice'
 import { WaypointEditor } from '../components/WaypointEditor'
 import { locations } from '../data/locations'
 import {
@@ -112,6 +113,7 @@ export default function LocationDetails() {
           </Button>
         )}
       </DetailPageHeader>
+      <ReadOnlyNotice />
       <Chip label={`Category summary: ${statusLabels[statusFor(id)]}`} />
       <Typography>{waypoint.description}</Typography>
       {sourceLocation && (

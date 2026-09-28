@@ -16,6 +16,7 @@ import InboxOutlinedIcon from '@mui/icons-material/InboxOutlined'
 import { DetailPageHeader } from '../components/DetailPageHeader'
 import { EmptyState } from '../components/EmptyState'
 import { IdeaEditor } from '../components/IdeaEditor'
+import { ReadOnlyNotice } from '../components/ReadOnlyNotice'
 import {
   activitiesUsingIdea,
   activitySubtitle,
@@ -84,6 +85,7 @@ export default function IdeaDetails() {
           </>
         )}
       </DetailPageHeader>
+      <ReadOnlyNotice />
       {!editing && error && <Alert severity="error">{error}</Alert>}
       <Typography color="text.secondary">{idea.description || 'No description'}</Typography>
       <Typography sx={{ whiteSpace: 'pre-wrap' }}>{idea.notes || 'No notes'}</Typography>
