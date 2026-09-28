@@ -58,11 +58,12 @@ export async function updateJourneyEntity(
   entity: Record<string, unknown>,
   id: string,
   etag: string,
-): Promise<{ etag?: string }> {
-  return request(container, {
+): Promise<{ data: WaypointsData; etags: Record<string, string> }> {
+  const result = await request<{ data: unknown; etags: Record<string, string> }>(container, {
     method: 'PUT',
     body: JSON.stringify({ operation: 'update', type, id, entity, ifMatch: etag }),
   })
+  return { data: DataSchema.parse(result.data), etags: result.etags }
 }
 
 export async function deleteJourneyEntity(

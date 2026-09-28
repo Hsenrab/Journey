@@ -150,27 +150,31 @@ export function updatePlan(data: JourneyData, type: EntityType, entity: Entity):
 
 export function deletionPlan(data: JourneyData, type: EntityType, id: string): DeletionPlan {
   if (type === 'waypoint') {
-    const challenges = data.challenges.map((challenge) =>
-      challenge.waypointIds.includes(id)
-        ? {
-            ...challenge,
-            waypointIds: challenge.waypointIds.filter((waypointId) => waypointId !== id),
-          }
-        : challenge,
+    const challengeUpdates = data.challenges
+      .filter((challenge) => challenge.waypointIds.includes(id))
+      .map((challenge) => ({
+        ...challenge,
+        waypointIds: challenge.waypointIds.filter((waypointId) => waypointId !== id),
+      }))
+    const ideaUpdates = data.ideas
+      .filter((idea) => idea.waypointIds.includes(id))
+      .map((idea) => ({
+        ...idea,
+        waypointIds: idea.waypointIds.filter((waypointId) => waypointId !== id),
+      }))
+    const activityUpdates = data.activities
+      .filter((activity) => activity.waypointId === id)
+      .map((activity) => {
+        const { waypointId: _removed, ...detached } = activity
+        return detached
+      })
+    const challenges = data.challenges.map(
+      (challenge) => challengeUpdates.find((updated) => updated.challengeId === challenge.challengeId) ?? challenge,
     )
-    const ideas = data.ideas.map((idea) =>
-      idea.waypointIds.includes(id)
-        ? {
-            ...idea,
-            waypointIds: idea.waypointIds.filter((waypointId) => waypointId !== id),
-          }
-        : idea,
+    const ideas = data.ideas.map((idea) => ideaUpdates.find((updated) => updated.ideaId === idea.ideaId) ?? idea)
+    const activities = data.activities.map(
+      (activity) => activityUpdates.find((updated) => updated.activityId === activity.activityId) ?? activity,
     )
-    const activities = data.activities.map((activity) => {
-      if (activity.waypointId !== id) return activity
-      const { waypointId: _removed, ...detached } = activity
-      return detached
-    })
     const remaining: JourneyData = {
       ...data,
       waypoints: data.waypoints.filter((waypoint) => waypoint.waypointId !== id),
@@ -181,26 +185,9 @@ export function deletionPlan(data: JourneyData, type: EntityType, id: string): D
     return {
       deletes: [id, ...newlyUnreferencedIds(data, remaining)],
       updates: [
-        ...challenges
-          .filter(
-            (challenge) => data.challenges.find((item) => item.challengeId === challenge.challengeId) !== challenge,
-          )
-          .map((challenge) => ({
-            type: 'challenge' as const,
-            entity: { ...challenge },
-          })),
-        ...ideas
-          .filter((idea) => data.ideas.find((item) => item.ideaId === idea.ideaId) !== idea)
-          .map((idea) => ({
-            type: 'idea' as const,
-            entity: { ...idea },
-          })),
-        ...activities
-          .filter((activity) => data.activities.find((item) => item.activityId === activity.activityId) !== activity)
-          .map((activity) => ({
-            type: 'activity' as const,
-            entity: { ...activity },
-          })),
+        ...challengeUpdates.map((challenge) => ({ type: 'challenge' as const, entity: { ...challenge } })),
+        ...ideaUpdates.map((idea) => ({ type: 'idea' as const, entity: { ...idea } })),
+        ...activityUpdates.map((activity) => ({ type: 'activity' as const, entity: { ...activity } })),
       ],
     }
   }

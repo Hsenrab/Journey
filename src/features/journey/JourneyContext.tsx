@@ -563,8 +563,7 @@ export function WaypointsProvider({ children }: { children: ReactNode }) {
         if (!updated) throw new Error('Waypoint not found')
         const etag = etags[waypointId]
         if (!etag) throw new Error(`Waypoint "${waypointId}" has no ETag for update.`)
-        await updateJourneyEntity(container, 'waypoint', updated, waypointId, etag)
-        apply({ ...(await loadJourney(container)), role })
+        apply({ ...(await updateJourneyEntity(container, 'waypoint', updated, waypointId, etag)), role })
       },
       deleteWaypoint: async (waypointId) => {
         const container = writableContainer()
