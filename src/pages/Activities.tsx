@@ -42,6 +42,8 @@ export default function Activities() {
   const openEditor = () => {
     setSearchParams((previous) => {
       const next = new URLSearchParams(previous)
+      next.delete('waypoint')
+      next.delete('idea')
       next.set('mode', 'add')
       return next
     })
