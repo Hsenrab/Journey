@@ -356,7 +356,7 @@ describe('IdeaDetails', () => {
     await user.click(screen.getByRole('link', { name: 'Log activity from this idea' }))
 
     expect(await screen.findByText('Activities')).toBeInTheDocument()
-    expect(screen.getByRole('combobox', { name: 'Linked waypoint' })).toHaveTextContent('Stourhead')
+    expect(screen.getByRole('combobox', { name: 'Linked waypoint' })).toHaveValue('Stourhead')
     expect(screen.getByText('Try the outer trail')).toBeInTheDocument()
 
     await user.click(screen.getByRole('combobox', { name: 'Activity category' }))
