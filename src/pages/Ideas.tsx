@@ -1,12 +1,13 @@
 import { useMemo, useState } from 'react'
-import { Link, useSearchParams } from 'react-router-dom'
-import { Alert, Box, Button, Card, CardContent, Chip, MenuItem, Stack, TextField, Typography } from '@mui/material'
+import { useSearchParams } from 'react-router-dom'
+import { Alert, Box, Button, Chip, MenuItem, Stack, TextField, Typography } from '@mui/material'
 import FlagIcon from '@mui/icons-material/Flag'
 import LinkIcon from '@mui/icons-material/Link'
 import PlaceIcon from '@mui/icons-material/Place'
 import RouteIcon from '@mui/icons-material/Route'
 import SearchOffIcon from '@mui/icons-material/SearchOff'
 import { CardDetailRow } from '../components/CardDetailRow'
+import { ClickableCard } from '../components/ClickableCard'
 import { EmptyState } from '../components/EmptyState'
 import { FilterBar } from '../components/FilterBar'
 import { PageHeader } from '../components/PageHeader'
@@ -269,7 +270,9 @@ export default function Ideas() {
             allCount === 0
               ? 'You have no ideas yet.'
               : otherStateMatchCount > 0
-                ? `No ideas match your filters in this state, but ${otherStateMatchCount} match in other states.`
+                ? `No ideas match your filters in this state, but ${
+                    otherStateMatchCount === 1 ? '1 idea matches' : `${otherStateMatchCount} ideas match`
+                  } in other states.`
                 : 'No ideas match your filters.'
           }
           action={
@@ -292,10 +295,12 @@ export default function Ideas() {
               .filter((name): name is string => Boolean(name))
             const distance = distanceFromBrockworth(idea)
             return (
-              <Card key={idea.ideaId}>
-                <CardContent>
+              <ClickableCard key={idea.ideaId} to={`/ideas/${idea.ideaId}`}>
+                {(titleId) => (
                   <Stack spacing={1}>
-                    <Typography variant="h6">{idea.title}</Typography>
+                    <Typography id={titleId} variant="h6">
+                      {idea.title}
+                    </Typography>
                     <Typography color="text.secondary">{idea.description || 'No description'}</Typography>
                     <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: 'wrap' }}>
                       <Chip label={planningStateLabels[idea.planningState]} />
@@ -319,12 +324,9 @@ export default function Ideas() {
                       {countLabel(references.length, 'link')}
                       {references[0] ? ` · ${referenceHostname(references[0].url)}` : ''}
                     </CardDetailRow>
-                    <Button component={Link} to={`/ideas/${idea.ideaId}`}>
-                      View idea
-                    </Button>
                   </Stack>
-                </CardContent>
-              </Card>
+                )}
+              </ClickableCard>
             )
           })}
         </Box>

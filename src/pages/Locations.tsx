@@ -1,10 +1,11 @@
 import { useMemo, useState } from 'react'
-import { Link, useSearchParams } from 'react-router-dom'
-import { Alert, Box, Button, Card, CardContent, Chip, MenuItem, Stack, TextField, Typography } from '@mui/material'
+import { useSearchParams } from 'react-router-dom'
+import { Alert, Box, Button, Chip, MenuItem, Stack, TextField, Typography } from '@mui/material'
 import DirectionsCarIcon from '@mui/icons-material/DirectionsCar'
 import RouteIcon from '@mui/icons-material/Route'
 import SearchOffIcon from '@mui/icons-material/SearchOff'
 import { CardDetailRow } from '../components/CardDetailRow'
+import { ClickableCard } from '../components/ClickableCard'
 import { EmptyState } from '../components/EmptyState'
 import { FilterBar } from '../components/FilterBar'
 import { PageHeader } from '../components/PageHeader'
@@ -282,10 +283,12 @@ export default function Locations() {
             const distance = distanceByWaypointId.get(waypoint.waypointId)
             const waypointStatus = statusFor(waypoint.waypointId)
             return (
-              <Card key={waypoint.waypointId}>
-                <CardContent>
+              <ClickableCard key={waypoint.waypointId} to={`/waypoints/${waypoint.waypointId}`}>
+                {(titleId) => (
                   <Stack spacing={1}>
-                    <Typography variant="h6">{waypoint.title}</Typography>
+                    <Typography id={titleId} variant="h6">
+                      {waypoint.title}
+                    </Typography>
                     <Typography color="text.secondary">
                       {(source?.area ?? 'Custom') + ' · ' + (source?.category ?? waypoint.category)}
                     </Typography>
@@ -307,12 +310,9 @@ export default function Locations() {
                         Drive time unavailable
                       </CardDetailRow>
                     )}
-                    <Button component={Link} to={`/waypoints/${waypoint.waypointId}`}>
-                      View waypoint
-                    </Button>
                   </Stack>
-                </CardContent>
-              </Card>
+                )}
+              </ClickableCard>
             )
           })}
         </Box>
