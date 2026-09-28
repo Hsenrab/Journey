@@ -11,6 +11,7 @@ import { ClickableCard } from '../components/ClickableCard'
 import { DetailPageHeader } from '../components/DetailPageHeader'
 import { EmptyState } from '../components/EmptyState'
 import { LoadFailureAlert } from '../components/LoadFailureAlert'
+import { LoadingNotice } from '../components/LoadingNotice'
 import { locations } from '../data/locations'
 import {
   activitySubtitle,
@@ -45,6 +46,8 @@ export default function LocationDetails() {
         <DetailPageHeader breadcrumbs={breadcrumbs} title="Waypoint" />
         {loadState.status === 'failed' ? (
           <LoadFailureAlert message={loadState.message} description="This is a load failure, not a missing waypoint." />
+        ) : loadState.status === 'loading' ? (
+          <LoadingNotice message="Loading waypoint…" />
         ) : (
           <Alert severity="error">Waypoint not found.</Alert>
         )}

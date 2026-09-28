@@ -9,6 +9,7 @@ import { ClickableCard } from '../components/ClickableCard'
 import { EmptyState } from '../components/EmptyState'
 import { FilterBar } from '../components/FilterBar'
 import { LoadFailureAlert } from '../components/LoadFailureAlert'
+import { LoadingNotice } from '../components/LoadingNotice'
 import { PageHeader } from '../components/PageHeader'
 import { WaypointEditor } from '../components/WaypointEditor'
 import { locations } from '../data/locations'
@@ -277,7 +278,9 @@ export default function Locations() {
           </TextField>
         </FilterBar>
       )}
-      {loadState.status === 'failed' ? null : list.length === 0 ? (
+      {loadState.status === 'failed' ? null : loadState.status === 'loading' ? (
+        <LoadingNotice message="Loading waypoints…" />
+      ) : list.length === 0 ? (
         <EmptyState icon={<SearchOffIcon color="disabled" />} message="No waypoints match your search and filters." />
       ) : (
         <Box

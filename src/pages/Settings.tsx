@@ -35,7 +35,7 @@ export default function Settings() {
   const [confirmingClear, setConfirmingClear] = useState(false)
   const usingLocalFallback = dataMode === 'demo-cosmos' && activeDataMode === 'demo-local' && Boolean(loadError)
   const activeLabel = usingLocalFallback ? 'Demo local fallback data' : dataModeLabels[activeDataMode]
-  const exportDisabled = loadState.status === 'failed'
+  const exportDisabled = loadState.status !== 'loaded'
   const changeMode = (event: SelectChangeEvent) => {
     void setDataMode(event.target.value as JourneyDataMode)
   }
@@ -154,7 +154,7 @@ export default function Settings() {
             Clear data
           </Button>
         </Stack>
-        {exportDisabled && (
+        {loadState.status === 'failed' && (
           <Alert severity="error">
             Export is disabled because the active dataset did not load. Reload production before creating a backup.
           </Alert>
@@ -166,8 +166,8 @@ export default function Settings() {
         <DialogTitle>Clear all Journey data?</DialogTitle>
         <DialogContent>
           <DialogContentText>
-            This permanently removes every waypoint, idea, activity, note, reference and photo reference from the active
-            writable dataset. Export a backup first if you want to keep it.
+            This permanently removes every waypoint, challenge, idea, activity, note, reference and photo reference from
+            the active writable dataset. Export a backup first if you want to keep it.
           </DialogContentText>
         </DialogContent>
         <DialogActions>

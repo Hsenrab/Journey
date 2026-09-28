@@ -202,6 +202,22 @@ describe('Settings', () => {
     expect(createObjectURL).not.toHaveBeenCalled()
   })
 
+  it('disables export while production data is still loading', async () => {
+    vi.stubEnv('MODE', 'production')
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockImplementation(() => new Promise<Response>(() => {})),
+    )
+    renderSettings()
+
+    expect(await screen.findByRole('button', { name: 'Export JSON' })).toBeDisabled()
+    expect(
+      screen.queryByText(
+        'Export is disabled because the active dataset did not load. Reload production before creating a backup.',
+      ),
+    ).not.toBeInTheDocument()
+  })
+
   it('clears data only after confirmation', async () => {
     const user = userEvent.setup()
     save({ ...createDefaultData(), activities: [activity()] })

@@ -10,6 +10,7 @@ import { CardDetailRow } from '../components/CardDetailRow'
 import { ClickableCard } from '../components/ClickableCard'
 import { EmptyState } from '../components/EmptyState'
 import { LoadFailureAlert } from '../components/LoadFailureAlert'
+import { LoadingNotice } from '../components/LoadingNotice'
 import { PageHeader } from '../components/PageHeader'
 import { activitySubtitle, activityTitle, countLabel, locationSummary, statusLabels } from '../domain/visit'
 import { useWaypoints } from '../features/journey/JourneyContext'
@@ -103,7 +104,9 @@ export default function Activities() {
 
       <Stack spacing={2}>
         <Typography variant="h5">Activity log</Typography>
-        {loadState.status === 'failed' ? null : activities.length === 0 ? (
+        {loadState.status === 'failed' ? null : loadState.status === 'loading' ? (
+          <LoadingNotice message="Loading activities…" />
+        ) : activities.length === 0 ? (
           <EmptyState icon={<InboxOutlinedIcon color="disabled" />} message="No activities logged yet." />
         ) : (
           activities.map((activity) => {

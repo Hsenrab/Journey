@@ -11,6 +11,7 @@ import { ClickableCard } from '../components/ClickableCard'
 import { EmptyState } from '../components/EmptyState'
 import { FilterBar } from '../components/FilterBar'
 import { LoadFailureAlert } from '../components/LoadFailureAlert'
+import { LoadingNotice } from '../components/LoadingNotice'
 import { PageHeader } from '../components/PageHeader'
 import { brockworth, distanceMiles } from '../domain/map'
 import {
@@ -279,7 +280,9 @@ export default function Ideas() {
         />
       )}
 
-      {loadState.status === 'failed' ? null : filteredIdeas.length === 0 ? (
+      {loadState.status === 'failed' ? null : loadState.status === 'loading' ? (
+        <LoadingNotice message="Loading ideas…" />
+      ) : filteredIdeas.length === 0 ? (
         <EmptyState
           icon={<SearchOffIcon color="disabled" />}
           message={

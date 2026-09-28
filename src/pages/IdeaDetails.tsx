@@ -16,6 +16,8 @@ import InboxOutlinedIcon from '@mui/icons-material/InboxOutlined'
 import { DetailPageHeader } from '../components/DetailPageHeader'
 import { EmptyState } from '../components/EmptyState'
 import { IdeaEditor } from '../components/IdeaEditor'
+import { LoadFailureAlert } from '../components/LoadFailureAlert'
+import { LoadingNotice } from '../components/LoadingNotice'
 import {
   activitiesUsingIdea,
   activitySubtitle,
@@ -32,7 +34,7 @@ import { useWaypoints } from '../features/journey/JourneyContext'
 export default function IdeaDetails() {
   const navigate = useNavigate()
   const { ideaId = '' } = useParams()
-  const { data, readOnly, updateIdea, deleteIdea } = useWaypoints()
+  const { data, loadState, readOnly, updateIdea, deleteIdea } = useWaypoints()
   const [editing, setEditing] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
@@ -43,7 +45,13 @@ export default function IdeaDetails() {
     return (
       <Stack spacing={3}>
         <DetailPageHeader breadcrumbs={breadcrumbs} title="Idea" />
-        <Alert severity="error">Idea not found.</Alert>
+        {loadState.status === 'failed' ? (
+          <LoadFailureAlert message={loadState.message} description="This is a load failure, not a missing idea." />
+        ) : loadState.status === 'loading' ? (
+          <LoadingNotice message="Loading idea…" />
+        ) : (
+          <Alert severity="error">Idea not found.</Alert>
+        )}
       </Stack>
     )
   }

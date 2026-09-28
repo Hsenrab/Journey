@@ -49,7 +49,8 @@ type DraftReference = Pick<Reference, 'title' | 'url' | 'description' | 'preview
 type DraftPhotoReference = Pick<ExternalPhotoReference, 'title' | 'url' | 'altText'> & { photoReferenceId?: string }
 
 type ReloadResult = { status: 'success' } | { status: 'failure'; message: string } | { status: 'superseded' }
-export type JourneyLoadState = { status: 'loaded'; warning?: string } | { status: 'failed'; message: string }
+export type JourneyLoadState =
+  { status: 'loading' } | { status: 'loaded'; warning?: string } | { status: 'failed'; message: string }
 
 export type ActivityDraft = {
   name?: string
@@ -382,7 +383,7 @@ export function WaypointsProvider({ children }: { children: ReactNode }) {
   const [data, dispatch] = useReducer(reducer, undefined, initialData)
   const [dataMode, setDataModeState] = useState<JourneyDataMode>(initialDataMode)
   const [activeDataMode, setActiveDataMode] = useState<JourneyDataMode>(initialDataMode)
-  const [loadState, setLoadState] = useState<JourneyLoadState>({ status: 'loaded' })
+  const [loadState, setLoadState] = useState<JourneyLoadState>({ status: 'loading' })
   const [loading, setLoading] = useState(true)
   const [etags, setEtags] = useState<Record<string, string>>({})
   const [role, setRole] = useState<AccessRole>('local')
@@ -397,6 +398,7 @@ export function WaypointsProvider({ children }: { children: ReactNode }) {
       const generation = loadGeneration.current + 1
       loadGeneration.current = generation
       setLoading(true)
+      setLoadState({ status: 'loading' })
       const settle = (
         loaded: { data: WaypointsData; etags: Record<string, string>; role: AccessRole },
         active: JourneyDataMode,
@@ -456,7 +458,8 @@ export function WaypointsProvider({ children }: { children: ReactNode }) {
     void reload()
   }, [reload])
   const value = useMemo<WaypointsValue>(() => {
-    const loadError = loadState.status === 'failed' ? loadState.message : loadState.warning
+    const loadError =
+      loadState.status === 'failed' ? loadState.message : loadState.status === 'loaded' ? loadState.warning : undefined
     const readOnly =
       loading ||
       role === 'viewer' ||

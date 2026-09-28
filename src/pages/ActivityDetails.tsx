@@ -19,6 +19,7 @@ import { ActivityEditor } from '../components/ActivityEditor'
 import { DetailPageHeader } from '../components/DetailPageHeader'
 import { EmptyState } from '../components/EmptyState'
 import { LoadFailureAlert } from '../components/LoadFailureAlert'
+import { LoadingNotice } from '../components/LoadingNotice'
 import {
   activitySubtitle,
   activityTitle,
@@ -64,6 +65,8 @@ export default function ActivityDetails() {
         <DetailPageHeader breadcrumbs={breadcrumbs} title="Activity" />
         {loadState.status === 'failed' ? (
           <LoadFailureAlert message={loadState.message} description="This is a load failure, not a missing activity." />
+        ) : loadState.status === 'loading' ? (
+          <LoadingNotice message="Loading activity…" />
         ) : (
           <Alert severity="error">Activity not found.</Alert>
         )}

@@ -2,6 +2,7 @@ import { Box, Card, CardContent, LinearProgress, Stack, Typography } from '@mui/
 import InboxOutlinedIcon from '@mui/icons-material/InboxOutlined'
 import { EmptyState } from '../components/EmptyState'
 import { LoadFailureAlert } from '../components/LoadFailureAlert'
+import { LoadingNotice } from '../components/LoadingNotice'
 import { ClickableCard } from '../components/ClickableCard'
 import { PageHeader } from '../components/PageHeader'
 import {
@@ -28,6 +29,15 @@ export default function Dashboard() {
           message={loadState.message}
           description="This is a load failure, not an empty challenge dataset."
         />
+      </Stack>
+    )
+  }
+
+  if (loadState.status === 'loading') {
+    return (
+      <Stack spacing={2}>
+        <PageHeader title="National Trust Challenge" />
+        <LoadingNotice message="Loading challenge data…" />
       </Stack>
     )
   }
