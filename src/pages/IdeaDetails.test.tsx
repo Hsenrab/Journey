@@ -1,4 +1,4 @@
-import { MemoryRouter, Route, Routes } from 'react-router-dom'
+import { MemoryRouter, Route, Routes, useNavigate } from 'react-router-dom'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -21,10 +21,16 @@ function renderDetails(path = '/ideas/idea-1') {
   )
 }
 
+function BackButton() {
+  const navigate = useNavigate()
+  return <button onClick={() => navigate(-1)}>Back</button>
+}
+
 function renderDetailsWithActivities(path = '/ideas/idea-1') {
   return render(
     <MemoryRouter initialEntries={[path]}>
       <WaypointsProvider>
+        <BackButton />
         <Routes>
           <Route path="/ideas/:ideaId" element={<IdeaDetails />} />
           <Route path="/ideas" element={<div>Ideas list</div>} />
@@ -361,6 +367,10 @@ describe('IdeaDetails', () => {
     expect(screen.getByText('Used in 1 activity')).toBeInTheDocument()
     expect(load().activities[0]?.ideaIds).toEqual(['idea-1'])
     expect(load().activities[0]?.waypointId).toBe('stourhead')
+
+    await user.click(screen.getByRole('button', { name: 'Back' }))
+    expect(screen.getByRole('heading', { name: 'Try the outer trail', level: 1 })).toBeInTheDocument()
+    expect(screen.queryByText('Activities')).not.toBeInTheDocument()
   })
 
   it('keeps the user on the activity editor and shows an error when logging an activity fails', async () => {

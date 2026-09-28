@@ -102,8 +102,7 @@ export default function Activities() {
             try {
               await addActivity(draft)
               if (initialIdeaId) {
-                clearEditorParams()
-                navigate(`/ideas/${initialIdeaId}`)
+                navigate(`/ideas/${initialIdeaId}`, { replace: true })
                 return
               }
               clearEditorParams()
