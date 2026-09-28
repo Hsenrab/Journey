@@ -20,6 +20,7 @@ import { DetailPageHeader } from '../components/DetailPageHeader'
 import { EmptyState } from '../components/EmptyState'
 import { LoadFailureAlert } from '../components/LoadFailureAlert'
 import { LoadingNotice } from '../components/LoadingNotice'
+import { ReadOnlyNotice } from '../components/ReadOnlyNotice'
 import {
   activitySubtitle,
   activityTitle,
@@ -128,6 +129,7 @@ export default function ActivityDetails() {
           </>
         )}
       </DetailPageHeader>
+      <ReadOnlyNotice />
 
       {message && (
         <Alert

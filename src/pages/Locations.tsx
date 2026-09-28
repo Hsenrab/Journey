@@ -11,6 +11,7 @@ import { FilterBar } from '../components/FilterBar'
 import { LoadFailureAlert } from '../components/LoadFailureAlert'
 import { LoadingNotice } from '../components/LoadingNotice'
 import { PageHeader } from '../components/PageHeader'
+import { ReadOnlyNotice } from '../components/ReadOnlyNotice'
 import { WaypointEditor } from '../components/WaypointEditor'
 import { locations } from '../data/locations'
 import { brockworth, distanceMiles, waypointCoordinates } from '../domain/map'
@@ -166,6 +167,7 @@ export default function Locations() {
           </Button>
         )}
       </PageHeader>
+      <ReadOnlyNotice />
       {loadState.status === 'failed' && (
         <LoadFailureAlert
           message={loadState.message}

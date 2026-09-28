@@ -106,6 +106,7 @@ type WaypointsValue = {
   dataMode: JourneyDataMode
   activeDataMode: JourneyDataMode
   readOnly: boolean
+  loading: boolean
   role: AccessRole
   loadError?: string
   loadState: JourneyLoadState
@@ -554,6 +555,7 @@ export function WaypointsProvider({ children }: { children: ReactNode }) {
       dataMode,
       activeDataMode,
       readOnly,
+      loading,
       role,
       loadError,
       loadState,

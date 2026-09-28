@@ -13,6 +13,7 @@ import { FilterBar } from '../components/FilterBar'
 import { LoadFailureAlert } from '../components/LoadFailureAlert'
 import { LoadingNotice } from '../components/LoadingNotice'
 import { PageHeader } from '../components/PageHeader'
+import { ReadOnlyNotice } from '../components/ReadOnlyNotice'
 import { brockworth, distanceMiles } from '../domain/map'
 import {
   countLabel,
@@ -202,6 +203,7 @@ export default function Ideas() {
           </Stack>
         )}
       </PageHeader>
+      <ReadOnlyNotice />
       {loadState.status === 'failed' && (
         <LoadFailureAlert
           message={loadState.message}

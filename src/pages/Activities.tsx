@@ -12,6 +12,7 @@ import { EmptyState } from '../components/EmptyState'
 import { LoadFailureAlert } from '../components/LoadFailureAlert'
 import { LoadingNotice } from '../components/LoadingNotice'
 import { PageHeader } from '../components/PageHeader'
+import { ReadOnlyNotice } from '../components/ReadOnlyNotice'
 import { activitySubtitle, activityTitle, countLabel, locationSummary, statusLabels } from '../domain/visit'
 import { useWaypoints } from '../features/journey/JourneyContext'
 import { JourneyConflictError } from '../services/journeyApi'
@@ -78,6 +79,7 @@ export default function Activities() {
           </Button>
         )}
       </PageHeader>
+      <ReadOnlyNotice />
 
       {loadState.status === 'failed' && (
         <LoadFailureAlert

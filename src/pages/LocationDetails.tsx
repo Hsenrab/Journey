@@ -22,6 +22,7 @@ import { DetailPageHeader } from '../components/DetailPageHeader'
 import { EmptyState } from '../components/EmptyState'
 import { LoadFailureAlert } from '../components/LoadFailureAlert'
 import { LoadingNotice } from '../components/LoadingNotice'
+import { ReadOnlyNotice } from '../components/ReadOnlyNotice'
 import { WaypointEditor } from '../components/WaypointEditor'
 import { locations } from '../data/locations'
 import {
@@ -120,6 +121,7 @@ export default function LocationDetails() {
           </Button>
         )}
       </DetailPageHeader>
+      <ReadOnlyNotice />
       {loadState.status === 'failed' && (
         <LoadFailureAlert
           message={loadState.message}

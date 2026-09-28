@@ -22,7 +22,7 @@ export default function App() {
         <WaypointsProvider>
           <Layout>
             <Routes>
-              <Route path="/" element={<Navigate to="/waypoints" replace />} />
+              <Route path="/" element={<Navigate to="/challenges" replace />} />
               <Route path="/waypoints" element={<Locations />} />
               <Route path="/waypoints/:id" element={<LocationDetails />} />
               <Route path="/challenges" element={<Dashboard />} />

@@ -18,6 +18,7 @@ import { EmptyState } from '../components/EmptyState'
 import { IdeaEditor } from '../components/IdeaEditor'
 import { LoadFailureAlert } from '../components/LoadFailureAlert'
 import { LoadingNotice } from '../components/LoadingNotice'
+import { ReadOnlyNotice } from '../components/ReadOnlyNotice'
 import {
   activitiesUsingIdea,
   activitySubtitle,
@@ -92,6 +93,7 @@ export default function IdeaDetails() {
           </>
         )}
       </DetailPageHeader>
+      <ReadOnlyNotice />
       {!editing && error && <Alert severity="error">{error}</Alert>}
       <Typography color="text.secondary">{idea.description || 'No description'}</Typography>
       <Typography sx={{ whiteSpace: 'pre-wrap' }}>{idea.notes || 'No notes'}</Typography>
