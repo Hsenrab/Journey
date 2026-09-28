@@ -157,6 +157,35 @@ describe('ActivityEditor', () => {
     )
   })
 
+  it('clears auto-prefilled coordinates when selecting a waypoint without coordinates', async () => {
+    const user = userEvent.setup()
+    const data = createDefaultData()
+    const waypoint = data.waypoints[0]!
+    const waypointWithoutCoordinates = {
+      ...waypoint,
+      waypointId: 'waypoint-without-coordinates',
+      title: 'Waypoint without coordinates',
+      location: undefined,
+    }
+    data.waypoints.push(waypointWithoutCoordinates)
+    renderEditor({ data })
+
+    const picker = screen.getByRole('combobox', { name: 'Linked waypoint' })
+    await user.click(picker)
+    await user.click(screen.getByRole('option', { name: waypoint.title }))
+    expect(screen.getByLabelText('Latitude')).toHaveValue(String(waypoint.location!.latitude))
+    expect(screen.getByLabelText('Longitude')).toHaveValue(String(waypoint.location!.longitude))
+
+    await user.click(picker)
+    await user.click(screen.getByRole('option', { name: waypointWithoutCoordinates.title }))
+    expect(screen.getByLabelText('Postcode')).toHaveValue('')
+
+    await user.click(screen.getByRole('combobox', { name: 'Location type' }))
+    await user.click(screen.getByRole('option', { name: 'Latitude and longitude' }))
+    expect(screen.getByLabelText('Latitude')).toHaveValue('')
+    expect(screen.getByLabelText('Longitude')).toHaveValue('')
+  })
+
   it('does not replace a location the user entered when selecting a waypoint', async () => {
     const user = userEvent.setup()
     const data = createDefaultData()
