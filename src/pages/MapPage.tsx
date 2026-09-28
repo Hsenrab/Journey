@@ -43,6 +43,7 @@ import {
 } from '../domain/visit'
 import { PageHeader } from '../components/PageHeader'
 import { LoadFailureAlert } from '../components/LoadFailureAlert'
+import { LoadingNotice } from '../components/LoadingNotice'
 import { useWaypoints } from '../features/journey/JourneyContext'
 
 type MapMode = 'waypoints' | 'activities'
@@ -393,6 +394,7 @@ export default function MapPage() {
   const theme = useTheme()
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'), { noSsr: true })
   const [mapHeight, setMapHeight] = useState(MIN_MAP_HEIGHT)
+  const loaded = loadState.status === 'loaded'
 
   useEffect(() => {
     void getMapsToken()
@@ -423,7 +425,7 @@ export default function MapPage() {
       window.removeEventListener('resize', updateHeight)
       observer?.disconnect()
     }
-  }, [error])
+  }, [error, loaded])
 
   useEffect(() => {
     if (!mapReady) return
@@ -609,7 +611,7 @@ export default function MapPage() {
       mapPopup.current = null
       setMapReady(false)
     }
-  }, [data.activities, data.waypoints, navigate, origin.latitude, origin.longitude, token])
+  }, [data.activities, data.waypoints, loaded, navigate, origin.latitude, origin.longitude, token])
 
   const visibleWaypoints = useMemo(
     () => filterWaypointsByStatus(data.waypoints, statuses, statusFor),
@@ -728,7 +730,8 @@ export default function MapPage() {
       {loadState.status === 'failed' && (
         <LoadFailureAlert message={loadState.message} description="This is a load failure, not an empty map dataset." />
       )}
-      {loadState.status !== 'failed' && (
+      {loadState.status === 'loading' && <LoadingNotice message="Loading map data…" />}
+      {loaded && (
         <>
           <Card ref={filters}>
             <CardContent>

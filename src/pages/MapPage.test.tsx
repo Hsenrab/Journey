@@ -160,6 +160,7 @@ import MapPage from './MapPage'
 describe('MapPage', () => {
   beforeEach(() => {
     localStorage.clear()
+    vi.unstubAllEnvs()
     setViewport(1200)
     mapEvents.click = undefined
     mapEvents.activityClick = undefined
@@ -202,6 +203,26 @@ describe('MapPage', () => {
     expect(screen.getByRole('checkbox', { name: 'Gold' })).not.toBeChecked()
     expect(screen.getByLabelText('Nearby origin')).toHaveValue('Brockworth, Gloucestershire')
     expect(await screen.findByText('Map access failed: Sign in required')).toBeInTheDocument()
+  })
+
+  it('shows a loading notice instead of filters and an empty map while production data is in flight', async () => {
+    vi.stubEnv('MODE', 'production')
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockImplementation(() => new Promise<Response>(() => {})),
+    )
+    render(
+      <MemoryRouter>
+        <WaypointsProvider>
+          <MapPage />
+        </WaypointsProvider>
+      </MemoryRouter>,
+    )
+
+    expect(await screen.findByText('Loading map data…')).toBeInTheDocument()
+    expect(screen.queryByRole('group', { name: 'Waypoint filters' })).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('Azure Maps interactive map')).not.toBeInTheDocument()
+    expect(screen.queryByText('No visible waypoints.')).not.toBeInTheDocument()
   })
 
   it('reports an HTML response from the Maps API instead of attempting to parse it as JSON', async () => {
