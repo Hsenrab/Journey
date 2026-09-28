@@ -108,6 +108,7 @@ export function ActivityEditor({
   const [longitude, setLongitude] = useState(
     initialLocation.kind === 'coordinates' ? String(initialLocation.longitude) : '',
   )
+  const [locationEdited, setLocationEdited] = useState(false)
   const [references, setReferences] = useState<EditorReference[]>(
     (initialReferences ?? []).map((reference) => ({
       referenceId: reference.referenceId,
@@ -143,6 +144,10 @@ export function ActivityEditor({
         return a.title.localeCompare(b.title)
       }),
     [data.ideas, waypointId],
+  )
+  const waypointOptions = useMemo(
+    () => [{ waypointId: '', title: 'No linked waypoint' }, ...data.waypoints],
+    [data.waypoints],
   )
 
   useEffect(() => {
@@ -188,7 +193,7 @@ export function ActivityEditor({
         waypointId,
         ideaIds,
         category,
-        location: currentLocation,
+        location: locationEdited ? currentLocation : initialLocation,
         references,
         photoReferences,
       })
@@ -202,6 +207,7 @@ export function ActivityEditor({
     initialReferences,
     initialWaypointId,
     latitude,
+    locationEdited,
     locationKind,
     longitude,
     name,
@@ -369,6 +375,7 @@ export function ActivityEditor({
                     setNotes(parsed.value.notes)
                     setCategory(parsed.value.category ?? '')
                     const location = parsed.value.location
+                    setLocationEdited(true)
                     setLocationKind(location.kind)
                     if (location.kind === 'postcode') {
                       setPostcode(location.postcode)
@@ -433,22 +440,33 @@ export function ActivityEditor({
                 multiline
                 minRows={3}
               />
-              <FormControl>
-                <InputLabel id="linked-waypoint-label">Linked waypoint</InputLabel>
-                <Select
-                  labelId="linked-waypoint-label"
-                  label="Linked waypoint"
-                  value={waypointId}
-                  onChange={(event) => setWaypointId(event.target.value)}
-                >
-                  <MenuItem value="">No linked waypoint</MenuItem>
-                  {data.waypoints.map((waypoint) => (
-                    <MenuItem key={waypoint.waypointId} value={waypoint.waypointId}>
-                      {waypoint.title}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
+              <Autocomplete
+                options={waypointOptions}
+                value={
+                  waypointId ? (waypointOptions.find((waypoint) => waypoint.waypointId === waypointId) ?? null) : null
+                }
+                isOptionEqualToValue={(option, value) => option.waypointId === value.waypointId}
+                getOptionLabel={(option) => option.title}
+                onChange={(_, value) => {
+                  const nextWaypointId = value?.waypointId ?? ''
+                  setWaypointId(nextWaypointId)
+                  if (
+                    locationEdited ||
+                    initialLocation.kind !== 'postcode' ||
+                    initialLocation.postcode.trim() ||
+                    !nextWaypointId
+                  ) {
+                    return
+                  }
+                  const location = waypointInitialLocation(data, nextWaypointId)
+                  if (!location) return
+                  setLocationKind('coordinates')
+                  setLatitude(String(location.latitude))
+                  setLongitude(String(location.longitude))
+                  setPostcode('')
+                }}
+                renderInput={(params) => <TextField {...params} label="Linked waypoint" />}
+              />
               <Autocomplete
                 multiple
                 options={sortedIdeas}
@@ -490,7 +508,10 @@ export function ActivityEditor({
                   labelId="location-type-label"
                   label="Location type"
                   value={locationKind}
-                  onChange={(event) => setLocationKind(event.target.value as ActivityLocation['kind'])}
+                  onChange={(event) => {
+                    setLocationEdited(true)
+                    setLocationKind(event.target.value as ActivityLocation['kind'])
+                  }}
                 >
                   <MenuItem value="postcode">Postcode</MenuItem>
                   <MenuItem value="coordinates">Latitude and longitude</MenuItem>
@@ -502,7 +523,10 @@ export function ActivityEditor({
                   label="Postcode"
                   placeholder="e.g. GL3 4AQ"
                   value={postcode}
-                  onChange={(event) => setPostcode(event.target.value)}
+                  onChange={(event) => {
+                    setLocationEdited(true)
+                    setPostcode(event.target.value)
+                  }}
                   error={Boolean(errors.postcode)}
                   helperText={errors.postcode}
                   slotProps={{ htmlInput: { inputMode: 'text' } }}
@@ -513,14 +537,20 @@ export function ActivityEditor({
                     label="Latitude"
                     placeholder="e.g. 51.74714"
                     value={latitude}
-                    onChange={(event) => setLatitude(event.target.value)}
+                    onChange={(event) => {
+                      setLocationEdited(true)
+                      setLatitude(event.target.value)
+                    }}
                     slotProps={{ htmlInput: { inputMode: 'decimal' } }}
                   />
                   <TextField
                     label="Longitude"
                     placeholder="e.g. -1.25874"
                     value={longitude}
-                    onChange={(event) => setLongitude(event.target.value)}
+                    onChange={(event) => {
+                      setLocationEdited(true)
+                      setLongitude(event.target.value)
+                    }}
                     slotProps={{ htmlInput: { inputMode: 'decimal' } }}
                   />
                   {errors.coordinates && <Typography color="error">{errors.coordinates}</Typography>}

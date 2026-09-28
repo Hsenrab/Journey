@@ -129,6 +129,52 @@ describe('ActivityEditor', () => {
     )
   })
 
+  it('searches waypoints and prefills coordinates when the location is untouched', async () => {
+    const user = userEvent.setup()
+    const data = createDefaultData()
+    const waypoint = data.waypoints[0]!
+    renderEditor({ data })
+
+    const picker = screen.getByRole('combobox', { name: 'Linked waypoint' })
+    await user.click(picker)
+    await user.type(picker, waypoint.title)
+    await user.click(screen.getByRole('option', { name: waypoint.title }))
+
+    expect(screen.getByLabelText('Latitude')).toHaveValue(String(waypoint.location!.latitude))
+    expect(screen.getByLabelText('Longitude')).toHaveValue(String(waypoint.location!.longitude))
+  })
+
+  it('does not replace a location the user entered when selecting a waypoint', async () => {
+    const user = userEvent.setup()
+    const data = createDefaultData()
+    const waypoint = data.waypoints[0]!
+    renderEditor({ data })
+
+    await user.type(screen.getByLabelText('Postcode'), 'GL1 1AA')
+    await user.click(screen.getByRole('combobox', { name: 'Linked waypoint' }))
+    await user.click(screen.getByRole('option', { name: waypoint.title }))
+
+    expect(screen.getByLabelText('Postcode')).toHaveValue('GL1 1AA')
+    expect(screen.queryByLabelText('Latitude')).not.toBeInTheDocument()
+  })
+
+  it('does not treat automatic location prefill as an unsaved change', async () => {
+    const user = userEvent.setup()
+    const data = createDefaultData()
+    const waypoint = data.waypoints[0]!
+    const { onCancel } = renderEditor({ data })
+    const confirmSpy = vi.spyOn(window, 'confirm')
+
+    await user.click(screen.getByRole('combobox', { name: 'Linked waypoint' }))
+    await user.click(screen.getByRole('option', { name: waypoint.title }))
+    await user.click(screen.getByRole('combobox', { name: 'Linked waypoint' }))
+    await user.click(screen.getByRole('option', { name: 'No linked waypoint' }))
+    await user.click(screen.getByRole('button', { name: 'Cancel' }))
+
+    expect(confirmSpy).not.toHaveBeenCalled()
+    expect(onCancel).toHaveBeenCalled()
+  })
+
   it('requires category when waypoint supports categories', async () => {
     const user = userEvent.setup()
     renderEditor({ initialWaypointId: dataWaypointId(createDefaultData()) })
