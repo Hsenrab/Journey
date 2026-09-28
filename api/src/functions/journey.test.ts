@@ -388,7 +388,10 @@ describe('journey', () => {
       ),
     ).toEqual({
       status: 400,
-      jsonBody: { error: 'Selected waypoint does not support Bronze, Silver or Gold categories.' },
+      jsonBody: {
+        error:
+          'Activity "activity-1" has a category but its waypoint does not support Bronze, Silver or Gold categories.',
+      },
     })
     expect(replaceEntities).not.toHaveBeenCalled()
   })

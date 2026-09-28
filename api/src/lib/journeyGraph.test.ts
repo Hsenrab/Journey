@@ -95,7 +95,7 @@ describe('referenceIntegrityError', () => {
     invalid.activities[0]!.category = 'silver'
 
     expect(referenceIntegrityError(invalid)).toBe(
-      'Selected waypoint does not support Bronze, Silver or Gold categories.',
+      'Activity "activity-1" has a category but its waypoint does not support Bronze, Silver or Gold categories.',
     )
   })
 })
@@ -142,7 +142,7 @@ describe('deletionPlan', () => {
     })
 
     expect(referenceIntegrityError(applyPlan(withCategory, plan))).toBe(
-      'Selected waypoint does not support Bronze, Silver or Gold categories.',
+      'Activity "activity-1" has a category but its waypoint does not support Bronze, Silver or Gold categories.',
     )
   })
 

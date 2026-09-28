@@ -47,6 +47,16 @@ export function referenceIntegrityError(data: JourneyData): string | undefined {
   const ideaIds = new Set(data.ideas.map((idea) => idea.ideaId))
   const referenceIds = new Set(data.references.map((reference) => reference.referenceId))
   const photoIds = new Set(data.photoReferences.map((photo) => photo.photoReferenceId))
+  const categoryChallengeIds = new Set(
+    data.challenges
+      .filter((challenge) => challenge.supportsActivityCategories)
+      .map((challenge) => challenge.challengeId),
+  )
+  const categoryWaypointIds = new Set(
+    data.waypoints
+      .filter((waypoint) => waypoint.challengeIds.some((challengeId) => categoryChallengeIds.has(challengeId)))
+      .map((waypoint) => waypoint.waypointId),
+  )
 
   const errors = [
     ...data.waypoints.flatMap((waypoint) => [
@@ -81,15 +91,8 @@ export function referenceIntegrityError(data: JourneyData): string | undefined {
       linkError('Activity', activity.activityId, 'photo reference', activity.photoReferenceIds, photoIds),
     ]),
     ...data.activities.map((activity) =>
-      activity.category &&
-      !data.waypoints
-        .find((waypoint) => waypoint.waypointId === activity.waypointId)
-        ?.challengeIds.some((challengeId) =>
-          data.challenges.some(
-            (challenge) => challenge.challengeId === challengeId && challenge.supportsActivityCategories,
-          ),
-        )
-        ? 'Selected waypoint does not support Bronze, Silver or Gold categories.'
+      activity.category && (!activity.waypointId || !categoryWaypointIds.has(activity.waypointId))
+        ? `Activity "${activity.activityId}" has a category but its waypoint does not support Bronze, Silver or Gold categories.`
         : undefined,
     ),
   ]
