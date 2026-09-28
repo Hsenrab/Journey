@@ -112,6 +112,8 @@ export async function journey(request: HttpRequest, context: InvocationContext):
       if (request.method !== method) throw new ResponseError(405, 'method_not_allowed')
       const entity = await geocodedEntity(parsed.data.type, parsed.data.entity)
       const document = entityDocument(datasetId, parsed.data.type, entity)
+      if (parsed.data.operation === 'update' && document.id !== parsed.data.id)
+        throw new ResponseError(400, 'Entity ID does not match update ID.')
       const loaded = await loadDataset(cosmos, datasetId)
       const plan =
         parsed.data.operation === 'update' && document.type === 'waypoint'

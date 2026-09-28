@@ -23,7 +23,6 @@ import {
   importJourney,
   loadJourney,
   replaceJourney,
-  updateJourneyEntity,
   type JourneyContainer,
   type JourneyRole,
 } from '../../services/journeyApi'
@@ -302,7 +301,7 @@ function reducer(data: WaypointsData, action: Action): WaypointsData {
         })),
         activities: data.activities.map((activity) => {
           if (activity.waypointId !== action.waypointId) return activity
-          const { waypointId: _removed, ...detached } = activity
+          const { waypointId: _removed, category: _category, ...detached } = activity
           return detached
         }),
       })
@@ -555,15 +554,7 @@ export function WaypointsProvider({ children }: { children: ReactNode }) {
         const container = writableContainer()
         const action = { type: 'update-waypoint' as const, waypointId, input }
         const next = reducer(data, action)
-        if (localTestMode && dataMode === 'production') {
-          dispatch(action)
-          return
-        }
-        const updated = next.waypoints.find((waypoint) => waypoint.waypointId === waypointId)
-        if (!updated) throw new Error('Waypoint not found')
-        const etag = etags[waypointId]
-        if (!etag) throw new Error(`Waypoint "${waypointId}" has no ETag for update.`)
-        apply({ ...(await updateJourneyEntity(container, 'waypoint', updated, waypointId, etag)), role })
+        await persist(container, action, next)
       },
       deleteWaypoint: async (waypointId) => {
         const container = writableContainer()

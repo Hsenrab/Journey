@@ -346,6 +346,25 @@ describe('journey', () => {
     )
   })
 
+  it('rejects a waypoint update whose entity ID differs from the request ID', async () => {
+    const { journey } = await import('./journey.js')
+
+    expect(
+      await journey(
+        request('production', 'PUT', {
+          operation: 'update',
+          type: 'waypoint',
+          id: 'waypoint-1',
+          entity: { ...waypoint, waypointId: 'waypoint-2' },
+          ifMatch: 'waypoint-etag',
+        }),
+        context(),
+      ),
+    ).toEqual({ status: 400, jsonBody: { error: 'Entity ID does not match update ID.' } })
+    expect(loadDataset).not.toHaveBeenCalled()
+    expect(replaceEntities).not.toHaveBeenCalled()
+  })
+
   it('deletes a waypoint transactionally after detaching linked entities', async () => {
     const challenge = {
       challengeId: 'challenge-1',

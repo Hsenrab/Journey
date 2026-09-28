@@ -93,7 +93,9 @@ describe('referenceIntegrityError', () => {
 
 describe('deletionPlan', () => {
   it('detaches ideas and activities when a waypoint is deleted', () => {
-    const plan = deletionPlan(data(), 'waypoint', 'waypoint-1')
+    const withCategory = data()
+    withCategory.activities[0]!.category = 'silver'
+    const plan = deletionPlan(withCategory, 'waypoint', 'waypoint-1')
 
     expect(plan.deletes).toEqual(['waypoint-1', 'reference-3'])
     expect(plan.updates).toEqual([
@@ -102,7 +104,8 @@ describe('deletionPlan', () => {
       { type: 'activity', entity: expect.objectContaining({ activityId: 'activity-1', ideaIds: ['idea-1'] }) },
     ])
     expect(plan.updates[2]!.entity).not.toHaveProperty('waypointId')
-    expect(referenceIntegrityError(applyPlan(data(), plan))).toBeUndefined()
+    expect(plan.updates[2]!.entity).not.toHaveProperty('category')
+    expect(referenceIntegrityError(applyPlan(withCategory, plan))).toBeUndefined()
   })
 
   it('updates challenge reverse links when a waypoint challenge list changes', () => {

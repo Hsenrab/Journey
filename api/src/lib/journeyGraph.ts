@@ -165,7 +165,7 @@ export function deletionPlan(data: JourneyData, type: EntityType, id: string): D
     const activityUpdates = data.activities
       .filter((activity) => activity.waypointId === id)
       .map((activity) => {
-        const { waypointId: _removed, ...detached } = activity
+        const { waypointId: _removed, category: _category, ...detached } = activity
         return detached
       })
     const challenges = data.challenges.map(
