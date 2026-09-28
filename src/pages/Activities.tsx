@@ -101,7 +101,7 @@ export default function Activities() {
           onSubmit={async (draft) => {
             try {
               await addActivity(draft)
-              if (initialIdeaId) {
+              if (initialIdeaId && draft.ideaIds.includes(initialIdeaId)) {
                 navigate(`/ideas/${initialIdeaId}`, { replace: true })
                 return
               }

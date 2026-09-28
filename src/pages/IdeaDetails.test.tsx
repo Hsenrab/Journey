@@ -1,5 +1,5 @@
 import { MemoryRouter, Route, Routes, useNavigate } from 'react-router-dom'
-import { render, screen } from '@testing-library/react'
+import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import Activities from './Activities'
@@ -371,6 +371,41 @@ describe('IdeaDetails', () => {
     await user.click(screen.getByRole('button', { name: 'Back' }))
     expect(screen.getByRole('heading', { name: 'Try the outer trail', level: 1 })).toBeInTheDocument()
     expect(screen.queryByText('Activities')).not.toBeInTheDocument()
+  })
+
+  it('stays on activities after saving when the preselected idea link was removed', async () => {
+    const user = userEvent.setup()
+    const seed = createDefaultData()
+    save({
+      ...seed,
+      ideas: [
+        {
+          ideaId: 'idea-1',
+          title: 'Try the outer trail',
+          description: '',
+          notes: '',
+          waypointIds: ['stourhead'],
+          planningState: 'active',
+          difficulty: 2,
+          referenceIds: [],
+          createdAt: '2026-08-01T00:00:00.000Z',
+          updatedAt: '2026-08-01T00:00:00.000Z',
+        },
+      ],
+    })
+
+    renderDetailsWithActivities()
+    await user.click(screen.getByRole('link', { name: 'Log activity from this idea' }))
+
+    const ideaChip = (await screen.findByText('Try the outer trail')).closest('.MuiChip-root') as HTMLElement
+    await user.click(within(ideaChip).getByTestId('CancelIcon'))
+    await user.click(screen.getByRole('combobox', { name: 'Activity category' }))
+    await user.click(screen.getByRole('option', { name: 'Gold' }))
+    await user.click(screen.getByRole('button', { name: 'Save activity' }))
+
+    expect(await screen.findByText('Activity saved.')).toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: 'Try the outer trail', level: 1 })).not.toBeInTheDocument()
+    expect(load().activities[0]?.ideaIds).toEqual([])
   })
 
   it('keeps the user on the activity editor and shows an error when logging an activity fails', async () => {
