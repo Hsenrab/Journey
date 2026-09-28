@@ -28,6 +28,8 @@ import { locations } from '../data/locations'
 import {
   activitySubtitle,
   activityTitle,
+  completionProgressLabel,
+  completionRuleLabel,
   countLabel,
   ideaUsageCount,
   ideaUsageLabel,
@@ -35,6 +37,7 @@ import {
   locationSummary,
   planningStateLabels,
   statusLabels,
+  waypointCompletionProgress,
 } from '../domain/visit'
 import { useWaypoints } from '../features/journey/JourneyContext'
 import { JourneyConflictError } from '../services/journeyApi'
@@ -72,6 +75,7 @@ export default function LocationDetails() {
   }
 
   const activities = activitiesFor(id)
+  const progress = waypointCompletionProgress(waypoint, data.activities)
   const waypointIdeas = ideasForWaypoint(data.ideas, id)
   const reloadLatest = async () => {
     const result = await reload()
@@ -128,7 +132,14 @@ export default function LocationDetails() {
           description="This is a load failure, not an empty waypoint dataset."
         />
       )}
-      <Chip label={`Category summary: ${statusLabels[statusFor(id)]}`} />
+      <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: 'wrap' }}>
+        <Chip
+          label={`Completion: ${completionProgressLabel(waypoint, progress)}`}
+          color={progress.complete ? 'success' : 'default'}
+        />
+        <Chip variant="outlined" label={`Award tier: ${statusLabels[statusFor(id)]}`} />
+      </Stack>
+      <Typography color="text.secondary">{completionRuleLabel(waypoint)}</Typography>
       <Typography>{waypoint.description}</Typography>
       {sourceLocation && (
         <Typography color="text.secondary">

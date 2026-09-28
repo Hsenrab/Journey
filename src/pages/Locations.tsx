@@ -15,7 +15,13 @@ import { ReadOnlyNotice } from '../components/ReadOnlyNotice'
 import { WaypointEditor } from '../components/WaypointEditor'
 import { locations } from '../data/locations'
 import { brockworth, distanceMiles, waypointCoordinates } from '../domain/map'
-import { lastActivityDates, statusLabels, statusOrder } from '../domain/visit'
+import {
+  completionProgressLabel,
+  lastActivityDates,
+  statusLabels,
+  statusOrder,
+  waypointCompletionProgress,
+} from '../domain/visit'
 import { useWaypoints } from '../features/journey/JourneyContext'
 import { JourneyConflictError } from '../services/journeyApi'
 
@@ -225,11 +231,11 @@ export default function Locations() {
           <TextField
             id="waypoint-status"
             select
-            label="Status"
+            label="Award tier"
             value={status}
             onChange={(e) => setStatus(e.target.value)}
           >
-            <MenuItem value="all">All statuses</MenuItem>
+            <MenuItem value="all">All award tiers</MenuItem>
             {statusOrder.map((s) => (
               <MenuItem key={s} value={s}>
                 {statusLabels[s]}
@@ -244,7 +250,7 @@ export default function Locations() {
             onChange={(e) => setSort(e.target.value as SortKey)}
           >
             <MenuItem value="name">Name</MenuItem>
-            <MenuItem value="status">Progress</MenuItem>
+            <MenuItem value="status">Award tier</MenuItem>
             <MenuItem value="distance">Distance (nearest first)</MenuItem>
             <MenuItem value="travel">Drive time (where available)</MenuItem>
             <MenuItem value="lastActivity">Last activity date</MenuItem>
@@ -296,6 +302,7 @@ export default function Locations() {
             const source = locationById.get(waypoint.waypointId)
             const distance = distanceByWaypointId.get(waypoint.waypointId)
             const waypointStatus = statusFor(waypoint.waypointId)
+            const progress = waypointCompletionProgress(waypoint, activities)
             return (
               <ClickableCard key={waypoint.waypointId} to={`/waypoints/${waypoint.waypointId}`}>
                 {(titleId) => (
@@ -308,9 +315,10 @@ export default function Locations() {
                     </Typography>
                     <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: 'wrap' }}>
                       <Chip
-                        label={statusLabels[waypointStatus]}
-                        color={waypointStatus === 'gold' ? 'success' : 'default'}
+                        label={`Completion: ${completionProgressLabel(waypoint, progress)}`}
+                        color={progress.complete ? 'success' : 'default'}
                       />
+                      <Chip variant="outlined" label={`Award tier: ${statusLabels[waypointStatus]}`} />
                     </Stack>
                     <CardDetailRow icon={<RouteIcon fontSize="small" />}>
                       {distance === undefined ? 'Distance unknown' : `${distance.toFixed(1)} miles from Brockworth`}

@@ -136,6 +136,12 @@ challenge completion milestones. Category selection is only available when the s
 waypoint belongs to a challenge with explicit `supportsActivityCategories: true`.
 Waypoint completion still counts linked activities even when they have no category.
 
+`waypointCompletionProgress()` in `src/domain/visit.ts` is the single source for a
+waypoint's completion state. The waypoint detail page and list cards show it as a
+"Completion" chip (`Done`/`Not done` for `once`, `N of target activities` for
+`count`), alongside a separate "Award tier" chip for the highest Bronze/Silver/Gold
+category. The Dashboard percentage and Map completion icons use the same helper.
+
 ## External references
 
 References and photo references are top-level records linked by ID from activities.

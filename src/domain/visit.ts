@@ -404,11 +404,30 @@ export function statusForWaypoint(activities: readonly Activity[], waypointId: s
     )
 }
 
+export type WaypointCompletionProgress = { count: number; target: number; complete: boolean }
+
+export function waypointCompletionProgress(
+  waypoint: Waypoint,
+  activities: readonly Activity[],
+): WaypointCompletionProgress {
+  const count = activities.filter((activity) => activity.waypointId === waypoint.waypointId).length
+  const target = waypoint.completion.mode === 'once' ? 1 : waypoint.completion.target
+  return { count, target, complete: count >= target }
+}
+
+export function completionProgressLabel(waypoint: Waypoint, progress: WaypointCompletionProgress): string {
+  if (waypoint.completion.mode === 'once') return progress.complete ? 'Done' : 'Not done'
+  return `${progress.count} of ${progress.target} activities`
+}
+
+export function completionRuleLabel(waypoint: Waypoint): string {
+  return waypoint.completion.mode === 'once'
+    ? 'Completed after one logged activity.'
+    : `Completed after ${waypoint.completion.target} logged ${waypoint.completion.target === 1 ? 'activity' : 'activities'}.`
+}
+
 export function completedWaypointCount(waypoints: readonly Waypoint[], activities: readonly Activity[]): number {
-  return waypoints.filter((waypoint) => {
-    const count = activities.filter((activity) => activity.waypointId === waypoint.waypointId).length
-    return waypoint.completion.mode === 'once' ? count > 0 : count >= waypoint.completion.target
-  }).length
+  return waypoints.filter((waypoint) => waypointCompletionProgress(waypoint, activities).complete).length
 }
 
 export function statusCounts(waypoints: readonly Waypoint[], activities: readonly Activity[]): Record<Status, number> {

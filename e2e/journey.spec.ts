@@ -18,7 +18,7 @@ test.describe('activity management flow', () => {
     await page.getByRole('button', { name: 'Save activity' }).click()
 
     await expect(page.getByText('Activity saved.')).toBeVisible()
-    await expect(page.getByText('Category summary: Gold')).toBeVisible()
+    await expect(page.getByText('Award tier: Gold')).toBeVisible()
 
     await page.getByRole('link', { name: '2026' }).first().click()
     await expect(page.getByRole('heading', { name: /\d{1,4}[/-]\d{1,2}[/-]\d{1,4}/ })).toBeVisible()
