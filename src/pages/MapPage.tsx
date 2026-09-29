@@ -643,10 +643,20 @@ export default function MapPage() {
   const activityWithoutCoordinates = data.activities.filter((activity) => !activityCoordinates(activity)).length
   const routeLegend = [
     ...data.challenges.flatMap((challenge) =>
-      challenge.plannedRoute ? [{ label: `Planned route: ${challenge.title}`, kind: 'planned' }] : [],
+      challenge.plannedRoute
+        ? [{ key: challenge.challengeId, label: `Planned route: ${challenge.title}`, kind: 'planned' }]
+        : [],
     ),
     ...data.activities.flatMap((activity) =>
-      activity.recordedTrack ? [{ label: `Recorded track: ${activityDisplayName(activity)}`, kind: 'recorded' }] : [],
+      activity.recordedTrack
+        ? [
+            {
+              key: activity.activityId,
+              label: `Recorded track: ${activityDisplayName(activity)} (${activity.date})`,
+              kind: 'recorded',
+            },
+          ]
+        : [],
     ),
   ]
 
@@ -665,7 +675,7 @@ export default function MapPage() {
           ? [
               {
                 kind: 'recorded',
-                label: `Recorded track: ${activityDisplayName(activity)}`,
+                label: `Recorded track: ${activityDisplayName(activity)} (${activity.date})`,
                 route: activity.recordedTrack,
               },
             ]
@@ -876,7 +886,7 @@ export default function MapPage() {
             <Stack component="section" aria-label="Map routes" spacing={0.5}>
               <Typography variant="subtitle2">Routes</Typography>
               {routeLegend.map((route) => (
-                <Typography key={`${route.kind}-${route.label}`} variant="body2">
+                <Typography key={route.key} variant="body2">
                   <Box
                     component="span"
                     aria-hidden="true"

@@ -489,7 +489,6 @@ describe('MapPage', () => {
     data.activities = [
       {
         activityId: 'recorded',
-        name: 'Canal loop',
         ideaIds: [],
         date: '2026-08-10',
         location: { kind: 'coordinates', latitude: 51.85, longitude: -2.15 },
@@ -502,6 +501,23 @@ describe('MapPage', () => {
           points: [
             { latitude: 51.81, longitude: -2.11 },
             { latitude: 51.91, longitude: -2.21 },
+          ],
+        },
+      },
+      {
+        activityId: 'unnamed-recorded',
+        ideaIds: [],
+        date: '2026-08-11',
+        location: { kind: 'coordinates', latitude: 51.86, longitude: -2.16 },
+        notes: '',
+        referenceIds: [],
+        photoReferenceIds: [],
+        createdAt: '2026-08-11T00:00:00.000Z',
+        updatedAt: '2026-08-11T00:00:00.000Z',
+        recordedTrack: {
+          points: [
+            { latitude: 51.82, longitude: -2.12 },
+            { latitude: 51.92, longitude: -2.22 },
           ],
         },
       },
@@ -522,7 +538,8 @@ describe('MapPage', () => {
 
     expect(await screen.findByRole('region', { name: 'Map routes' })).toBeVisible()
     expect(screen.getByText('Planned route: Canal challenge')).toBeInTheDocument()
-    expect(screen.getByText('Recorded track: Canal loop')).toBeInTheDocument()
+    expect(screen.getByText('Recorded track: Unnamed activity (2026-08-10)')).toBeInTheDocument()
+    expect(screen.getByText('Recorded track: Unnamed activity (2026-08-11)')).toBeInTheDocument()
     await waitFor(() =>
       expect(mapEvents.routeAdd).toHaveBeenCalledWith([
         expect.objectContaining({
@@ -541,7 +558,16 @@ describe('MapPage', () => {
               [-2.21, 51.91],
             ],
           }),
-          properties: { kind: 'recorded', label: 'Recorded track: Canal loop' },
+          properties: { kind: 'recorded', label: 'Recorded track: Unnamed activity (2026-08-10)' },
+        }),
+        expect.objectContaining({
+          geometry: expect.objectContaining({
+            coordinates: [
+              [-2.12, 51.82],
+              [-2.22, 51.92],
+            ],
+          }),
+          properties: { kind: 'recorded', label: 'Recorded track: Unnamed activity (2026-08-11)' },
         }),
       ]),
     )
