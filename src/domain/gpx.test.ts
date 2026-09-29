@@ -40,4 +40,10 @@ describe('parseGpx', () => {
     ).toThrow()
     expect(() => parseGpx('<gpx><!-- <trkpt lat="51.1" lon="-2.1"/> --></gpx>')).toThrow()
   })
+
+  it('rejects content outside the single root element', () => {
+    expect(() => parseGpx('<gpx><trkpt lat="51" lon="-2"/><trkpt lat="52" lon="-3"/></gpx><other/>')).toThrow()
+    expect(() => parseGpx('text<gpx><trkpt lat="51" lon="-2"/><trkpt lat="52" lon="-3"/></gpx>')).toThrow()
+    expect(() => parseGpx('<gpx><trkpt lat="51" lon="-2"/><trkpt lat="52" lon="-3"/></gpx>text')).toThrow()
+  })
 })

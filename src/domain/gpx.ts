@@ -26,11 +26,16 @@ export function parseGpx(value: string): GpxRoute {
   let root: string | undefined
   for (const match of source.matchAll(tokenPattern)) {
     const token = match[0]
-    if (match.index !== position && source.slice(position, match.index).includes('<')) {
+    const text = source.slice(position, match.index)
+    if (text.includes('<') || (stack.length === 0 && text.trim())) {
       throw new Error('GPX is not valid XML.')
     }
     position = (match.index ?? 0) + token.length
-    if (token.startsWith('<!--') || token.startsWith('<?') || token.startsWith('<![CDATA[')) continue
+    if (token.startsWith('<!--') || token.startsWith('<?')) continue
+    if (token.startsWith('<![CDATA[')) {
+      if (stack.length === 0) throw new Error('GPX is not valid XML.')
+      continue
+    }
     if (token.startsWith('<!')) throw new Error('GPX is not valid XML.')
     const closing = /^<\/([A-Za-z_][\w:.-]*)\s*>$/.exec(token)
     if (closing) {
@@ -44,6 +49,8 @@ export function parseGpx(value: string): GpxRoute {
     if (!root) {
       root = name
       if (name.toLowerCase() !== 'gpx') throw new Error('GPX is not valid XML.')
+    } else if (stack.length === 0) {
+      throw new Error('GPX is not valid XML.')
     }
     const parsedAttributes: Record<string, string> = {}
     const attributePattern = /([A-Za-z_:][\w:.-]*)\s*=\s*("(?:[^"]*)"|'(?:[^']*)')/g
@@ -61,6 +68,8 @@ export function parseGpx(value: string): GpxRoute {
     }
     if (opening[3] !== '/') stack.push(name)
   }
-  if (position !== source.length || !root || stack.length > 0) throw new Error('GPX is not valid XML.')
+  if (position !== source.length || source.slice(position).trim() || !root || stack.length > 0) {
+    throw new Error('GPX is not valid XML.')
+  }
   return GpxRouteSchema.parse({ points })
 }
