@@ -25,6 +25,7 @@ const mapEvents = vi.hoisted(() => ({
   tokenGetter: undefined as TokenGetter | undefined,
   deferReady: false,
   sourceAdd: vi.fn(),
+  routeAdd: vi.fn(),
   waypointClusterLeaves: vi.fn(() =>
     Promise.resolve([
       { getProperties: () => ({ label: 'Clustered waypoint', award: 'Bronze', waypointId: 'waypoint-1' }) },
@@ -128,6 +129,7 @@ vi.mock('azure-maps-control', () => ({
       getClusterLeaves: typeof mapEvents.waypointClusterLeaves
       constructor(id: string) {
         this.getClusterLeaves = id === 'waypoints' ? mapEvents.waypointClusterLeaves : mapEvents.activityClusterLeaves
+        if (id === 'routes') this.add = mapEvents.routeAdd
       }
     },
   },
@@ -153,13 +155,21 @@ vi.mock('azure-maps-control', () => ({
   },
   data: {
     Feature: class {
-      constructor(..._args: unknown[]) {}
+      readonly geometry: unknown
+      readonly properties: Record<string, unknown>
+      constructor(geometry: unknown, properties: Record<string, unknown>) {
+        this.geometry = geometry
+        this.properties = properties
+      }
     },
     Point: class {
       constructor(..._args: unknown[]) {}
     },
     LineString: class {
-      constructor(..._args: unknown[]) {}
+      readonly coordinates: number[][]
+      constructor(coordinates: number[][]) {
+        this.coordinates = coordinates
+      }
     },
   },
 }))
@@ -181,6 +191,7 @@ describe('MapPage', () => {
     mapEvents.tokenGetter = undefined
     mapEvents.deferReady = false
     mapEvents.sourceAdd.mockClear()
+    mapEvents.routeAdd.mockClear()
     mapEvents.waypointClusterLeaves.mockClear()
     mapEvents.activityClusterLeaves.mockClear()
     mapEvents.resize.mockClear()
@@ -511,7 +522,18 @@ describe('MapPage', () => {
     expect(await screen.findByRole('region', { name: 'Map routes' })).toBeInTheDocument()
     expect(screen.getByText('Planned route: Canal challenge')).toBeInTheDocument()
     expect(screen.getByText('Recorded track: Canal loop')).toBeInTheDocument()
-    await waitFor(() => expect(mapEvents.sourceAdd).toHaveBeenCalled())
+    await waitFor(() =>
+      expect(mapEvents.routeAdd).toHaveBeenCalledWith([
+        expect.objectContaining({
+          geometry: expect.objectContaining({ coordinates: [[-2.1, 51.8], [-2.2, 51.9]] }),
+          properties: { kind: 'planned', label: 'Planned route: Canal challenge' },
+        }),
+        expect.objectContaining({
+          geometry: expect.objectContaining({ coordinates: [[-2.11, 51.81], [-2.21, 51.91]] }),
+          properties: { kind: 'recorded', label: 'Recorded track: Canal loop' },
+        }),
+      ]),
+    )
   })
 
   it('uses fallback names without promoting dates to primary map list labels', async () => {
