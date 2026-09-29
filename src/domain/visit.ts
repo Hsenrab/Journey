@@ -417,7 +417,7 @@ export function waypointCompletionProgress(
 
 export function completionProgressLabel(waypoint: Waypoint, progress: WaypointCompletionProgress): string {
   if (waypoint.completion.mode === 'once') return progress.complete ? 'Done' : 'Not done'
-  return `${progress.count} of ${progress.target} activities`
+  return `${progress.count} of ${progress.target} ${progress.target === 1 ? 'activity' : 'activities'}`
 }
 
 export function completionRuleLabel(waypoint: Waypoint): string {

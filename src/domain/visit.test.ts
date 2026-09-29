@@ -137,6 +137,9 @@ describe('activity rules', () => {
     expect(completedWaypointCount([counted], visits(2))).toBe(0)
     expect(completionStateForWaypoint(counted, visits(2))).toBe('not-started')
 
+    const singleTarget = { ...counted, completion: { mode: 'count' as const, target: 1 } }
+    expect(completionProgressLabel(singleTarget, waypointCompletionProgress(singleTarget, []))).toBe('0 of 1 activity')
+
     const reached = waypointCompletionProgress(counted, visits(5))
     expect(reached).toEqual({ count: 5, target: 5, complete: true })
     expect(completionProgressLabel(counted, reached)).toBe('5 of 5 activities')
