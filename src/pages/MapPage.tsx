@@ -33,6 +33,7 @@ import {
   orderNearbyWaypoints,
   waypointCoordinates,
 } from '../domain/map'
+import { gpxLineFeatures, type GpxLine } from '../domain/gpx'
 import {
   statusLabels,
   statusOrder,
@@ -181,6 +182,10 @@ function CompactMapListItem({
 }
 
 type MapsToken = { token: string; expiresOn: string; clientId: string }
+export type MapPageProps = {
+  gpxLines?: readonly GpxLine[]
+  selectedGpxLineId?: string
+}
 type SearchResult = {
   position?: { lat: number; lon: number }
   address?: { freeformAddress?: string }
@@ -370,7 +375,7 @@ const MIN_MAP_HEIGHT = 320
 const MAP_BOTTOM_MARGIN = 24
 const CLUSTER_LIST_LIMIT = 25
 
-export default function MapPage() {
+export default function MapPage({ gpxLines = [], selectedGpxLineId }: MapPageProps) {
   const navigate = useNavigate()
   const { data, loadState, statusFor } = useWaypoints()
   const container = useRef<HTMLDivElement>(null)
@@ -380,6 +385,7 @@ export default function MapPage() {
   const mapPopup = useRef<atlas.Popup | null>(null)
   const waypointSource = useRef<atlas.source.DataSource | null>(null)
   const activitySource = useRef<atlas.source.DataSource | null>(null)
+  const gpxSource = useRef<atlas.source.DataSource | null>(null)
   const [mode, setMode] = useState<MapMode>('waypoints')
   const [statuses, setStatuses] = useState<Status[]>([...statusOrder])
   const [token, setToken] = useState<MapsToken | null>(null)
@@ -463,7 +469,14 @@ export default function MapPage() {
       mapPopup.current = popup
       const waypoints = new atlas.source.DataSource('waypoints', { cluster: true, clusterRadius: 45 })
       const activities = new atlas.source.DataSource('activities', { cluster: true, clusterRadius: 45 })
-      instance.sources.add([waypoints, activities])
+      const gpx = new atlas.source.DataSource('gpx-lines')
+      instance.sources.add([gpx, waypoints, activities])
+      const gpxLayer = new atlas.layer.LineLayer(gpx, 'gpx-lines', {
+        strokeColor: ['get', 'color'],
+        strokeWidth: 4,
+        lineCap: 'round',
+        lineJoin: 'round',
+      })
       const waypointLayer = new atlas.layer.SymbolLayer(waypoints, 'waypoints', {
         filter: ['!', ['has', 'point_count']],
         iconOptions: { image: ['get', 'icon'], allowOverlap: true, size: 0.5 },
@@ -513,6 +526,7 @@ export default function MapPage() {
         strokeWidth: 2,
       })
       instance.layers.add([
+        gpxLayer,
         waypointClusterBubbleLayer,
         activityClusterBubbleLayer,
         waypointLayer,
@@ -600,6 +614,7 @@ export default function MapPage() {
       })
       waypointSource.current = waypoints
       activitySource.current = activities
+      gpxSource.current = gpx
       setMapReady(true)
     })
     map.current = instance
@@ -608,6 +623,7 @@ export default function MapPage() {
       map.current = null
       waypointSource.current = null
       activitySource.current = null
+      gpxSource.current = null
       mapPopup.current = null
       setMapReady(false)
     }
@@ -624,6 +640,40 @@ export default function MapPage() {
   )
   const waypointWithoutCoordinates = data.waypoints.filter((waypoint) => !waypointCoordinates(waypoint)).length
   const activityWithoutCoordinates = data.activities.filter((activity) => !activityCoordinates(activity)).length
+
+  useEffect(() => {
+    const source = gpxSource.current
+    const instance = map.current
+    if (!source || !instance) return
+    const features = gpxLineFeatures(gpxLines)
+    source.clear()
+    source.add(
+      features.map(
+        (feature) =>
+          new atlas.data.Feature(
+            new atlas.data.LineString(feature.coordinates),
+            { lineId: feature.lineId, label: feature.label, color: feature.color },
+            feature.id,
+          ),
+      ),
+    )
+
+    if (!selectedGpxLineId) return
+    const selected = features.filter((feature) => feature.lineId === selectedGpxLineId)
+    const positions = selected.flatMap((feature) => feature.coordinates)
+    if (positions.length < 2) return
+    const longitudes = positions.map(([longitude]) => longitude)
+    const latitudes = positions.map(([, latitude]) => latitude)
+    const minLongitude = Math.min(...longitudes)
+    const maxLongitude = Math.max(...longitudes)
+    const minLatitude = Math.min(...latitudes)
+    const maxLatitude = Math.max(...latitudes)
+    if (minLongitude === maxLongitude && minLatitude === maxLatitude) return
+    instance.setCamera({
+      bounds: [minLongitude, minLatitude, maxLongitude, maxLatitude],
+      padding: 48,
+    })
+  }, [gpxLines, mapReady, selectedGpxLineId])
 
   useEffect(() => {
     const source = waypointSource.current
