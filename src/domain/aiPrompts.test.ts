@@ -28,4 +28,13 @@ describe('AI JSON prompts', () => {
     expect(ideaJsonAiPrompt).not.toMatch(relationshipField)
     expect(waypointJsonAiPrompt).not.toMatch(relationshipField)
   })
+
+  it('gives Waypoint prompts explicit research and output constraints', () => {
+    expect(waypointJsonAiPrompt).toContain('factual details you can reliably confirm through internet research')
+    expect(waypointJsonAiPrompt).toContain('When online sources disagree, rely on the most authoritative source.')
+    expect(waypointJsonAiPrompt).toContain('Do not invent, guess, embellish, hype, or use promotional language.')
+    expect(waypointJsonAiPrompt).toContain('Do not add commentary, markdown, or extra JSON fields.')
+    expect(waypointJsonAiPrompt).toContain('Every waypoint belongs to a challenge collection')
+    expect(waypointJsonAiPrompt).toContain('After I provide the source material, produce exactly one JSON object')
+  })
 })

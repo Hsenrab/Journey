@@ -121,9 +121,9 @@ Example 2 — short idea with no useful optional detail:
 
 Now, using the source material I provide below (or that I paste after this prompt), produce a single JSON object in this exact shape.`
 
-export const waypointJsonAiPrompt = `Create an import-ready JSON object for a Waypoint in a personal travel and life-adventure journal. A Waypoint is a destination or place-based experience worth achieving, such as visiting a landmark, walking a named trail, or taking a hot-air balloon flight over a particular area. It describes the outcome itself, not planning steps or the historical record of completing it. Every waypoint is filed under a challenge collection in the app, so keep it to destinations and place-based experiences rather than standalone personal goals.
+export const waypointJsonAiPrompt = `Create an import-ready JSON object representing a Waypoint for a personal travel and life-adventure journal. A Waypoint is a destination or place-based experience worth achieving, such as visiting a landmark, walking a named trail, or taking a hot-air balloon flight over a specific area. It describes the outcome itself, not planning steps or a record of completion. Every waypoint belongs to a challenge collection, so focus strictly on destinations and place-based experiences rather than standalone personal goals.
 
-Use only the source material I provide. Do not invent missing facts or pad sparse material. Write in a concise, motivating, grounded tone without hype, clichés, or promotional language. A short title and one clear sentence are often enough.
+Use only the source material I provide and factual details you can reliably confirm through internet research. If a detail cannot be confirmed, omit it. When online sources disagree, rely on the most authoritative source. Do not invent, guess, embellish, hype, or use promotional language. Do not add commentary, markdown, or extra JSON fields. Keep the writing concise, grounded, and motivating; a short title and one clear sentence are often enough.
 
 Return ONLY one valid JSON object matching the shape below: no array, markdown, commentary, or additional fields.
 
