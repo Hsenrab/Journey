@@ -116,7 +116,7 @@ export default function ChallengeDetails() {
         {!readOnly && (
           <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} sx={{ alignItems: { sm: 'center' } }}>
             <Button component="label" variant="outlined">
-{displayedRoute ? 'Replace GPX route' : 'Attach GPX route'}
+              {displayedRoute ? 'Replace GPX route' : 'Attach GPX route'}
               <input
                 hidden
                 type="file"
