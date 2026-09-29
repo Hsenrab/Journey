@@ -8,18 +8,25 @@ import { parseGpx, type GpxPoint, type GpxRoute } from '../domain/gpx'
 import { challengeWaypoints } from '../domain/visit'
 import { useWaypoints } from '../features/journey/JourneyContext'
 
-function projectPoint(point: GpxPoint, bounds: GpxPoint[]): string {
-  const minLat = Math.min(...bounds.map((point) => point.latitude))
-  const maxLat = Math.max(...bounds.map((point) => point.latitude))
-  const minLon = Math.min(...bounds.map((point) => point.longitude))
-  const maxLon = Math.max(...bounds.map((point) => point.longitude))
+function createPointProjector(bounds: GpxPoint[]): (point: GpxPoint) => string {
+  let minLat = Infinity
+  let maxLat = -Infinity
+  let minLon = Infinity
+  let maxLon = -Infinity
+  for (const point of bounds) {
+    minLat = Math.min(minLat, point.latitude)
+    maxLat = Math.max(maxLat, point.latitude)
+    minLon = Math.min(minLon, point.longitude)
+    maxLon = Math.max(maxLon, point.longitude)
+  }
   const latSpan = maxLat - minLat || 1
   const lonSpan = maxLon - minLon || 1
-  return `${((point.longitude - minLon) / lonSpan) * 360 + 20},${100 - ((point.latitude - minLat) / latSpan) * 80}`
+  return (point) =>
+    `${((point.longitude - minLon) / lonSpan) * 360 + 20},${100 - ((point.latitude - minLat) / latSpan) * 80}`
 }
 
-function routePoints(route: GpxRoute | undefined, bounds: GpxPoint[]): string {
-  return route?.points.map((point) => projectPoint(point, bounds)).join(' ') ?? ''
+function routePoints(route: GpxRoute | undefined, projectPoint: (point: GpxPoint) => string): string {
+  return route?.points.map(projectPoint).join(' ') ?? ''
 }
 
 function routeBounds(routes: Array<GpxRoute | undefined>): GpxPoint[] {
@@ -53,6 +60,7 @@ export default function ChallengeDetails() {
     )
     return [...routePoints, ...waypointPoints]
   }, [challenge?.plannedRoute, members, tracks])
+  const projectPoint = useMemo(() => (allPoints.length > 0 ? createPointProjector(allPoints) : undefined), [allPoints])
 
   if (loadState.status === 'loading') return <LoadingNotice message="Loading challenge…" />
   if (loadState.status === 'failed')
@@ -86,7 +94,7 @@ export default function ChallengeDetails() {
           label="Recorded activity tracks"
         />
       </Stack>
-      {allPoints.length > 0 ? (
+      {projectPoint ? (
         <Box
           component="svg"
           viewBox="0 0 400 120"
@@ -96,7 +104,7 @@ export default function ChallengeDetails() {
         >
           {showPlanned && challenge.plannedRoute && (
             <polyline
-              points={routePoints(challenge.plannedRoute, allPoints)}
+              points={routePoints(challenge.plannedRoute, projectPoint)}
               fill="none"
               stroke="#1565c0"
               strokeWidth="3"
@@ -107,7 +115,7 @@ export default function ChallengeDetails() {
             tracks.map(({ activity, route }) => (
               <polyline
                 key={activity.activityId}
-                points={routePoints(route, allPoints)}
+                points={routePoints(route, projectPoint)}
                 fill="none"
                 stroke="#c62828"
                 strokeWidth="2"
@@ -115,28 +123,24 @@ export default function ChallengeDetails() {
                 aria-label={`Recorded track: ${activity.name ?? activity.date}`}
               />
             ))}
-          {members.map((waypoint) =>
-            typeof waypoint.location?.latitude === 'number' && typeof waypoint.location.longitude === 'number' ? (
+          {members.map((waypoint) => {
+            if (typeof waypoint.location?.latitude !== 'number' || typeof waypoint.location.longitude !== 'number')
+              return null
+            const [cx, cy] = projectPoint({
+              latitude: waypoint.location.latitude,
+              longitude: waypoint.location.longitude,
+            }).split(',')
+            return (
               <circle
                 key={waypoint.waypointId}
-                cx={
-                  projectPoint(
-                    { latitude: waypoint.location.latitude, longitude: waypoint.location.longitude },
-                    allPoints,
-                  ).split(',')[0]
-                }
-                cy={
-                  projectPoint(
-                    { latitude: waypoint.location.latitude, longitude: waypoint.location.longitude },
-                    allPoints,
-                  ).split(',')[1]
-                }
+                cx={cx}
+                cy={cy}
                 r="4"
                 fill="#2e7d32"
                 aria-label={`Waypoint: ${waypoint.title}`}
               />
-            ) : null,
-          )}
+            )
+          })}
         </Box>
       ) : (
         <Typography color="text.secondary">No GPX routes or recorded tracks are available.</Typography>
