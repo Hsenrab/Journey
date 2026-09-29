@@ -11,11 +11,19 @@ export const GpxLineSchema = z
     id: z.string().min(1),
     label: z.string().min(1),
     segments: z.array(z.array(GpxCoordinateSchema)),
-    color: z.string().regex(/^#[0-9a-f]{6}$/i).optional(),
+    color: z
+      .string()
+      .regex(/^#[0-9a-f]{6}$/i)
+      .optional(),
   })
   .strict()
 
-export type GpxLine = z.infer<typeof GpxLineSchema>
+export type GpxLine = {
+  readonly id: string
+  readonly label: string
+  readonly segments: readonly (readonly Coordinates[])[]
+  readonly color?: string
+}
 
 export type GpxLineFeature = {
   id: string
@@ -27,7 +35,7 @@ export type GpxLineFeature = {
 
 const lineColors = ['#1565c0', '#c62828', '#6a1b9a', '#ef6c00', '#00838f']
 
-function validSegment(segment: readonly Coordinates[]): segment is [[number, number], ...Array<[number, number]>] {
+function validSegment(segment: readonly Coordinates[]): boolean {
   if (segment.length < 2) return false
   return segment.every(
     (point) =>

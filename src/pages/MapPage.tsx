@@ -619,6 +619,7 @@ export default function MapPage({ gpxLines = [], selectedGpxLineId }: MapPagePro
     })
     map.current = instance
     return () => {
+      gpxSource.current?.clear()
       instance.dispose()
       map.current = null
       waypointSource.current = null

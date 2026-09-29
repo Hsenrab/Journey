@@ -25,6 +25,8 @@ const mapEvents = vi.hoisted(() => ({
   tokenGetter: undefined as TokenGetter | undefined,
   deferReady: false,
   sourceAdd: vi.fn(),
+  gpxSourceAdd: vi.fn(),
+  gpxSourceClear: vi.fn(),
   waypointClusterLeaves: vi.fn(() =>
     Promise.resolve([
       { getProperties: () => ({ label: 'Clustered waypoint', award: 'Bronze', waypointId: 'waypoint-1' }) },
@@ -38,6 +40,7 @@ const mapEvents = vi.hoisted(() => ({
     ]),
   ),
   resize: vi.fn(),
+  setCamera: vi.fn(),
   popupClose: undefined as (() => void) | undefined,
   popupContent: undefined as HTMLElement | undefined,
 }))
@@ -111,6 +114,7 @@ vi.mock('azure-maps-control', () => ({
     layers = { add: vi.fn() }
     imageSprite = { add: vi.fn() }
     getCamera = vi.fn(() => ({ zoom: 8 }))
+    setCamera = mapEvents.setCamera
     dispose = vi.fn()
     resize = mapEvents.resize
   },
@@ -127,6 +131,10 @@ vi.mock('azure-maps-control', () => ({
       clear = vi.fn()
       getClusterLeaves: typeof mapEvents.waypointClusterLeaves
       constructor(id: string) {
+        if (id === 'gpx-lines') {
+          this.add = mapEvents.gpxSourceAdd
+          this.clear = mapEvents.gpxSourceClear
+        }
         this.getClusterLeaves = id === 'waypoints' ? mapEvents.waypointClusterLeaves : mapEvents.activityClusterLeaves
       }
     },
@@ -144,12 +152,21 @@ vi.mock('azure-maps-control', () => ({
         this.id = id
       }
     },
+    LineLayer: class {
+      id?: string
+      constructor(_source: unknown, id: string) {
+        this.id = id
+      }
+    },
   },
   data: {
     Feature: class {
       constructor(..._args: unknown[]) {}
     },
     Point: class {
+      constructor(..._args: unknown[]) {}
+    },
+    LineString: class {
       constructor(..._args: unknown[]) {}
     },
   },
@@ -172,6 +189,9 @@ describe('MapPage', () => {
     mapEvents.tokenGetter = undefined
     mapEvents.deferReady = false
     mapEvents.sourceAdd.mockClear()
+    mapEvents.gpxSourceAdd.mockClear()
+    mapEvents.gpxSourceClear.mockClear()
+    mapEvents.setCamera.mockClear()
     mapEvents.waypointClusterLeaves.mockClear()
     mapEvents.activityClusterLeaves.mockClear()
     mapEvents.resize.mockClear()
@@ -445,6 +465,52 @@ describe('MapPage', () => {
     expect(screen.queryByText(/Bronze:/)).not.toBeInTheDocument()
     expect(screen.queryByText(/NOT STARTED|GOLD|SILVER|BRONZE/)).not.toBeInTheDocument()
     expect(screen.getByText(/1 waypoint and 1 activity have no coordinates/)).toBeInTheDocument()
+  })
+
+  it('updates GPX line features, fits a selected line, and clears it on teardown', async () => {
+    const line = {
+      id: 'route',
+      label: 'Route',
+      segments: [
+        [
+          { latitude: 51.8, longitude: -2.2 },
+          { latitude: 51.9, longitude: -2.1 },
+        ],
+        [
+          { latitude: 52, longitude: -2 },
+          { latitude: 52.1, longitude: -1.9 },
+        ],
+      ],
+    } as const
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(jsonResponse({ token: 'entra', expiresOn: '2026-01-01', clientId: 'maps-client-id' })),
+    )
+    const view = render(
+      <MemoryRouter>
+        <WaypointsProvider>
+          <MapPage gpxLines={[line]} selectedGpxLineId="route" />
+        </WaypointsProvider>
+      </MemoryRouter>,
+    )
+
+    await vi.waitFor(() => expect(mapEvents.gpxSourceAdd).toHaveBeenCalled())
+    expect(mapEvents.gpxSourceAdd).toHaveBeenCalledWith(expect.arrayContaining([expect.anything(), expect.anything()]))
+    expect(mapEvents.setCamera).toHaveBeenCalledWith({
+      bounds: [-2.2, 51.8, -1.9, 52.1],
+      padding: 48,
+    })
+
+    view.rerender(
+      <MemoryRouter>
+        <WaypointsProvider>
+          <MapPage gpxLines={[]} selectedGpxLineId="route" />
+        </WaypointsProvider>
+      </MemoryRouter>,
+    )
+    await vi.waitFor(() => expect(mapEvents.gpxSourceClear).toHaveBeenCalled())
+    view.unmount()
+    expect(mapEvents.gpxSourceClear).toHaveBeenCalled()
   })
 
   it('uses fallback names without promoting dates to primary map list labels', async () => {
