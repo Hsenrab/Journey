@@ -641,6 +641,14 @@ export default function MapPage() {
   )
   const waypointWithoutCoordinates = data.waypoints.filter((waypoint) => !waypointCoordinates(waypoint)).length
   const activityWithoutCoordinates = data.activities.filter((activity) => !activityCoordinates(activity)).length
+  const routeLegend = [
+    ...data.challenges.flatMap((challenge) =>
+      challenge.plannedRoute ? [{ label: `Planned route: ${challenge.title}`, kind: 'planned' }] : [],
+    ),
+    ...data.activities.flatMap((activity) =>
+      activity.recordedTrack ? [{ label: `Recorded track: ${activityDisplayName(activity)}`, kind: 'recorded' }] : [],
+    ),
+  ]
 
   useEffect(() => {
     const source = routeSource.current
@@ -878,6 +886,23 @@ export default function MapPage() {
               }}
               aria-label={mode === 'waypoints' ? 'Nearest visible waypoints' : 'Nearest activities'}
             >
+              {routeLegend.length > 0 && (
+                <Stack component="section" aria-label="Map routes" spacing={0.5} sx={{ mb: 1.5 }}>
+                  <Typography variant="subtitle2">Routes</Typography>
+                  {routeLegend.map((route) => (
+                    <Typography key={`${route.kind}-${route.label}`} variant="body2">
+                      <Box
+                        component="span"
+                        aria-hidden="true"
+                        sx={{ color: route.kind === 'planned' ? '#1565c0' : '#c62828' }}
+                      >
+                        {route.kind === 'planned' ? '━' : '╌'}
+                      </Box>{' '}
+                      {route.label}
+                    </Typography>
+                  ))}
+                </Stack>
+              )}
               <Stack spacing={0}>
                 {mode === 'waypoints'
                   ? nearby.map(({ waypoint, distanceMiles: miles }) => {

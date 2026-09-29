@@ -187,6 +187,8 @@ export function ActivityEditor({
         altText: item.altText ?? '',
         url: item.url,
       })),
+      trackInput: '',
+      recordedTrack: initialActivity?.recordedTrack ?? null,
     }
 
     const currentLocation =
@@ -204,6 +206,8 @@ export function ActivityEditor({
         location: locationEdited ? currentLocation : initialLocation,
         references,
         photoReferences,
+        trackInput: trackInput.trim(),
+        recordedTrack: recordedTrack ?? null,
       })
     )
   }, [
@@ -225,6 +229,8 @@ export function ActivityEditor({
     postcode,
     references,
     ideaIds,
+    recordedTrack,
+    trackInput,
     waypointId,
   ])
 
@@ -394,6 +400,8 @@ export function ActivityEditor({
                     setName(parsed.value.name ?? '')
                     setNotes(parsed.value.notes)
                     setRecordedTrack(parsed.value.recordedTrack)
+                    setTrackInput('')
+                    setTrackError(undefined)
                     setCategory(parsed.value.category ?? '')
                     const location = parsed.value.location
                     setLocationEdited(true)
@@ -439,10 +447,19 @@ export function ActivityEditor({
                   ))}
                 </Alert>
               )}
+            </Stack>
+          )}
+          {(!addMode || mode === 'form') && (
+            <>
+              {message && <Alert severity="info">{message}</Alert>}
+              <TextField label="Activity name" value={name} onChange={(event) => setName(event.target.value)} />
               <TextField
                 label="Recorded GPX track (optional)"
                 value={trackInput}
-                onChange={(event) => setTrackInput(event.target.value)}
+                onChange={(event) => {
+                  setTrackInput(event.target.value)
+                  setTrackError(undefined)
+                }}
                 multiline
                 minRows={4}
                 error={Boolean(trackError)}
@@ -459,12 +476,6 @@ export function ActivityEditor({
                   Remove recorded GPX track
                 </Button>
               )}
-            </Stack>
-          )}
-          {(!addMode || mode === 'form') && (
-            <>
-              {message && <Alert severity="info">{message}</Alert>}
-              <TextField label="Activity name" value={name} onChange={(event) => setName(event.target.value)} />
               <TextField
                 label="Activity date"
                 type="date"

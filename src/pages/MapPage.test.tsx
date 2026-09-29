@@ -1,4 +1,4 @@
-import { act, render, screen } from '@testing-library/react'
+import { act, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -132,6 +132,12 @@ vi.mock('azure-maps-control', () => ({
     },
   },
   layer: {
+    LineLayer: class {
+      id?: string
+      constructor(_source: unknown, id: string) {
+        this.id = id
+      }
+    },
     BubbleLayer: class {
       id?: string
       constructor(_source: unknown, id: string) {
@@ -150,6 +156,9 @@ vi.mock('azure-maps-control', () => ({
       constructor(..._args: unknown[]) {}
     },
     Point: class {
+      constructor(..._args: unknown[]) {}
+    },
+    LineString: class {
       constructor(..._args: unknown[]) {}
     },
   },
@@ -410,6 +419,7 @@ describe('MapPage', () => {
       createdAt: '2026-08-10T00:00:00.000Z',
       updatedAt: '2026-08-10T00:00:00.000Z',
     })
+
     data.activities.push({
       activityId: 'postcode-activity',
       ideaIds: [],
@@ -445,6 +455,63 @@ describe('MapPage', () => {
     expect(screen.queryByText(/Bronze:/)).not.toBeInTheDocument()
     expect(screen.queryByText(/NOT STARTED|GOLD|SILVER|BRONZE/)).not.toBeInTheDocument()
     expect(screen.getByText(/1 waypoint and 1 activity have no coordinates/)).toBeInTheDocument()
+  })
+
+  it('adds planned and recorded routes to the map and exposes their names', async () => {
+    const data = createDefaultData()
+    data.challenges = [
+      {
+        challengeId: 'challenge',
+        title: 'Canal challenge',
+        description: 'Follow the canal.',
+        waypointIds: [],
+        supportsActivityCategories: false,
+        plannedRoute: {
+          points: [
+            { latitude: 51.8, longitude: -2.1 },
+            { latitude: 51.9, longitude: -2.2 },
+          ],
+        },
+      },
+    ]
+    data.activities = [
+      {
+        activityId: 'recorded',
+        name: 'Canal loop',
+        ideaIds: [],
+        date: '2026-08-10',
+        location: { kind: 'coordinates', latitude: 51.85, longitude: -2.15 },
+        notes: '',
+        referenceIds: [],
+        photoReferenceIds: [],
+        createdAt: '2026-08-10T00:00:00.000Z',
+        updatedAt: '2026-08-10T00:00:00.000Z',
+        recordedTrack: {
+          points: [
+            { latitude: 51.81, longitude: -2.11 },
+            { latitude: 51.91, longitude: -2.21 },
+          ],
+        },
+      },
+    ]
+    localStorage.setItem('waypoints-v1', JSON.stringify(data))
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(jsonResponse({ token: 'entra', expiresOn: '2026-01-01', clientId: 'maps-client-id' })),
+    )
+
+    render(
+      <MemoryRouter>
+        <WaypointsProvider>
+          <MapPage />
+        </WaypointsProvider>
+      </MemoryRouter>,
+    )
+
+    expect(await screen.findByRole('region', { name: 'Map routes' })).toBeInTheDocument()
+    expect(screen.getByText('Planned route: Canal challenge')).toBeInTheDocument()
+    expect(screen.getByText('Recorded track: Canal loop')).toBeInTheDocument()
+    await waitFor(() => expect(mapEvents.sourceAdd).toHaveBeenCalled())
   })
 
   it('uses fallback names without promoting dates to primary map list labels', async () => {

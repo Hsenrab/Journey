@@ -17,14 +17,15 @@ export type GpxPoint = z.infer<typeof GpxPointSchema>
 export type GpxRoute = z.infer<typeof GpxRouteSchema>
 
 export function parseGpx(value: string): GpxRoute {
-  if (!/^<gpx\b[^>]*>[\s\S]*<\/gpx>\s*$/i.test(value.trim()) || /<!DOCTYPE|<script\b/i.test(value))
+  if (/<!DOCTYPE\b/i.test(value)) throw new Error('GPX DTDs are not supported.')
+  const document = new DOMParser().parseFromString(value, 'application/xml')
+  if (document.querySelector('parsererror') || document.documentElement.localName.toLowerCase() !== 'gpx') {
     throw new Error('GPX is not valid XML.')
+  }
 
-  const points = Array.from(value.matchAll(/<(?:trkpt|rtept)\b([^>]*)\/?>/gi)).map((match) => {
-    const attributes = match[1] ?? ''
-    const latitude = attributes.match(/\blat\s*=\s*["']([^"']+)["']/i)?.[1]
-    const longitude = attributes.match(/\blon\s*=\s*["']([^"']+)["']/i)?.[1]
-    return { latitude: Number(latitude), longitude: Number(longitude) }
-  })
+  const points = Array.from(document.querySelectorAll('trkpt, rtept')).map((point) => ({
+    latitude: Number(point.getAttribute('lat')),
+    longitude: Number(point.getAttribute('lon')),
+  }))
   return GpxRouteSchema.parse({ points })
 }
