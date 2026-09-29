@@ -49,6 +49,26 @@ interface XmlElementFrame {
   namespaceChanges: Map<string, string | undefined>
 }
 
+function decodeXmlReferences(value: string): string {
+  const predefinedReferences: Record<string, string> = {
+    amp: '&',
+    apos: "'",
+    gt: '>',
+    lt: '<',
+    quot: '"',
+  }
+
+  return value.replace(/&(#x[0-9A-Fa-f]+|#\d+|amp|apos|gt|lt|quot);/g, (reference, content: string) => {
+    if (content.startsWith('#')) {
+      const codePoint = content.startsWith('#x') ? Number.parseInt(content.slice(2), 16) : Number.parseInt(content.slice(1), 10)
+      return codePoint <= 0x10ffff && !(codePoint >= 0xd800 && codePoint <= 0xdfff)
+        ? String.fromCodePoint(codePoint)
+        : reference
+    }
+    return predefinedReferences[content] ?? reference
+  })
+}
+
 function scanXmlBeforeParsing(xml: string): boolean {
   let count = 0
   let index = 0
@@ -135,7 +155,7 @@ function scanXmlBeforeParsing(xml: string): boolean {
       if (quote !== '"' && quote !== "'") continue
       const valueStart = ++index
       while (index < xml.length && xml[index] !== quote) index += 1
-      const value = xml.slice(valueStart, index)
+      const value = decodeXmlReferences(xml.slice(valueStart, index))
       if (attributeName === 'xmlns') namespaceDeclarations.set('', value)
       else if (attributeName.startsWith('xmlns:')) namespaceDeclarations.set(attributeName.slice(6), value)
       if (index < xml.length) index += 1
