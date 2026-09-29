@@ -12,8 +12,12 @@ export interface GpxGeometry {
   pointCount: number
 }
 
+const GPX_NAMESPACES = new Set(['', 'http://www.topografix.com/GPX/1/0', 'http://www.topografix.com/GPX/1/1'])
+
 function directChildren(element: Element, localName: string): Element[] {
-  return Array.from(element.children).filter((child) => child.localName === localName)
+  return Array.from(element.children).filter(
+    (child) => child.localName === localName && child.namespaceURI === element.namespaceURI,
+  )
 }
 
 function parsePoint(element: Element, pointNumber: number): GpxPoint {
@@ -39,12 +43,62 @@ function parsePoint(element: Element, pointNumber: number): GpxPoint {
   return { latitude, longitude }
 }
 
-function exceedsPointLimit(xml: string): boolean {
-  const pointStartTag = /<(?:[\w.-]+:)?(?:trkpt|rtept)(?=[\s/>])/g
+function scanXmlBeforeParsing(xml: string): boolean {
   let count = 0
-  while (pointStartTag.exec(xml)) {
-    count += 1
-    if (count > MAX_GPX_POINT_COUNT) return true
+  let index = 0
+
+  while (index < xml.length) {
+    if (xml[index] !== '<') {
+      index += 1
+      continue
+    }
+    if (xml.startsWith('<!--', index)) {
+      const end = xml.indexOf('-->', index + 4)
+      index = end === -1 ? xml.length : end + 3
+      continue
+    }
+    if (xml.startsWith('<![CDATA[', index)) {
+      const end = xml.indexOf(']]>', index + 9)
+      index = end === -1 ? xml.length : end + 3
+      continue
+    }
+    if (/^<!DOCTYPE(?:\s|\[|>)/i.test(xml.slice(index))) {
+      throw new Error('GPX files containing DOCTYPE declarations are not supported.')
+    }
+    if (xml[index + 1] === '!' || xml[index + 1] === '?') {
+      index += 1
+      continue
+    }
+    if (xml[index + 1] === '/') {
+      index += 2
+      continue
+    }
+
+    let nameEnd = index + 1
+    while (nameEnd < xml.length && !/[\s/>]/.test(xml[nameEnd])) nameEnd += 1
+    const localName = xml
+      .slice(index + 1, nameEnd)
+      .split(':')
+      .at(-1)
+    if (localName === 'trkpt' || localName === 'rtept') {
+      count += 1
+      if (count > MAX_GPX_POINT_COUNT) return true
+    }
+
+    let quote: string | undefined
+    index = nameEnd
+    while (index < xml.length) {
+      const character = xml[index]
+      if (quote) {
+        if (character === quote) quote = undefined
+      } else if (character === '"' || character === "'") {
+        quote = character
+      } else if (character === '>') {
+        index += 1
+        break
+      }
+      index += 1
+    }
   }
   return false
 }
@@ -53,22 +107,18 @@ export function parseGpx(xml: string): GpxGeometry {
   if (xml.length > MAX_GPX_FILE_SIZE_BYTES || new TextEncoder().encode(xml).byteLength > MAX_GPX_FILE_SIZE_BYTES) {
     throw new Error(`GPX file exceeds the ${MAX_GPX_FILE_SIZE_BYTES}-byte size limit.`)
   }
-  if (/<!\s*DOCTYPE/i.test(xml)) {
-    throw new Error('GPX files containing DOCTYPE declarations are not supported.')
-  }
-  if (exceedsPointLimit(xml)) {
+  if (scanXmlBeforeParsing(xml)) {
     throw new Error(`GPX file exceeds the ${MAX_GPX_POINT_COUNT}-point limit.`)
   }
 
   const document = new DOMParser().parseFromString(xml, 'application/xml')
-  const parserError = Array.from(document.getElementsByTagName('*')).find(
-    (element) => element.localName === 'parsererror',
-  )
-  if (parserError || document.documentElement.localName !== 'gpx') {
+  const root = document.documentElement
+  if (root.localName === 'parsererror' || root.localName !== 'gpx') {
     throw new Error('GPX file is not valid XML with a gpx root element.')
   }
-
-  const root = document.documentElement
+  if (!GPX_NAMESPACES.has(root.namespaceURI ?? '')) {
+    throw new Error('GPX file is not valid XML with a supported gpx namespace.')
+  }
   const tracks = directChildren(root, 'trk')
   const routes = directChildren(root, 'rte')
   if (tracks.length === 0 && routes.length === 0) {

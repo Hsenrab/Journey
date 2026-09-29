@@ -47,6 +47,25 @@ describe('parseGpx', () => {
     expect(() => parseGpx('<xml />')).toThrow('GPX file is not valid XML')
   })
 
+  it('requires GPX namespaces for the root and geometry children', () => {
+    expect(() =>
+      parseGpx('<gpx xmlns="urn:not-gpx"><rte><rtept lat="1" lon="2" /><rtept lat="3" lon="4" /></rte></gpx>'),
+    ).toThrow('supported gpx namespace')
+    expect(() =>
+      parseGpx(
+        '<gpx xmlns="http://www.topografix.com/GPX/1/1"><ext:rte xmlns:ext="urn:extension"><ext:rtept lat="1" lon="2" /><ext:rtept lat="3" lon="4" /></ext:rte></gpx>',
+      ),
+    ).toThrow('does not contain supported track or route geometry')
+  })
+
+  it('does not treat parsererror extension elements as parse errors', () => {
+    expect(() =>
+      parseGpx(
+        '<gpx><rte><rtept lat="1" lon="2" /><rtept lat="3" lon="4" /></rte><extensions><parsererror /></extensions></gpx>',
+      ),
+    ).not.toThrow()
+  })
+
   it('rejects unsupported, empty, and unusable geometry', () => {
     expect(() => parseGpx('<gpx><wpt lat="1" lon="2" /></gpx>')).toThrow(
       'does not contain supported track or route geometry',
@@ -79,7 +98,7 @@ describe('parseGpx', () => {
   })
 
   it('rejects files over the point limit', () => {
-    const points = '<rtept lat="1" lon="2"/>'.repeat(MAX_GPX_POINT_COUNT + 1)
+    const points = '<π:rtept lat="1" lon="2"/>'.repeat(MAX_GPX_POINT_COUNT + 1)
 
     expect(() => parseGpx(`<gpx><rte>${points}</rte></gpx>`)).toThrow(`${MAX_GPX_POINT_COUNT}-point limit`)
   })
@@ -90,6 +109,12 @@ describe('parseGpx', () => {
         '<!DOCTYPE gpx [<!ENTITY example "text">]><gpx><rte><rtept lat="1" lon="2"/><rtept lat="3" lon="4"/></rte></gpx>',
       ),
     ).toThrow('DOCTYPE declarations are not supported')
+
+    expect(() =>
+      parseGpx(
+        '<gpx><!-- <!DOCTYPE gpx> <rtept lat="1" lon="2" /> --><rte><rtept lat="1" lon="2"/><rtept lat="3" lon="4"/></rte></gpx>',
+      ),
+    ).not.toThrow()
 
     const result = parseGpx(`
       <gpx>
