@@ -61,6 +61,39 @@ describe('ActivityDetails', () => {
     expect(screen.getByText('Activity log')).toBeInTheDocument()
   })
 
+  it('links an attached recorded track to its map view', () => {
+    const seed = createDefaultData()
+    save({
+      ...seed,
+      activities: [
+        {
+          activityId: 'a1',
+          ideaIds: [],
+          date: '2026-08-01',
+          location: { kind: 'postcode', postcode: 'BA12 6QF' },
+          track: {
+            name: 'walk.gpx',
+            segments: [
+              [
+                [-2, 51],
+                [-3, 52],
+              ],
+            ],
+          },
+          notes: '',
+          referenceIds: [],
+          photoReferenceIds: [],
+          createdAt: '2026-08-01T10:00:00.000Z',
+          updatedAt: '2026-08-01T10:00:00.000Z',
+        },
+      ],
+    })
+    renderDetails()
+    expect(screen.getByText('Recorded GPX track: walk.gpx')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'View track on map' })).toHaveAttribute('href', '/map?track=a1')
+    expect(screen.getByText('Postcode: BA12 6QF')).toBeInTheDocument()
+  })
+
   it('breadcrumbs a linked activity back to its waypoint', async () => {
     const user = userEvent.setup()
     const seed = createDefaultData()

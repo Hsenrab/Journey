@@ -2,7 +2,8 @@ import { expect, test } from '@playwright/test'
 
 test.describe('activity management flow', () => {
   test.beforeEach(async ({ page }) => {
-    await page.addInitScript(() => window.localStorage.clear())
+    await page.goto('/')
+    await page.evaluate(() => window.localStorage.clear())
   })
 
   test('creates a linked categorized activity from waypoint details', async ({ page }) => {
@@ -51,5 +52,37 @@ test.describe('activity management flow', () => {
     await page.getByRole('button', { name: 'Delete' }).click()
 
     await expect(page).toHaveURL(/\/activities$/)
+  })
+
+  test('attaches and removes a GPX track without changing the activity location', async ({ page }) => {
+    const gpx = '<gpx><trk><trkseg><trkpt lat="51" lon="-2"/><trkpt lat="52" lon="-3"/></trkseg></trk></gpx>'
+    await page.goto('/activities')
+    await page.getByRole('button', { name: 'Add activity' }).click()
+    await page.getByLabel('Postcode').fill('GL1 1AA')
+    await page.getByLabel('Description / notes').fill('Keep these notes')
+    await page.getByLabel('GPX track file').setInputFiles({
+      name: 'invalid.gpx',
+      mimeType: 'application/gpx+xml',
+      buffer: Buffer.from('<gpx/>'),
+    })
+    await expect(page.getByText('GPX must contain a recorded track with at least two points.')).toBeVisible()
+    await expect(page.getByLabel('Description / notes')).toHaveValue('Keep these notes')
+    await page.getByLabel('GPX track file').setInputFiles({
+      name: 'walk.gpx',
+      mimeType: 'application/gpx+xml',
+      buffer: Buffer.from(gpx),
+    })
+    await expect(page.getByText('Attached track: walk.gpx')).toBeVisible()
+    await page.getByRole('button', { name: 'Save activity' }).click()
+    await page.getByRole('link', { name: '2026' }).first().click()
+    await expect(page.getByRole('link', { name: 'View track on map' })).toHaveAttribute('href', /\/map\?track=/)
+    await expect(page.getByText('Postcode: GL1 1AA')).toBeVisible()
+
+    await page.reload()
+    await expect(page.getByText('Recorded GPX track: walk.gpx')).toBeVisible()
+    await page.getByRole('button', { name: 'Edit activity' }).click()
+    await page.getByRole('button', { name: 'Remove GPX track' }).click()
+    await page.getByRole('button', { name: 'Save changes' }).click()
+    await expect(page.getByRole('link', { name: 'View track on map' })).toHaveCount(0)
   })
 })

@@ -179,6 +179,18 @@ export default function ActivityDetails() {
         )}
       </Stack>
       <Typography color="text.secondary">{locationSummary(activity.location)}</Typography>
+      {activity.track && (
+        <Stack spacing={1}>
+          <Typography variant="h6">Recorded GPX track: {activity.track.name}</Typography>
+          <Button
+            component={Link}
+            to={`/map?track=${encodeURIComponent(activity.activityId)}`}
+            sx={{ alignSelf: 'flex-start' }}
+          >
+            View track on map
+          </Button>
+        </Stack>
+      )}
       {activity.notes ? (
         <Typography sx={{ whiteSpace: 'pre-wrap' }}>{activity.notes}</Typography>
       ) : (

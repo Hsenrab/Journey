@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
-import { deleteEntity, documentsFor, documentsToData, replaceDataset } from './cosmos.js'
-import type { JourneyData, JourneyDocument } from './journeySchema.js'
+import { deleteEntity, documentsFor, documentsToData, loadDataset, replaceDataset } from './cosmos.js'
+import { JourneyMutationSchema, type JourneyData, type JourneyDocument } from './journeySchema.js'
 
 const activity = {
   activityId: 'activity-1',
@@ -42,6 +42,40 @@ describe('Cosmos Journey persistence', () => {
     expect(documents['activity-1']).toMatchObject({ type: 'activity', schemaVersion: 3 })
     expect(documents['idea-1']).toMatchObject({ type: 'idea', schemaVersion: 2 })
     expect(documentsToData(Object.values(documents))).toEqual(data)
+  })
+
+  it('preserves optional activity tracks through import, persistence and export', async () => {
+    const track = {
+      name: 'Morning walk',
+      segments: [
+        [
+          [-2.153, 51.844],
+          [-2.154, 51.845],
+        ],
+        [
+          [-2.155, 51.846],
+          [-2.156, 51.847],
+        ],
+      ],
+    }
+    const imported = JourneyMutationSchema.parse({
+      operation: 'import',
+      data: { ...data, activities: [{ ...activity, track }] },
+    })
+    if (imported.operation !== 'import') throw new Error('Expected an import mutation.')
+    const documents = documentsFor('dataset', imported.data)
+    expect(documents['activity-1']).toMatchObject({ schemaVersion: 3, entity: { track } })
+
+    const container = {
+      items: {
+        query: vi.fn().mockReturnValue({
+          fetchNext: vi.fn().mockResolvedValue({ resources: Object.values(documents), continuationToken: undefined }),
+        }),
+      },
+    }
+    const loaded = await loadDataset(container as never, 'dataset')
+    expect(loaded.data.activities[0]?.track).toEqual(track)
+    expect(documentsToData(Object.values(documents))).toEqual(imported.data)
   })
 
   it('deletes an idea, its activity links and orphaned references in one batch', async () => {

@@ -25,6 +25,12 @@ const activityLocation = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('postcode'), postcode: identifier, latitude, longitude }).strict(),
   z.object({ kind: z.literal('coordinates'), latitude, longitude }).strict(),
 ])
+const activityTrack = z
+  .object({
+    name: text,
+    segments: z.array(z.array(z.tuple([longitude, latitude])).min(2)).min(1),
+  })
+  .strict()
 const schemas = {
   waypoint: z
     .object({
@@ -93,6 +99,7 @@ const schemas = {
       date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
       category: z.enum(['bronze', 'silver', 'gold']).optional(),
       location: activityLocation,
+      track: activityTrack.optional(),
       notes: z.string(),
       referenceIds: z.array(identifier),
       photoReferenceIds: z.array(identifier),

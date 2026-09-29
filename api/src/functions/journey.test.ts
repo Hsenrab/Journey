@@ -204,9 +204,22 @@ describe('journey', () => {
     loadDataset.mockResolvedValue({ data: emptyData, etags: {} })
     createDocument.mockResolvedValue({ resource: {}, headers: {} })
     const { journey } = await import('./journey.js')
+    const track = {
+      name: 'Morning walk',
+      segments: [
+        [
+          [-2.153, 51.844],
+          [-2.154, 51.845],
+        ],
+      ],
+    }
 
     const result = await journey(
-      request('production', 'POST', { operation: 'create', type: 'activity', entity: { ...activity, ideaIds: [] } }),
+      request('production', 'POST', {
+        operation: 'create',
+        type: 'activity',
+        entity: { ...activity, ideaIds: [], track },
+      }),
       context(),
     )
 
@@ -216,6 +229,7 @@ describe('journey', () => {
       expect.objectContaining({
         entity: expect.objectContaining({
           location: { kind: 'postcode', postcode: 'GL3 4AQ', latitude: 51.844, longitude: -2.153 },
+          track,
         }),
       }),
     )
@@ -223,6 +237,33 @@ describe('journey', () => {
       'https://atlas.microsoft.com/search/address/json?api-version=1.0&query=GL3+4AQ',
       expect.anything(),
     )
+  })
+
+  it('rejects invalid activity track coordinates before writing', async () => {
+    const { journey } = await import('./journey.js')
+    const result = await journey(
+      request('production', 'POST', {
+        operation: 'create',
+        type: 'activity',
+        entity: {
+          ...activity,
+          ideaIds: [],
+          track: {
+            name: 'Morning walk',
+            segments: [
+              [
+                [181, 51.844],
+                [-2.154, 51.845],
+              ],
+            ],
+          },
+        },
+      }),
+      context(),
+    )
+
+    expect(result).toMatchObject({ status: 400, jsonBody: { error: expect.stringContaining('180') } })
+    expect(createDocument).not.toHaveBeenCalled()
   })
 
   it('allows demo creates against the demo dataset', async () => {

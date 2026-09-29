@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   ActivitySchema,
+  DataSchema,
   IdeaSchema,
   activitiesForWaypoint,
   activitiesUsingIdea,
@@ -49,8 +50,34 @@ describe('activity rules', () => {
       category: 'bronze',
       location: { kind: 'postcode', postcode: 'SN15 2LG' },
     })
+
     expect(activity.activityId).not.toHaveLength(0)
     expect(activity.createdAt).toBe(activity.updatedAt)
+  })
+
+  it('retains optional tracks across dataset serialization without changing completion', () => {
+    const data = createSeedData(locations)
+    const waypointId = data.waypoints[0]!.waypointId
+    const activity = createActivity({
+      waypointId,
+      date: '2026-08-01',
+      location: { kind: 'postcode', postcode: 'SN15 2LG' },
+      track: {
+        name: 'walk.gpx',
+        segments: [
+          [
+            [-2, 51],
+            [-2.1, 51.1],
+          ],
+        ],
+      },
+    })
+    const restored = DataSchema.parse(JSON.parse(JSON.stringify({ ...data, activities: [activity] })))
+    expect(restored.activities[0]?.track).toEqual(activity.track)
+    expect(restored.activities[0]?.location).toEqual(activity.location)
+    expect(completedWaypointCount(data.waypoints, [activity])).toBe(
+      completedWaypointCount(data.waypoints, [{ ...activity, track: undefined }]),
+    )
   })
 
   it('rejects invalid postcode/coordinate payloads', () => {

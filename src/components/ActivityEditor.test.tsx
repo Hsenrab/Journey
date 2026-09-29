@@ -1,11 +1,12 @@
 import type { ComponentProps } from 'react'
 import { MemoryRouter } from 'react-router-dom'
-import { render, screen } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { ActivityEditor } from './ActivityEditor'
 import { createDefaultData } from '../services/storage'
 import type { ActivityDraft } from '../features/journey/JourneyContext'
+import { createActivity } from '../domain/visit'
 
 function renderEditor(overrides: Partial<ComponentProps<typeof ActivityEditor>> = {}) {
   const onSubmit = vi.fn<(draft: ActivityDraft) => void>()
@@ -32,6 +33,70 @@ function renderEditor(overrides: Partial<ComponentProps<typeof ActivityEditor>> 
 describe('ActivityEditor', () => {
   beforeEach(() => {
     vi.restoreAllMocks()
+  })
+
+  it('attaches, replaces and removes GPX while preserving form edits after invalid input', async () => {
+    const user = userEvent.setup()
+    const { onSubmit } = renderEditor()
+    const file = (content: string, name: string) => {
+      const selected = new File([content], name, { type: 'application/gpx+xml' })
+      Object.defineProperty(selected, 'text', { value: () => Promise.resolve(content) })
+      return selected
+    }
+    const valid = '<gpx><trk><trkseg><trkpt lat="51" lon="-2"/><trkpt lat="52" lon="-3"/></trkseg></trk></gpx>'
+    await user.type(screen.getByLabelText('Postcode'), 'GL1 1AA')
+    await user.type(screen.getByLabelText('Description / notes'), 'Keep this note')
+    await user.upload(screen.getByLabelText('GPX track file'), file('<gpx/>', 'bad.gpx'))
+    expect(await screen.findByText('GPX must contain a recorded track with at least two points.')).toBeInTheDocument()
+    expect(screen.getByLabelText('Description / notes')).toHaveValue('Keep this note')
+    await user.upload(screen.getByLabelText('GPX track file'), file(valid, 'first.gpx'))
+    expect(await screen.findByText('Attached track: first.gpx')).toBeInTheDocument()
+    await user.upload(screen.getByLabelText('GPX track file'), file(valid, 'second.gpx'))
+    expect(await screen.findByText('Attached track: second.gpx')).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Save' }))
+    expect(onSubmit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        location: { kind: 'postcode', postcode: 'GL1 1AA' },
+        notes: 'Keep this note',
+        track: {
+          name: 'second.gpx',
+          segments: [
+            [
+              [-2, 51],
+              [-3, 52],
+            ],
+          ],
+        },
+      }),
+    )
+    await user.click(screen.getByRole('button', { name: 'Remove GPX track' }))
+    await user.click(screen.getByRole('button', { name: 'Save' }))
+    await waitFor(() => expect(onSubmit).toHaveBeenLastCalledWith(expect.objectContaining({ track: undefined })))
+  })
+
+  it('keeps an existing track on edit if a replacement is invalid', async () => {
+    const user = userEvent.setup()
+    const initialActivity = createActivity({
+      date: '2026-08-01',
+      location: { kind: 'postcode', postcode: 'GL1 1AA' },
+      track: {
+        name: 'existing.gpx',
+        segments: [
+          [
+            [-2, 51],
+            [-3, 52],
+          ],
+        ],
+      },
+    })
+    const { onSubmit } = renderEditor({ initialActivity })
+    const invalid = new File(['<gpx/>'], 'invalid.gpx')
+    Object.defineProperty(invalid, 'text', { value: () => Promise.resolve('<gpx/>') })
+    await user.type(screen.getByLabelText('Description / notes'), 'Updated')
+    await user.upload(screen.getByLabelText('GPX track file'), invalid)
+    expect(await screen.findByText('GPX must contain a recorded track with at least two points.')).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Save' }))
+    expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ notes: 'Updated', track: initialActivity.track }))
   })
 
   it('submits postcode activity data', async () => {

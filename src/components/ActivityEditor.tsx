@@ -34,6 +34,7 @@ import {
 } from '../domain/visit'
 import { activityImportExample, parseActivityDraftJson } from '../domain/draftJsonImport'
 import { activityJsonAiPrompt } from '../domain/aiPrompts'
+import { parseGpx } from '../domain/gpx'
 import { AiPromptButton } from './AiPromptButton'
 import type { ActivityDraft } from '../features/journey/JourneyContext'
 
@@ -99,6 +100,9 @@ export function ActivityEditor({
   const [name, setName] = useState(initialActivity?.name ?? '')
   const [date, setDate] = useState(initialActivity?.date ?? new Date().toISOString().slice(0, 10))
   const [notes, setNotes] = useState(initialActivity?.notes ?? '')
+  const [track, setTrack] = useState<Activity['track']>(initialActivity?.track)
+  const [trackError, setTrackError] = useState<string | null>(null)
+  const [readingTrack, setReadingTrack] = useState(false)
   const [waypointId, setWaypointId] = useState(initialActivity?.waypointId ?? initialWaypointId ?? '')
   const [ideaIds, setIdeaIds] = useState<string[]>(initialActivity?.ideaIds ?? initialIdeaIds ?? [])
   const [category, setCategory] = useState<AwardedStatus | ''>(initialActivity?.category ?? '')
@@ -166,6 +170,7 @@ export function ActivityEditor({
       name: initialActivity?.name ?? '',
       date: initialActivity?.date ?? new Date().toISOString().slice(0, 10),
       notes: initialActivity?.notes ?? '',
+      track: initialActivity?.track,
       waypointId: initialActivity?.waypointId ?? initialWaypointId ?? '',
       ideaIds: initialActivity?.ideaIds ?? initialIdeaIds ?? [],
       category: initialActivity?.category ?? '',
@@ -194,6 +199,7 @@ export function ActivityEditor({
         name,
         date,
         notes,
+        track,
         waypointId,
         ideaIds,
         category,
@@ -217,6 +223,7 @@ export function ActivityEditor({
     longitude,
     name,
     notes,
+    track,
     photoReferences,
     postcode,
     references,
@@ -305,6 +312,7 @@ export function ActivityEditor({
               category: supportsCategories ? category || undefined : undefined,
               location: result.location,
               notes,
+              track,
               references: references.map((reference) => ({
                 referenceId: reference.referenceId,
                 title: reference.title.trim(),
@@ -562,6 +570,56 @@ export function ActivityEditor({
               )}
 
               <Stack spacing={1}>
+                <Typography variant="h6">Recorded GPX track (optional)</Typography>
+                {track && <Typography>Attached track: {track.name}</Typography>}
+                <Stack direction="row" spacing={1}>
+                  <Button component="label" variant="outlined">
+                    {track ? 'Replace GPX track' : 'Attach GPX track'}
+                    <input
+                      hidden
+                      type="file"
+                      accept=".gpx,application/gpx+xml"
+                      aria-label="GPX track file"
+                      disabled={readingTrack}
+                      onChange={(event) => {
+                        const file = event.target.files?.[0]
+                        event.target.value = ''
+                        if (!file) return
+                        if (file.size > 1_000_000) {
+                          setTrackError('GPX file is too large (maximum 1 MB).')
+                          return
+                        }
+                        setReadingTrack(true)
+                        void file
+                          .text()
+                          .then((text) => {
+                            const parsed = parseGpx(text, file.name)
+                            setTrack(parsed)
+                            setTrackError(null)
+                          })
+                          .catch((error: unknown) =>
+                            setTrackError(error instanceof Error ? error.message : String(error)),
+                          )
+                          .finally(() => setReadingTrack(false))
+                      }}
+                    />
+                  </Button>
+                  {track && (
+                    <Button
+                      disabled={readingTrack}
+                      onClick={() => {
+                        setTrack(undefined)
+                        setTrackError(null)
+                      }}
+                    >
+                      Remove GPX track
+                    </Button>
+                  )}
+                </Stack>
+                {trackError && <Alert severity="error">{trackError}</Alert>}
+              </Stack>
+
+              <Stack spacing={1}>
                 <Typography variant="h6">References</Typography>
                 {references.map((reference, index) => (
                   <Box
@@ -762,7 +820,7 @@ export function ActivityEditor({
               </Stack>
 
               <Stack direction="row" spacing={1}>
-                <Button type="submit" variant="contained">
+                <Button type="submit" variant="contained" disabled={readingTrack}>
                   {submitLabel}
                 </Button>
                 {onCancel && (

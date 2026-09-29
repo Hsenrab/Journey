@@ -57,6 +57,7 @@ export type JourneyLoadState =
 
 export type ActivityDraft = {
   name?: string
+  track?: Activity['track']
   waypointId?: string
   ideaIds: string[]
   date: string
@@ -332,6 +333,7 @@ function reducer(data: WaypointsData, action: Action): WaypointsData {
           date: action.input.date,
           category,
           location: action.input.location,
+          track: action.input.track,
           notes: action.input.notes,
           referenceIds: refs.referenceIds,
           photoReferenceIds: photos.photoReferenceIds,
@@ -366,6 +368,7 @@ function reducer(data: WaypointsData, action: Action): WaypointsData {
           date: action.input.date,
           category: action.input.waypointId ? action.input.category : undefined,
           location: action.input.location,
+          track: action.input.track,
           notes: action.input.notes,
           referenceIds: refs.referenceIds,
           photoReferenceIds: photos.photoReferenceIds,

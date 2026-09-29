@@ -46,6 +46,13 @@ const CoordinateLocationSchema = z.object({
 
 export const ActivityLocationSchema = z.discriminatedUnion('kind', [PostcodeLocationSchema, CoordinateLocationSchema])
 
+export const ActivityTrackSchema = z
+  .object({
+    name: z.string().min(1),
+    segments: z.array(z.array(z.tuple([z.number().min(-180).max(180), z.number().min(-90).max(90)])).min(2)).min(1),
+  })
+  .strict()
+
 const WaypointLocationSchema = z.object({
   placeName: z.string().min(1).optional(),
   latitude: z.number().min(-90).max(90).optional(),
@@ -172,6 +179,7 @@ export const ActivitySchema = z
     date: isoDate,
     category: AwardedStatusSchema.optional(),
     location: ActivityLocationSchema,
+    track: ActivityTrackSchema.optional(),
     notes: z.string(),
     referenceIds: z.array(z.string().min(1)),
     photoReferenceIds: z.array(z.string().min(1)),
@@ -196,6 +204,7 @@ export type Reference = z.infer<typeof ReferenceSchema>
 export type ExternalPhotoReference = z.infer<typeof ExternalPhotoReferenceSchema>
 export type Activity = z.infer<typeof ActivitySchema>
 export type ActivityLocation = z.infer<typeof ActivityLocationSchema>
+export type ActivityTrack = z.infer<typeof ActivityTrackSchema>
 export type WaypointsData = z.infer<typeof DataSchema>
 
 export function formatActivityDate(date: string) {
@@ -291,6 +300,7 @@ export function createActivity(input: {
   date: string
   category?: AwardedStatus
   location: z.input<typeof ActivityLocationSchema>
+  track?: ActivityTrack
   notes?: string
   referenceIds?: string[]
   photoReferenceIds?: string[]
@@ -307,6 +317,7 @@ export function createActivity(input: {
     date: input.date,
     category: input.category,
     location: input.location,
+    track: input.track,
     notes: input.notes ?? '',
     referenceIds: input.referenceIds ?? [],
     photoReferenceIds: input.photoReferenceIds ?? [],

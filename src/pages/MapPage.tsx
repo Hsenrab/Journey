@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import {
   Alert,
   Box,
@@ -372,7 +372,10 @@ const CLUSTER_LIST_LIMIT = 25
 
 export default function MapPage() {
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  const trackId = searchParams.get('track')
   const { data, loadState, statusFor } = useWaypoints()
+  const selectedTrack = data.activities.find((activity) => activity.activityId === trackId)?.track
   const container = useRef<HTMLDivElement>(null)
   const mapBox = useRef<HTMLDivElement>(null)
   const filters = useRef<HTMLDivElement>(null)
@@ -380,7 +383,8 @@ export default function MapPage() {
   const mapPopup = useRef<atlas.Popup | null>(null)
   const waypointSource = useRef<atlas.source.DataSource | null>(null)
   const activitySource = useRef<atlas.source.DataSource | null>(null)
-  const [mode, setMode] = useState<MapMode>('waypoints')
+  const trackSource = useRef<atlas.source.DataSource | null>(null)
+  const [mode, setMode] = useState<MapMode>(trackId ? 'activities' : 'waypoints')
   const [statuses, setStatuses] = useState<Status[]>([...statusOrder])
   const [token, setToken] = useState<MapsToken | null>(null)
   const [mapReady, setMapReady] = useState(false)
@@ -463,7 +467,11 @@ export default function MapPage() {
       mapPopup.current = popup
       const waypoints = new atlas.source.DataSource('waypoints', { cluster: true, clusterRadius: 45 })
       const activities = new atlas.source.DataSource('activities', { cluster: true, clusterRadius: 45 })
-      instance.sources.add([waypoints, activities])
+      const track = new atlas.source.DataSource('track')
+      instance.sources.add([waypoints, activities, track])
+      instance.layers.add(
+        new atlas.layer.LineLayer(track, 'recorded-track', { strokeColor: '#007c83', strokeWidth: 4 }),
+      )
       const waypointLayer = new atlas.layer.SymbolLayer(waypoints, 'waypoints', {
         filter: ['!', ['has', 'point_count']],
         iconOptions: { image: ['get', 'icon'], allowOverlap: true, size: 0.5 },
@@ -600,6 +608,7 @@ export default function MapPage() {
       })
       waypointSource.current = waypoints
       activitySource.current = activities
+      trackSource.current = track
       setMapReady(true)
     })
     map.current = instance
@@ -608,10 +617,21 @@ export default function MapPage() {
       map.current = null
       waypointSource.current = null
       activitySource.current = null
+      trackSource.current = null
       mapPopup.current = null
       setMapReady(false)
     }
   }, [data.activities, data.waypoints, loaded, navigate, origin.latitude, origin.longitude, token])
+
+  useEffect(() => {
+    const source = trackSource.current
+    if (!source) return
+    source.clear()
+    if (mode !== 'activities' || !selectedTrack) return
+    const positions = selectedTrack.segments.flat() as atlas.data.Position[]
+    source.add(selectedTrack.segments.map((segment) => new atlas.data.LineString(segment)))
+    map.current?.setCamera({ bounds: atlas.data.BoundingBox.fromPositions(positions), padding: 48 })
+  }, [mapReady, mode, selectedTrack])
 
   const visibleWaypoints = useMemo(
     () => filterWaypointsByStatus(data.waypoints, statuses, statusFor),
@@ -726,6 +746,7 @@ export default function MapPage() {
           <Tab id="activities-tab" aria-controls="map-panel" value="activities" label="Activities" />
         </Tabs>
       </PageHeader>
+      {selectedTrack && mode === 'activities' && <Typography>Recorded GPX track: {selectedTrack.name}</Typography>}
       {error && loadState.status !== 'failed' && <Alert severity="error">{error}</Alert>}
       {loadState.status === 'failed' && (
         <LoadFailureAlert message={loadState.message} description="This is a load failure, not an empty map dataset." />

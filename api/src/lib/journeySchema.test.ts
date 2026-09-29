@@ -26,6 +26,30 @@ function document(entity: Record<string, unknown>) {
   })
 }
 
+function activity() {
+  return {
+    activityId: 'activity-1',
+    ideaIds: [],
+    date: '2026-09-04',
+    location: { kind: 'coordinates', latitude: 51.415, longitude: -2.123 },
+    notes: '',
+    referenceIds: [],
+    photoReferenceIds: [],
+    createdAt: '2026-09-04T00:00:00.000Z',
+    updatedAt: '2026-09-04T00:00:00.000Z',
+  }
+}
+
+function activityDocument(entity: Record<string, unknown>) {
+  return JourneyDocumentSchema.safeParse({
+    id: 'activity-1',
+    datasetId: 'production',
+    type: 'activity',
+    schemaVersion: 3,
+    entity,
+  })
+}
+
 describe('Journey document validation', () => {
   it('requires the partition and entity discriminator', () => {
     expect(
@@ -77,6 +101,105 @@ describe('Journey document validation', () => {
         type: 'activity',
         schemaVersion: 3,
         entity: { activityId: 'activity-1' },
+      }).success,
+    ).toBe(false)
+  })
+
+  it('accepts activities with or without track geometry at schema version 3', () => {
+    expect(activityDocument(activity()).success).toBe(true)
+    expect(
+      activityDocument({
+        ...activity(),
+        track: {
+          name: 'Morning walk',
+          segments: [
+            [
+              [-2.123, 51.415],
+              [-2.124, 51.416],
+            ],
+            [
+              [-2.125, 51.417],
+              [-2.126, 51.418],
+            ],
+          ],
+        },
+      }).success,
+    ).toBe(true)
+  })
+
+  it('rejects malformed track geometry', () => {
+    const track = {
+      name: 'Morning walk',
+      segments: [
+        [
+          [-2.123, 51.415],
+          [-2.124, 51.416],
+        ],
+      ],
+    }
+    for (const malformed of [
+      { ...track, name: '' },
+      { ...track, name: '   ' },
+      { ...track, segments: [] },
+      { ...track, segments: [[]] },
+      { ...track, segments: [[[-2.123, 51.415]]] },
+      { ...track, segments: [[[-2.123], [-2.124, 51.416]]] },
+      {
+        ...track,
+        segments: [
+          [
+            [-2.123, 51.415, 42],
+            [-2.124, 51.416],
+          ],
+        ],
+      },
+      {
+        ...track,
+        segments: [
+          [
+            [181, 51.415],
+            [-2.124, 51.416],
+          ],
+        ],
+      },
+      {
+        ...track,
+        segments: [
+          [
+            [-2.123, -91],
+            [-2.124, 51.416],
+          ],
+        ],
+      },
+      { ...track, name: 42 },
+      { ...track, extra: true },
+    ]) {
+      expect(activityDocument({ ...activity(), track: malformed }).success).toBe(false)
+    }
+    expect(
+      JourneyMutationSchema.safeParse({
+        operation: 'import',
+        data: {
+          waypoints: [],
+          challenges: [],
+          ideas: [],
+          activities: [
+            {
+              ...activity(),
+              track: {
+                ...track,
+                segments: [
+                  [
+                    [181, 51.415],
+                    [-2.124, 51.416],
+                  ],
+                ],
+              },
+            },
+          ],
+          references: [],
+          photoReferences: [],
+        },
       }).success,
     ).toBe(false)
   })

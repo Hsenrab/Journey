@@ -78,6 +78,12 @@ The persisted root object is:
   - `{ "kind": "postcode", "postcode": "...", "latitude": number, "longitude": number }`, or
   - `{ "kind": "coordinates", "latitude": number, "longitude": number }`
 - `notes`
+- optional `track` containing the GPX filename and recorded segments as
+  longitude/latitude coordinate pairs. It supplements the required activity location;
+  it does not affect waypoint completion. The Activity editor accepts GPX recorded
+  tracks (up to 1 MB, 10,000 points, and at least two points per segment), and Activity
+  details link to their geometry on the existing map. Full dataset exports and imports
+  preserve the track.
 - `referenceIds` and `photoReferenceIds`
 
 Raw `Activity.photos` strings are not used for new data.

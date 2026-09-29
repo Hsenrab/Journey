@@ -1,4 +1,4 @@
-import { act, render, screen } from '@testing-library/react'
+import { act, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -25,6 +25,7 @@ const mapEvents = vi.hoisted(() => ({
   tokenGetter: undefined as TokenGetter | undefined,
   deferReady: false,
   sourceAdd: vi.fn(),
+  setCamera: vi.fn(),
   waypointClusterLeaves: vi.fn(() =>
     Promise.resolve([
       { getProperties: () => ({ label: 'Clustered waypoint', award: 'Bronze', waypointId: 'waypoint-1' }) },
@@ -113,6 +114,7 @@ vi.mock('azure-maps-control', () => ({
     getCamera = vi.fn(() => ({ zoom: 8 }))
     dispose = vi.fn()
     resize = mapEvents.resize
+    setCamera = mapEvents.setCamera
   },
   Popup: class {
     setOptions = vi.fn((options: { content?: HTMLElement }) => {
@@ -144,6 +146,7 @@ vi.mock('azure-maps-control', () => ({
         this.id = id
       }
     },
+    LineLayer: class {},
   },
   data: {
     Feature: class {
@@ -152,6 +155,13 @@ vi.mock('azure-maps-control', () => ({
     Point: class {
       constructor(..._args: unknown[]) {}
     },
+    LineString: class {
+      coordinates: number[][]
+      constructor(coordinates: number[][]) {
+        this.coordinates = coordinates
+      }
+    },
+    BoundingBox: { fromPositions: vi.fn((positions: number[][]) => positions) },
   },
 }))
 
@@ -172,6 +182,7 @@ describe('MapPage', () => {
     mapEvents.tokenGetter = undefined
     mapEvents.deferReady = false
     mapEvents.sourceAdd.mockClear()
+    mapEvents.setCamera.mockClear()
     mapEvents.waypointClusterLeaves.mockClear()
     mapEvents.activityClusterLeaves.mockClear()
     mapEvents.resize.mockClear()
@@ -410,6 +421,7 @@ describe('MapPage', () => {
       createdAt: '2026-08-10T00:00:00.000Z',
       updatedAt: '2026-08-10T00:00:00.000Z',
     })
+
     data.activities.push({
       activityId: 'postcode-activity',
       ideaIds: [],
@@ -445,6 +457,54 @@ describe('MapPage', () => {
     expect(screen.queryByText(/Bronze:/)).not.toBeInTheDocument()
     expect(screen.queryByText(/NOT STARTED|GOLD|SILVER|BRONZE/)).not.toBeInTheDocument()
     expect(screen.getByText(/1 waypoint and 1 activity have no coordinates/)).toBeInTheDocument()
+  })
+
+  it('opens an attached track from the activity detail link and draws every segment', async () => {
+    const data = createDefaultData()
+    data.activities.push({
+      activityId: 'walk',
+      ideaIds: [],
+      date: '2026-08-10',
+      location: { kind: 'postcode', postcode: 'GL3 4AA' },
+      track: {
+        name: 'walk.gpx',
+        segments: [
+          [
+            [-2, 51],
+            [-3, 52],
+          ],
+          [
+            [-4, 53],
+            [-5, 54],
+          ],
+        ],
+      },
+      notes: '',
+      referenceIds: [],
+      photoReferenceIds: [],
+      createdAt: '2026-08-10T00:00:00.000Z',
+      updatedAt: '2026-08-10T00:00:00.000Z',
+    })
+    localStorage.setItem('waypoints-v1', JSON.stringify(data))
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(jsonResponse({ token: 'entra', expiresOn: '2026-01-01', clientId: 'maps-client-id' })),
+    )
+    render(
+      <MemoryRouter initialEntries={['/map?track=walk']}>
+        <WaypointsProvider>
+          <MapPage />
+        </WaypointsProvider>
+      </MemoryRouter>,
+    )
+    expect(screen.getByText('Recorded GPX track: walk.gpx')).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: 'Activities' })).toHaveAttribute('aria-selected', 'true')
+    await waitFor(() => expect(mapEvents.setCamera).toHaveBeenCalled())
+    expect(
+      mapEvents.sourceAdd.mock.calls.some(
+        ([input]) => Array.isArray(input) && input.length === 2 && input[0]?.coordinates?.[0]?.[0] === -2,
+      ),
+    ).toBe(true)
   })
 
   it('uses fallback names without promoting dates to primary map list labels', async () => {
