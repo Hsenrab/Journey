@@ -124,7 +124,7 @@ export default function ChallengeDetails() {
                 onChange={(event) => void selectFile(event.target.files?.[0])}
               />
             </Button>
-            {(challenge.plannedRoute || draftRoute) && (
+{displayedRoute && (
               <Button color="error" onClick={() => setDraftRoute(null)}>
                 Remove route
               </Button>
