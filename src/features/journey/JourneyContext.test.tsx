@@ -170,6 +170,37 @@ describe('WaypointsContext', () => {
     expect(result.current.data.references.some((reference) => reference.title === 'Updated')).toBe(false)
   })
 
+  it('preserves an existing recorded track when editing other Activity fields', () => {
+    const data = createDefaultData()
+    const recordedTrack = {
+      segments: [
+        {
+          points: [
+            { latitude: 51, longitude: -2 },
+            { latitude: 51.1, longitude: -2.1 },
+          ],
+        },
+      ],
+    }
+    const tracked = createActivity({
+      activityId: 'tracked-activity',
+      waypointId: lacockId,
+      ideaIds: [],
+      date: '2026-08-01',
+      category: 'silver',
+      location: { kind: 'postcode', postcode: 'SN15 2LG' },
+      recordedTrack,
+    })
+    save({ ...data, activities: [tracked] })
+    const { result } = renderHook(() => useWaypoints(), { wrapper: WaypointsProvider })
+
+    act(() => {
+      result.current.updateActivity(tracked.activityId, { ...draft, notes: 'Updated notes' })
+    })
+
+    expect(result.current.data.activities[0]?.recordedTrack).toEqual(recordedTrack)
+  })
+
   it('throws when used outside of a provider', () => {
     expect(() => renderHook(() => useWaypoints())).toThrow('useWaypoints must be used inside WaypointsProvider')
   })

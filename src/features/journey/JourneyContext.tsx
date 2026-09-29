@@ -366,6 +366,7 @@ function reducer(data: WaypointsData, action: Action): WaypointsData {
           date: action.input.date,
           category: action.input.waypointId ? action.input.category : undefined,
           location: action.input.location,
+          recordedTrack: existing.recordedTrack,
           notes: action.input.notes,
           referenceIds: refs.referenceIds,
           photoReferenceIds: photos.photoReferenceIds,

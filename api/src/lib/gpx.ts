@@ -41,5 +41,3 @@ export const GpxGeometrySchema = z
       })
     }
   })
-
-export type GpxGeometry = z.infer<typeof GpxGeometrySchema>

@@ -69,6 +69,86 @@ describe('Journey document validation', () => {
     ).toBe(true)
   })
 
+  it('accepts persisted planned routes and recorded tracks while retaining GPX-free legacy documents', () => {
+    const geometry = {
+      segments: [
+        {
+          points: [
+            { latitude: 51, longitude: -2 },
+            { latitude: 51.1, longitude: -2.1 },
+          ],
+        },
+      ],
+    }
+    expect(
+      JourneyDocumentSchema.safeParse({
+        id: 'challenge-1',
+        datasetId: 'production',
+        type: 'challenge',
+        schemaVersion: 2,
+        entity: {
+          challengeId: 'challenge-1',
+          title: 'Challenge',
+          description: 'Description',
+          waypointIds: [],
+          supportsActivityCategories: false,
+          plannedRoute: geometry,
+        },
+      }).success,
+    ).toBe(true)
+    expect(
+      JourneyDocumentSchema.safeParse({
+        id: 'activity-1',
+        datasetId: 'production',
+        type: 'activity',
+        schemaVersion: 4,
+        entity: {
+          activityId: 'activity-1',
+          ideaIds: [],
+          date: '2026-09-04',
+          location: { kind: 'coordinates', latitude: 51, longitude: -2 },
+          recordedTrack: geometry,
+          notes: '',
+          referenceIds: [],
+          photoReferenceIds: [],
+          createdAt: '2026-09-04T00:00:00.000Z',
+          updatedAt: '2026-09-04T00:00:00.000Z',
+        },
+      }).success,
+    ).toBe(true)
+    expect(
+      JourneyDocumentSchema.safeParse({
+        id: 'challenge-1',
+        datasetId: 'production',
+        type: 'challenge',
+        schemaVersion: 1,
+        entity: {
+          challengeId: 'challenge-1',
+          title: 'Challenge',
+          description: 'Description',
+          waypointIds: [],
+          supportsActivityCategories: false,
+        },
+      }).success,
+    ).toBe(true)
+    expect(
+      JourneyDocumentSchema.safeParse({
+        id: 'challenge-1',
+        datasetId: 'production',
+        type: 'challenge',
+        schemaVersion: 1,
+        entity: {
+          challengeId: 'challenge-1',
+          title: 'Challenge',
+          description: 'Description',
+          waypointIds: [],
+          supportsActivityCategories: false,
+          plannedRoute: geometry,
+        },
+      }).success,
+    ).toBe(false)
+  })
+
   it('rejects malformed persisted entities', () => {
     expect(
       JourneyDocumentSchema.safeParse({

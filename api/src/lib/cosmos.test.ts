@@ -39,7 +39,7 @@ const data: JourneyData = {
 describe('Cosmos Journey persistence', () => {
   it('converts a complete dataset to typed documents and back', () => {
     const documents = documentsFor('dataset', data)
-    expect(documents['activity-1']).toMatchObject({ type: 'activity', schemaVersion: 3 })
+    expect(documents['activity-1']).toMatchObject({ type: 'activity', schemaVersion: 4 })
     expect(documents['idea-1']).toMatchObject({ type: 'idea', schemaVersion: 2 })
     expect(documentsToData(Object.values(documents))).toEqual(data)
   })

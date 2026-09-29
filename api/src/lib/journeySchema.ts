@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { GpxGeometrySchema } from './gpx.js'
 
 const entityTypes = ['waypoint', 'challenge', 'idea', 'activity', 'reference', 'photoReference'] as const
 export const EntityTypeSchema = z.enum(entityTypes)
@@ -51,6 +52,7 @@ const schemas = {
       waypointIds: z.array(identifier),
       supportsActivityCategories: z.boolean(),
       location: place.optional(),
+      plannedRoute: GpxGeometrySchema.optional(),
     })
     .strict(),
   idea: z
@@ -93,6 +95,7 @@ const schemas = {
       date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
       category: z.enum(['bronze', 'silver', 'gold']).optional(),
       location: activityLocation,
+      recordedTrack: GpxGeometrySchema.optional(),
       notes: z.string(),
       referenceIds: z.array(identifier),
       photoReferenceIds: z.array(identifier),
@@ -116,12 +119,14 @@ const schemas = {
 
 export const schemaVersions = {
   waypoint: 2,
-  challenge: 1,
+  challenge: 2,
   idea: 2,
-  activity: 3,
+  activity: 4,
   reference: 1,
   photoReference: 1,
 } as const satisfies Record<EntityType, number>
+
+const legacySchemaVersions: Partial<Record<EntityType, number>> = { challenge: 1, activity: 3 }
 
 export const JourneyDocumentSchema = z
   .object({
@@ -134,11 +139,22 @@ export const JourneyDocumentSchema = z
   .strict()
   .superRefine((document, context) => {
     const expected = schemaVersions[document.type]
-    if (document.schemaVersion !== expected)
+    const legacyVersion = legacySchemaVersions[document.type]
+    if (document.schemaVersion !== expected && document.schemaVersion !== legacyVersion)
       context.addIssue({
         code: 'custom',
         path: ['schemaVersion'],
         message: `Document type "${document.type}" requires schema version ${expected}, received ${document.schemaVersion}.`,
+      })
+    if (
+      document.schemaVersion === legacyVersion &&
+      ((document.type === 'challenge' && 'plannedRoute' in document.entity) ||
+        (document.type === 'activity' && 'recordedTrack' in document.entity))
+    )
+      context.addIssue({
+        code: 'custom',
+        path: ['schemaVersion'],
+        message: `Document type "${document.type}" requires schema version ${expected} for GPX geometry.`,
       })
     const parsed = schemas[document.type].safeParse(document.entity)
     if (!parsed.success)

@@ -13,12 +13,12 @@ Cosmos stores one document per entity. Every document contains `id`, `datasetId`
 validated `WaypointsData` response. Cosmos ETags are kept in application memory and
 are not included in JSON exports.
 
-Each document type declares its own schema version (`activity` is version 3, `idea`
-and `waypoint` are version 2, and the other types are version 1). A document whose
-version or entity shape does not match the current schema fails validation with its
-specific error. There is no
-migration, compatibility parser, or fallback for obsolete documents; production data
-may be deleted and recreated instead.
+Each document type declares its own schema version (`activity` is version 4, `challenge`,
+`idea` and `waypoint` are version 2, and the other types are version 1). GPX-free
+activity version 3 and challenge version 1 documents remain valid; GPX geometry requires
+the current version. Any other version or entity shape mismatch fails validation with
+its specific error. There is no migration or fallback for obsolete documents;
+production data may be deleted and recreated instead.
 
 `src/data/demo.json` is the canonical demo fixture. Demo local loads it directly in the
 browser and is always read-only. The deployment workflow also reseeds the Cosmos `demo`
