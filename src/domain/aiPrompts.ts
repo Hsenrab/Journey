@@ -191,4 +191,4 @@ Example 2 — count-based waypoint with minimal detail:
   "photoReferences": []
 }
 
-Now, using the source material I provide below (or that I paste after this prompt), produce a single JSON object in this exact shape.`
+After I provide the source material, produce exactly one JSON object in this shape.`
