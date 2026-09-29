@@ -5,6 +5,7 @@ import type { PlannedRoute, Waypoint } from '../domain/visit'
 const mapState = vi.hoisted(() => ({
   layerIds: [] as string[],
   sourceFeatures: new Map<string, unknown[]>(),
+  cameraOptions: [] as unknown[],
 }))
 
 vi.mock('azure-maps-control', () => {
@@ -33,6 +34,9 @@ vi.mock('azure-maps-control', () => {
           mapState.layerIds = layers.map((layer) => layer.id)
         },
       }
+      setCamera = (options: unknown) => {
+        mapState.cameraOptions.push(options)
+      }
       dispose = vi.fn()
     },
     source: { DataSource },
@@ -58,6 +62,9 @@ vi.mock('azure-maps-control', () => {
           this.coordinates = coordinates
         }
       },
+      BoundingBox: {
+        fromPositions: (positions: unknown[]) => ({ positions }),
+      },
     },
   }
 })
@@ -72,6 +79,10 @@ const route: PlannedRoute = {
       [
         [-2.1, 51.1],
         [-2.2, 51.2],
+      ],
+      [
+        [1, 54],
+        [1.1, 54.1],
       ],
     ],
   },
@@ -93,6 +104,7 @@ describe('ChallengeRouteMap', () => {
   beforeEach(() => {
     mapState.layerIds = []
     mapState.sourceFeatures.clear()
+    mapState.cameraOptions = []
     vi.stubGlobal(
       'fetch',
       vi.fn().mockResolvedValue(
@@ -116,7 +128,27 @@ describe('ChallengeRouteMap', () => {
         'challenge-waypoint-labels',
       ]),
     )
-    expect(mapState.sourceFeatures.get('challenge-route')).toHaveLength(1)
+    expect(mapState.sourceFeatures.get('challenge-route')).toHaveLength(2)
     expect(mapState.sourceFeatures.get('challenge-waypoints')).toHaveLength(1)
+    expect(mapState.cameraOptions).toEqual([
+      {
+        bounds: {
+          positions: [
+            [-2.1, 51.1],
+            [-2.2, 51.2],
+            [1, 54],
+            [1.1, 54.1],
+            [-2.15, 51.15],
+          ],
+        },
+        padding: 40,
+      },
+    ])
+  })
+
+  it('centers the map when there is only one located waypoint', async () => {
+    render(<ChallengeRouteMap waypoints={[waypoint]} />)
+
+    await waitFor(() => expect(mapState.cameraOptions).toEqual([{ center: [-2.15, 51.15], zoom: 9 }]))
   })
 })

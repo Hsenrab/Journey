@@ -50,10 +50,8 @@ export function ChallengeRouteMap({
   useEffect(() => {
     if (!token || !container.current || map.current) return
     let initialToken: string | undefined = token.token
-    const firstRoutePosition = plannedRoute?.geometry.coordinates[0]?.[0]
-    const firstWaypoint = locatedWaypoints[0]?.location
     const instance = new atlas.Map(container.current, {
-      center: firstRoutePosition ?? [firstWaypoint?.longitude ?? -2.16, firstWaypoint?.latitude ?? 51.85],
+      center: [-2.16, 51.85],
       zoom: 9,
       authOptions: {
         authType: atlas.AuthenticationType.anonymous,
@@ -108,6 +106,18 @@ export function ChallengeRouteMap({
           },
         }),
       ])
+      const positions = [
+        ...(plannedRoute?.geometry.coordinates.flat() ?? []),
+        ...locatedWaypoints.map((waypoint) => [waypoint.location!.longitude!, waypoint.location!.latitude!]),
+      ]
+      if (positions.length > 1) {
+        instance.setCamera({
+          bounds: atlas.data.BoundingBox.fromPositions(positions),
+          padding: 40,
+        })
+      } else if (positions.length === 1) {
+        instance.setCamera({ center: positions[0], zoom: 9 })
+      }
     })
     return () => {
       instance.dispose()
