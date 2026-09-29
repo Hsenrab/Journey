@@ -27,9 +27,9 @@ describe('GPX geometry schema', () => {
     expect(GpxGeometrySchema.safeParse({ segments: [{ points: [{ latitude: 91, longitude: 0 }] }] }).success).toBe(
       false,
     )
-    expect(
-      GpxGeometrySchema.safeParse({ segments: [{ points: [{ latitude: 51, longitude: 0 }] }] }).success,
-    ).toBe(false)
+    expect(GpxGeometrySchema.safeParse({ segments: [{ points: [{ latitude: 51, longitude: 0 }] }] }).success).toBe(
+      false,
+    )
     expect(GpxGeometrySchema.safeParse({ ...geometry, raw: '<gpx />' }).success).toBe(false)
   })
 })

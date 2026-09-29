@@ -13,9 +13,7 @@ const GpxPointSchema = z
   })
   .strict()
 
-const GpxSegmentSchema = z
-  .object({ points: z.array(GpxPointSchema).min(2).max(MAX_GPX_POINTS) })
-  .strict()
+const GpxSegmentSchema = z.object({ points: z.array(GpxPointSchema).min(2).max(MAX_GPX_POINTS) }).strict()
 
 export const GpxGeometrySchema = z
   .object({ segments: z.array(GpxSegmentSchema).min(1).max(MAX_GPX_SEGMENTS) })

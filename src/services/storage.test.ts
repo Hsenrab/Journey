@@ -20,7 +20,16 @@ const activity: Activity = {
   date: '2026-08-01',
   category: 'silver',
   location: { kind: 'postcode', postcode: 'GL1 1AA' },
-  recordedTrack: { segments: [{ points: [{ latitude: 51, longitude: -2 }, { latitude: 51.1, longitude: -2.1 }] }] },
+  recordedTrack: {
+    segments: [
+      {
+        points: [
+          { latitude: 51, longitude: -2 },
+          { latitude: 51.1, longitude: -2.1 },
+        ],
+      },
+    ],
+  },
   notes: 'Great day',
   referenceIds: [],
   photoReferenceIds: [],
@@ -107,7 +116,16 @@ describe('createBackup/parseImport', () => {
       challenges: [
         {
           ...createDefaultData().challenges[0]!,
-          plannedRoute: { segments: [{ points: [{ latitude: 51, longitude: -2 }, { latitude: 51.1, longitude: -2.1 }] }] },
+          plannedRoute: {
+            segments: [
+              {
+                points: [
+                  { latitude: 51, longitude: -2 },
+                  { latitude: 51.1, longitude: -2.1 },
+                ],
+              },
+            ],
+          },
         },
       ],
       activities: [activity],

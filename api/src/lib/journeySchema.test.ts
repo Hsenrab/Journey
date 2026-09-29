@@ -80,7 +80,16 @@ describe('Journey document validation', () => {
         ideaIds: [],
         date: '2026-09-04',
         location: { kind: 'coordinates', latitude: 51, longitude: -2 },
-        recordedTrack: { segments: [{ points: [{ latitude: 51, longitude: -2 }, { latitude: 51.1, longitude: -2.1 }] }] },
+        recordedTrack: {
+          segments: [
+            {
+              points: [
+                { latitude: 51, longitude: -2 },
+                { latitude: 51.1, longitude: -2.1 },
+              ],
+            },
+          ],
+        },
         notes: '',
         referenceIds: [],
         photoReferenceIds: [],
@@ -99,7 +108,16 @@ describe('Journey document validation', () => {
           activityId: 'activity-1',
           ideaIds: [],
           date: '2026-09-04',
-          recordedTrack: { segments: [{ points: [{ latitude: 51, longitude: -2 }, { latitude: 51.1, longitude: -2.1 }] }] },
+          recordedTrack: {
+            segments: [
+              {
+                points: [
+                  { latitude: 51, longitude: -2 },
+                  { latitude: 51.1, longitude: -2.1 },
+                ],
+              },
+            ],
+          },
           notes: '',
           referenceIds: [],
           photoReferenceIds: [],

@@ -5,8 +5,18 @@ describe('GPX geometry schema', () => {
   it('accepts multiple segments without flattening them', () => {
     const geometry = {
       segments: [
-        { points: [{ latitude: 51, longitude: -2 }, { latitude: 51.1, longitude: -2.1 }] },
-        { points: [{ latitude: 52, longitude: -3 }, { latitude: 52.1, longitude: -3.1 }] },
+        {
+          points: [
+            { latitude: 51, longitude: -2 },
+            { latitude: 51.1, longitude: -2.1 },
+          ],
+        },
+        {
+          points: [
+            { latitude: 52, longitude: -3 },
+            { latitude: 52.1, longitude: -3.1 },
+          ],
+        },
       ],
     }
     expect(GpxGeometrySchema.parse(geometry)).toEqual(geometry)
