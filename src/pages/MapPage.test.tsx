@@ -469,6 +469,7 @@ describe('MapPage', () => {
   })
 
   it('adds planned and recorded routes to the map and exposes their names', async () => {
+    setViewport(400)
     const data = createDefaultData()
     data.challenges = [
       {
@@ -519,17 +520,27 @@ describe('MapPage', () => {
       </MemoryRouter>,
     )
 
-    expect(await screen.findByRole('region', { name: 'Map routes' })).toBeInTheDocument()
+    expect(await screen.findByRole('region', { name: 'Map routes' })).toBeVisible()
     expect(screen.getByText('Planned route: Canal challenge')).toBeInTheDocument()
     expect(screen.getByText('Recorded track: Canal loop')).toBeInTheDocument()
     await waitFor(() =>
       expect(mapEvents.routeAdd).toHaveBeenCalledWith([
         expect.objectContaining({
-          geometry: expect.objectContaining({ coordinates: [[-2.1, 51.8], [-2.2, 51.9]] }),
+          geometry: expect.objectContaining({
+            coordinates: [
+              [-2.1, 51.8],
+              [-2.2, 51.9],
+            ],
+          }),
           properties: { kind: 'planned', label: 'Planned route: Canal challenge' },
         }),
         expect.objectContaining({
-          geometry: expect.objectContaining({ coordinates: [[-2.11, 51.81], [-2.21, 51.91]] }),
+          geometry: expect.objectContaining({
+            coordinates: [
+              [-2.11, 51.81],
+              [-2.21, 51.91],
+            ],
+          }),
           properties: { kind: 'recorded', label: 'Recorded track: Canal loop' },
         }),
       ]),

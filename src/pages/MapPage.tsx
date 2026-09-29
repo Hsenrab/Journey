@@ -872,6 +872,23 @@ export default function MapPage() {
               <ToggleButton value="list">List</ToggleButton>
             </ToggleButtonGroup>
           )}
+          {routeLegend.length > 0 && (
+            <Stack component="section" aria-label="Map routes" spacing={0.5}>
+              <Typography variant="subtitle2">Routes</Typography>
+              {routeLegend.map((route) => (
+                <Typography key={`${route.kind}-${route.label}`} variant="body2">
+                  <Box
+                    component="span"
+                    aria-hidden="true"
+                    sx={{ color: route.kind === 'planned' ? '#1565c0' : '#c62828' }}
+                  >
+                    {route.kind === 'planned' ? '━' : '╌'}
+                  </Box>{' '}
+                  {route.label}
+                </Typography>
+              ))}
+            </Stack>
+          )}
           <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} sx={{ alignItems: 'stretch' }}>
             <Box
               sx={{
@@ -886,23 +903,6 @@ export default function MapPage() {
               }}
               aria-label={mode === 'waypoints' ? 'Nearest visible waypoints' : 'Nearest activities'}
             >
-              {routeLegend.length > 0 && (
-                <Stack component="section" aria-label="Map routes" spacing={0.5} sx={{ mb: 1.5 }}>
-                  <Typography variant="subtitle2">Routes</Typography>
-                  {routeLegend.map((route) => (
-                    <Typography key={`${route.kind}-${route.label}`} variant="body2">
-                      <Box
-                        component="span"
-                        aria-hidden="true"
-                        sx={{ color: route.kind === 'planned' ? '#1565c0' : '#c62828' }}
-                      >
-                        {route.kind === 'planned' ? '━' : '╌'}
-                      </Box>{' '}
-                      {route.label}
-                    </Typography>
-                  ))}
-                </Stack>
-              )}
               <Stack spacing={0}>
                 {mode === 'waypoints'
                   ? nearby.map(({ waypoint, distanceMiles: miles }) => {
