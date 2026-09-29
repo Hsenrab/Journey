@@ -23,7 +23,8 @@ may be deleted and recreated instead.
 Challenges may optionally contain a validated `plannedRoute` GPX geometry, and
 activities may optionally contain a validated `recordedTrack`. GPX is stored as
 ordered latitude/longitude points and is used only as a visual map overlay; it
-does not affect waypoint completion.
+does not affect waypoint completion. GPX tracks with multiple segments are
+rejected because the current route geometry cannot represent segment boundaries.
 
 `src/data/demo.json` is the canonical demo fixture. Demo local loads it directly in the
 browser and is always read-only. The deployment workflow also reseeds the Cosmos `demo`

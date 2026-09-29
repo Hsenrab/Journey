@@ -24,6 +24,7 @@ export function parseGpx(value: string): GpxRoute {
   const tokenPattern = /<!--[\s\S]*?-->|<\?[\s\S]*?\?>|<!\[CDATA\[[\s\S]*?\]\]>|<\/?[^>]+>/g
   let position = 0
   let root: string | undefined
+  let trackSegments = 0
   for (const match of source.matchAll(tokenPattern)) {
     const token = match[0]
     const text = source.slice(position, match.index)
@@ -46,6 +47,9 @@ export function parseGpx(value: string): GpxRoute {
     if (!opening) throw new Error('GPX is not valid XML.')
     const name = opening[1]!
     const attributes = opening[2]!.trim().replace(/\/$/, '').trim()
+    if (name === 'trkseg' && ++trackSegments > 1) {
+      throw new Error('GPX tracks with multiple segments are not supported.')
+    }
     if (!root) {
       root = name
       if (name.toLowerCase() !== 'gpx') throw new Error('GPX is not valid XML.')
@@ -64,7 +68,12 @@ export function parseGpx(value: string): GpxRoute {
     }
     if (attributes.slice(attributePosition).trim()) throw new Error('GPX is not valid XML.')
     if (name === 'trkpt' || name === 'rtept') {
-      points.push({ latitude: Number(parsedAttributes.lat), longitude: Number(parsedAttributes.lon) })
+      const latitude = parsedAttributes.lat
+      const longitude = parsedAttributes.lon
+      if (!latitude?.trim() || !longitude?.trim()) {
+        throw new Error('GPX coordinates must not be blank.')
+      }
+      points.push({ latitude: Number(latitude), longitude: Number(longitude) })
     }
     if (opening[3] !== '/') stack.push(name)
   }

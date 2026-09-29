@@ -33,6 +33,11 @@ function routeBounds(routes: Array<GpxRoute | undefined>): GpxPoint[] {
   return routes.flatMap((route) => route?.points ?? [])
 }
 
+function waypointPoint(location: { latitude?: number; longitude?: number } | undefined): GpxPoint | undefined {
+  if (typeof location?.latitude !== 'number' || typeof location.longitude !== 'number') return undefined
+  return { latitude: location.latitude, longitude: location.longitude }
+}
+
 export default function ChallengeDetails() {
   const { challengeId = '' } = useParams()
   const { data, loadState, readOnly, updateChallenge } = useWaypoints()
@@ -46,26 +51,52 @@ export default function ChallengeDetails() {
     () => (challenge ? challengeWaypoints(challenge, data.waypoints) : []),
     [challenge, data.waypoints],
   )
-  const tracks = members.flatMap((waypoint) =>
-    data.activities
-      .filter((activity) => activity.waypointId === waypoint.waypointId && activity.recordedTrack)
-      .map((activity) => ({ activity, route: activity.recordedTrack! })),
+  const tracks = useMemo(
+    () =>
+      members.flatMap((waypoint) =>
+        data.activities
+          .filter((activity) => activity.waypointId === waypoint.waypointId && activity.recordedTrack)
+          .map((activity) => ({ activity, route: activity.recordedTrack! })),
+      ),
+    [data.activities, members],
+  )
+  const waypointMarkers = useMemo(
+    () =>
+      members.flatMap((waypoint) => {
+        const point = waypointPoint(waypoint.location)
+        return point ? [{ waypoint, point }] : []
+      }),
+    [members],
   )
   const allPoints = useMemo(() => {
-    const routePoints = routeBounds([challenge?.plannedRoute, ...tracks.map((track) => track.route)])
-    const waypointPoints = members.flatMap((waypoint) =>
-      typeof waypoint.location?.latitude === 'number' && typeof waypoint.location.longitude === 'number'
-        ? [{ latitude: waypoint.location.latitude, longitude: waypoint.location.longitude }]
-        : [],
-    )
-    return [...routePoints, ...waypointPoints]
-  }, [challenge?.plannedRoute, members, tracks])
+    const visibleRoutes = [
+      ...(showPlanned ? [challenge?.plannedRoute] : []),
+      ...(showRecorded ? tracks.map((track) => track.route) : []),
+    ]
+    return [...routeBounds(visibleRoutes), ...waypointMarkers.map(({ point }) => point)]
+  }, [challenge?.plannedRoute, showPlanned, showRecorded, tracks, waypointMarkers])
   const projectPoint = useMemo(() => (allPoints.length > 0 ? createPointProjector(allPoints) : undefined), [allPoints])
 
   if (loadState.status === 'loading') return <LoadingNotice message="Loading challenge…" />
   if (loadState.status === 'failed')
     return <LoadFailureAlert message={loadState.message} description="Challenge data could not be loaded." />
   if (!challenge) return <Alert severity="error">Challenge not found.</Alert>
+
+  const visibleFeatures = [
+    ...(showPlanned && challenge.plannedRoute
+      ? [{ key: `planned:${challenge.challengeId}`, label: 'Planned route' }]
+      : []),
+    ...(showRecorded
+      ? tracks.map(({ activity }) => ({
+          key: `recorded:${activity.activityId}`,
+          label: `Recorded track: ${activity.name ?? activity.date}`,
+        }))
+      : []),
+    ...waypointMarkers.map(({ waypoint }) => ({
+      key: `waypoint:${waypoint.waypointId}`,
+      label: `Waypoint: ${waypoint.title}`,
+    })),
+  ]
 
   const saveRoute = async () => {
     try {
@@ -123,13 +154,8 @@ export default function ChallengeDetails() {
                 aria-label={`Recorded track: ${activity.name ?? activity.date}`}
               />
             ))}
-          {members.map((waypoint) => {
-            if (typeof waypoint.location?.latitude !== 'number' || typeof waypoint.location.longitude !== 'number')
-              return null
-            const [cx, cy] = projectPoint({
-              latitude: waypoint.location.latitude,
-              longitude: waypoint.location.longitude,
-            }).split(',')
+          {waypointMarkers.map(({ waypoint, point }) => {
+            const [cx, cy] = projectPoint(point).split(',')
             return (
               <circle
                 key={waypoint.waypointId}
@@ -143,7 +169,19 @@ export default function ChallengeDetails() {
           })}
         </Box>
       ) : (
-        <Typography color="text.secondary">No GPX routes or recorded tracks are available.</Typography>
+        <Typography color="text.secondary">No visible routes, tracks, or waypoint locations.</Typography>
+      )}
+      {visibleFeatures.length > 0 && (
+        <Stack component="section" aria-label="Visible map features" spacing={0.5}>
+          <Typography variant="subtitle2">Visible map features</Typography>
+          <Box component="ul" sx={{ m: 0, pl: 3 }}>
+            {visibleFeatures.map((feature) => (
+              <Typography component="li" key={feature.key} variant="body2">
+                {feature.label}
+              </Typography>
+            ))}
+          </Box>
+        </Stack>
       )}
       <Stack spacing={1}>
         <Typography variant="h5">Waypoints</Typography>

@@ -46,4 +46,17 @@ describe('parseGpx', () => {
     expect(() => parseGpx('text<gpx><trkpt lat="51" lon="-2"/><trkpt lat="52" lon="-3"/></gpx>')).toThrow()
     expect(() => parseGpx('<gpx><trkpt lat="51" lon="-2"/><trkpt lat="52" lon="-3"/></gpx>text')).toThrow()
   })
+
+  it('rejects tracks with multiple segments', () => {
+    expect(() =>
+      parseGpx(
+        '<gpx><trk><trkseg><trkpt lat="51" lon="-2"/></trkseg><trkseg><trkpt lat="52" lon="-3"/></trkseg></trk></gpx>',
+      ),
+    ).toThrow('GPX tracks with multiple segments are not supported.')
+  })
+
+  it('rejects blank point coordinates', () => {
+    expect(() => parseGpx('<gpx><rtept lat="" lon="-2"/><rtept lat="52" lon="-3"/></gpx>')).toThrow()
+    expect(() => parseGpx('<gpx><rtept lat="51" lon="  "/><rtept lat="52" lon="-3"/></gpx>')).toThrow()
+  })
 })
