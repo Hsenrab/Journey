@@ -103,6 +103,14 @@ describe('parseGpx', () => {
     expect(() => parseGpx(`<gpx><rte>${points}</rte></gpx>`)).toThrow(`${MAX_GPX_POINT_COUNT}-point limit`)
   })
 
+  it('does not count extension or vendor point-like elements toward the point limit', () => {
+    const extensionPoints = '<rtept lat="1" lon="2"/>'.repeat(MAX_GPX_POINT_COUNT / 2)
+    const vendorPoints = '<ext:trkpt lat="1" lon="2"/>'.repeat(MAX_GPX_POINT_COUNT / 2)
+    const xml = `<gpx xmlns="http://www.topografix.com/GPX/1/1" xmlns:ext="urn:vendor"><extensions>${extensionPoints}${vendorPoints}</extensions><rte><rtept lat="1" lon="2"/><rtept lat="3" lon="4"/></rte></gpx>`
+
+    expect(parseGpx(xml).pointCount).toBe(2)
+  })
+
   it('ignores markup-like text in processing instructions', () => {
     const points = '<rtept lat="1" lon="2"/>'.repeat(MAX_GPX_POINT_COUNT + 1)
     const xml = `<?note <!DOCTYPE gpx> ${points} ?><gpx><rte><rtept lat="1" lon="2"/><rtept lat="3" lon="4"/></rte></gpx>`

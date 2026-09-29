@@ -43,9 +43,26 @@ function parsePoint(element: Element, pointNumber: number): GpxPoint {
   return { latitude, longitude }
 }
 
+interface XmlElementFrame {
+  namespaceURI: string
+  kind: 'gpx' | 'route' | 'track' | 'track-segment' | 'other'
+  namespaceChanges: Map<string, string | undefined>
+}
+
 function scanXmlBeforeParsing(xml: string): boolean {
   let count = 0
   let index = 0
+  const namespaces = new Map<string, string>()
+  const elements: XmlElementFrame[] = []
+
+  const popElement = () => {
+    const element = elements.pop()
+    if (!element) return
+    for (const [prefix, previousValue] of element.namespaceChanges) {
+      if (previousValue === undefined) namespaces.delete(prefix)
+      else namespaces.set(prefix, previousValue)
+    }
+  }
 
   while (index < xml.length) {
     if (xml[index] !== '<') {
@@ -76,34 +93,82 @@ function scanXmlBeforeParsing(xml: string): boolean {
     }
     if (xml[index + 1] === '/') {
       index += 2
+      while (index < xml.length && xml[index] !== '>') index += 1
+      if (index < xml.length) index += 1
+      popElement()
       continue
     }
 
     let nameEnd = index + 1
     while (nameEnd < xml.length && !/[\s/>]/.test(xml[nameEnd])) nameEnd += 1
-    const localName = xml
-      .slice(index + 1, nameEnd)
-      .split(':')
-      .at(-1)
-    if (localName === 'trkpt' || localName === 'rtept') {
+    const name = xml.slice(index + 1, nameEnd)
+    const localName = name.split(':').at(-1)
+    const namespaceDeclarations = new Map<string, string>()
+    let selfClosing = false
+    index = nameEnd
+    while (index < xml.length) {
+      while (/\s/.test(xml[index] ?? '') && index < xml.length) index += 1
+      if (xml[index] === '>') {
+        index += 1
+        break
+      }
+      if (xml[index] === '/') {
+        selfClosing = true
+        index += 1
+        while (/\s/.test(xml[index] ?? '') && index < xml.length) index += 1
+        if (xml[index] === '>') index += 1
+        break
+      }
+
+      const attributeStart = index
+      while (index < xml.length && !/[\s=/>]/.test(xml[index])) index += 1
+      if (index === attributeStart) {
+        index += 1
+        continue
+      }
+      const attributeName = xml.slice(attributeStart, index)
+      while (/\s/.test(xml[index] ?? '') && index < xml.length) index += 1
+      if (xml[index] !== '=') continue
+      index += 1
+      while (/\s/.test(xml[index] ?? '') && index < xml.length) index += 1
+      const quote = xml[index]
+      if (quote !== '"' && quote !== "'") continue
+      const valueStart = ++index
+      while (index < xml.length && xml[index] !== quote) index += 1
+      const value = xml.slice(valueStart, index)
+      if (attributeName === 'xmlns') namespaceDeclarations.set('', value)
+      else if (attributeName.startsWith('xmlns:')) namespaceDeclarations.set(attributeName.slice(6), value)
+      if (index < xml.length) index += 1
+    }
+
+    const namespaceChanges = new Map<string, string | undefined>()
+    for (const [prefix, value] of namespaceDeclarations) {
+      if (!namespaceChanges.has(prefix)) namespaceChanges.set(prefix, namespaces.get(prefix))
+      namespaces.set(prefix, value)
+    }
+    const prefix = name.includes(':') ? name.slice(0, name.indexOf(':')) : ''
+    const namespaceURI = namespaces.get(prefix) ?? ''
+    const parent = elements.at(-1)
+    const kind: XmlElementFrame['kind'] =
+      elements.length === 0 && localName === 'gpx' && GPX_NAMESPACES.has(namespaceURI)
+        ? 'gpx'
+        : parent?.namespaceURI === namespaceURI && parent.kind === 'gpx' && localName === 'rte'
+          ? 'route'
+          : parent?.namespaceURI === namespaceURI && parent.kind === 'gpx' && localName === 'trk'
+            ? 'track'
+            : parent?.namespaceURI === namespaceURI && parent.kind === 'track' && localName === 'trkseg'
+              ? 'track-segment'
+              : 'other'
+    if (
+      namespaceURI === parent?.namespaceURI &&
+      ((parent.kind === 'route' && localName === 'rtept') || (parent.kind === 'track-segment' && localName === 'trkpt'))
+    ) {
       count += 1
       if (count > MAX_GPX_POINT_COUNT) return true
     }
 
-    let quote: string | undefined
-    index = nameEnd
-    while (index < xml.length) {
-      const character = xml[index]
-      if (quote) {
-        if (character === quote) quote = undefined
-      } else if (character === '"' || character === "'") {
-        quote = character
-      } else if (character === '>') {
-        index += 1
-        break
-      }
-      index += 1
-    }
+    elements.push({ namespaceURI, kind, namespaceChanges })
+    if (selfClosing) popElement()
   }
   return false
 }
