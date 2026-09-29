@@ -45,6 +45,7 @@ import {
   type Status,
   type WaypointsData,
 } from '../../domain/visit'
+import type { GpxRoute } from '../../domain/gpx'
 
 type AccessRole = JourneyRole | 'local'
 
@@ -65,6 +66,7 @@ export type ActivityDraft = {
   notes: string
   references: DraftReference[]
   photoReferences: DraftPhotoReference[]
+  recordedTrack?: GpxRoute
 }
 
 export type IdeaDraft = {
@@ -93,6 +95,7 @@ export type WaypointDraft = {
 
 type Action =
   | { type: 'add-challenge'; input: Challenge }
+  | { type: 'update-challenge'; challengeId: string; input: Challenge }
   | { type: 'add-waypoint'; input: WaypointDraft }
   | { type: 'update-waypoint'; waypointId: string; input: WaypointDraft }
   | { type: 'delete-waypoint'; waypointId: string }
@@ -114,7 +117,10 @@ type WaypointsValue = {
   loadError?: string
   loadState: JourneyLoadState
   setDataMode: (mode: JourneyDataMode) => Promise<void>
-  addChallenge: (input: Pick<Challenge, 'title' | 'description' | 'supportsActivityCategories'>) => Promise<void>
+  addChallenge: (
+    input: Pick<Challenge, 'title' | 'description' | 'supportsActivityCategories' | 'plannedRoute'>,
+  ) => Promise<void>
+  updateChallenge: (challengeId: string, input: Pick<Challenge, 'plannedRoute'>) => Promise<void>
   addWaypoint: (input: WaypointDraft) => Promise<void>
   updateWaypoint: (waypointId: string, input: WaypointDraft) => Promise<void>
   deleteWaypoint: (waypointId: string) => Promise<void>
@@ -215,6 +221,18 @@ function reducer(data: WaypointsData, action: Action): WaypointsData {
       return action.data
     case 'add-challenge':
       return { ...data, challenges: [...data.challenges, ChallengeSchema.parse(action.input)] }
+    case 'update-challenge': {
+      if (!data.challenges.some((challenge) => challenge.challengeId === action.challengeId))
+        throw new Error('Challenge not found')
+      return {
+        ...data,
+        challenges: data.challenges.map((challenge) =>
+          challenge.challengeId === action.challengeId
+            ? ChallengeSchema.parse({ ...challenge, plannedRoute: action.input.plannedRoute })
+            : challenge,
+        ),
+      }
+    }
     case 'add-waypoint': {
       const refs = upsertReferences(data, action.input.references)
       const photos = upsertPhotoReferences(data, action.input.photoReferences)
@@ -335,6 +353,7 @@ function reducer(data: WaypointsData, action: Action): WaypointsData {
           notes: action.input.notes,
           referenceIds: refs.referenceIds,
           photoReferenceIds: photos.photoReferenceIds,
+          recordedTrack: action.input.recordedTrack,
         }),
       )
 
@@ -369,6 +388,7 @@ function reducer(data: WaypointsData, action: Action): WaypointsData {
           notes: action.input.notes,
           referenceIds: refs.referenceIds,
           photoReferenceIds: photos.photoReferenceIds,
+          recordedTrack: action.input.recordedTrack,
         }),
       )
 
@@ -576,8 +596,16 @@ export function WaypointsProvider({ children }: { children: ReactNode }) {
             description: input.description.trim(),
             waypointIds: [],
             supportsActivityCategories: input.supportsActivityCategories,
+            plannedRoute: input.plannedRoute,
           }),
         }
+        await persist(container, action, reducer(data, action))
+      },
+      updateChallenge: async (challengeId, input) => {
+        const container = writableContainer()
+        const existing = data.challenges.find((challenge) => challenge.challengeId === challengeId)
+        if (!existing) throw new Error('Challenge not found')
+        const action = { type: 'update-challenge' as const, challengeId, input: { ...existing, ...input } }
         await persist(container, action, reducer(data, action))
       },
       addWaypoint: async (input) => {

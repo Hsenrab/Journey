@@ -380,6 +380,7 @@ export default function MapPage() {
   const mapPopup = useRef<atlas.Popup | null>(null)
   const waypointSource = useRef<atlas.source.DataSource | null>(null)
   const activitySource = useRef<atlas.source.DataSource | null>(null)
+  const routeSource = useRef<atlas.source.DataSource | null>(null)
   const [mode, setMode] = useState<MapMode>('waypoints')
   const [statuses, setStatuses] = useState<Status[]>([...statusOrder])
   const [token, setToken] = useState<MapsToken | null>(null)
@@ -463,7 +464,19 @@ export default function MapPage() {
       mapPopup.current = popup
       const waypoints = new atlas.source.DataSource('waypoints', { cluster: true, clusterRadius: 45 })
       const activities = new atlas.source.DataSource('activities', { cluster: true, clusterRadius: 45 })
-      instance.sources.add([waypoints, activities])
+      const routes = new atlas.source.DataSource('routes')
+      instance.sources.add([waypoints, activities, routes])
+      const plannedRouteLayer = new atlas.layer.LineLayer(routes, 'planned-gpx-routes', {
+        filter: ['==', ['get', 'kind'], 'planned'],
+        strokeColor: '#1565c0',
+        strokeWidth: 4,
+      })
+      const recordedRouteLayer = new atlas.layer.LineLayer(routes, 'recorded-gpx-routes', {
+        filter: ['==', ['get', 'kind'], 'recorded'],
+        strokeColor: '#c62828',
+        strokeWidth: 2,
+        strokeDashArray: [2, 2],
+      })
       const waypointLayer = new atlas.layer.SymbolLayer(waypoints, 'waypoints', {
         filter: ['!', ['has', 'point_count']],
         iconOptions: { image: ['get', 'icon'], allowOverlap: true, size: 0.5 },
@@ -513,6 +526,8 @@ export default function MapPage() {
         strokeWidth: 2,
       })
       instance.layers.add([
+        plannedRouteLayer,
+        recordedRouteLayer,
         waypointClusterBubbleLayer,
         activityClusterBubbleLayer,
         waypointLayer,
@@ -600,6 +615,7 @@ export default function MapPage() {
       })
       waypointSource.current = waypoints
       activitySource.current = activities
+      routeSource.current = routes
       setMapReady(true)
     })
     map.current = instance
@@ -608,6 +624,7 @@ export default function MapPage() {
       map.current = null
       waypointSource.current = null
       activitySource.current = null
+      routeSource.current = null
       mapPopup.current = null
       setMapReady(false)
     }
@@ -624,6 +641,39 @@ export default function MapPage() {
   )
   const waypointWithoutCoordinates = data.waypoints.filter((waypoint) => !waypointCoordinates(waypoint)).length
   const activityWithoutCoordinates = data.activities.filter((activity) => !activityCoordinates(activity)).length
+
+  useEffect(() => {
+    const source = routeSource.current
+    if (!source) return
+    source.clear()
+    const routes = [
+      ...data.challenges.flatMap((challenge) =>
+        challenge.plannedRoute
+          ? [{ kind: 'planned', label: `Planned route: ${challenge.title}`, route: challenge.plannedRoute }]
+          : [],
+      ),
+      ...data.activities.flatMap((activity) =>
+        activity.recordedTrack
+          ? [
+              {
+                kind: 'recorded',
+                label: `Recorded track: ${activityDisplayName(activity)}`,
+                route: activity.recordedTrack,
+              },
+            ]
+          : [],
+      ),
+    ]
+    source.add(
+      routes.map(
+        ({ kind, label, route }) =>
+          new atlas.data.Feature(
+            new atlas.data.LineString(route.points.map((point) => [point.longitude, point.latitude])),
+            { kind, label },
+          ),
+      ),
+    )
+  }, [data.activities, data.challenges, mapReady])
 
   useEffect(() => {
     const source = waypointSource.current

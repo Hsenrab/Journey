@@ -16,6 +16,9 @@ Activities can be linked to a waypoint or left unlinked.
 - Fields: date, description/notes, linked waypoint (or no waypoint), optional linked ideas, conditional Bronze/Silver/Gold category, location, references, and external photo references.
 - Location is explicit: **Postcode** or **Latitude and longitude**.
 - Category is shown only when the selected waypoint belongs to at least one challenge with `supportsActivityCategories: true`.
+- Activities may optionally include a GPX recording. The required activity
+  location remains independent of the track, and tracks are displayed only as
+  challenge-map overlays.
 - If category eligibility is lost after changing waypoint, the category is cleared before save.
 - Idea selections are independent from waypoint selection. Changing or clearing waypoint does not clear selected ideas.
 - Invalid input keeps entered values and shows field-level messages.

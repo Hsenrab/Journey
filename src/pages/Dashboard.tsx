@@ -31,6 +31,8 @@ import {
 } from '../domain/visit'
 import { useWaypoints } from '../features/journey/JourneyContext'
 import { JourneyConflictError } from '../services/journeyApi'
+import { parseGpx } from '../domain/gpx'
+import { Link } from 'react-router-dom'
 
 export default function Dashboard() {
   const { addChallenge, data, loadState, readOnly, reload } = useWaypoints()
@@ -39,6 +41,7 @@ export default function Dashboard() {
   const [description, setDescription] = useState('')
   const [errors, setErrors] = useState<{ title?: string; description?: string }>({})
   const [supportsActivityCategories, setSupportsActivityCategories] = useState(false)
+  const [plannedRouteInput, setPlannedRouteInput] = useState('')
   const [message, setMessage] = useState<{ text: string; severity: 'success' | 'error'; conflict: boolean } | null>(
     null,
   )
@@ -53,12 +56,18 @@ export default function Dashboard() {
     if (nextErrors.title || nextErrors.description) return
 
     try {
-      await addChallenge({ title, description, supportsActivityCategories })
+      await addChallenge({
+        title,
+        description,
+        supportsActivityCategories,
+        plannedRoute: plannedRouteInput.trim() ? parseGpx(plannedRouteInput) : undefined,
+      })
       setShowEditor(false)
       setTitle('')
       setDescription('')
       setErrors({})
       setSupportsActivityCategories(false)
+      setPlannedRouteInput('')
       setMessage({ text: 'Challenge saved.', severity: 'success', conflict: false })
     } catch (error) {
       setMessage({
@@ -179,6 +188,14 @@ export default function Dashboard() {
               }
               label="Use Bronze, Silver and Gold activity categories"
             />
+            <TextField
+              label="Planned GPX route (optional)"
+              value={plannedRouteInput}
+              onChange={(event) => setPlannedRouteInput(event.target.value)}
+              multiline
+              minRows={4}
+              helperText="Paste GPX XML to display the planned route on the challenge map."
+            />
             <Stack direction="row" spacing={1}>
               <Button type="submit" variant="contained">
                 Save challenge
@@ -189,6 +206,7 @@ export default function Dashboard() {
                   setTitle('')
                   setDescription('')
                   setSupportsActivityCategories(false)
+                  setPlannedRouteInput('')
                   setMessage(null)
                   setErrors({})
                 }}
@@ -216,7 +234,9 @@ export default function Dashboard() {
                 <Card key={challenge.challengeId}>
                   <CardContent>
                     <Stack spacing={1}>
-                      <Typography variant="h5">{challenge.title}</Typography>
+                      <Typography variant="h5">
+                        <Link to={`/challenges/${challenge.challengeId}`}>{challenge.title}</Link>
+                      </Typography>
                       <Typography color="text.secondary">{challenge.description}</Typography>
                       <Typography>{completionPercent}% complete</Typography>
                       <Typography color="text.secondary">

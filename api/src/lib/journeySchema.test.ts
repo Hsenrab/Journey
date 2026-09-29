@@ -114,6 +114,51 @@ describe('Journey document validation', () => {
     ).toBe(false)
   })
 
+  it('accepts validated GPX routes on challenges and activities', () => {
+    const route = {
+      points: [
+        { latitude: 51, longitude: -2 },
+        { latitude: 51.1, longitude: -2.1 },
+      ],
+    }
+    expect(
+      JourneyDocumentSchema.safeParse({
+        id: 'challenge-1',
+        datasetId: 'production',
+        type: 'challenge',
+        schemaVersion: 1,
+        entity: {
+          challengeId: 'challenge-1',
+          title: 'Route',
+          description: 'Route',
+          waypointIds: [],
+          supportsActivityCategories: false,
+          plannedRoute: route,
+        },
+      }).success,
+    ).toBe(true)
+    expect(
+      JourneyDocumentSchema.safeParse({
+        id: 'activity-1',
+        datasetId: 'production',
+        type: 'activity',
+        schemaVersion: 3,
+        entity: {
+          activityId: 'activity-1',
+          ideaIds: [],
+          date: '2026-09-04',
+          location: { kind: 'coordinates', latitude: 51, longitude: -2 },
+          notes: '',
+          referenceIds: [],
+          photoReferenceIds: [],
+          recordedTrack: route,
+          createdAt: '2026-09-04T00:00:00.000Z',
+          updatedAt: '2026-09-04T00:00:00.000Z',
+        },
+      }).success,
+    ).toBe(true)
+  })
+
   it('requires a rejection reason only for rejected ideas', () => {
     expect(document({ ...idea(), planningState: 'rejected' }).success).toBe(false)
     expect(document({ ...idea(), planningState: 'rejected', rejectionReason: 'Too far' }).success).toBe(true)

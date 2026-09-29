@@ -5,6 +5,7 @@ import {
   PlanningStateSchema,
   ReferenceSchema,
   WaypointSchema,
+  GpxRouteSchema,
   createActivity,
   createIdea,
   type ActivityLocation,
@@ -14,6 +15,7 @@ import {
   type Reference,
   type Waypoint,
 } from './visit'
+import type { GpxRoute } from './gpx'
 
 export type ActivityJsonImportDraft = {
   name?: string
@@ -23,6 +25,7 @@ export type ActivityJsonImportDraft = {
   location: ActivityLocation
   references: Array<Pick<Reference, 'title' | 'url' | 'description' | 'previewImageUrl'>>
   photoReferences: Array<Pick<ExternalPhotoReference, 'title' | 'url' | 'altText'>>
+  recordedTrack?: GpxRoute
 }
 
 export type IdeaJsonImportDraft = {
@@ -59,6 +62,7 @@ const activityAllowedImportFields = new Set([
   'location',
   'references',
   'photoReferences',
+  'recordedTrack',
 ])
 
 const ideaForbiddenIdFields = new Set(['ideaId', 'referenceId'])
@@ -335,6 +339,9 @@ export function parseActivityDraftJson(value: string): ParseResult<ActivityJsonI
   const issues: string[] = []
   if (!references.success) issues.push(...zodIssues(references.error))
   if (!photoReferences.success) issues.push(...zodIssues(photoReferences.error))
+  const recordedTrack =
+    payload.recordedTrack === undefined ? undefined : GpxRouteSchema.safeParse(payload.recordedTrack)
+  if (recordedTrack && !recordedTrack.success) issues.push(...zodIssues(recordedTrack.error))
 
   const category =
     typeof payload.category === 'string' && !payload.category.trim()
@@ -354,6 +361,7 @@ export function parseActivityDraftJson(value: string): ParseResult<ActivityJsonI
       photoReferenceIds: photoReferences.success
         ? photoReferences.data.map((_, index) => `photo-reference-${index}`)
         : [],
+      recordedTrack: recordedTrack?.success ? recordedTrack.data : undefined,
     })
   } catch (error) {
     if (error instanceof ZodError) issues.push(...zodIssues(error))
@@ -374,6 +382,7 @@ export function parseActivityDraftJson(value: string): ParseResult<ActivityJsonI
       location: payload.location as ActivityLocation,
       references: references.data,
       photoReferences: photoReferences.data,
+      recordedTrack: recordedTrack?.success ? recordedTrack.data : undefined,
     },
   }
 }

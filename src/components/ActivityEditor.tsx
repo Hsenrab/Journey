@@ -36,6 +36,7 @@ import { activityImportExample, parseActivityDraftJson } from '../domain/draftJs
 import { activityJsonAiPrompt } from '../domain/aiPrompts'
 import { AiPromptButton } from './AiPromptButton'
 import type { ActivityDraft } from '../features/journey/JourneyContext'
+import { parseGpx } from '../domain/gpx'
 
 type Props = {
   data: WaypointsData
@@ -128,6 +129,9 @@ export function ActivityEditor({
       url: photoReference.url,
     })),
   )
+  const [trackInput, setTrackInput] = useState('')
+  const [trackError, setTrackError] = useState<string | undefined>()
+  const [recordedTrack, setRecordedTrack] = useState(initialActivity?.recordedTrack)
   const [errors, setErrors] = useState<Errors>({})
   const [message, setMessage] = useState<string | null>(null)
   const [mode, setMode] = useState<EditorMode>('form')
@@ -231,7 +235,7 @@ export function ActivityEditor({
     { capture: true },
   )
 
-  const validate = (): { errors: Errors; location?: ActivityLocation } => {
+  const validate = (): { errors: Errors; location?: ActivityLocation; recordedTrack?: Activity['recordedTrack'] } => {
     const nextErrors: Errors = {}
 
     if (!isValidDate(date)) nextErrors.date = 'Please enter a valid activity date in YYYY-MM-DD format.'
@@ -277,8 +281,18 @@ export function ActivityEditor({
         nextErrors[`photo-${index}-url`] = 'Photo URL must start with https://.'
       }
     })
+    let nextRecordedTrack = recordedTrack
+    if (trackInput.trim()) {
+      try {
+        nextRecordedTrack = parseGpx(trackInput)
+        setTrackError(undefined)
+      } catch (error) {
+        setTrackError(error instanceof Error ? error.message : String(error))
+        nextErrors.recordedTrack = 'Enter a valid GPX track.'
+      }
+    }
 
-    return { errors: nextErrors, location }
+    return { errors: nextErrors, location, recordedTrack: nextRecordedTrack }
   }
 
   return (
@@ -318,6 +332,7 @@ export function ActivityEditor({
                 altText: photoReference.altText.trim() || undefined,
                 url: photoReference.url.trim(),
               })),
+              recordedTrack: result.recordedTrack,
             })
           }}
         >
@@ -378,6 +393,7 @@ export function ActivityEditor({
                     setDate(parsed.value.date)
                     setName(parsed.value.name ?? '')
                     setNotes(parsed.value.notes)
+                    setRecordedTrack(parsed.value.recordedTrack)
                     setCategory(parsed.value.category ?? '')
                     const location = parsed.value.location
                     setLocationEdited(true)
@@ -422,6 +438,26 @@ export function ActivityEditor({
                     <div key={`${index}-${issue}`}>{issue}</div>
                   ))}
                 </Alert>
+              )}
+              <TextField
+                label="Recorded GPX track (optional)"
+                value={trackInput}
+                onChange={(event) => setTrackInput(event.target.value)}
+                multiline
+                minRows={4}
+                error={Boolean(trackError)}
+                helperText={trackError ?? 'Paste GPX XML to display this activity track on challenge maps.'}
+              />
+              {recordedTrack && (
+                <Button
+                  onClick={() => {
+                    setRecordedTrack(undefined)
+                    setTrackInput('')
+                    setTrackError(undefined)
+                  }}
+                >
+                  Remove recorded GPX track
+                </Button>
               )}
             </Stack>
           )}

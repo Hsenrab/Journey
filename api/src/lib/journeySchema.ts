@@ -10,6 +10,8 @@ const distinctIds = (message: string) => z.array(identifier).refine((ids) => new
 const httpsUrl = z.url().startsWith('https://')
 const latitude = z.number().min(-90).max(90)
 const longitude = z.number().min(-180).max(180)
+const gpxPoint = z.object({ latitude: latitude.finite(), longitude: longitude.finite() }).strict()
+const gpxRoute = z.object({ points: z.array(gpxPoint).min(2).max(10000) }).strict()
 const place = z
   .object({
     placeName: identifier.optional(),
@@ -51,6 +53,7 @@ const schemas = {
       waypointIds: z.array(identifier),
       supportsActivityCategories: z.boolean(),
       location: place.optional(),
+      plannedRoute: gpxRoute.optional(),
     })
     .strict(),
   idea: z
@@ -96,6 +99,7 @@ const schemas = {
       notes: z.string(),
       referenceIds: z.array(identifier),
       photoReferenceIds: z.array(identifier),
+      recordedTrack: gpxRoute.optional(),
       createdAt: z.iso.datetime(),
       updatedAt: z.iso.datetime(),
     })

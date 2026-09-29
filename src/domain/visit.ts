@@ -1,6 +1,8 @@
 import { z } from 'zod'
 import type { Location } from './location'
 import rawDemoData from '../data/demo.json'
+import { GpxRouteSchema, type GpxRoute } from './gpx'
+export { GpxRouteSchema }
 
 export const statusOrder = ['not-started', 'bronze', 'silver', 'gold'] as const
 export type Status = (typeof statusOrder)[number]
@@ -80,6 +82,7 @@ export const ChallengeSchema = z.object({
   waypointIds: z.array(z.string().min(1)),
   supportsActivityCategories: z.boolean(),
   location: WaypointLocationSchema.optional(),
+  plannedRoute: GpxRouteSchema.optional(),
 })
 
 export const planningStates = ['active', 'someday', 'rejected'] as const
@@ -175,6 +178,7 @@ export const ActivitySchema = z
     notes: z.string(),
     referenceIds: z.array(z.string().min(1)),
     photoReferenceIds: z.array(z.string().min(1)),
+    recordedTrack: GpxRouteSchema.optional(),
     createdAt: z.iso.datetime(),
     updatedAt: z.iso.datetime(),
   })
@@ -196,7 +200,15 @@ export type Reference = z.infer<typeof ReferenceSchema>
 export type ExternalPhotoReference = z.infer<typeof ExternalPhotoReferenceSchema>
 export type Activity = z.infer<typeof ActivitySchema>
 export type ActivityLocation = z.infer<typeof ActivityLocationSchema>
+export type { GpxRoute }
 export type WaypointsData = z.infer<typeof DataSchema>
+
+export function challengeWaypoints(challenge: Challenge, waypoints: readonly Waypoint[]): Waypoint[] {
+  return waypoints.filter(
+    (waypoint) =>
+      challenge.waypointIds.includes(waypoint.waypointId) || waypoint.challengeIds.includes(challenge.challengeId),
+  )
+}
 
 export function formatActivityDate(date: string) {
   // Parse as local midnight so date-only activity values do not shift by UTC offset when displayed.
@@ -294,6 +306,7 @@ export function createActivity(input: {
   notes?: string
   referenceIds?: string[]
   photoReferenceIds?: string[]
+  recordedTrack?: GpxRoute
   createdAt?: string
   updatedAt?: string
 }): Activity {
@@ -310,6 +323,7 @@ export function createActivity(input: {
     notes: input.notes ?? '',
     referenceIds: input.referenceIds ?? [],
     photoReferenceIds: input.photoReferenceIds ?? [],
+    recordedTrack: input.recordedTrack,
     createdAt: input.createdAt ?? now,
     updatedAt: input.updatedAt ?? now,
   })
