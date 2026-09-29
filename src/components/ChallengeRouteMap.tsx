@@ -13,7 +13,7 @@ import {
 import * as atlas from 'azure-maps-control'
 import 'azure-maps-control/dist/atlas.min.css'
 import type { Activity, GpxGeometry } from '../domain/visit'
-import { activityTitle } from '../domain/visit'
+import { activityTitle, formatActivityDate } from '../domain/visit'
 
 type MapsToken = { token: string; clientId: string }
 
@@ -47,9 +47,14 @@ function lineFeatures(geometry: GpxGeometry, properties: Record<string, unknown>
   )
 }
 
+function trackLabel(activity: Activity) {
+  return activity.name ? `${activityTitle(activity)} — ${formatActivityDate(activity.date)}` : activityTitle(activity)
+}
+
 export function ChallengeRouteMap({ plannedRoute, activities }: ChallengeRouteMapProps) {
   const tracks = useMemo(
-    () => activities.filter((activity): activity is Activity & { recordedTrack: GpxGeometry } => !!activity.recordedTrack),
+    () =>
+      activities.filter((activity): activity is Activity & { recordedTrack: GpxGeometry } => !!activity.recordedTrack),
     [activities],
   )
   const [visibleTrackIds, setVisibleTrackIds] = useState(() => new Set(tracks.map((activity) => activity.activityId)))
@@ -137,12 +142,38 @@ export function ChallengeRouteMap({ plannedRoute, activities }: ChallengeRouteMa
           ? lineFeatures(activity.recordedTrack, {
               kind: 'recorded',
               activityId: activity.activityId,
-              label: activityTitle(activity),
+              label: trackLabel(activity),
             })
           : [],
       ),
     )
   }, [mapReady, tracks, visibleTrackIds])
+
+  useEffect(() => {
+    const instance = map.current
+    if (!instance || !mapReady) return
+    const geometries = [
+      ...(plannedRoute ? [plannedRoute] : []),
+      ...tracks
+        .filter((activity) => visibleTrackIds.has(activity.activityId))
+        .map((activity) => activity.recordedTrack),
+    ]
+    const points = geometries.flatMap((geometry) => geometry.segments.flatMap((segment) => segment.points))
+    if (points.length === 0) return
+    const longitudes = points.map((point) => point.longitude)
+    const latitudes = points.map((point) => point.latitude)
+    const bounds = [
+      Math.min(...longitudes),
+      Math.min(...latitudes),
+      Math.max(...longitudes),
+      Math.max(...latitudes),
+    ] as [number, number, number, number]
+    if (bounds[0] === bounds[2] && bounds[1] === bounds[3]) {
+      instance.setCamera({ center: [bounds[0], bounds[1]], zoom: 14 })
+      return
+    }
+    instance.setCamera({ bounds, padding: 48 })
+  }, [mapReady, plannedRoute, tracks, visibleTrackIds])
 
   const setAllTracksVisible = (visible: boolean) => {
     setVisibleTrackIds(new Set(visible ? tracks.map((activity) => activity.activityId) : []))
@@ -208,7 +239,7 @@ export function ChallengeRouteMap({ plannedRoute, activities }: ChallengeRouteMa
                     onChange={(event) => setTrackVisible(activity.activityId, event.target.checked)}
                   />
                 }
-                label={activityTitle(activity)}
+                label={trackLabel(activity)}
               />
             ))}
           </FormGroup>

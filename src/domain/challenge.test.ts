@@ -3,7 +3,14 @@ import { challengeRecordedActivities } from './challenge'
 import { waypointCompletionProgress, type Activity, type Challenge, type Waypoint } from './visit'
 
 const route = {
-  segments: [{ points: [{ latitude: 51, longitude: -2 }, { latitude: 51.1, longitude: -2.1 }] }],
+  segments: [
+    {
+      points: [
+        { latitude: 51, longitude: -2 },
+        { latitude: 51.1, longitude: -2.1 },
+      ],
+    },
+  ],
 }
 
 const challenge: Challenge = {

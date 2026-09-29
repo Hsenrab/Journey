@@ -54,10 +54,7 @@ describe('Dashboard', () => {
   it('shows a single challenge with its own name and progress', () => {
     renderDashboard()
     expect(screen.getByRole('heading', { name: 'National Trust' })).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: 'National Trust' })).toHaveAttribute(
-      'href',
-      '/challenges/national-trust',
-    )
+    expect(screen.getByRole('link', { name: 'National Trust' })).toHaveAttribute('href', '/challenges/national-trust')
     expect(screen.getByRole('progressbar', { name: 'National Trust completion' })).toBeInTheDocument()
   })
 

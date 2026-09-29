@@ -18,6 +18,7 @@ vi.mock('azure-maps-control', () => ({
     }
     sources = { add: vi.fn() }
     layers = { add: vi.fn() }
+    setCamera = vi.fn()
     dispose = vi.fn()
   },
   source: {
@@ -49,7 +50,14 @@ vi.mock('azure-maps-control', () => ({
 import { ChallengeRouteMap } from './ChallengeRouteMap'
 
 const geometry: GpxGeometry = {
-  segments: [{ points: [{ latitude: 51, longitude: -2 }, { latitude: 51.1, longitude: -2.1 }] }],
+  segments: [
+    {
+      points: [
+        { latitude: 51, longitude: -2 },
+        { latitude: 51.1, longitude: -2.1 },
+      ],
+    },
+  ],
 }
 
 function activity(activityId: string, name: string): Activity {
@@ -98,13 +106,13 @@ describe('ChallengeRouteMap', () => {
     await waitFor(() => expect(mapState.sources.get('challenge-recorded-tracks')?.add).toHaveBeenCalled())
 
     await user.click(screen.getByRole('checkbox', { name: 'Show all recorded tracks' }))
-    expect(screen.getByRole('checkbox', { name: 'Morning walk' })).not.toBeChecked()
-    expect(screen.getByRole('checkbox', { name: 'Evening walk' })).not.toBeChecked()
+    expect(screen.getByRole('checkbox', { name: /Morning walk/ })).not.toBeChecked()
+    expect(screen.getByRole('checkbox', { name: /Evening walk/ })).not.toBeChecked()
     expect(mapState.sources.get('challenge-recorded-tracks')?.add).toHaveBeenLastCalledWith([])
     expect(mapState.sources.get('challenge-planned-route')?.add).toHaveBeenCalled()
 
-    await user.click(screen.getByRole('checkbox', { name: 'Morning walk' }))
-    expect(screen.getByRole('checkbox', { name: 'Morning walk' })).toBeChecked()
+    await user.click(screen.getByRole('checkbox', { name: /Morning walk/ }))
+    expect(screen.getByRole('checkbox', { name: /Morning walk/ })).toBeChecked()
     expect(mapState.sources.get('challenge-recorded-tracks')?.add.mock.lastCall?.[0]).toHaveLength(1)
   })
 
@@ -137,6 +145,6 @@ describe('ChallengeRouteMap', () => {
     render(<ChallengeRouteMap activities={[activity('activity-1', 'Morning walk')]} />)
 
     expect(screen.getByRole('alert')).toHaveTextContent('This Challenge does not have a planned route.')
-    expect(screen.getByRole('checkbox', { name: 'Morning walk' })).toBeChecked()
+    expect(screen.getByRole('checkbox', { name: /Morning walk/ })).toBeChecked()
   })
 })
