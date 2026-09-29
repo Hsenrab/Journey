@@ -62,6 +62,11 @@ function scanXmlBeforeParsing(xml: string): boolean {
       index = end === -1 ? xml.length : end + 3
       continue
     }
+    if (xml.startsWith('<?', index)) {
+      const end = xml.indexOf('?>', index + 2)
+      index = end === -1 ? xml.length : end + 2
+      continue
+    }
     if (/^<!DOCTYPE(?:\s|\[|>)/i.test(xml.slice(index))) {
       throw new Error('GPX files containing DOCTYPE declarations are not supported.')
     }

@@ -103,6 +103,13 @@ describe('parseGpx', () => {
     expect(() => parseGpx(`<gpx><rte>${points}</rte></gpx>`)).toThrow(`${MAX_GPX_POINT_COUNT}-point limit`)
   })
 
+  it('ignores markup-like text in processing instructions', () => {
+    const points = '<rtept lat="1" lon="2"/>'.repeat(MAX_GPX_POINT_COUNT + 1)
+    const xml = `<?note <!DOCTYPE gpx> ${points} ?><gpx><rte><rtept lat="1" lon="2"/><rtept lat="3" lon="4"/></rte></gpx>`
+
+    expect(() => parseGpx(xml)).not.toThrow()
+  })
+
   it('rejects declarations that could define entities and ignores embedded markup', () => {
     expect(() =>
       parseGpx(
