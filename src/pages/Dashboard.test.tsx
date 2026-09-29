@@ -1,7 +1,7 @@
 import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
-import { beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import Dashboard from './Dashboard'
 import { WaypointsProvider } from '../features/journey/JourneyContext'
 import { createDefaultData, createDemoModeData, save, setDataMode } from '../services/storage'
@@ -38,6 +38,7 @@ function renderDashboard() {
 
 describe('Dashboard', () => {
   beforeEach(() => localStorage.clear())
+  afterEach(() => vi.unstubAllGlobals())
 
   it('shows a generic empty state when there are no challenges', () => {
     save({ ...createDefaultData(), challenges: [], waypoints: [] })
@@ -114,6 +115,88 @@ describe('Dashboard', () => {
     expect(screen.getByText('0 of 0 waypoints completed')).toBeInTheDocument()
     expect(screen.queryByText('No challenges are available yet.')).not.toBeInTheDocument()
     expect(screen.getAllByRole('progressbar')).toHaveLength(1)
+  })
+
+  it('shows inline errors for whitespace-only challenge fields', async () => {
+    const user = userEvent.setup()
+    save({ ...createDefaultData(), challenges: [], waypoints: [] })
+    renderDashboard()
+    await user.click(screen.getByRole('button', { name: 'Add challenge' }))
+    await user.type(screen.getByRole('textbox', { name: 'Title' }), '   ')
+    await user.type(screen.getByRole('textbox', { name: 'Description' }), '   ')
+    await user.click(screen.getByRole('button', { name: 'Save challenge' }))
+
+    expect(screen.getByText('Title is required.')).toBeInTheDocument()
+    expect(screen.getByText('Description is required.')).toBeInTheDocument()
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+  })
+
+  it('closes the challenge editor and clears the conflict after a successful reload', async () => {
+    setDataMode('demo-cosmos')
+    const data = createDefaultData()
+    const fetch = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+      if (init?.method === 'POST') {
+        return new Response(JSON.stringify({ error: 'conflict' }), {
+          status: 409,
+          headers: { 'content-type': 'application/json' },
+        })
+      }
+      return new Response(JSON.stringify({ data, etags: {}, role: 'admin' }), {
+        headers: { 'content-type': 'application/json' },
+      })
+    })
+    vi.stubGlobal('fetch', fetch)
+    const user = userEvent.setup()
+    renderDashboard()
+    await user.click(await screen.findByRole('button', { name: 'Add challenge' }))
+    await user.type(screen.getByRole('textbox', { name: 'Title' }), 'Weekend walks')
+    await user.type(screen.getByRole('textbox', { name: 'Description' }), 'Explore local trails')
+    await user.click(screen.getByRole('button', { name: 'Save challenge' }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Your data has changed in another session.')
+    await user.click(screen.getByRole('button', { name: 'Reload latest' }))
+
+    await waitFor(() => expect(screen.queryByRole('alert')).not.toBeInTheDocument())
+    expect(screen.queryByRole('button', { name: 'Save challenge' })).not.toBeInTheDocument()
+  })
+
+  it('keeps the conflict message and reload action when reloading fails', async () => {
+    setDataMode('demo-cosmos')
+    const data = createDefaultData()
+    let loads = 0
+    const fetch = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+      if (init?.method === 'POST') {
+        return new Response(JSON.stringify({ error: 'conflict' }), {
+          status: 409,
+          headers: { 'content-type': 'application/json' },
+        })
+      }
+      loads += 1
+      if (loads > 1) {
+        return new Response(JSON.stringify({ error: 'unavailable' }), {
+          status: 500,
+          headers: { 'content-type': 'application/json' },
+        })
+      }
+      return new Response(JSON.stringify({ data, etags: {}, role: 'admin' }), {
+        headers: { 'content-type': 'application/json' },
+      })
+    })
+    vi.stubGlobal('fetch', fetch)
+    const user = userEvent.setup()
+    renderDashboard()
+    await user.click(await screen.findByRole('button', { name: 'Add challenge' }))
+    await user.type(screen.getByRole('textbox', { name: 'Title' }), 'Weekend walks')
+    await user.type(screen.getByRole('textbox', { name: 'Description' }), 'Explore local trails')
+    await user.click(screen.getByRole('button', { name: 'Save challenge' }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Your data has changed in another session.')
+    await user.click(screen.getByRole('button', { name: 'Reload latest' }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Demo Cosmos could not be loaded, so read-only local demo data is shown:',
+    )
+    expect(screen.getByRole('button', { name: 'Reload latest' })).toBeInTheDocument()
   })
 
   it('counts completed waypoints when any activity exists (including bronze)', () => {

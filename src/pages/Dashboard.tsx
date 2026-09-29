@@ -36,6 +36,7 @@ export default function Dashboard() {
   const [showEditor, setShowEditor] = useState(false)
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
+  const [errors, setErrors] = useState<{ title?: string; description?: string }>({})
   const [supportsActivityCategories, setSupportsActivityCategories] = useState(false)
   const [message, setMessage] = useState<{ text: string; severity: 'success' | 'error'; conflict: boolean } | null>(
     null,
@@ -43,11 +44,19 @@ export default function Dashboard() {
 
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
+    const nextErrors = {
+      title: title.trim() ? undefined : 'Title is required.',
+      description: description.trim() ? undefined : 'Description is required.',
+    }
+    setErrors(nextErrors)
+    if (nextErrors.title || nextErrors.description) return
+
     try {
       await addChallenge({ title, description, supportsActivityCategories })
       setShowEditor(false)
       setTitle('')
       setDescription('')
+      setErrors({})
       setSupportsActivityCategories(false)
       setMessage({ text: 'Challenge saved.', severity: 'success', conflict: false })
     } catch (error) {
@@ -57,6 +66,21 @@ export default function Dashboard() {
         conflict: error instanceof JourneyConflictError,
       })
     }
+  }
+
+  const reloadLatest = async () => {
+    const result = await reload()
+    if (result.status === 'failure') {
+      setMessage({ text: result.message, severity: 'error', conflict: true })
+      return
+    }
+    if (result.status === 'superseded') return
+    setMessage(null)
+    setShowEditor(false)
+    setTitle('')
+    setDescription('')
+    setErrors({})
+    setSupportsActivityCategories(false)
   }
 
   if (loadState.status === 'failed') {
@@ -93,6 +117,7 @@ export default function Dashboard() {
             variant="contained"
             onClick={() => {
               setMessage(null)
+              setErrors({})
               setShowEditor(true)
             }}
           >
@@ -105,7 +130,7 @@ export default function Dashboard() {
           severity={message.severity}
           action={
             message.conflict ? (
-              <Button color="inherit" size="small" onClick={() => void reload()}>
+              <Button color="inherit" size="small" onClick={() => void reloadLatest()}>
                 Reload latest
               </Button>
             ) : undefined
@@ -121,17 +146,27 @@ export default function Dashboard() {
             <TextField
               size="small"
               label="Title"
-              required
+              error={Boolean(errors.title)}
+              helperText={errors.title}
               value={title}
-              onChange={(event) => setTitle(event.target.value)}
+              onChange={(event) => {
+                const value = event.target.value
+                setTitle(value)
+                if (value.trim()) setErrors((current) => ({ ...current, title: undefined }))
+              }}
             />
             <TextField
               size="small"
               label="Description"
-              required
+              error={Boolean(errors.description)}
+              helperText={errors.description}
               multiline
               value={description}
-              onChange={(event) => setDescription(event.target.value)}
+              onChange={(event) => {
+                const value = event.target.value
+                setDescription(value)
+                if (value.trim()) setErrors((current) => ({ ...current, description: undefined }))
+              }}
             />
             <FormControlLabel
               control={
@@ -150,6 +185,7 @@ export default function Dashboard() {
                 onClick={() => {
                   setShowEditor(false)
                   setMessage(null)
+                  setErrors({})
                 }}
               >
                 Cancel
