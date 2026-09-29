@@ -73,9 +73,7 @@ export function parseGpx(xml: string): GpxGeometry {
   }
 
   const pointElements = [
-    ...tracks.flatMap((track) =>
-      directChildren(track, 'trkseg').map((segment) => directChildren(segment, 'trkpt')),
-    ),
+    ...tracks.flatMap((track) => directChildren(track, 'trkseg').map((segment) => directChildren(segment, 'trkpt'))),
     ...routes.map((route) => directChildren(route, 'rtept')),
   ]
   const pointCount = pointElements.reduce((count, segment) => count + segment.length, 0)

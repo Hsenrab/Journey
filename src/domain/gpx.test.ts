@@ -61,12 +61,12 @@ describe('parseGpx', () => {
     expect(() => parseGpx('<gpx><rte><rtept lon="2" /><rtept lat="1" lon="2" /></rte></gpx>')).toThrow(
       'point 1 must include numeric lat and lon',
     )
-    expect(() =>
-      parseGpx('<gpx><rte><rtept lat="north" lon="2" /><rtept lat="1" lon="2" /></rte></gpx>'),
-    ).toThrow('point 1 has latitude north')
-    expect(() =>
-      parseGpx('<gpx><rte><rtept lat="1" lon="181" /><rtept lat="1" lon="2" /></rte></gpx>'),
-    ).toThrow('point 1 has longitude 181')
+    expect(() => parseGpx('<gpx><rte><rtept lat="north" lon="2" /><rtept lat="1" lon="2" /></rte></gpx>')).toThrow(
+      'point 1 has latitude north',
+    )
+    expect(() => parseGpx('<gpx><rte><rtept lat="1" lon="181" /><rtept lat="1" lon="2" /></rte></gpx>')).toThrow(
+      'point 1 has longitude 181',
+    )
   })
 
   it('rejects files over the byte size limit', () => {
@@ -78,9 +78,7 @@ describe('parseGpx', () => {
   it('rejects files over the point limit', () => {
     const points = '<rtept lat="1" lon="2"/>'.repeat(MAX_GPX_POINT_COUNT + 1)
 
-    expect(() => parseGpx(`<gpx><rte>${points}</rte></gpx>`)).toThrow(
-      `${MAX_GPX_POINT_COUNT}-point limit`,
-    )
+    expect(() => parseGpx(`<gpx><rte>${points}</rte></gpx>`)).toThrow(`${MAX_GPX_POINT_COUNT}-point limit`)
   })
 
   it('rejects declarations that could define entities and ignores embedded markup', () => {
