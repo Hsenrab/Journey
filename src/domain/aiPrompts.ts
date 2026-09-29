@@ -3,7 +3,7 @@
 
 export const activityJsonAiPrompt = `Create an import-ready JSON object for an Activity in a personal travel and life-adventure journal. An Activity is a dated historical record of something that actually happened. It captures what I did and where I did it, and may later show progress towards a larger experience, goal, or ambition. It is not a plan or suggestion for the future.
 
-Use only the source material I provide (a website, notes, itinerary, etc.) and factual details you can reliably confirm through internet research. Extract supported useful detail, especially what happened, when, where, and any specific highlights. If a detail cannot be confirmed, omit it. Do not invent, guess, embellish, or use promotional language. Write in a specific, factual, lightly personal tone using the past tense. Do not add commentary, markdown, or extra JSON fields.
+Use only the source material I provide (a website, notes, itinerary, etc.); do not use internet research or other external sources. Extract supported useful detail, especially what happened, when, where, and any specific highlights. If a detail cannot be confirmed, omit it. Do not invent, guess, embellish, or use promotional language. Write in a specific, factual, lightly personal tone using the past tense. Do not add commentary, markdown, or extra JSON fields.
 
 Return ONLY one valid JSON object matching the shape below: no array, markdown, commentary, or additional fields.
 
