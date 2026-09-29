@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import type { Location } from './location'
 import rawDemoData from '../data/demo.json'
+import { GpxGeometrySchema } from './gpx'
 
 export const statusOrder = ['not-started', 'bronze', 'silver', 'gold'] as const
 export type Status = (typeof statusOrder)[number]
@@ -80,6 +81,7 @@ export const ChallengeSchema = z.object({
   waypointIds: z.array(z.string().min(1)),
   supportsActivityCategories: z.boolean(),
   location: WaypointLocationSchema.optional(),
+  plannedRoute: GpxGeometrySchema.optional(),
 })
 
 export const planningStates = ['active', 'someday', 'rejected'] as const
@@ -172,6 +174,7 @@ export const ActivitySchema = z
     date: isoDate,
     category: AwardedStatusSchema.optional(),
     location: ActivityLocationSchema,
+    recordedTrack: GpxGeometrySchema.optional(),
     notes: z.string(),
     referenceIds: z.array(z.string().min(1)),
     photoReferenceIds: z.array(z.string().min(1)),
@@ -196,6 +199,7 @@ export type Reference = z.infer<typeof ReferenceSchema>
 export type ExternalPhotoReference = z.infer<typeof ExternalPhotoReferenceSchema>
 export type Activity = z.infer<typeof ActivitySchema>
 export type ActivityLocation = z.infer<typeof ActivityLocationSchema>
+export type { GpxGeometry } from './gpx'
 export type WaypointsData = z.infer<typeof DataSchema>
 
 export function formatActivityDate(date: string) {
@@ -291,6 +295,7 @@ export function createActivity(input: {
   date: string
   category?: AwardedStatus
   location: z.input<typeof ActivityLocationSchema>
+  recordedTrack?: z.input<typeof GpxGeometrySchema>
   notes?: string
   referenceIds?: string[]
   photoReferenceIds?: string[]
@@ -307,6 +312,7 @@ export function createActivity(input: {
     date: input.date,
     category: input.category,
     location: input.location,
+    recordedTrack: input.recordedTrack,
     notes: input.notes ?? '',
     referenceIds: input.referenceIds ?? [],
     photoReferenceIds: input.photoReferenceIds ?? [],
