@@ -83,7 +83,9 @@ The persisted root object is:
   it does not affect waypoint completion. The Activity editor accepts GPX recorded
   tracks (up to 1 MB, 10,000 points, and at least two points per segment), and Activity
   details link to their geometry on the existing map. Full dataset exports and imports
-  preserve the track.
+  preserve the track. Cosmos writes the complete dataset in a single transactional
+  batch (2 MB maximum), so several large tracks may exceed that limit and cause a
+  save or import to fail; no track data is silently discarded.
 - `referenceIds` and `photoReferenceIds`
 
 Raw `Activity.photos` strings are not used for new data.
