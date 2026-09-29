@@ -37,4 +37,16 @@ describe('AI JSON prompts', () => {
     expect(waypointJsonAiPrompt).toContain('Every waypoint belongs to a challenge collection')
     expect(waypointJsonAiPrompt).toContain('After I provide the source material, produce exactly one JSON object')
   })
+
+  it('gives Activity and Idea prompts explicit source and output constraints', () => {
+    for (const prompt of [activityJsonAiPrompt, ideaJsonAiPrompt]) {
+      expect(prompt).toContain('factual details you can reliably confirm through internet research')
+      expect(prompt).toContain('If a detail cannot be confirmed, omit it.')
+      expect(prompt).toContain('Do not invent, guess, embellish, or use promotional language.')
+      expect(prompt).toContain('Do not add commentary, markdown, or extra JSON fields.')
+      expect(prompt).toContain(
+        'After I provide the source material, produce exactly one JSON object in this exact shape.',
+      )
+    }
+  })
 })
