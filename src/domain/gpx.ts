@@ -60,7 +60,9 @@ function decodeXmlReferences(value: string): string {
 
   return value.replace(/&(#x[0-9A-Fa-f]+|#\d+|amp|apos|gt|lt|quot);/g, (reference, content: string) => {
     if (content.startsWith('#')) {
-      const codePoint = content.startsWith('#x') ? Number.parseInt(content.slice(2), 16) : Number.parseInt(content.slice(1), 10)
+      const codePoint = content.startsWith('#x')
+        ? Number.parseInt(content.slice(2), 16)
+        : Number.parseInt(content.slice(1), 10)
       return codePoint <= 0x10ffff && !(codePoint >= 0xd800 && codePoint <= 0xdfff)
         ? String.fromCodePoint(codePoint)
         : reference
