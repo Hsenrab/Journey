@@ -38,7 +38,10 @@ function renderDashboard() {
 
 describe('Dashboard', () => {
   beforeEach(() => localStorage.clear())
-  afterEach(() => vi.unstubAllGlobals())
+  afterEach(() => {
+    vi.unstubAllEnvs()
+    vi.unstubAllGlobals()
+  })
 
   it('shows a generic empty state when there are no challenges', () => {
     save({ ...createDefaultData(), challenges: [], waypoints: [] })
@@ -61,11 +64,12 @@ describe('Dashboard', () => {
     expect(screen.getByText(`0 of ${seed.waypoints.length} waypoints completed`, { exact: false })).toBeInTheDocument()
   })
 
-  it('shows every demo challenge with its own waypoint progress', () => {
+  it('shows every demo challenge with its own waypoint progress and explains read-only mode', async () => {
     const demo = createDemoModeData()
     expect(demo.challenges.length).toBeGreaterThanOrEqual(2)
     setDataMode('demo-local')
     renderDashboard()
+    await screen.findByText(/Demo local data is bundled sample data/)
     for (const challenge of demo.challenges) {
       const card = screen.getByRole('heading', { name: challenge.title }).closest('.MuiCard-root')
       expect(card).not.toBeNull()
@@ -75,6 +79,22 @@ describe('Dashboard', () => {
         }),
       ).toBeInTheDocument()
     }
+    expect(screen.queryByRole('button', { name: 'Add challenge' })).not.toBeInTheDocument()
+  })
+
+  it('explains when a viewer cannot add challenges', async () => {
+    vi.stubEnv('MODE', 'production')
+    vi.stubGlobal(
+      'fetch',
+      vi
+        .fn()
+        .mockResolvedValue(
+          new Response(JSON.stringify({ data: createDefaultData(), etags: {}, role: 'viewer' }), { status: 200 }),
+        ),
+    )
+    renderDashboard()
+
+    await waitFor(() => expect(screen.getByText(/Your Journey access is viewer only/)).toBeInTheDocument())
     expect(screen.queryByRole('button', { name: 'Add challenge' })).not.toBeInTheDocument()
   })
 
@@ -115,6 +135,22 @@ describe('Dashboard', () => {
     expect(screen.getByText('0 of 0 waypoints completed')).toBeInTheDocument()
     expect(screen.queryByText('No challenges are available yet.')).not.toBeInTheDocument()
     expect(screen.getAllByRole('progressbar')).toHaveLength(1)
+  })
+
+  it('clears the challenge draft when canceling and reopening the editor', async () => {
+    const user = userEvent.setup()
+    save({ ...createDefaultData(), challenges: [], waypoints: [] })
+    renderDashboard()
+    await user.click(screen.getByRole('button', { name: 'Add challenge' }))
+    await user.type(screen.getByRole('textbox', { name: 'Title' }), 'Discarded title')
+    await user.type(screen.getByRole('textbox', { name: 'Description' }), 'Discarded description')
+    await user.click(screen.getByRole('checkbox', { name: 'Use Bronze, Silver and Gold activity categories' }))
+    await user.click(screen.getByRole('button', { name: 'Cancel' }))
+    await user.click(screen.getByRole('button', { name: 'Add challenge' }))
+
+    expect(screen.getByRole('textbox', { name: 'Title' })).toHaveValue('')
+    expect(screen.getByRole('textbox', { name: 'Description' })).toHaveValue('')
+    expect(screen.getByRole('checkbox', { name: 'Use Bronze, Silver and Gold activity categories' })).not.toBeChecked()
   })
 
   it('shows inline errors for whitespace-only challenge fields', async () => {
@@ -193,9 +229,9 @@ describe('Dashboard', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent('Your data has changed in another session.')
     await user.click(screen.getByRole('button', { name: 'Reload latest' }))
 
-    expect(await screen.findByRole('alert')).toHaveTextContent(
-      'Demo Cosmos could not be loaded, so read-only local demo data is shown:',
-    )
+    expect(
+      await screen.findByText(/Demo Cosmos could not be loaded, so read-only local demo data is shown:/),
+    ).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Reload latest' })).toBeInTheDocument()
   })
 

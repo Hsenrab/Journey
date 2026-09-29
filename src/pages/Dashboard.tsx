@@ -18,6 +18,7 @@ import { LoadFailureAlert } from '../components/LoadFailureAlert'
 import { LoadingNotice } from '../components/LoadingNotice'
 import { ClickableCard } from '../components/ClickableCard'
 import { PageHeader } from '../components/PageHeader'
+import { ReadOnlyNotice } from '../components/ReadOnlyNotice'
 import {
   awardableStatuses,
   completedWaypointCount,
@@ -125,6 +126,7 @@ export default function Dashboard() {
           </Button>
         )}
       </PageHeader>
+      <ReadOnlyNotice />
       {message && (
         <Alert
           severity={message.severity}
@@ -184,6 +186,9 @@ export default function Dashboard() {
               <Button
                 onClick={() => {
                   setShowEditor(false)
+                  setTitle('')
+                  setDescription('')
+                  setSupportsActivityCategories(false)
                   setMessage(null)
                   setErrors({})
                 }}
