@@ -64,6 +64,9 @@ describe('parseGpx', () => {
     expect(() => parseGpx('<gpx><rte><rtept lat="north" lon="2" /><rtept lat="1" lon="2" /></rte></gpx>')).toThrow(
       'point 1 has latitude north',
     )
+    expect(() => parseGpx('<gpx><rte><rtept lat="0x10" lon="2" /><rtept lat="1" lon="2" /></rte></gpx>')).toThrow(
+      'point 1 has latitude 0x10',
+    )
     expect(() => parseGpx('<gpx><rte><rtept lat="1" lon="181" /><rtept lat="1" lon="2" /></rte></gpx>')).toThrow(
       'point 1 has longitude 181',
     )

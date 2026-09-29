@@ -1,5 +1,6 @@
 export const MAX_GPX_FILE_SIZE_BYTES = 5 * 1024 * 1024
 export const MAX_GPX_POINT_COUNT = 50_000
+const DECIMAL_COORDINATE = /^[+-]?(?:\d+(?:\.\d*)?|\.\d+)$/
 
 export interface GpxPoint {
   latitude: number
@@ -23,13 +24,15 @@ function parsePoint(element: Element, pointNumber: number): GpxPoint {
     throw new Error(`GPX point ${pointNumber} must include numeric lat and lon attributes.`)
   }
 
-  const latitude = Number(latitudeText)
-  const longitude = Number(longitudeText)
+  const trimmedLatitude = latitudeText.trim()
+  const trimmedLongitude = longitudeText.trim()
+  const latitude = Number(trimmedLatitude)
+  const longitude = Number(trimmedLongitude)
 
-  if (!Number.isFinite(latitude) || latitude < -90 || latitude > 90) {
+  if (!DECIMAL_COORDINATE.test(trimmedLatitude) || latitude < -90 || latitude > 90) {
     throw new Error(`GPX point ${pointNumber} has latitude ${latitudeText}; expected a number from -90 to 90.`)
   }
-  if (!Number.isFinite(longitude) || longitude < -180 || longitude > 180) {
+  if (!DECIMAL_COORDINATE.test(trimmedLongitude) || longitude < -180 || longitude > 180) {
     throw new Error(`GPX point ${pointNumber} has longitude ${longitudeText}; expected a number from -180 to 180.`)
   }
 
