@@ -162,16 +162,16 @@ export function ChallengeRouteMap({ plannedRoute, activities }: ChallengeRouteMa
         .filter((activity) => visibleTrackIds.has(activity.activityId))
         .map((activity) => activity.recordedTrack),
     ]
-    const points = geometries.flatMap((geometry) => geometry.segments.flatMap((segment) => segment.points))
-    if (points.length === 0) return
-    const longitudes = points.map((point) => point.longitude)
-    const latitudes = points.map((point) => point.latitude)
-    const bounds = [
-      Math.min(...longitudes),
-      Math.min(...latitudes),
-      Math.max(...longitudes),
-      Math.max(...latitudes),
-    ] as [number, number, number, number]
+    const bounds: [number, number, number, number] = [Infinity, Infinity, -Infinity, -Infinity]
+    for (const geometry of geometries)
+      for (const segment of geometry.segments)
+        for (const point of segment.points) {
+          bounds[0] = Math.min(bounds[0], point.longitude)
+          bounds[1] = Math.min(bounds[1], point.latitude)
+          bounds[2] = Math.max(bounds[2], point.longitude)
+          bounds[3] = Math.max(bounds[3], point.latitude)
+        }
+    if (!bounds.every(Number.isFinite)) return
     if (bounds[0] === bounds[2] && bounds[1] === bounds[3]) {
       instance.setCamera({ center: [bounds[0], bounds[1]], zoom: 14 })
       return
