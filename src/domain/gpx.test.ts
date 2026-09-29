@@ -106,7 +106,30 @@ describe('parseGpx', () => {
   it('rejects files over the point limit', () => {
     const points = '<π:rtept lat="1" lon="2"/>'.repeat(MAX_GPX_POINT_COUNT + 1)
 
-    expect(() => parseGpx(`<gpx><rte>${points}</rte></gpx>`)).toThrow(`${MAX_GPX_POINT_COUNT}-point limit`)
+    expect(() =>
+      parseGpx(`<π:gpx xmlns:π="http://www.topografix.com/GPX/1/1"><π:rte>${points}</π:rte></π:gpx>`),
+    ).toThrow(`${MAX_GPX_POINT_COUNT}-point limit`)
+  })
+
+  it('preserves document order when combining routes and tracks', () => {
+    const result = parseGpx(`
+      <gpx>
+        <rte><rtept lat="1" lon="2" /><rtept lat="3" lon="4" /></rte>
+        <trk><trkseg><trkpt lat="5" lon="6" /><trkpt lat="7" lon="8" /></trkseg></trk>
+        <rte><rtept lat="9" lon="10" /><rtept lat="11" lon="12" /></rte>
+      </gpx>
+    `)
+
+    expect(result.segments.map((segment) => segment[0])).toEqual([
+      { latitude: 1, longitude: 2 },
+      { latitude: 5, longitude: 6 },
+      { latitude: 9, longitude: 10 },
+    ])
+    expect(() =>
+      parseGpx(
+        '<gpx><rte><rtept lat="1" lon="2" /></rte><trk><trkseg><trkpt lat="5" lon="6" /><trkpt lat="7" lon="8" /></trkseg></trk></gpx>',
+      ),
+    ).toThrow('segment 1 must contain at least two points')
   })
 
   it('enforces the point limit when the GPX namespace contains an escaped slash', () => {

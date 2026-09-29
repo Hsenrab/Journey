@@ -221,16 +221,18 @@ export function parseGpx(xml: string): GpxGeometry {
   if (!GPX_NAMESPACES.has(root.namespaceURI ?? '')) {
     throw new Error('GPX file is not valid XML with a supported gpx namespace.')
   }
-  const tracks = directChildren(root, 'trk')
-  const routes = directChildren(root, 'rte')
-  if (tracks.length === 0 && routes.length === 0) {
+  const geometryElements = Array.from(root.children).filter(
+    (child) => child.namespaceURI === root.namespaceURI && (child.localName === 'trk' || child.localName === 'rte'),
+  )
+  if (geometryElements.length === 0) {
     throw new Error('GPX file does not contain supported track or route geometry.')
   }
 
-  const pointElements = [
-    ...tracks.flatMap((track) => directChildren(track, 'trkseg').map((segment) => directChildren(segment, 'trkpt'))),
-    ...routes.map((route) => directChildren(route, 'rtept')),
-  ]
+  const pointElements = geometryElements.flatMap((element) =>
+    element.localName === 'trk'
+      ? directChildren(element, 'trkseg').map((segment) => directChildren(segment, 'trkpt'))
+      : [directChildren(element, 'rtept')],
+  )
   const pointCount = pointElements.reduce((count, segment) => count + segment.length, 0)
 
   if (pointCount > MAX_GPX_POINT_COUNT) {
