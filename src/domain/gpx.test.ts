@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { MAX_GPX_FILE_SIZE_BYTES, MAX_GPX_POINT_COUNT, parseGpx } from './gpx'
+import {
+  MAX_GPX_ELEMENT_COUNT,
+  MAX_GPX_FILE_SIZE_BYTES,
+  MAX_GPX_NESTING_DEPTH,
+  MAX_GPX_POINT_COUNT,
+  parseGpx,
+} from './gpx'
 
 describe('parseGpx', () => {
   it('parses track geometry while preserving segment boundaries', () => {
@@ -108,6 +114,21 @@ describe('parseGpx', () => {
     const xml = `<gpx xmlns="http://www.topografix.com/GPX/1&#x2F;1"><rte>${points}</rte></gpx>`
 
     expect(() => parseGpx(xml)).toThrow(`${MAX_GPX_POINT_COUNT}-point limit`)
+  })
+
+  it('rejects files over the total element limit before parsing', () => {
+    const extensionElements = '<item/>'.repeat(MAX_GPX_ELEMENT_COUNT)
+    const xml = `<gpx><extensions>${extensionElements}</extensions><rte><rtept lat="1" lon="2"/><rtept lat="3" lon="4"/></rte></gpx>`
+
+    expect(xml.length).toBeLessThan(MAX_GPX_FILE_SIZE_BYTES)
+    expect(() => parseGpx(xml)).toThrow(`${MAX_GPX_ELEMENT_COUNT}-element limit`)
+  })
+
+  it('rejects files over the nesting depth limit before parsing', () => {
+    const nestedElements = '<item>'.repeat(MAX_GPX_NESTING_DEPTH) + '</item>'.repeat(MAX_GPX_NESTING_DEPTH)
+    const xml = `<gpx><extensions>${nestedElements}</extensions><rte><rtept lat="1" lon="2"/><rtept lat="3" lon="4"/></rte></gpx>`
+
+    expect(() => parseGpx(xml)).toThrow(`${MAX_GPX_NESTING_DEPTH}-element nesting depth limit`)
   })
 
   it('does not count extension or vendor point-like elements toward the point limit', () => {

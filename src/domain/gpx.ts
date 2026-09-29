@@ -1,5 +1,7 @@
 export const MAX_GPX_FILE_SIZE_BYTES = 5 * 1024 * 1024
 export const MAX_GPX_POINT_COUNT = 50_000
+export const MAX_GPX_ELEMENT_COUNT = 100_000
+export const MAX_GPX_NESTING_DEPTH = 256
 const DECIMAL_COORDINATE = /^[+-]?(?:\d+(?:\.\d*)?|\.\d+)$/
 
 export interface GpxPoint {
@@ -73,6 +75,7 @@ function decodeXmlReferences(value: string): string {
 
 function scanXmlBeforeParsing(xml: string): boolean {
   let count = 0
+  let elementCount = 0
   let index = 0
   const namespaces = new Map<string, string>()
   const elements: XmlElementFrame[] = []
@@ -124,6 +127,13 @@ function scanXmlBeforeParsing(xml: string): boolean {
     let nameEnd = index + 1
     while (nameEnd < xml.length && !/[\s/>]/.test(xml[nameEnd])) nameEnd += 1
     const name = xml.slice(index + 1, nameEnd)
+    elementCount += 1
+    if (elementCount > MAX_GPX_ELEMENT_COUNT) {
+      throw new Error(`GPX file exceeds the ${MAX_GPX_ELEMENT_COUNT}-element limit.`)
+    }
+    if (elements.length + 1 > MAX_GPX_NESTING_DEPTH) {
+      throw new Error(`GPX file exceeds the ${MAX_GPX_NESTING_DEPTH}-element nesting depth limit.`)
+    }
     const localName = name.split(':').at(-1)
     const namespaceDeclarations = new Map<string, string>()
     let selfClosing = false
