@@ -5,9 +5,15 @@ function elements(parent: Document | Element, name: string): Element[] {
 }
 
 function pointPosition(point: Element): [number, number] {
-  const latitude = Number(point.getAttribute('lat'))
-  const longitude = Number(point.getAttribute('lon'))
+  const latitudeValue = point.getAttribute('lat')
+  const longitudeValue = point.getAttribute('lon')
+  const latitude = Number(latitudeValue)
+  const longitude = Number(longitudeValue)
   if (
+    latitudeValue === null ||
+    latitudeValue.trim() === '' ||
+    longitudeValue === null ||
+    longitudeValue.trim() === '' ||
     !Number.isFinite(latitude) ||
     latitude < -90 ||
     latitude > 90 ||

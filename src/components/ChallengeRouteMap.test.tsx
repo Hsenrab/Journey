@@ -9,7 +9,10 @@ const mapState = vi.hoisted(() => ({
 
 vi.mock('azure-maps-control', () => {
   class DataSource {
-    constructor(private id: string) {}
+    private id: string
+    constructor(id: string) {
+      this.id = id
+    }
     add(features: unknown[]) {
       mapState.sourceFeatures.set(this.id, features)
     }
@@ -36,16 +39,24 @@ vi.mock('azure-maps-control', () => {
     layer: { LineLayer: Layer, BubbleLayer: Layer, SymbolLayer: Layer },
     data: {
       Feature: class {
-        constructor(
-          public geometry: unknown,
-          public properties?: unknown,
-        ) {}
+        geometry: unknown
+        properties?: unknown
+        constructor(geometry: unknown, properties?: unknown) {
+          this.geometry = geometry
+          this.properties = properties
+        }
       },
       LineString: class {
-        constructor(public coordinates: unknown) {}
+        coordinates: unknown
+        constructor(coordinates: unknown) {
+          this.coordinates = coordinates
+        }
       },
       Point: class {
-        constructor(public coordinates: unknown) {}
+        coordinates: unknown
+        constructor(coordinates: unknown) {
+          this.coordinates = coordinates
+        }
       },
     },
   }

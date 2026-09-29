@@ -39,6 +39,11 @@ describe('parseGpxRoute', () => {
       '<gpx><rte><rtept lat="91" lon="-2"/><rtept lat="51" lon="-2"/></rte></gpx>',
       'invalid latitude or longitude',
     ],
+    [
+      'a missing coordinate',
+      '<gpx><rte><rtept lat="51"/><rtept lat="51" lon="-2"/></rte></gpx>',
+      'invalid latitude or longitude',
+    ],
   ])('rejects %s', (_label, contents, message) => {
     expect(() => parseGpxRoute(contents, 'invalid.gpx')).toThrow(message)
   })

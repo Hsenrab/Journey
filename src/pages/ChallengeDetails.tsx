@@ -28,7 +28,10 @@ export default function ChallengeDetails() {
       <Stack spacing={3}>
         <DetailPageHeader breadcrumbs={breadcrumbs} title="Challenge" />
         {loadState.status === 'failed' ? (
-          <LoadFailureAlert message={loadState.message} description="This is a load failure, not a missing challenge." />
+          <LoadFailureAlert
+            message={loadState.message}
+            description="This is a load failure, not a missing challenge."
+          />
         ) : loadState.status === 'loading' ? (
           <LoadingNotice message="Loading challenge…" />
         ) : (

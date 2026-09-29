@@ -7,13 +7,9 @@ import { createDefaultData, createDemoModeData, save, setDataMode } from '../ser
 import ChallengeDetails from './ChallengeDetails'
 
 vi.mock('../components/ChallengeRouteMap', () => ({
-  ChallengeRouteMap: ({
-    plannedRoute,
-    waypoints,
-  }: {
-    plannedRoute?: { fileName: string }
-    waypoints: unknown[]
-  }) => <div data-testid="challenge-map">{`${plannedRoute?.fileName ?? 'No route'} · ${waypoints.length} waypoints`}</div>,
+  ChallengeRouteMap: ({ plannedRoute, waypoints }: { plannedRoute?: { fileName: string }; waypoints: unknown[] }) => (
+    <div data-testid="challenge-map">{`${plannedRoute?.fileName ?? 'No route'} · ${waypoints.length} waypoints`}</div>
+  ),
 }))
 
 function renderDetails(challengeId = 'national-trust') {
@@ -28,8 +24,7 @@ function renderDetails(challengeId = 'national-trust') {
   )
 }
 
-const validGpx =
-  '<gpx><trk><trkseg><trkpt lat="51.1" lon="-2.1"/><trkpt lat="51.2" lon="-2.2"/></trkseg></trk></gpx>'
+const validGpx = '<gpx><trk><trkseg><trkpt lat="51.1" lon="-2.1"/><trkpt lat="51.2" lon="-2.2"/></trkseg></trk></gpx>'
 
 describe('ChallengeDetails', () => {
   beforeEach(() => localStorage.clear())
