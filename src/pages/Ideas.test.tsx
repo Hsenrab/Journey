@@ -1,5 +1,5 @@
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import Ideas from './Ideas'
@@ -91,7 +91,7 @@ describe('Ideas', () => {
 
     await user.type(screen.getByLabelText('Search ideas'), 'example.com')
     expect(screen.getByText('Route A')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'All ideas (1)' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'All ideas (1)', pressed: true })).toBeInTheDocument()
     expect(screen.getByText('Used in 1 activity')).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Route A' })).toHaveAttribute('href', '/ideas/idea-1')
 
@@ -340,7 +340,17 @@ describe('Ideas', () => {
     await user.click(screen.getByRole('option', { name: 'Difficulty' }))
     expect(screen.getAllByRole('heading', { level: 6 })[0]).toHaveTextContent('With location')
 
-    await user.click(screen.getByRole('button', { name: 'Rejected ideas (1)' }))
+    const stateFilter = screen.getByRole('group', { name: 'Planning state' })
+    expect(stateFilter).toHaveStyle({ flexWrap: 'wrap', gap: '8px' })
+    expect(within(stateFilter).getAllByRole('button')[1]).toHaveStyle({ margin: '0px', borderRadius: '4px' })
+    expect(
+      within(screen.getByTestId('page-header'))
+        .getAllByRole('button')
+        .map((button) => button.textContent),
+    ).toEqual(['Add idea'])
+    await user.click(within(stateFilter).getByRole('button', { name: 'Rejected ideas (1)', pressed: false }))
+    expect(within(stateFilter).getByRole('button', { name: 'Rejected ideas (1)', pressed: true })).toBeInTheDocument()
+    expect(within(stateFilter).getByRole('button', { name: 'All ideas (3)', pressed: false })).toBeInTheDocument()
     expect(screen.getByText('Rejected candidate')).toBeInTheDocument()
   })
 })

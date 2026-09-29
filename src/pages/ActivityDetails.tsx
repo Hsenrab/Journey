@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useRef, useState, type KeyboardEvent, type TouchEvent } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import {
   Alert,
@@ -39,6 +39,7 @@ export default function ActivityDetails() {
   const { data, loadState, readOnly, reload, updateActivity, deleteActivity } = useWaypoints()
   const [editing, setEditing] = useState(false)
   const [photoIndex, setPhotoIndex] = useState(0)
+  const touchStart = useRef<{ x: number; y: number } | null>(null)
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
   const [brokenPhotoIds, setBrokenPhotoIds] = useState<string[]>([])
   const [message, setMessage] = useState<{ severity: 'success' | 'error'; text: string; conflict?: boolean } | null>(
@@ -81,6 +82,30 @@ export default function ActivityDetails() {
     activity.photoReferenceIds.includes(photoReference.photoReferenceId),
   )
   const selectedPhoto = photoReferences[photoIndex]
+  const markPhotoBroken = (photoReferenceId: string) =>
+    setBrokenPhotoIds((current) => (current.includes(photoReferenceId) ? current : [...current, photoReferenceId]))
+  const movePhoto = (direction: -1 | 1) =>
+    setPhotoIndex((index) => (index + direction + photoReferences.length) % photoReferences.length)
+  const handleGalleryKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+    if (event.key === 'ArrowLeft') {
+      event.preventDefault()
+      movePhoto(-1)
+    } else if (event.key === 'ArrowRight') {
+      event.preventDefault()
+      movePhoto(1)
+    }
+  }
+  const handleTouchEnd = (event: TouchEvent<HTMLDivElement>) => {
+    const start = touchStart.current
+    const touch = event.changedTouches[0]
+    touchStart.current = null
+    if (!start || !touch) return
+
+    const deltaX = touch.clientX - start.x
+    const deltaY = touch.clientY - start.y
+    if (Math.abs(deltaX) < 40 || Math.abs(deltaX) < Math.abs(deltaY)) return
+    movePhoto(deltaX < 0 ? 1 : -1)
+  }
 
   const hostname = (url: string) => {
     try {
@@ -166,42 +191,103 @@ export default function ActivityDetails() {
             <Stack spacing={2}>
               <Typography variant="h5">Photos</Typography>
               {selectedPhoto && (
-                <Box>
-                  <Box
-                    component="img"
-                    src={selectedPhoto.url}
-                    alt={selectedPhoto.altText ?? selectedPhoto.title}
-                    onError={() =>
-                      setBrokenPhotoIds((current) =>
-                        current.includes(selectedPhoto.photoReferenceId)
-                          ? current
-                          : [...current, selectedPhoto.photoReferenceId],
-                      )
-                    }
-                    sx={{ width: '100%', borderRadius: 1, maxHeight: 420, objectFit: 'cover' }}
-                  />
-                  {brokenPhotoIds.includes(selectedPhoto.photoReferenceId) && (
-                    <Typography color="error">Image failed to load: {selectedPhoto.title}</Typography>
+                <Box
+                  role="region"
+                  aria-label={`Photos for ${activityTitle(activity)}`}
+                  tabIndex={0}
+                  onKeyDown={handleGalleryKeyDown}
+                  onTouchStart={(event) => {
+                    const touch = event.touches[0]
+                    touchStart.current = touch ? { x: touch.clientX, y: touch.clientY } : null
+                  }}
+                  onTouchEnd={handleTouchEnd}
+                  sx={{ display: 'flex', justifyContent: 'center', maxHeight: 420 }}
+                >
+                  {brokenPhotoIds.includes(selectedPhoto.photoReferenceId) ? (
+                    <Alert severity="error" role="alert">
+                      Image failed to load: {selectedPhoto.title}
+                    </Alert>
+                  ) : (
+                    <Box
+                      component="img"
+                      src={selectedPhoto.url}
+                      alt={selectedPhoto.altText ?? selectedPhoto.title}
+                      onError={() => markPhotoBroken(selectedPhoto.photoReferenceId)}
+                      sx={{
+                        display: 'block',
+                        maxWidth: '100%',
+                        maxHeight: 420,
+                        width: 'auto',
+                        height: 'auto',
+                        borderRadius: 1,
+                        objectFit: 'contain',
+                      }}
+                    />
                   )}
                 </Box>
               )}
               <Stack direction="row" spacing={1}>
-                <Button
-                  onClick={() => setPhotoIndex((index) => (index === 0 ? photoReferences.length - 1 : index - 1))}
-                  aria-label="Previous photo"
-                >
+                <Button onClick={() => movePhoto(-1)} aria-label="Previous photo">
                   Previous photo
                 </Button>
-                <Button
-                  onClick={() => setPhotoIndex((index) => (index + 1) % photoReferences.length)}
-                  aria-label="Next photo"
-                >
+                <Button onClick={() => movePhoto(1)} aria-label="Next photo">
                   Next photo
                 </Button>
               </Stack>
-              <Typography color="text.secondary">
+              <Typography role="status" aria-live="polite" aria-atomic="true" color="text.secondary">
                 {photoIndex + 1} of {photoReferences.length}: {selectedPhoto?.title}
               </Typography>
+              <Stack
+                direction="row"
+                spacing={1}
+                role="group"
+                aria-label="Photo thumbnails"
+                sx={{ overflowX: 'auto', pb: 0.5 }}
+              >
+                {photoReferences.map((photo, index) => {
+                  const isBroken = brokenPhotoIds.includes(photo.photoReferenceId)
+                  return (
+                    <Button
+                      key={photo.photoReferenceId}
+                      aria-label={`Show photo ${index + 1}: ${photo.title}${isBroken ? ', failed to load' : ''}`}
+                      aria-pressed={index === photoIndex}
+                      variant={index === photoIndex ? 'contained' : 'outlined'}
+                      onClick={() => setPhotoIndex(index)}
+                      sx={{ flex: '0 0 auto', minWidth: 0, p: 1 }}
+                    >
+                      <Stack spacing={0.5} sx={{ alignItems: 'center' }}>
+                        <Box
+                          sx={{
+                            width: 88,
+                            height: 64,
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            overflow: 'hidden',
+                          }}
+                        >
+                          {isBroken ? (
+                            <Typography variant="caption" color="error">
+                              Failed
+                            </Typography>
+                          ) : (
+                            <Box
+                              component="img"
+                              src={photo.url}
+                              alt=""
+                              onError={() => markPhotoBroken(photo.photoReferenceId)}
+                              sx={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }}
+                            />
+                          )}
+                        </Box>
+                        <Typography variant="caption" noWrap sx={{ maxWidth: 88 }}>
+                          {photo.title}
+                        </Typography>
+                      </Stack>
+                    </Button>
+                  )
+                })}
+              </Stack>
             </Stack>
           </CardContent>
         </Card>

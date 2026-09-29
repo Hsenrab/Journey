@@ -34,6 +34,10 @@ function renderLocations(initialEntries: string[] = ['/waypoints']) {
   )
 }
 
+async function openMoreFilters(user: ReturnType<typeof userEvent.setup>) {
+  await user.click(screen.getByRole('button', { name: 'More filters (0 active)' }))
+}
+
 function waypointNames() {
   return screen.getAllByRole('heading', { level: 6 }).map((el) => el.textContent)
 }
@@ -50,6 +54,21 @@ describe('Locations', () => {
     expect(screen.getByText('Stourhead')).toBeInTheDocument()
     expect(screen.getByText('Dyrham Park')).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Stourhead' })).toHaveAttribute('href', '/waypoints/stourhead')
+  })
+
+  it('keeps primary filters visible and secondary filters in a closed accordion', () => {
+    renderLocations()
+
+    expect(screen.getByLabelText('Search waypoints')).toBeVisible()
+    expect(screen.getByRole('combobox', { name: 'Status' })).toBeVisible()
+    expect(screen.getByRole('combobox', { name: 'Sort' })).toBeVisible()
+    const summary = screen.getByRole('button', { name: 'More filters (0 active)' })
+    expect(summary).toHaveAttribute('aria-expanded', 'false')
+    const regionId = summary.getAttribute('aria-controls')
+    expect(regionId).toBe('more-filters')
+    expect(document.querySelectorAll(`#${regionId}`)).toHaveLength(1)
+    expect(document.getElementById(regionId!)).toHaveAttribute('aria-labelledby', 'more-filters-header')
+    expect(screen.getByText('Any distance')).not.toBeVisible()
   })
 
   it('filters by search term across title, area and category', async () => {
@@ -147,7 +166,8 @@ describe('Locations', () => {
     const user = userEvent.setup()
     renderLocations()
 
-    await user.click(screen.getAllByRole('combobox')[2])
+    await openMoreFilters(user)
+    await user.click(screen.getByRole('combobox', { name: 'Maximum driving distance' }))
     await user.click(screen.getByRole('option', { name: 'Up to 25 miles (plus unknown)' }))
 
     expect(screen.getByText('Custom nearby waypoint')).toBeInTheDocument()
@@ -184,7 +204,8 @@ describe('Locations', () => {
     const user = userEvent.setup()
     renderLocations()
 
-    await user.click(screen.getAllByRole('combobox')[2])
+    await openMoreFilters(user)
+    await user.click(screen.getByRole('combobox', { name: 'Maximum driving distance' }))
     await user.click(screen.getByRole('option', { name: 'Up to 25 miles (plus unknown)' }))
 
     expect(screen.getByText('Other challenge waypoint')).toBeInTheDocument()
@@ -195,16 +216,20 @@ describe('Locations', () => {
     const user = userEvent.setup()
     renderLocations()
 
-    await user.click(screen.getAllByRole('combobox')[3])
+    await openMoreFilters(user)
+    await user.click(screen.getByRole('combobox', { name: 'Area' }))
     await user.click(screen.getByRole('option', { name: 'Gloucestershire' }))
     expect(screen.queryByText('Stourhead')).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'More filters (1 active)' })).toBeInTheDocument()
 
-    await user.click(screen.getAllByRole('combobox')[3])
-    await user.click(screen.getByRole('option', { name: 'All areas' }))
-
-    await user.click(screen.getAllByRole('combobox')[4])
+    await user.click(screen.getByRole('combobox', { name: 'Category' }))
     await user.click(screen.getByRole('option', { name: 'Garden' }))
     expect(screen.getByText('Westbury Court Garden')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'More filters (2 active)' })).toBeInTheDocument()
+
+    await user.click(screen.getByRole('combobox', { name: 'Area' }))
+    await user.click(screen.getByRole('option', { name: 'All areas' }))
+    expect(screen.getByRole('button', { name: 'More filters (1 active)' })).toBeInTheDocument()
   })
 
   it('shows the waypoint editor and paste-json mode on add', async () => {
