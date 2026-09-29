@@ -213,7 +213,16 @@ export default function Ideas() {
               return next
             })
           }}
-          sx={{ flexWrap: 'wrap' }}
+          sx={{
+            flexWrap: 'wrap',
+            gap: 1,
+            '& .MuiToggleButtonGroup-grouped': {
+              margin: 0,
+              border: 1,
+              borderColor: 'divider',
+              borderRadius: 1,
+            },
+          }}
         >
           {stateFilters.map((state) => {
             const label = state === 'all' ? 'All' : planningStateLabels[state]

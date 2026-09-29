@@ -62,7 +62,12 @@ describe('Locations', () => {
     expect(screen.getByLabelText('Search waypoints')).toBeVisible()
     expect(screen.getByRole('combobox', { name: 'Status' })).toBeVisible()
     expect(screen.getByRole('combobox', { name: 'Sort' })).toBeVisible()
-    expect(screen.getByRole('button', { name: 'More filters (0 active)' })).toHaveAttribute('aria-expanded', 'false')
+    const summary = screen.getByRole('button', { name: 'More filters (0 active)' })
+    expect(summary).toHaveAttribute('aria-expanded', 'false')
+    const regionId = summary.getAttribute('aria-controls')
+    expect(regionId).toBe('more-filters')
+    expect(document.querySelectorAll(`#${regionId}`)).toHaveLength(1)
+    expect(document.getElementById(regionId!)).toHaveAttribute('aria-labelledby', 'more-filters-header')
     expect(screen.getByText('Any distance')).not.toBeVisible()
   })
 

@@ -341,6 +341,8 @@ describe('Ideas', () => {
     expect(screen.getAllByRole('heading', { level: 6 })[0]).toHaveTextContent('With location')
 
     const stateFilter = screen.getByRole('group', { name: 'Planning state' })
+    expect(stateFilter).toHaveStyle({ flexWrap: 'wrap', gap: '8px' })
+    expect(within(stateFilter).getAllByRole('button')[1]).toHaveStyle({ margin: '0px', borderRadius: '4px' })
     expect(
       within(screen.getByTestId('page-header'))
         .getAllByRole('button')

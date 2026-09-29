@@ -270,7 +270,7 @@ export default function Locations() {
           <AccordionSummary expandIcon={<ExpandMoreIcon />} aria-controls="more-filters" id="more-filters-header">
             <Typography>More filters ({activeMoreFilterCount} active)</Typography>
           </AccordionSummary>
-          <AccordionDetails id="more-filters">
+          <AccordionDetails>
             <FilterBar>
               <TextField
                 id="maximum-driving-distance"
