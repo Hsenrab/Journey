@@ -69,6 +69,84 @@ describe('Journey document validation', () => {
     ).toBe(true)
   })
 
+  it('accepts GPX geometry while keeping location required independently', () => {
+    const result = JourneyDocumentSchema.safeParse({
+      id: 'activity-1',
+      datasetId: 'production',
+      type: 'activity',
+      schemaVersion: 4,
+      entity: {
+        activityId: 'activity-1',
+        ideaIds: [],
+        date: '2026-09-04',
+        location: { kind: 'coordinates', latitude: 51, longitude: -2 },
+        recordedTrack: { segments: [{ points: [{ latitude: 51, longitude: -2 }, { latitude: 51.1, longitude: -2.1 }] }] },
+        notes: '',
+        referenceIds: [],
+        photoReferenceIds: [],
+        createdAt: '2026-09-04T00:00:00.000Z',
+        updatedAt: '2026-09-04T00:00:00.000Z',
+      },
+    })
+    expect(result.success).toBe(true)
+    expect(
+      JourneyDocumentSchema.safeParse({
+        id: 'activity-1',
+        datasetId: 'production',
+        type: 'activity',
+        schemaVersion: 4,
+        entity: {
+          activityId: 'activity-1',
+          ideaIds: [],
+          date: '2026-09-04',
+          recordedTrack: { segments: [{ points: [{ latitude: 51, longitude: -2 }, { latitude: 51.1, longitude: -2.1 }] }] },
+          notes: '',
+          referenceIds: [],
+          photoReferenceIds: [],
+          createdAt: '2026-09-04T00:00:00.000Z',
+          updatedAt: '2026-09-04T00:00:00.000Z',
+        },
+      }).success,
+    ).toBe(false)
+  })
+
+  it('accepts pre-GPX challenge and activity documents without migrating them', () => {
+    expect(
+      JourneyDocumentSchema.safeParse({
+        id: 'challenge-1',
+        datasetId: 'production',
+        type: 'challenge',
+        schemaVersion: 1,
+        entity: {
+          challengeId: 'challenge-1',
+          title: 'Challenge',
+          description: 'Description',
+          waypointIds: [],
+          supportsActivityCategories: false,
+        },
+      }).success,
+    ).toBe(true)
+    expect(
+      JourneyDocumentSchema.safeParse({
+        id: 'activity-1',
+        datasetId: 'production',
+        type: 'activity',
+        schemaVersion: 3,
+        entity: {
+          activityId: 'activity-1',
+          ideaIds: [],
+          date: '2026-09-04',
+          location: { kind: 'coordinates', latitude: 51, longitude: -2 },
+          notes: '',
+          referenceIds: [],
+          photoReferenceIds: [],
+          createdAt: '2026-09-04T00:00:00.000Z',
+          updatedAt: '2026-09-04T00:00:00.000Z',
+        },
+      }).success,
+    ).toBe(true)
+  })
+
   it('rejects malformed persisted entities', () => {
     expect(
       JourneyDocumentSchema.safeParse({

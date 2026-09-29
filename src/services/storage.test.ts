@@ -20,6 +20,7 @@ const activity: Activity = {
   date: '2026-08-01',
   category: 'silver',
   location: { kind: 'postcode', postcode: 'GL1 1AA' },
+  recordedTrack: { segments: [{ points: [{ latitude: 51, longitude: -2 }, { latitude: 51.1, longitude: -2.1 }] }] },
   notes: 'Great day',
   referenceIds: [],
   photoReferenceIds: [],
@@ -101,8 +102,18 @@ describe('save', () => {
 
 describe('createBackup/parseImport', () => {
   it('round-trips a valid backup', () => {
-    const exported = createBackup({ ...createDefaultData(), activities: [activity] })
-    expect(parseImport(JSON.stringify(exported))).toMatchObject({ activities: [activity] })
+    const data = {
+      ...createDefaultData(),
+      challenges: [
+        {
+          ...createDefaultData().challenges[0]!,
+          plannedRoute: { segments: [{ points: [{ latitude: 51, longitude: -2 }, { latitude: 51.1, longitude: -2.1 }] }] },
+        },
+      ],
+      activities: [activity],
+    }
+    const exported = createBackup(data)
+    expect(parseImport(JSON.stringify(exported))).toEqual(data)
   })
 
   it('rejects unsupported versions', () => {

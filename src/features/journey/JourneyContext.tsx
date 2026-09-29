@@ -45,6 +45,7 @@ import {
   type Status,
   type WaypointsData,
 } from '../../domain/visit'
+import type { GpxGeometry } from '../../domain/gpx'
 
 type AccessRole = JourneyRole | 'local'
 
@@ -62,6 +63,7 @@ export type ActivityDraft = {
   date: string
   category?: AwardedStatus
   location: ActivityLocation
+  recordedTrack?: GpxGeometry
   notes: string
   references: DraftReference[]
   photoReferences: DraftPhotoReference[]
@@ -114,7 +116,9 @@ type WaypointsValue = {
   loadError?: string
   loadState: JourneyLoadState
   setDataMode: (mode: JourneyDataMode) => Promise<void>
-  addChallenge: (input: Pick<Challenge, 'title' | 'description' | 'supportsActivityCategories'>) => Promise<void>
+  addChallenge: (
+    input: Pick<Challenge, 'title' | 'description' | 'supportsActivityCategories' | 'plannedRoute'>,
+  ) => Promise<void>
   addWaypoint: (input: WaypointDraft) => Promise<void>
   updateWaypoint: (waypointId: string, input: WaypointDraft) => Promise<void>
   deleteWaypoint: (waypointId: string) => Promise<void>
@@ -332,6 +336,7 @@ function reducer(data: WaypointsData, action: Action): WaypointsData {
           date: action.input.date,
           category,
           location: action.input.location,
+          recordedTrack: action.input.recordedTrack,
           notes: action.input.notes,
           referenceIds: refs.referenceIds,
           photoReferenceIds: photos.photoReferenceIds,
@@ -366,6 +371,7 @@ function reducer(data: WaypointsData, action: Action): WaypointsData {
           date: action.input.date,
           category: action.input.waypointId ? action.input.category : undefined,
           location: action.input.location,
+          recordedTrack: action.input.recordedTrack ?? existing.recordedTrack,
           notes: action.input.notes,
           referenceIds: refs.referenceIds,
           photoReferenceIds: photos.photoReferenceIds,
@@ -576,6 +582,7 @@ export function WaypointsProvider({ children }: { children: ReactNode }) {
             description: input.description.trim(),
             waypointIds: [],
             supportsActivityCategories: input.supportsActivityCategories,
+            plannedRoute: input.plannedRoute,
           }),
         }
         await persist(container, action, reducer(data, action))
