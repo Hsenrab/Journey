@@ -25,6 +25,13 @@ const activityLocation = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('postcode'), postcode: identifier, latitude, longitude }).strict(),
   z.object({ kind: z.literal('coordinates'), latitude, longitude }).strict(),
 ])
+const gpxGeometry = z
+  .object({
+    type: z.literal('MultiLineString'),
+    coordinates: z.array(z.array(z.tuple([longitude, latitude])).min(2)).min(1),
+  })
+  .strict()
+const plannedRoute = z.object({ fileName: text, geometry: gpxGeometry }).strict()
 const schemas = {
   waypoint: z
     .object({
@@ -51,6 +58,7 @@ const schemas = {
       waypointIds: z.array(identifier),
       supportsActivityCategories: z.boolean(),
       location: place.optional(),
+      plannedRoute: plannedRoute.optional(),
     })
     .strict(),
   idea: z
@@ -116,7 +124,7 @@ const schemas = {
 
 export const schemaVersions = {
   waypoint: 2,
-  challenge: 1,
+  challenge: 2,
   idea: 2,
   activity: 3,
   reference: 1,
