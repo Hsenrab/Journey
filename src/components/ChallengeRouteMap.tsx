@@ -69,6 +69,10 @@ export function ChallengeRouteMap({ plannedRoute, activities }: ChallengeRouteMa
   const allTracksVisible = tracks.length > 0 && visibleTrackIds.size === tracks.length
 
   useEffect(() => {
+    setVisibleTrackIds(new Set(tracks.map((activity) => activity.activityId)))
+  }, [tracks])
+
+  useEffect(() => {
     if (!hasGeometry) return
     void getMapsToken()
       .then(setToken)
@@ -76,7 +80,7 @@ export function ChallengeRouteMap({ plannedRoute, activities }: ChallengeRouteMa
   }, [hasGeometry])
 
   useEffect(() => {
-    if (!token || !container.current || map.current) return
+    if (!hasGeometry || !token || !container.current || map.current) return
     let initialToken: string | undefined = token.token
     const instance = new atlas.Map(container.current, {
       authOptions: {
@@ -123,7 +127,7 @@ export function ChallengeRouteMap({ plannedRoute, activities }: ChallengeRouteMa
       trackSource.current = null
       setMapReady(false)
     }
-  }, [token])
+  }, [hasGeometry, token])
 
   useEffect(() => {
     const source = plannedSource.current

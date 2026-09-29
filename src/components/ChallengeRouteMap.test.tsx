@@ -6,6 +6,7 @@ import type { Activity, GpxGeometry } from '../domain/visit'
 const mapState = vi.hoisted(() => ({
   sources: new Map<string, { add: ReturnType<typeof vi.fn>; clear: ReturnType<typeof vi.fn> }>(),
   layers: [] as Array<{ id: string; options: Record<string, unknown> }>,
+  dispose: vi.fn(),
 }))
 
 vi.mock('azure-maps-control', () => ({
@@ -19,7 +20,7 @@ vi.mock('azure-maps-control', () => ({
     sources = { add: vi.fn() }
     layers = { add: vi.fn() }
     setCamera = vi.fn()
-    dispose = vi.fn()
+    dispose = mapState.dispose
   },
   source: {
     DataSource: class {
@@ -81,6 +82,7 @@ describe('ChallengeRouteMap', () => {
   beforeEach(() => {
     mapState.sources.clear()
     mapState.layers = []
+    mapState.dispose.mockClear()
     vi.stubGlobal(
       'fetch',
       vi.fn().mockResolvedValue(
@@ -146,5 +148,20 @@ describe('ChallengeRouteMap', () => {
 
     expect(screen.getByRole('alert')).toHaveTextContent('This Challenge does not have a planned route.')
     expect(screen.getByRole('checkbox', { name: /Morning walk/ })).toBeChecked()
+  })
+
+  it('resets track selection and map lifecycle when Challenge geometry changes', async () => {
+    const { rerender } = render(
+      <ChallengeRouteMap plannedRoute={geometry} activities={[activity('activity-1', 'Morning walk')]} />,
+    )
+    await screen.findByRole('checkbox', { name: /Morning walk/ })
+
+    rerender(<ChallengeRouteMap activities={[]} />)
+    expect(screen.getByText('No planned route or recorded Activity tracks are available.')).toBeInTheDocument()
+    expect(mapState.dispose).toHaveBeenCalled()
+
+    rerender(<ChallengeRouteMap activities={[activity('activity-2', 'Evening walk')]} />)
+    expect(await screen.findByRole('checkbox', { name: /Evening walk/ })).toBeChecked()
+    expect(screen.queryByRole('checkbox', { name: /Morning walk/ })).not.toBeInTheDocument()
   })
 })
