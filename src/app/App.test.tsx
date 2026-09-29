@@ -102,17 +102,17 @@ describe('activity logging', () => {
 
     await logActivity(user, 'Gold', '2026-08-01')
     expect(screen.getByText('Activity saved.')).toBeInTheDocument()
-    expect(screen.getByText('Category summary: Gold')).toBeInTheDocument()
+    expect(screen.getByText('Award tier: Gold')).toBeInTheDocument()
 
     await logActivity(user, 'Bronze', '2026-08-02')
     expect(screen.getByText(new Date('2026-08-01T00:00:00').toLocaleDateString())).toBeInTheDocument()
     expect(screen.getByText(new Date('2026-08-02T00:00:00').toLocaleDateString())).toBeInTheDocument()
-    expect(screen.getByText('Category summary: Gold')).toBeInTheDocument()
+    expect(screen.getByText('Award tier: Gold')).toBeInTheDocument()
 
     cleanup()
     render(<App />)
     await user.click(within(screen.getByTestId('detail-breadcrumbs')).getByRole('link', { name: 'Waypoints' }))
     await user.click(screen.getByRole('link', { name: 'Chedworth Roman Villa' }))
-    expect(screen.getByText('Category summary: Gold')).toBeInTheDocument()
+    expect(screen.getByText('Award tier: Gold')).toBeInTheDocument()
   }, 20000)
 })

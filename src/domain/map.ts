@@ -1,4 +1,4 @@
-import type { Activity, Status, Waypoint } from './visit'
+import { waypointCompletionProgress, type Activity, type Status, type Waypoint } from './visit'
 
 export type Coordinates = { latitude: number; longitude: number }
 export type WaypointCompletionState = 'not-started' | 'complete'
@@ -8,14 +8,7 @@ export function completionStateForWaypoint(
   waypoint: Waypoint,
   activities: readonly Activity[],
 ): WaypointCompletionState {
-  const count = activities.filter((activity) => activity.waypointId === waypoint.waypointId).length
-  return waypoint.completion.mode === 'once'
-    ? count > 0
-      ? 'complete'
-      : 'not-started'
-    : count >= waypoint.completion.target
-      ? 'complete'
-      : 'not-started'
+  return waypointCompletionProgress(waypoint, activities).complete ? 'complete' : 'not-started'
 }
 
 export function waypointCoordinates(waypoint: Waypoint): Coordinates | undefined {

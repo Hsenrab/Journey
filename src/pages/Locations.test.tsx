@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -56,11 +56,32 @@ describe('Locations', () => {
     expect(screen.getByRole('link', { name: 'Stourhead' })).toHaveAttribute('href', '/waypoints/stourhead')
   })
 
+  it('shows completion progress and award tier on waypoint cards', () => {
+    const data = createDefaultData()
+    save({
+      ...data,
+      waypoints: data.waypoints.map((waypoint) =>
+        waypoint.waypointId === 'stourhead' ? { ...waypoint, completion: { mode: 'count', target: 3 } } : waypoint,
+      ),
+      activities: [activity('stourhead', 'gold'), activity('dyrham-park', 'bronze')],
+    })
+    renderLocations()
+
+    const stourhead = screen.getByRole('link', { name: 'Stourhead' })
+    expect(within(stourhead).getByText('Completion: 1 of 3 activities')).toBeInTheDocument()
+    expect(within(stourhead).getByText('Award tier: Gold')).toBeInTheDocument()
+    const dyrham = screen.getByRole('link', { name: 'Dyrham Park' })
+    expect(within(dyrham).getByText('Completion: Done')).toBeInTheDocument()
+    expect(within(dyrham).getByText('Award tier: Bronze')).toBeInTheDocument()
+    const hidcote = screen.getByRole('link', { name: 'Hidcote' })
+    expect(within(hidcote).getByText('Completion: Not done')).toBeInTheDocument()
+  })
+
   it('keeps primary filters visible and secondary filters in a closed accordion', () => {
     renderLocations()
 
     expect(screen.getByLabelText('Search waypoints')).toBeVisible()
-    expect(screen.getByRole('combobox', { name: 'Status' })).toBeVisible()
+    expect(screen.getByRole('combobox', { name: 'Award tier' })).toBeVisible()
     expect(screen.getByRole('combobox', { name: 'Sort' })).toBeVisible()
     const summary = screen.getByRole('button', { name: 'More filters (0 active)' })
     expect(summary).toHaveAttribute('aria-expanded', 'false')
@@ -109,7 +130,7 @@ describe('Locations', () => {
     expect(names).toEqual(sorted)
   })
 
-  it('re-sorts the list when switching to progress order', async () => {
+  it('re-sorts the list when switching to award tier order', async () => {
     save({ ...createDefaultData(), activities: [activity('may-hill', 'gold'), activity('dyrham-park', 'silver')] })
     const user = userEvent.setup()
     renderLocations()
@@ -117,7 +138,7 @@ describe('Locations', () => {
     const namesByName = waypointNames()
 
     await user.click(screen.getAllByRole('combobox')[1])
-    await user.click(screen.getByRole('option', { name: 'Progress' }))
+    await user.click(screen.getByRole('option', { name: 'Award tier' }))
 
     const namesByProgress = waypointNames()
     expect(namesByProgress).not.toEqual(namesByName)

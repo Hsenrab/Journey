@@ -43,6 +43,43 @@ describe('LocationDetails', () => {
     expect(screen.getByRole('link', { name: 'Waypoints' })).toHaveAttribute('href', '/waypoints')
   })
 
+  it('shows completion progress separately from the award tier', () => {
+    const seed = createDefaultData()
+    save({
+      ...seed,
+      waypoints: seed.waypoints.map((waypoint) =>
+        waypoint.waypointId === lacockId ? { ...waypoint, completion: { mode: 'count', target: 5 } } : waypoint,
+      ),
+      activities: ['a', 'b'].map((suffix) => ({
+        activityId: `activity-${suffix}`,
+        waypointId: lacockId,
+        ideaIds: [],
+        date: '2026-08-02',
+        category: 'silver' as const,
+        notes: '',
+        location: { kind: 'postcode' as const, postcode: 'SN15 2LG' },
+        photoReferenceIds: [],
+        referenceIds: [],
+        createdAt: '2026-08-02T00:00:00.000Z',
+        updatedAt: '2026-08-02T00:00:00.000Z',
+      })),
+    })
+    renderDetails(lacockId)
+
+    expect(screen.getByText('Completion: 2 of 5 activities')).toBeInTheDocument()
+    expect(screen.getByText('Completed after 5 logged activities.')).toBeInTheDocument()
+    expect(screen.getByText('Award tier: Silver')).toBeInTheDocument()
+    expect(screen.queryByText(/Category summary/)).not.toBeInTheDocument()
+  })
+
+  it('shows a once waypoint as not done until an activity is logged', () => {
+    renderDetails(lacockId)
+
+    expect(screen.getByText('Completion: Not done')).toBeInTheDocument()
+    expect(screen.getByText('Completed after one logged activity.')).toBeInTheDocument()
+    expect(screen.getByText('Award tier: Not Started')).toBeInTheDocument()
+  })
+
   it('adds a linked activity', async () => {
     const user = userEvent.setup()
     renderDetails(lacockId)
@@ -54,6 +91,7 @@ describe('LocationDetails', () => {
     await user.click(screen.getByRole('button', { name: 'Save activity' }))
 
     expect(screen.getByText('Activity saved.')).toBeInTheDocument()
+    expect(screen.getByText('Completion: Done')).toBeInTheDocument()
     expect(load().activities).toContainEqual(
       expect.objectContaining({ waypointId: lacockId, category: 'gold', notes: 'Wonderful visit' }),
     )

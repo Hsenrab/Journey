@@ -6,6 +6,8 @@ import {
   activitiesUsingIdea,
   awardableStatuses,
   completedWaypointCount,
+  completionProgressLabel,
+  completionRuleLabel,
   createActivity,
   createDemoData,
   createSeedData,
@@ -16,11 +18,12 @@ import {
   statusForWaypoint,
   validateActivityCategory,
   waypointSupportsActivityCategory,
+  waypointCompletionProgress,
   type Idea,
   type Waypoint,
   type WaypointsData,
 } from './visit'
-import { waypointCoordinates } from './map'
+import { completionStateForWaypoint, waypointCoordinates } from './map'
 import { locations } from '../data/locations'
 
 function waypoint(waypointId: string): Waypoint {
@@ -99,6 +102,54 @@ describe('activity rules', () => {
 
     expect(completedWaypointCount(waypoints, [uncategorized])).toBe(1)
     expect(statusForWaypoint([uncategorized], 'a')).toBe('not-started')
+  })
+
+  it('derives completion progress for once waypoints', () => {
+    const once = waypoint('a')
+    const visit = createActivity({
+      waypointId: 'a',
+      date: '2026-08-01',
+      location: { kind: 'postcode', postcode: 'GL3' },
+    })
+
+    const notDone = waypointCompletionProgress(once, [])
+    expect(notDone).toEqual({ count: 0, target: 1, complete: false })
+    expect(completionProgressLabel(once, notDone)).toBe('Not done')
+
+    const done = waypointCompletionProgress(once, [visit, { ...visit, activityId: 'other', waypointId: 'b' }])
+    expect(done).toEqual({ count: 1, target: 1, complete: true })
+    expect(completionProgressLabel(once, done)).toBe('Done')
+    expect(completionRuleLabel(once)).toBe('Completed after one logged activity.')
+  })
+
+  it('derives completion progress toward a count target consistently with completion totals', () => {
+    const counted: Waypoint = { ...waypoint('a'), completion: { mode: 'count', target: 5 } }
+    const visit = createActivity({
+      waypointId: 'a',
+      date: '2026-08-01',
+      location: { kind: 'postcode', postcode: 'GL3' },
+    })
+    const visits = (count: number) => Array.from({ length: count }, (_, i) => ({ ...visit, activityId: `v${i}` }))
+
+    const partial = waypointCompletionProgress(counted, visits(2))
+    expect(partial).toEqual({ count: 2, target: 5, complete: false })
+    expect(completionProgressLabel(counted, partial)).toBe('2 of 5 activities')
+    expect(completedWaypointCount([counted], visits(2))).toBe(0)
+    expect(completionStateForWaypoint(counted, visits(2))).toBe('not-started')
+
+    const singleTarget = { ...counted, completion: { mode: 'count' as const, target: 1 } }
+    expect(completionProgressLabel(singleTarget, waypointCompletionProgress(singleTarget, []))).toBe('0 of 1 activity')
+
+    const reached = waypointCompletionProgress(counted, visits(5))
+    expect(reached).toEqual({ count: 5, target: 5, complete: true })
+    expect(completionProgressLabel(counted, reached)).toBe('5 of 5 activities')
+    expect(completedWaypointCount([counted], visits(5))).toBe(1)
+    expect(completionStateForWaypoint(counted, visits(5))).toBe('complete')
+
+    expect(completionRuleLabel(counted)).toBe('Completed after 5 logged activities.')
+    expect(completionRuleLabel({ ...counted, completion: { mode: 'count', target: 1 } })).toBe(
+      'Completed after 1 logged activity.',
+    )
   })
 })
 
