@@ -35,6 +35,8 @@ import {
   type Activity,
   type ActivityLocation,
   type AwardedStatus,
+  ChallengeSchema,
+  type Challenge,
   type ExternalPhotoReference,
   type Idea,
   type Reference,
@@ -90,6 +92,7 @@ export type WaypointDraft = {
 }
 
 type Action =
+  | { type: 'add-challenge'; input: Challenge }
   | { type: 'add-waypoint'; input: WaypointDraft }
   | { type: 'update-waypoint'; waypointId: string; input: WaypointDraft }
   | { type: 'delete-waypoint'; waypointId: string }
@@ -111,6 +114,7 @@ type WaypointsValue = {
   loadError?: string
   loadState: JourneyLoadState
   setDataMode: (mode: JourneyDataMode) => Promise<void>
+  addChallenge: (input: Pick<Challenge, 'title' | 'description' | 'supportsActivityCategories'>) => Promise<void>
   addWaypoint: (input: WaypointDraft) => Promise<void>
   updateWaypoint: (waypointId: string, input: WaypointDraft) => Promise<void>
   deleteWaypoint: (waypointId: string) => Promise<void>
@@ -209,6 +213,8 @@ function reducer(data: WaypointsData, action: Action): WaypointsData {
   switch (action.type) {
     case 'restore':
       return action.data
+    case 'add-challenge':
+      return { ...data, challenges: [...data.challenges, ChallengeSchema.parse(action.input)] }
     case 'add-waypoint': {
       const refs = upsertReferences(data, action.input.references)
       const photos = upsertPhotoReferences(data, action.input.photoReferences)
@@ -560,6 +566,20 @@ export function WaypointsProvider({ children }: { children: ReactNode }) {
       loadError,
       loadState,
       setDataMode: changeDataMode,
+      addChallenge: async (input) => {
+        const container = writableContainer()
+        const action = {
+          type: 'add-challenge' as const,
+          input: ChallengeSchema.parse({
+            challengeId: crypto.randomUUID(),
+            title: input.title.trim(),
+            description: input.description.trim(),
+            waypointIds: [],
+            supportsActivityCategories: input.supportsActivityCategories,
+          }),
+        }
+        await persist(container, action, reducer(data, action))
+      },
       addWaypoint: async (input) => {
         const container = writableContainer()
         const action = { type: 'add-waypoint' as const, input }

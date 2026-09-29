@@ -15,7 +15,8 @@ describe('landing route', () => {
   it('opens on the progress dashboard', () => {
     render(<App />)
 
-    expect(screen.getByRole('heading', { name: 'National Trust Challenge' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Challenges' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'National Trust' })).toBeInTheDocument()
     expect(screen.getByText('Activity categories')).toBeInTheDocument()
   })
 
