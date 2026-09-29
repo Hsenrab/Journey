@@ -12,7 +12,8 @@ more activities through activity `ideaIds`.
 
 ## List behavior
 
-- Planning-state views: **Active**, **Someday**, **Rejected** with visible counts.
+- Planning-state views: **All**, **Active**, **Someday**, **Rejected** with visible counts, selected with a
+  toggle button group below the page header.
 - Usage filter is independent from planning state: **All usage**, **Used ideas**, **Not used**.
 - Search covers title, description, notes, linked waypoint names, reference titles,
   and reference hostnames.

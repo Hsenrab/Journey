@@ -67,6 +67,7 @@ describe('waypoint list', () => {
     const user = userEvent.setup()
     render(<App />)
 
+    await user.click(screen.getByRole('button', { name: 'More filters (0 active)' }))
     await user.click(screen.getByRole('combobox', { name: 'Maximum driving distance' }))
     await user.click(screen.getByRole('option', { name: 'Up to 25 miles (plus unknown)' }))
 

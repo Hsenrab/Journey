@@ -1,6 +1,17 @@
 import { useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { Alert, Box, Button, Chip, MenuItem, Stack, TextField, Typography } from '@mui/material'
+import {
+  Alert,
+  Box,
+  Button,
+  Chip,
+  MenuItem,
+  Stack,
+  TextField,
+  ToggleButton,
+  ToggleButtonGroup,
+  Typography,
+} from '@mui/material'
 import FlagIcon from '@mui/icons-material/Flag'
 import LinkIcon from '@mui/icons-material/Link'
 import PlaceIcon from '@mui/icons-material/Place'
@@ -176,32 +187,6 @@ export default function Ideas() {
             Add idea
           </Button>
         )}
-        {loadState.status !== 'failed' && (
-          <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: 'wrap' }}>
-            {stateFilters.map((state) => {
-              const label = state === 'all' ? 'All' : planningStateLabels[state]
-              const count = state === 'all' ? allCount : counts[state]
-              return (
-                <Button
-                  key={state}
-                  variant={selectedState === state ? 'contained' : 'outlined'}
-                  onClick={() =>
-                    state === 'all'
-                      ? clearStateFilter()
-                      : setSearchParams((previous) => {
-                          const next = new URLSearchParams(previous)
-                          next.set('state', state)
-                          return next
-                        })
-                  }
-                  aria-label={`${label} ideas (${count})`}
-                >
-                  {label} ({count})
-                </Button>
-              )
-            })}
-          </Stack>
-        )}
       </PageHeader>
       <ReadOnlyNotice />
       {loadState.status === 'failed' && (
@@ -209,6 +194,46 @@ export default function Ideas() {
           message={loadState.message}
           description="This is a load failure, not an empty ideas dataset."
         />
+      )}
+      {loadState.status !== 'failed' && (
+        <ToggleButtonGroup
+          exclusive
+          size="small"
+          aria-label="Planning state"
+          value={selectedState}
+          onChange={(_event, state: StateFilter | null) => {
+            if (state === null) return
+            if (state === 'all') {
+              clearStateFilter()
+              return
+            }
+            setSearchParams((previous) => {
+              const next = new URLSearchParams(previous)
+              next.set('state', state)
+              return next
+            })
+          }}
+          sx={{
+            flexWrap: 'wrap',
+            gap: 1,
+            '& .MuiToggleButtonGroup-grouped': {
+              margin: 0,
+              border: 1,
+              borderColor: 'divider',
+              borderRadius: 1,
+            },
+          }}
+        >
+          {stateFilters.map((state) => {
+            const label = state === 'all' ? 'All' : planningStateLabels[state]
+            const count = state === 'all' ? allCount : counts[state]
+            return (
+              <ToggleButton key={state} value={state} aria-label={`${label} ideas (${count})`}>
+                {label} ({count})
+              </ToggleButton>
+            )
+          })}
+        </ToggleButtonGroup>
       )}
       {loadState.status !== 'failed' && (
         <FilterBar>
