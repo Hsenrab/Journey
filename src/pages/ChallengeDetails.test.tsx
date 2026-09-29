@@ -92,6 +92,18 @@ describe('ChallengeDetails', () => {
     expect(screen.getByTestId('challenge-map')).toHaveTextContent('saved.gpx')
   })
 
+  it('allows retrying a corrected GPX file with the same name', async () => {
+    const user = userEvent.setup()
+    const view = renderDetails()
+    const input = view.container.querySelector('input[type="file"]') as HTMLInputElement
+
+    await user.upload(input, new File(['<gpx>'], 'planned.gpx', { type: 'application/gpx+xml' }))
+    expect(await screen.findByText('The selected file is not valid XML.')).toBeInTheDocument()
+
+    await user.upload(input, new File([validGpx], 'planned.gpx', { type: 'application/gpx+xml' }))
+    expect(await screen.findByText(/planned.gpx · Ready to save/)).toBeInTheDocument()
+  })
+
   it('removes and persists a planned route only after saving', async () => {
     const user = userEvent.setup()
     const data = createDefaultData()

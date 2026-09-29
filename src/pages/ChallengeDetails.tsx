@@ -121,10 +121,14 @@ export default function ChallengeDetails() {
                 hidden
                 type="file"
                 accept=".gpx,application/gpx+xml,application/xml,text/xml"
-                onChange={(event) => void selectFile(event.target.files?.[0])}
+                onChange={(event) => {
+                  const file = event.target.files?.[0]
+                  event.target.value = ''
+                  void selectFile(file)
+                }}
               />
             </Button>
-{displayedRoute && (
+            {displayedRoute && (
               <Button color="error" onClick={() => setDraftRoute(null)}>
                 Remove route
               </Button>
