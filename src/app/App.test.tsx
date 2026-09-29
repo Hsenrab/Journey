@@ -15,7 +15,8 @@ describe('landing route', () => {
   it('opens on the progress dashboard', () => {
     render(<App />)
 
-    expect(screen.getByRole('heading', { name: 'National Trust Challenge' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Challenges' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'National Trust' })).toBeInTheDocument()
     expect(screen.getByText('Activity categories')).toBeInTheDocument()
   })
 
@@ -67,6 +68,7 @@ describe('waypoint list', () => {
     const user = userEvent.setup()
     render(<App />)
 
+    await user.click(screen.getByRole('button', { name: 'More filters (0 active)' }))
     await user.click(screen.getByRole('combobox', { name: 'Maximum driving distance' }))
     await user.click(screen.getByRole('option', { name: 'Up to 25 miles (plus unknown)' }))
 
