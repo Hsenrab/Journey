@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import {
-  MAX_GPX_ELEMENT_COUNT,
   MAX_GPX_FILE_SIZE_BYTES,
+  MAX_GPX_MARKUP_NODE_COUNT,
   MAX_GPX_NESTING_DEPTH,
   MAX_GPX_POINT_COUNT,
   parseGpx,
@@ -152,12 +152,34 @@ describe('parseGpx', () => {
     expect(() => parseGpx(xml)).toThrow(`${MAX_GPX_POINT_COUNT}-point limit`)
   })
 
-  it('rejects files over the total element limit before parsing', () => {
-    const extensionElements = '<item/>'.repeat(MAX_GPX_ELEMENT_COUNT)
+  it('rejects files over the total markup-node limit before parsing', () => {
+    const extensionElements = '<item/>'.repeat(MAX_GPX_MARKUP_NODE_COUNT)
     const xml = `<gpx><extensions>${extensionElements}</extensions><rte><rtept lat="1" lon="2"/><rtept lat="3" lon="4"/></rte></gpx>`
 
     expect(xml.length).toBeLessThan(MAX_GPX_FILE_SIZE_BYTES)
-    expect(() => parseGpx(xml)).toThrow(`${MAX_GPX_ELEMENT_COUNT}-element limit`)
+    expect(() => parseGpx(xml)).toThrow(`${MAX_GPX_MARKUP_NODE_COUNT}-markup-node limit`)
+  })
+
+  it('rejects dense comments before parsing', () => {
+    const comments = '<!---->'.repeat(MAX_GPX_MARKUP_NODE_COUNT)
+    const xml = `<gpx><extensions>${comments}</extensions><rte><rtept lat="1" lon="2"/><rtept lat="3" lon="4"/></rte></gpx>`
+    const parseFromString = vi.spyOn(DOMParser.prototype, 'parseFromString')
+
+    try {
+      expect(xml.length).toBeLessThan(MAX_GPX_FILE_SIZE_BYTES)
+      expect(() => parseGpx(xml)).toThrow(`${MAX_GPX_MARKUP_NODE_COUNT}-markup-node limit`)
+      expect(parseFromString).not.toHaveBeenCalled()
+    } finally {
+      parseFromString.mockRestore()
+    }
+  })
+
+  it('counts processing instructions and CDATA as markup nodes', () => {
+    const processingInstructions = '<?x?>'.repeat(MAX_GPX_MARKUP_NODE_COUNT / 2)
+    const cdataSections = '<![CDATA[]]>'.repeat(MAX_GPX_MARKUP_NODE_COUNT / 2)
+    const xml = `<gpx><extensions>${processingInstructions}${cdataSections}</extensions><rte><rtept lat="1" lon="2"/><rtept lat="3" lon="4"/></rte></gpx>`
+
+    expect(() => parseGpx(xml)).toThrow(`${MAX_GPX_MARKUP_NODE_COUNT}-markup-node limit`)
   })
 
   it('rejects files over the nesting depth limit before parsing', () => {

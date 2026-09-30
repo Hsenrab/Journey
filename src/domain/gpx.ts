@@ -1,6 +1,6 @@
 export const MAX_GPX_FILE_SIZE_BYTES = 5 * 1024 * 1024
 export const MAX_GPX_POINT_COUNT = 50_000
-export const MAX_GPX_ELEMENT_COUNT = 100_000
+export const MAX_GPX_MARKUP_NODE_COUNT = 100_000
 export const MAX_GPX_NESTING_DEPTH = 256
 const DECIMAL_COORDINATE = /^[+-]?(?:\d+(?:\.\d*)?|\.\d+)$/
 
@@ -76,10 +76,17 @@ function decodeXmlReferences(value: string): string {
 
 function scanXmlBeforeParsing(xml: string): boolean {
   let count = 0
-  let elementCount = 0
+  let markupNodeCount = 0
   let index = 0
   const namespaces = new Map<string, string>()
   const elements: XmlElementFrame[] = []
+
+  const countMarkupNode = () => {
+    markupNodeCount += 1
+    if (markupNodeCount > MAX_GPX_MARKUP_NODE_COUNT) {
+      throw new Error(`GPX file exceeds the ${MAX_GPX_MARKUP_NODE_COUNT}-markup-node limit.`)
+    }
+  }
 
   const popElement = () => {
     const element = elements.pop()
@@ -96,16 +103,19 @@ function scanXmlBeforeParsing(xml: string): boolean {
       continue
     }
     if (xml.startsWith('<!--', index)) {
+      countMarkupNode()
       const end = xml.indexOf('-->', index + 4)
       index = end === -1 ? xml.length : end + 3
       continue
     }
     if (xml.startsWith('<![CDATA[', index)) {
+      countMarkupNode()
       const end = xml.indexOf(']]>', index + 9)
       index = end === -1 ? xml.length : end + 3
       continue
     }
     if (xml.startsWith('<?', index)) {
+      countMarkupNode()
       const end = xml.indexOf('?>', index + 2)
       index = end === -1 ? xml.length : end + 2
       continue
@@ -134,10 +144,7 @@ function scanXmlBeforeParsing(xml: string): boolean {
     let nameEnd = index + 1
     while (nameEnd < xml.length && !/[\s/>]/.test(xml[nameEnd])) nameEnd += 1
     const name = xml.slice(index + 1, nameEnd)
-    elementCount += 1
-    if (elementCount > MAX_GPX_ELEMENT_COUNT) {
-      throw new Error(`GPX file exceeds the ${MAX_GPX_ELEMENT_COUNT}-element limit.`)
-    }
+    countMarkupNode()
     if (elements.length + 1 > MAX_GPX_NESTING_DEPTH) {
       throw new Error(`GPX file exceeds the ${MAX_GPX_NESTING_DEPTH}-element nesting depth limit.`)
     }
