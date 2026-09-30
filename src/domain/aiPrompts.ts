@@ -3,7 +3,7 @@
 
 export const activityJsonAiPrompt = `Create an import-ready JSON object for an Activity in a personal travel and life-adventure journal. An Activity is a dated historical record of something that actually happened. It captures what I did and where I did it, and may later show progress towards a larger experience, goal, or ambition. It is not a plan or suggestion for the future.
 
-Use only the source material I provide (a website, notes, itinerary, etc.). Extract all supported useful detail, especially what happened, when, where, and any specific highlights. Do not invent missing facts. Write in a specific, factual, lightly personal tone, using the past tense and avoiding promotional language.
+Use only the source material I provide (a website, notes, itinerary, etc.); do not use internet research or other external sources. Extract supported useful detail, especially what happened, when, where, and any specific highlights. If a detail cannot be confirmed, omit it. Do not invent, guess, embellish, or use promotional language. Write in a specific, factual, lightly personal tone using the past tense. Do not add commentary, markdown, or extra JSON fields.
 
 Return ONLY one valid JSON object matching the shape below: no array, markdown, commentary, or additional fields.
 
@@ -55,11 +55,11 @@ Example 2 — activity known by coordinates with no links:
   "photoReferences": []
 }
 
-Now, using the source material I provide below (or that I paste after this prompt), produce a single JSON object in this exact shape.`
+After I provide the source material, produce exactly one JSON object in this exact shape.`
 
 export const ideaJsonAiPrompt = `Create an import-ready JSON object for an Idea in a personal travel and life-adventure journal. An Idea is a planning or research record for something I might do: a possible approach, outing, venue, route, or practical next step. It is not a completed event or the larger life goal it might support.
 
-Use only the source material I provide. Do not invent missing facts or pad sparse material. Write in a concise, practical, future-facing tone without sales language. Keep the description brief; put only useful logistics, reminders, caveats, or next steps in notes.
+Use only the source material I provide and factual details you can reliably confirm through internet research. If a detail cannot be confirmed, omit it. When sources disagree, rely on the most authoritative source. Do not invent, guess, embellish, or use promotional language. Write in a concise, practical, future-facing tone. Do not add commentary, markdown, or extra JSON fields. Keep the description brief; put only useful logistics, reminders, caveats, or next steps in notes.
 
 Return ONLY one valid JSON object matching the shape below: no array, markdown, commentary, or additional fields.
 
@@ -119,11 +119,11 @@ Example 2 — short idea with no useful optional detail:
   "references": []
 }
 
-Now, using the source material I provide below (or that I paste after this prompt), produce a single JSON object in this exact shape.`
+After I provide the source material, produce exactly one JSON object in this exact shape.`
 
-export const waypointJsonAiPrompt = `Create an import-ready JSON object for a Waypoint in a personal travel and life-adventure journal. A Waypoint is a destination or place-based experience worth achieving, such as visiting a landmark, walking a named trail, or taking a hot-air balloon flight over a particular area. It describes the outcome itself, not planning steps or the historical record of completing it. Every waypoint is filed under a challenge collection in the app, so keep it to destinations and place-based experiences rather than standalone personal goals.
+export const waypointJsonAiPrompt = `Create an import-ready JSON object representing a Waypoint for a personal travel and life-adventure journal. A Waypoint is a destination or place-based experience worth achieving, such as visiting a landmark, walking a named trail, or taking a hot-air balloon flight over a specific area. It describes the outcome itself, not planning steps or a record of completion. Every waypoint belongs to a challenge collection, so focus strictly on destinations and place-based experiences rather than standalone personal goals.
 
-Use only the source material I provide. Do not invent missing facts or pad sparse material. Write in a concise, motivating, grounded tone without hype, clichés, or promotional language. A short title and one clear sentence are often enough.
+Use only the source material I provide and factual details you can reliably confirm through internet research. If a detail cannot be confirmed, omit it. When online sources disagree, rely on the most authoritative source. Do not invent, guess, embellish, hype, or use promotional language. Do not add commentary, markdown, or extra JSON fields. Keep the writing concise, grounded, and motivating; a short title and one clear sentence are often enough.
 
 Return ONLY one valid JSON object matching the shape below: no array, markdown, commentary, or additional fields.
 
@@ -191,4 +191,4 @@ Example 2 — count-based waypoint with minimal detail:
   "photoReferences": []
 }
 
-Now, using the source material I provide below (or that I paste after this prompt), produce a single JSON object in this exact shape.`
+After I provide the source material, produce exactly one JSON object in this shape.`
