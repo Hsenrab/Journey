@@ -31,6 +31,35 @@ describe('draftJsonImport', () => {
     }
   })
 
+  it('preserves valid recorded tracks and rejects over-limit tracks in activity drafts', () => {
+    const route = {
+      points: [
+        { latitude: 51.1, longitude: -2.1 },
+        { latitude: 51.2, longitude: -2.2 },
+      ],
+    }
+    const payload = {
+      date: '2026-09-01',
+      notes: '',
+      location: { kind: 'postcode', postcode: 'GL1 1AA' },
+      references: [],
+      photoReferences: [],
+    }
+    const valid = parseActivityDraftJson(JSON.stringify({ ...payload, recordedTrack: route }))
+
+    expect(valid.ok).toBe(true)
+    if (valid.ok) expect(valid.value.recordedTrack).toEqual(route)
+
+    const oversized = parseActivityDraftJson(
+      JSON.stringify({
+        ...payload,
+        recordedTrack: { points: Array.from({ length: 10001 }, () => route.points[0]) },
+      }),
+    )
+    expect(oversized.ok).toBe(false)
+    if (!oversized.ok) expect(oversized.issues.length).toBeGreaterThan(0)
+  })
+
   it('rejects arrays and forbidden id fields for activity drafts', () => {
     expect(parseActivityDraftJson('[]')).toEqual({
       ok: false,

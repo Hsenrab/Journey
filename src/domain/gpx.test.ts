@@ -55,6 +55,13 @@ describe('parseGpx', () => {
     ).toThrow('GPX tracks with multiple segments are not supported.')
   })
 
+  it('rejects an additional point before collecting more than the route limit', () => {
+    const point = '<rtept lat="51" lon="-2"/>'
+    const oversizedRoute = `<gpx>${point.repeat(10001)}</gpx>`
+
+    expect(() => parseGpx(oversizedRoute)).toThrow('GPX routes must contain no more than 10000 points.')
+  })
+
   it('rejects blank point coordinates', () => {
     expect(() => parseGpx('<gpx><rtept lat="" lon="-2"/><rtept lat="52" lon="-3"/></gpx>')).toThrow()
     expect(() => parseGpx('<gpx><rtept lat="51" lon="  "/><rtept lat="52" lon="-3"/></gpx>')).toThrow()

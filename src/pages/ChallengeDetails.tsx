@@ -216,7 +216,14 @@ export default function ChallengeDetails() {
                 <Button variant="contained" onClick={() => void saveRoute()}>
                   Save route
                 </Button>
-                <Button onClick={() => setEditing(false)}>Cancel</Button>
+                <Button
+                  onClick={() => {
+                    setRouteInput('')
+                    setEditing(false)
+                  }}
+                >
+                  Cancel
+                </Button>
               </Stack>
             </>
           )}

@@ -6,6 +6,37 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { ActivityEditor } from './ActivityEditor'
 import { createDefaultData } from '../services/storage'
 import type { ActivityDraft } from '../features/journey/JourneyContext'
+import type { Activity } from '../domain/visit'
+
+const recordedRoute = {
+  points: [
+    { latitude: 51, longitude: -2 },
+    { latitude: 51.1, longitude: -2.1 },
+  ],
+}
+const replacementRoute = {
+  points: [
+    { latitude: 52, longitude: -3 },
+    { latitude: 52.1, longitude: -3.1 },
+  ],
+}
+const recordedTrackXml = '<gpx><trkpt lat="51" lon="-2"/><trkpt lat="51.1" lon="-2.1"/></gpx>'
+const replacementTrackXml = '<gpx><trkpt lat="52" lon="-3"/><trkpt lat="52.1" lon="-3.1"/></gpx>'
+
+function activityWithTrack(): Activity {
+  return {
+    activityId: 'activity-1',
+    ideaIds: [],
+    date: '2026-09-01',
+    location: { kind: 'postcode', postcode: 'GL1 1AA' },
+    notes: '',
+    referenceIds: [],
+    photoReferenceIds: [],
+    createdAt: '2026-09-01T10:00:00.000Z',
+    updatedAt: '2026-09-01T10:00:00.000Z',
+    recordedTrack: recordedRoute,
+  }
+}
 
 function renderEditor(overrides: Partial<ComponentProps<typeof ActivityEditor>> = {}) {
   const onSubmit = vi.fn<(draft: ActivityDraft) => void>()
@@ -49,6 +80,49 @@ describe('ActivityEditor', () => {
         notes: 'Nice day',
       }),
     )
+  })
+
+  it('submits a valid pasted recorded track', async () => {
+    const user = userEvent.setup()
+    const { onSubmit } = renderEditor()
+
+    await user.type(screen.getByLabelText('Postcode'), 'GL1 1AA')
+    await user.type(screen.getByLabelText('Recorded GPX track (optional)'), recordedTrackXml)
+    await user.click(screen.getByRole('button', { name: 'Save' }))
+
+    expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ recordedTrack: recordedRoute }))
+  })
+
+  it('blocks submission and shows an error for invalid pasted GPX', async () => {
+    const user = userEvent.setup()
+    const { onSubmit } = renderEditor()
+
+    await user.type(screen.getByLabelText('Postcode'), 'GL1 1AA')
+    await user.type(screen.getByLabelText('Recorded GPX track (optional)'), '<gpx><trkpt lat="51" lon="-2"/>')
+    await user.click(screen.getByRole('button', { name: 'Save' }))
+
+    expect(screen.getByText('GPX is not valid XML.')).toBeInTheDocument()
+    expect(onSubmit).not.toHaveBeenCalled()
+  })
+
+  it('replaces an existing recorded track while editing', async () => {
+    const user = userEvent.setup()
+    const { onSubmit } = renderEditor({ initialActivity: activityWithTrack() })
+
+    await user.type(screen.getByLabelText('Recorded GPX track (optional)'), replacementTrackXml)
+    await user.click(screen.getByRole('button', { name: 'Save' }))
+
+    expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ recordedTrack: replacementRoute }))
+  })
+
+  it('removes an existing recorded track while editing', async () => {
+    const user = userEvent.setup()
+    const { onSubmit } = renderEditor({ initialActivity: activityWithTrack() })
+
+    await user.click(screen.getByRole('button', { name: 'Remove recorded GPX track' }))
+    await user.click(screen.getByRole('button', { name: 'Save' }))
+
+    expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ recordedTrack: undefined }))
   })
 
   it('validates a missing postcode', async () => {
@@ -445,6 +519,7 @@ describe('ActivityEditor', () => {
       location: { kind: 'postcode', postcode: 'GL2 2BB' },
       references: [{ title: 'Guide', url: 'https://example.com/guide', description: '', previewImageUrl: '' }],
       photoReferences: [{ title: 'Photo', url: 'https://example.com/photo.jpg', altText: '' }],
+      recordedTrack: recordedRoute,
     }
 
     await user.click(screen.getByRole('combobox', { name: 'Linked ideas (optional)' }))
@@ -466,6 +541,7 @@ describe('ActivityEditor', () => {
         location: payload.location,
         references: [expect.objectContaining({ title: 'Guide' })],
         photoReferences: [expect.objectContaining({ title: 'Photo' })],
+        recordedTrack: recordedRoute,
       }),
     )
   })

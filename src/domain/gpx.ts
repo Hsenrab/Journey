@@ -1,5 +1,7 @@
 import { z } from 'zod'
 
+const maxGpxPoints = 10000
+
 export const GpxPointSchema = z
   .object({
     latitude: z.number().finite().min(-90).max(90),
@@ -9,7 +11,7 @@ export const GpxPointSchema = z
 
 export const GpxRouteSchema = z
   .object({
-    points: z.array(GpxPointSchema).min(2).max(10000),
+    points: z.array(GpxPointSchema).min(2).max(maxGpxPoints),
   })
   .strict()
 
@@ -68,6 +70,9 @@ export function parseGpx(value: string): GpxRoute {
     }
     if (attributes.slice(attributePosition).trim()) throw new Error('GPX is not valid XML.')
     if (name === 'trkpt' || name === 'rtept') {
+      if (points.length >= maxGpxPoints) {
+        throw new Error(`GPX routes must contain no more than ${maxGpxPoints} points.`)
+      }
       const latitude = parsedAttributes.lat
       const longitude = parsedAttributes.lon
       if (!latitude?.trim() || !longitude?.trim()) {

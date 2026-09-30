@@ -4,7 +4,7 @@ import { MemoryRouter } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import Dashboard from './Dashboard'
 import { WaypointsProvider } from '../features/journey/JourneyContext'
-import { createDefaultData, createDemoModeData, save, setDataMode } from '../services/storage'
+import { createDefaultData, createDemoModeData, load, save, setDataMode } from '../services/storage'
 import type { Activity } from '../domain/visit'
 
 const lacockId = 'lacock-abbey-fox-talbot-museum-and-village'
@@ -135,6 +135,29 @@ describe('Dashboard', () => {
     expect(screen.getByText('0 of 0 waypoints completed')).toBeInTheDocument()
     expect(screen.queryByText('No challenges are available yet.')).not.toBeInTheDocument()
     expect(screen.getAllByRole('progressbar')).toHaveLength(1)
+  })
+
+  it('creates a challenge with its parsed planned GPX route', async () => {
+    const user = userEvent.setup()
+    save({ ...createDefaultData(), challenges: [], waypoints: [] })
+    renderDashboard()
+
+    await user.click(screen.getByRole('button', { name: 'Add challenge' }))
+    await user.type(screen.getByRole('textbox', { name: 'Title' }), 'Weekend walks')
+    await user.type(screen.getByRole('textbox', { name: 'Description' }), 'Explore local trails')
+    await user.type(
+      screen.getByLabelText('Planned GPX route (optional)'),
+      '<gpx><trkpt lat="51" lon="-2"/><trkpt lat="51.1" lon="-2.1"/></gpx>',
+    )
+    await user.click(screen.getByRole('button', { name: 'Save challenge' }))
+
+    await screen.findByRole('heading', { name: 'Weekend walks' })
+    expect(load().challenges[0]?.plannedRoute).toEqual({
+      points: [
+        { latitude: 51, longitude: -2 },
+        { latitude: 51.1, longitude: -2.1 },
+      ],
+    })
   })
 
   it('clears the challenge draft when canceling and reopening the editor', async () => {

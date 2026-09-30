@@ -232,4 +232,32 @@ describe('ChallengeDetails', () => {
     await user.click(screen.getByRole('button', { name: 'Save route' }))
     expect(screen.getByRole('button', { name: 'Add planned route' })).toBeInTheDocument()
   })
+
+  it('discards a planned route draft when canceling', async () => {
+    const user = userEvent.setup()
+    const data = createDefaultData()
+    save({
+      ...data,
+      challenges: [
+        {
+          challengeId: 'challenge-1',
+          title: 'River route',
+          description: 'A route beside the river.',
+          waypointIds: [],
+          supportsActivityCategories: false,
+        },
+      ],
+    })
+
+    renderDetails()
+    await user.click(screen.getByRole('button', { name: 'Add planned route' }))
+    const input = screen.getByLabelText('Planned GPX route')
+    await user.type(input, '<gpx><trkpt lat="51" lon="-2"/><trkpt lat="51.1" lon="-2.1"/></gpx>')
+    await user.click(screen.getByRole('button', { name: 'Cancel' }))
+
+    await user.click(screen.getByRole('button', { name: 'Add planned route' }))
+    expect(screen.getByLabelText('Planned GPX route')).toHaveValue('')
+    await user.click(screen.getByRole('button', { name: 'Save route' }))
+    expect(screen.getByRole('button', { name: 'Add planned route' })).toBeInTheDocument()
+  })
 })
