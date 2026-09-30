@@ -299,10 +299,12 @@ after the application boundary validates the caller's Entra provider and assigne
   Bicep deployment. No extra secret or variable is needed; the object id comes
   from the deployment itself.
 - Test deployments publish to the test Static Web App's primary environment, where
-  the linked Functions backend is supported. Pull-request previews use the same
-  Static Web App and role assignments: an identity invited as a `viewer` on the test
-  resource can access every test preview. This shared preview access is intentional;
-  invite only identities that may read test data.
+  the linked Functions backend is supported. Pull-request runs validate the code and
+  may deploy changed infrastructure or API components, but do not create a Static
+  Web Apps preview. To publish a branch to the shared test site, manually dispatch
+  `Deploy test environment` from that branch. An identity invited as a `viewer` on
+  the test resource can access the shared test site; invite only identities that may
+  read test data.
 
 ### Diagnostics
 
@@ -373,11 +375,11 @@ integration needs to be fully removed.
   wrapper. Runs selected from `main` call the reusable workflow with `hh-env` and
   `prod`.
 - `.github/workflows/deploy-test.yml` is the non-production wrapper and the repository's
-  single pull-request workflow. Pull requests and manual
-  runs call the reusable workflow with `hh-env-test` and `dev` after independently
-  deciding whether infrastructure and the Functions API need to be redeployed.
-  Closing a pull request closes its Azure Static Web Apps preview, releasing its
-  staging-environment slot.
+  single pull-request workflow. Pull requests and manual runs call the reusable
+  workflow with `hh-env-test` and `dev` after independently deciding whether
+  infrastructure and the Functions API need to be redeployed. Only manual runs deploy
+  the application, avoiding Azure Static Web Apps' capped per-pull-request preview
+  slots. Closing a pull request still closes any preview created by an earlier run.
   Configure required reviewers on the `hh-env-test` GitHub environment to require
   approval before Azure deployment jobs run.
 
