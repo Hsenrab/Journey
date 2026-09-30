@@ -46,6 +46,7 @@ function parsePoint(element: Element, pointNumber: number): GpxPoint {
 }
 
 interface XmlElementFrame {
+  name: string
   namespaceURI: string
   kind: 'gpx' | 'route' | 'track' | 'track-segment' | 'other'
   namespaceChanges: Map<string, string | undefined>
@@ -118,8 +119,14 @@ function scanXmlBeforeParsing(xml: string): boolean {
     }
     if (xml[index + 1] === '/') {
       index += 2
+      const nameStart = index
+      while (index < xml.length && !/[\s/>]/.test(xml[index])) index += 1
+      const name = xml.slice(nameStart, index)
       while (index < xml.length && xml[index] !== '>') index += 1
       if (index < xml.length) index += 1
+      if (elements.at(-1)?.name !== name) {
+        throw new Error('GPX file is not valid XML: mismatched closing tags.')
+      }
       popElement()
       continue
     }
@@ -199,7 +206,7 @@ function scanXmlBeforeParsing(xml: string): boolean {
       if (count > MAX_GPX_POINT_COUNT) return true
     }
 
-    elements.push({ namespaceURI, kind, namespaceChanges })
+    elements.push({ name, namespaceURI, kind, namespaceChanges })
     if (selfClosing) popElement()
   }
   return false

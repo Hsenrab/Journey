@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import {
   MAX_GPX_ELEMENT_COUNT,
   MAX_GPX_FILE_SIZE_BYTES,
@@ -109,6 +109,19 @@ describe('parseGpx', () => {
     expect(() =>
       parseGpx(`<π:gpx xmlns:π="http://www.topografix.com/GPX/1/1"><π:rte>${points}</π:rte></π:gpx>`),
     ).toThrow(`${MAX_GPX_POINT_COUNT}-point limit`)
+  })
+
+  it('rejects mismatched closing tags before parsing an over-limit file', () => {
+    const points = '<rtept lat="1" lon="2"/>'.repeat(MAX_GPX_POINT_COUNT + 1)
+    const xml = `<gpx><rte></wrong>${points}</rte></gpx>`
+    const parseFromString = vi.spyOn(DOMParser.prototype, 'parseFromString')
+
+    try {
+      expect(() => parseGpx(xml)).toThrow('mismatched closing tags')
+      expect(parseFromString).not.toHaveBeenCalled()
+    } finally {
+      parseFromString.mockRestore()
+    }
   })
 
   it('preserves document order when combining routes and tracks', () => {
