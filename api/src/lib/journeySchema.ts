@@ -25,12 +25,26 @@ const activityLocation = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('postcode'), postcode: identifier, latitude, longitude }).strict(),
   z.object({ kind: z.literal('coordinates'), latitude, longitude }).strict(),
 ])
+const maxPlannedRouteSegments = 100
+const maxPlannedRoutePoints = 10_000
 const gpxGeometry = z
   .object({
     type: z.literal('MultiLineString'),
-    coordinates: z.array(z.array(z.tuple([longitude, latitude])).min(2)).min(1),
+    coordinates: z
+      .array(z.array(z.tuple([longitude, latitude])).min(2))
+      .min(1)
+      .max(maxPlannedRouteSegments),
   })
   .strict()
+  .superRefine((geometry, context) => {
+    const pointCount = geometry.coordinates.reduce((total, segment) => total + segment.length, 0)
+    if (pointCount > maxPlannedRoutePoints)
+      context.addIssue({
+        code: 'custom',
+        path: ['coordinates'],
+        message: `A planned route cannot contain more than ${maxPlannedRoutePoints} points.`,
+      })
+  })
 const plannedRoute = z.object({ fileName: text, geometry: gpxGeometry }).strict()
 const schemas = {
   waypoint: z

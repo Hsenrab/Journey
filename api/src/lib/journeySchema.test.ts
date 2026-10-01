@@ -154,6 +154,31 @@ describe('Journey document validation', () => {
     ).toBe(false)
   })
 
+  it('rejects Challenge routes exceeding the segment and total-point limits', () => {
+    const routeDocument = (coordinates: [number, number][][]) =>
+      JourneyDocumentSchema.safeParse({
+        id: 'challenge-1',
+        datasetId: 'production',
+        type: 'challenge',
+        schemaVersion: 2,
+        entity: {
+          challengeId: 'challenge-1',
+          title: 'Challenge',
+          description: 'A route challenge',
+          waypointIds: [],
+          supportsActivityCategories: false,
+          plannedRoute: {
+            fileName: 'route.gpx',
+            geometry: { type: 'MultiLineString', coordinates },
+          },
+        },
+      })
+    const point: [number, number] = [-2.1, 51.1]
+
+    expect(routeDocument(Array.from({ length: 101 }, () => [point, point])).success).toBe(false)
+    expect(routeDocument([Array.from({ length: 10_001 }, () => point)]).success).toBe(false)
+  })
+
   it('requires a rejection reason only for rejected ideas', () => {
     expect(document({ ...idea(), planningState: 'rejected' }).success).toBe(false)
     expect(document({ ...idea(), planningState: 'rejected', rejectionReason: 'Too far' }).success).toBe(true)

@@ -8,7 +8,7 @@ import { EmptyState } from '../components/EmptyState'
 import { LoadFailureAlert } from '../components/LoadFailureAlert'
 import { LoadingNotice } from '../components/LoadingNotice'
 import { ReadOnlyNotice } from '../components/ReadOnlyNotice'
-import { parseGpxRoute } from '../domain/gpx'
+import { parseGpxFile } from '../domain/gpx'
 import { challengeWaypoints, type PlannedRoute } from '../domain/visit'
 import { useWaypoints } from '../features/journey/JourneyContext'
 import { JourneyConflictError } from '../services/journeyApi'
@@ -47,7 +47,7 @@ export default function ChallengeDetails() {
   const selectFile = async (file: File | undefined) => {
     if (!file) return
     try {
-      const route = parseGpxRoute(await file.text(), file.name)
+      const route = await parseGpxFile(file)
       setDraftRoute(route)
       setMessage(null)
     } catch (cause) {

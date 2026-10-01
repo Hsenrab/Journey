@@ -1,5 +1,11 @@
-import { describe, expect, it } from 'vitest'
-import { parseGpxRoute } from './gpx'
+import { describe, expect, it, vi } from 'vitest'
+import { parseGpxFile, parseGpxRoute } from './gpx'
+import {
+  GpxGeometrySchema,
+  MAX_GPX_FILE_SIZE_BYTES,
+  MAX_PLANNED_ROUTE_POINTS,
+  MAX_PLANNED_ROUTE_SEGMENTS,
+} from './visit'
 
 describe('parseGpxRoute', () => {
   it('parses track segments and routes into persisted line geometry', () => {
@@ -46,5 +52,42 @@ describe('parseGpxRoute', () => {
     ],
   ])('rejects %s', (_label, contents, message) => {
     expect(() => parseGpxRoute(contents, 'invalid.gpx')).toThrow(message)
+  })
+
+  it('rejects an oversized file before reading its contents', async () => {
+    const text = vi.fn(async () => '<gpx />')
+    const file = {
+      name: 'large.gpx',
+      size: MAX_GPX_FILE_SIZE_BYTES + 1,
+      text,
+    } as unknown as File
+
+    await expect(parseGpxFile(file)).rejects.toThrow('GPX files must be no larger than')
+    expect(text).not.toHaveBeenCalled()
+  })
+
+  it('rejects oversized text before parsing XML', () => {
+    expect(() => parseGpxRoute(' '.repeat(MAX_GPX_FILE_SIZE_BYTES + 1), 'large.gpx')).toThrow(
+      'GPX files must be no larger than',
+    )
+  })
+
+  it('rejects routes exceeding the segment and point limits during extraction', () => {
+    const point = '<trkpt lat="51" lon="-2"/><trkpt lat="52" lon="-3"/>'
+    const segment = `<trk><trkseg>${point}</trkseg></trk>`
+    const segments = `<gpx>${segment.repeat(MAX_PLANNED_ROUTE_SEGMENTS + 1)}</gpx>`
+    const points = `<gpx><rte>${'<rtept lat="51" lon="-2"/>'.repeat(MAX_PLANNED_ROUTE_POINTS + 1)}</rte></gpx>`
+
+    expect(() => parseGpxRoute(segments, 'segments.gpx')).toThrow('cannot contain more than 100 segments')
+    expect(() => parseGpxRoute(points, 'points.gpx')).toThrow('cannot contain more than 10000 points')
+  })
+
+  it('rejects persisted geometry beyond the segment and point limits', () => {
+    const point: [number, number] = [-2, 51]
+    const segments = Array.from({ length: MAX_PLANNED_ROUTE_SEGMENTS + 1 }, () => [point, point])
+    const points = Array.from({ length: MAX_PLANNED_ROUTE_POINTS + 1 }, () => point)
+
+    expect(GpxGeometrySchema.safeParse({ type: 'MultiLineString', coordinates: segments }).success).toBe(false)
+    expect(GpxGeometrySchema.safeParse({ type: 'MultiLineString', coordinates: [points] }).success).toBe(false)
   })
 })

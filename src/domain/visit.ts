@@ -57,12 +57,25 @@ const WaypointLocationSchema = z.object({
 
 const RoutePositionSchema = z.tuple([z.number().min(-180).max(180), z.number().min(-90).max(90)])
 
+export const MAX_PLANNED_ROUTE_SEGMENTS = 100
+export const MAX_PLANNED_ROUTE_POINTS = 10_000
+export const MAX_GPX_FILE_SIZE_BYTES = 5 * 1024 * 1024
+
 export const GpxGeometrySchema = z
   .object({
     type: z.literal('MultiLineString'),
-    coordinates: z.array(z.array(RoutePositionSchema).min(2)).min(1),
+    coordinates: z.array(z.array(RoutePositionSchema).min(2)).min(1).max(MAX_PLANNED_ROUTE_SEGMENTS),
   })
   .strict()
+  .superRefine((geometry, context) => {
+    const pointCount = geometry.coordinates.reduce((total, segment) => total + segment.length, 0)
+    if (pointCount > MAX_PLANNED_ROUTE_POINTS)
+      context.addIssue({
+        code: 'custom',
+        path: ['coordinates'],
+        message: `A planned route cannot contain more than ${MAX_PLANNED_ROUTE_POINTS} points.`,
+      })
+  })
 
 export const PlannedRouteSchema = z
   .object({
