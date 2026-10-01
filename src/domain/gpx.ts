@@ -1,6 +1,6 @@
 export const MAX_GPX_FILE_SIZE_BYTES = 5 * 1024 * 1024
 export const MAX_GPX_POINT_COUNT = 50_000
-export const MAX_GPX_MARKUP_NODE_COUNT = 100_000
+export const MAX_GPX_MARKUP_NODE_COUNT = MAX_GPX_POINT_COUNT * 4
 export const MAX_GPX_NESTING_DEPTH = 256
 const DECIMAL_COORDINATE = /^[+-]?(?:\d+(?:\.\d*)?|\.\d+)$/
 
