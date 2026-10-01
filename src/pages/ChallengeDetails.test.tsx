@@ -46,6 +46,18 @@ describe('ChallengeDetails', () => {
     )
   })
 
+  it('does not show the map when linked Waypoints only have one coordinate', () => {
+    const data = createDefaultData()
+    data.waypoints = data.waypoints.map((waypoint) => ({
+      ...waypoint,
+      location: { latitude: 51.1 },
+    }))
+    save(data)
+    renderDetails()
+
+    expect(screen.queryByTestId('challenge-map')).not.toBeInTheDocument()
+  })
+
   it('attaches, saves, and reloads a planned GPX route', async () => {
     const user = userEvent.setup()
     const view = renderDetails()

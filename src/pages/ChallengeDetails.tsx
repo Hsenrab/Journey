@@ -173,9 +173,10 @@ export default function ChallengeDetails() {
             )}
           </Stack>
         )}
-        {(displayedRoute || waypoints.some((waypoint) => waypoint.location?.latitude !== undefined)) && (
-          <ChallengeRouteMap plannedRoute={displayedRoute} waypoints={waypoints} />
-        )}
+        {(displayedRoute ||
+          waypoints.some(
+            (waypoint) => waypoint.location?.latitude !== undefined && waypoint.location.longitude !== undefined,
+          )) && <ChallengeRouteMap plannedRoute={displayedRoute} waypoints={waypoints} />}
       </Stack>
 
       <Stack spacing={2}>
