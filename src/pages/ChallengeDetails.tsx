@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { Alert, Button, Card, CardContent, Stack, Typography } from '@mui/material'
 import RouteOutlinedIcon from '@mui/icons-material/RouteOutlined'
@@ -22,6 +22,10 @@ export default function ChallengeDetails() {
   const [draftRoute, setDraftRoute] = useState<PlannedRoute | null | undefined>()
   const [message, setMessage] = useState<Message | null>(null)
   const [saving, setSaving] = useState(false)
+  const waypoints = useMemo(
+    () => (challenge ? challengeWaypoints(challenge, data.waypoints) : []),
+    [challenge, data.waypoints],
+  )
   const breadcrumbs = [{ label: 'Challenges', to: '/challenges' }]
 
   if (!challenge) {
@@ -42,7 +46,6 @@ export default function ChallengeDetails() {
     )
   }
 
-  const waypoints = challengeWaypoints(challenge, data.waypoints)
   const displayedRoute = draftRoute === undefined ? challenge.plannedRoute : (draftRoute ?? undefined)
 
   const selectFile = async (file: File | undefined) => {

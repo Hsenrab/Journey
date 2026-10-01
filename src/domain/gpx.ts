@@ -282,6 +282,9 @@ export function parseGpxRoute(contents: string, fileName: string): PlannedRoute 
     return { fileName, geometry: GpxGeometrySchema.parse({ type: 'MultiLineString', coordinates }) }
   } catch (cause) {
     const message = cause instanceof Error ? cause.message : String(cause)
+    if (message.includes('supported gpx namespace')) {
+      throw new Error('The selected file does not use a supported GPX namespace.')
+    }
     if (message.startsWith('GPX file is not valid XML')) {
       if (/<(?:[\w-]+:)?gpx\b/i.test(contents)) throw new Error('The selected file is not valid XML.')
       throw new Error('The selected file is not a GPX document.')
