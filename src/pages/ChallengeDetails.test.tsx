@@ -166,4 +166,44 @@ describe('ChallengeDetails', () => {
     expect(await screen.findByText(/Journey API request failed with 500/)).toBeInTheDocument()
     expect(screen.getByText(/replacement.gpx · Ready to save/)).toBeInTheDocument()
   })
+
+  it('disables route editing while saving', async () => {
+    setDataMode('demo-cosmos')
+    const data = createDefaultData()
+    let resolveSave!: (response: Response) => void
+    const saveRequest = new Promise<Response>((resolve) => {
+      resolveSave = resolve
+    })
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) =>
+        init?.method === 'POST'
+          ? saveRequest
+          : new Response(JSON.stringify({ data, etags: {}, role: 'admin' }), {
+              headers: { 'content-type': 'application/json' },
+            }),
+      ),
+    )
+    const user = userEvent.setup()
+    const view = renderDetails()
+    await screen.findByRole('heading', { name: 'National Trust' })
+    const input = view.container.querySelector('input[type="file"]') as HTMLInputElement
+
+    await user.upload(input, new File([validGpx], 'planned.gpx', { type: 'application/gpx+xml' }))
+    await user.click(screen.getByRole('button', { name: 'Save route' }))
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Save route' })).toBeDisabled()
+    })
+    expect(screen.getByRole('button', { name: 'Cancel' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Replace GPX route' })).toHaveAttribute('aria-disabled', 'true')
+    expect(input).toBeDisabled()
+
+    resolveSave(
+      new Response(JSON.stringify({ data, etags: {}, role: 'admin' }), {
+        headers: { 'content-type': 'application/json' },
+      }),
+    )
+    expect(await screen.findByText('Planned route saved.')).toBeInTheDocument()
+  })
 })

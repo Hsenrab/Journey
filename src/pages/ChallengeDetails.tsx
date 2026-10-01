@@ -21,6 +21,7 @@ export default function ChallengeDetails() {
   const challenge = data.challenges.find((item) => item.challengeId === challengeId)
   const [draftRoute, setDraftRoute] = useState<PlannedRoute | null | undefined>()
   const [message, setMessage] = useState<Message | null>(null)
+  const [saving, setSaving] = useState(false)
   const breadcrumbs = [{ label: 'Challenges', to: '/challenges' }]
 
   if (!challenge) {
@@ -56,6 +57,8 @@ export default function ChallengeDetails() {
   }
 
   const saveRoute = async () => {
+    if (saving) return
+    setSaving(true)
     try {
       await updateChallengeRoute(challengeId, draftRoute ?? undefined)
       setDraftRoute(undefined)
@@ -69,6 +72,8 @@ export default function ChallengeDetails() {
         text: cause instanceof Error ? cause.message : String(cause),
         conflict: cause instanceof JourneyConflictError,
       })
+    } finally {
+      setSaving(false)
     }
   }
 
@@ -115,12 +120,13 @@ export default function ChallengeDetails() {
         )}
         {!readOnly && (
           <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} sx={{ alignItems: { sm: 'center' } }}>
-            <Button component="label" variant="outlined">
+            <Button component="label" variant="outlined" disabled={saving}>
               {displayedRoute ? 'Replace GPX route' : 'Attach GPX route'}
               <input
                 hidden
                 type="file"
                 accept=".gpx,application/gpx+xml,application/xml,text/xml"
+                disabled={saving}
                 onChange={(event) => {
                   const file = event.target.files?.[0]
                   event.target.value = ''
@@ -129,16 +135,17 @@ export default function ChallengeDetails() {
               />
             </Button>
             {displayedRoute && (
-              <Button color="error" onClick={() => setDraftRoute(null)}>
+              <Button color="error" disabled={saving} onClick={() => setDraftRoute(null)}>
                 Remove route
               </Button>
             )}
             {draftRoute !== undefined && (
               <>
-                <Button variant="contained" onClick={() => void saveRoute()}>
+                <Button variant="contained" disabled={saving} onClick={() => void saveRoute()}>
                   Save route
                 </Button>
                 <Button
+                  disabled={saving}
                   onClick={() => {
                     setDraftRoute(undefined)
                     setMessage(null)
