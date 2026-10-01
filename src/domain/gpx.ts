@@ -173,6 +173,7 @@ function scanXmlBeforeParsing(xml: string): boolean {
         continue
       }
       const attributeName = xml.slice(attributeStart, index)
+      countMarkupNode()
       while (/\s/.test(xml[index] ?? '') && index < xml.length) index += 1
       if (xml[index] !== '=') continue
       index += 1
