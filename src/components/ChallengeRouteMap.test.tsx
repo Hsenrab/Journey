@@ -118,7 +118,7 @@ describe('ChallengeRouteMap', () => {
   it('renders route lines and linked Waypoints with distinct map layers', async () => {
     render(<ChallengeRouteMap plannedRoute={route} waypoints={[waypoint]} />)
 
-    expect(screen.getByLabelText('Challenge route map')).toBeInTheDocument()
+    expect(await screen.findByLabelText('Challenge route map')).toBeInTheDocument()
     expect(screen.getByLabelText('Challenge map legend')).toHaveTextContent('Planned route')
     expect(screen.getByLabelText('Challenge map legend')).toHaveTextContent('Waypoints')
     await waitFor(() =>
@@ -150,5 +150,31 @@ describe('ChallengeRouteMap', () => {
     render(<ChallengeRouteMap waypoints={[waypoint]} />)
 
     await waitFor(() => expect(mapState.cameraOptions).toEqual([{ center: [-2.15, 51.15], zoom: 9 }]))
+  })
+
+  it('shows loading instead of an empty map while the token is pending', async () => {
+    let finishRequest!: (response: Response) => void
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(
+        () =>
+          new Promise<Response>((resolve) => {
+            finishRequest = resolve
+          }),
+      ),
+    )
+    render(<ChallengeRouteMap plannedRoute={route} waypoints={[waypoint]} />)
+
+    expect(screen.getByRole('status')).toHaveTextContent('Loading challenge map…')
+    expect(screen.queryByLabelText('Challenge route map')).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('Challenge map legend')).not.toBeInTheDocument()
+
+    finishRequest(
+      new Response(JSON.stringify({ token: 'token', clientId: 'client' }), {
+        headers: { 'content-type': 'application/json' },
+      }),
+    )
+    expect(await screen.findByLabelText('Challenge route map')).toBeInTheDocument()
+    expect(screen.queryByRole('status')).not.toBeInTheDocument()
   })
 })

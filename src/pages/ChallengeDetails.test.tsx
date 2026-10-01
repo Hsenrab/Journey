@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -102,6 +102,57 @@ describe('ChallengeDetails', () => {
 
     await user.upload(input, new File([validGpx], 'planned.gpx', { type: 'application/gpx+xml' }))
     expect(await screen.findByText(/planned.gpx · Ready to save/)).toBeInTheDocument()
+  })
+
+  it('blocks saving and editing a previous draft while a replacement is being parsed', async () => {
+    const user = userEvent.setup()
+    const view = renderDetails()
+    const input = view.container.querySelector('input[type="file"]') as HTMLInputElement
+    await user.upload(input, new File([validGpx], 'first.gpx', { type: 'application/gpx+xml' }))
+    await screen.findByText(/first.gpx · Ready to save/)
+
+    let finishRead!: (contents: string) => void
+    const replacement = new File([validGpx], 'second.gpx', { type: 'application/gpx+xml' })
+    vi.spyOn(replacement, 'text').mockImplementation(
+      () =>
+        new Promise<string>((resolve) => {
+          finishRead = resolve
+        }),
+    )
+    fireEvent.change(input, { target: { files: [replacement] } })
+
+    expect(screen.getByRole('button', { name: 'Save route' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Cancel' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Remove route' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Replace GPX route' })).toHaveAttribute('aria-disabled', 'true')
+    expect(input).toBeDisabled()
+    expect(screen.getByText(/first.gpx · Ready to save/)).toBeInTheDocument()
+
+    finishRead(validGpx)
+    expect(await screen.findByText(/second.gpx · Ready to save/)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Save route' })).toBeEnabled()
+  })
+
+  it('ignores an earlier GPX read that finishes after a newer selection', async () => {
+    const view = renderDetails()
+    const input = view.container.querySelector('input[type="file"]') as HTMLInputElement
+    let finishFirst!: (contents: string) => void
+    const first = new File([validGpx], 'first.gpx')
+    vi.spyOn(first, 'text').mockImplementation(
+      () =>
+        new Promise<string>((resolve) => {
+          finishFirst = resolve
+        }),
+    )
+    fireEvent.change(input, { target: { files: [first] } })
+
+    const second = new File([validGpx], 'second.gpx')
+    fireEvent.change(input, { target: { files: [second] } })
+    expect(await screen.findByText(/second.gpx · Ready to save/)).toBeInTheDocument()
+
+    await act(async () => finishFirst(validGpx))
+    expect(screen.getByText(/second.gpx · Ready to save/)).toBeInTheDocument()
+    expect(screen.queryByText(/first.gpx/)).not.toBeInTheDocument()
   })
 
   it('removes and persists a planned route only after saving', async () => {

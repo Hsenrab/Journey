@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { Alert, Button, Card, CardContent, Stack, Typography } from '@mui/material'
 import RouteOutlinedIcon from '@mui/icons-material/RouteOutlined'
@@ -22,6 +22,9 @@ export default function ChallengeDetails() {
   const [draftRoute, setDraftRoute] = useState<PlannedRoute | null | undefined>()
   const [message, setMessage] = useState<Message | null>(null)
   const [saving, setSaving] = useState(false)
+  const [parsing, setParsing] = useState(false)
+  const parsingRef = useRef(false)
+  const selectionGeneration = useRef(0)
   const waypoints = useMemo(
     () => (challenge ? challengeWaypoints(challenge, data.waypoints) : []),
     [challenge, data.waypoints],
@@ -49,18 +52,28 @@ export default function ChallengeDetails() {
   const displayedRoute = draftRoute === undefined ? challenge.plannedRoute : (draftRoute ?? undefined)
 
   const selectFile = async (file: File | undefined) => {
-    if (!file) return
+    if (!file || saving) return
+    const generation = ++selectionGeneration.current
+    parsingRef.current = true
+    setParsing(true)
     try {
       const route = await parseGpxFile(file)
+      if (generation !== selectionGeneration.current) return
       setDraftRoute(route)
       setMessage(null)
     } catch (cause) {
+      if (generation !== selectionGeneration.current) return
       setMessage({ severity: 'error', text: cause instanceof Error ? cause.message : String(cause) })
+    } finally {
+      if (generation === selectionGeneration.current) {
+        parsingRef.current = false
+        setParsing(false)
+      }
     }
   }
 
   const saveRoute = async () => {
-    if (saving) return
+    if (saving || parsingRef.current) return
     setSaving(true)
     try {
       await updateChallengeRoute(challengeId, draftRoute ?? undefined)
@@ -123,13 +136,13 @@ export default function ChallengeDetails() {
         )}
         {!readOnly && (
           <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} sx={{ alignItems: { sm: 'center' } }}>
-            <Button component="label" variant="outlined" disabled={saving}>
+            <Button component="label" variant="outlined" disabled={saving || parsing}>
               {displayedRoute ? 'Replace GPX route' : 'Attach GPX route'}
               <input
                 hidden
                 type="file"
                 accept=".gpx,application/gpx+xml,application/xml,text/xml"
-                disabled={saving}
+                disabled={saving || parsing}
                 onChange={(event) => {
                   const file = event.target.files?.[0]
                   event.target.value = ''
@@ -138,17 +151,17 @@ export default function ChallengeDetails() {
               />
             </Button>
             {displayedRoute && (
-              <Button color="error" disabled={saving} onClick={() => setDraftRoute(null)}>
+              <Button color="error" disabled={saving || parsing} onClick={() => setDraftRoute(null)}>
                 Remove route
               </Button>
             )}
             {draftRoute !== undefined && (
               <>
-                <Button variant="contained" disabled={saving} onClick={() => void saveRoute()}>
+                <Button variant="contained" disabled={saving || parsing} onClick={() => void saveRoute()}>
                   Save route
                 </Button>
                 <Button
-                  disabled={saving}
+                  disabled={saving || parsing}
                   onClick={() => {
                     setDraftRoute(undefined)
                     setMessage(null)

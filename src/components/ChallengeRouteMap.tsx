@@ -4,6 +4,7 @@ import CircleIcon from '@mui/icons-material/Circle'
 import * as atlas from 'azure-maps-control'
 import 'azure-maps-control/dist/atlas.min.css'
 import type { PlannedRoute, Waypoint } from '../domain/visit'
+import { LoadingNotice } from './LoadingNotice'
 
 type MapsToken = { token: string; clientId: string }
 
@@ -126,6 +127,7 @@ export function ChallengeRouteMap({
   }, [locatedWaypoints, plannedRoute, token])
 
   if (error) return <Alert severity="error">{error}</Alert>
+  if (!token) return <LoadingNotice message="Loading challenge map…" />
 
   return (
     <Stack spacing={1}>
