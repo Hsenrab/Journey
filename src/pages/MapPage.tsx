@@ -682,24 +682,36 @@ export default function MapPage() {
       .flatMap((feature) => feature.coordinates)
     if (positions.length < 2) return
 
-    let minLongitude = 180
-    let maxLongitude = -180
     let minLatitude = 90
     let maxLatitude = -90
-    for (const [longitude, latitude] of positions) {
-      minLongitude = Math.min(minLongitude, longitude)
-      maxLongitude = Math.max(maxLongitude, longitude)
+    const longitudes = positions
+      .map(([longitude]) => ({ longitude: longitude === 180 ? -180 : longitude, circular: (longitude + 360) % 360 }))
+      .sort((left, right) => left.circular - right.circular)
+    let largestGap = -1
+    let west = 0
+    let east = 0
+    for (let index = 0; index < longitudes.length; index += 1) {
+      const current = longitudes[index]!
+      const next = longitudes[(index + 1) % longitudes.length]!
+      const gap = next.circular + (index + 1 === longitudes.length ? 360 : 0) - current.circular
+      if (gap > largestGap) {
+        largestGap = gap
+        west = next.longitude
+        east = current.longitude
+      }
+    }
+    for (const [, latitude] of positions) {
       minLatitude = Math.min(minLatitude, latitude)
       maxLatitude = Math.max(maxLatitude, latitude)
     }
-    if (minLongitude === maxLongitude && minLatitude === maxLatitude) return
-    const longitudePadding = minLongitude === maxLongitude ? 0.005 : 0
+    if (west === east && minLatitude === maxLatitude) return
+    const longitudePadding = west === east ? 0.005 : 0
     const latitudePadding = minLatitude === maxLatitude ? 0.005 : 0
     instance.setCamera({
       bounds: [
-        Math.max(-180, minLongitude - longitudePadding),
+        longitudePadding && west - longitudePadding < -180 ? west - longitudePadding + 360 : west - longitudePadding,
         Math.max(-90, minLatitude - latitudePadding),
-        Math.min(180, maxLongitude + longitudePadding),
+        longitudePadding && east + longitudePadding > 180 ? east + longitudePadding - 360 : east + longitudePadding,
         Math.min(90, maxLatitude + latitudePadding),
       ],
       padding: 48,

@@ -606,6 +606,48 @@ describe('MapPage', () => {
     expect(mapEvents.gpxSourceClear).toHaveBeenCalledTimes(clearCountBeforeUnmount + 1)
   })
 
+  it('frames selected GPX geometry crossing the antimeridian by its short longitude interval', async () => {
+    const data = createDefaultData()
+    const challenge = data.challenges[0]!
+    data.challenges = [
+      {
+        ...challenge,
+        plannedRoute: {
+          fileName: 'dateline.gpx',
+          geometry: {
+            type: 'MultiLineString',
+            coordinates: [
+              [
+                [179, 10],
+                [-179, 11],
+              ],
+            ],
+          },
+        },
+      },
+    ]
+    localStorage.setItem('waypoints-v1', JSON.stringify(data))
+    const user = userEvent.setup()
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(jsonResponse({ token: 'entra', expiresOn: '2026-01-01', clientId: 'maps-client-id' })),
+    )
+    render(
+      <MemoryRouter>
+        <WaypointsProvider>
+          <MapPage />
+        </WaypointsProvider>
+      </MemoryRouter>,
+    )
+
+    const sourceAddsBeforeSelection = mapEvents.gpxSourceAdd.mock.calls.length
+    await user.click(screen.getByRole('button', { name: challenge.title }))
+    await vi.waitFor(() =>
+      expect(mapEvents.gpxSourceAdd).toHaveBeenCalledTimes(sourceAddsBeforeSelection + 1),
+    )
+    expect(mapEvents.setCamera).toHaveBeenCalledWith({ bounds: [179, 10, -179, 11], padding: 48 })
+  })
+
   it('does not fit the camera to degenerate persisted route geometry', async () => {
     const data = createDefaultData()
     data.challenges = [
