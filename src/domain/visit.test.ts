@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   ActivitySchema,
   IdeaSchema,
+  PlannedRouteSchema,
   activitiesForWaypoint,
   activitiesUsingIdea,
   awardableStatuses,
@@ -190,6 +191,25 @@ describe('activity rules', () => {
     expect(completionRuleLabel({ ...counted, completion: { mode: 'count', target: 1 } })).toBe(
       'Completed after 1 logged activity.',
     )
+  })
+})
+
+describe('planned route schema', () => {
+  it('accepts 255-character filenames and rejects 256-character filenames', () => {
+    const route = {
+      geometry: {
+        type: 'MultiLineString' as const,
+        coordinates: [
+          [
+            [-2.1, 51.1],
+            [-2.2, 51.2],
+          ],
+        ],
+      },
+    }
+
+    expect(PlannedRouteSchema.safeParse({ ...route, fileName: 'a'.repeat(255) }).success).toBe(true)
+    expect(PlannedRouteSchema.safeParse({ ...route, fileName: 'a'.repeat(256) }).success).toBe(false)
   })
 })
 
