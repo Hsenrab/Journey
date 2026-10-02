@@ -30,7 +30,7 @@ const activity = {
 const idea = {
   ideaId: 'idea-1',
   title: 'Orangery tour',
-  description: 'A planned GPX route',
+  description: '',
   notes: '',
   waypointIds: [],
   planningState: 'active',
@@ -46,12 +46,20 @@ const data: JourneyData = {
     {
       challengeId: 'challenge-1',
       title: 'Route challenge',
-      description: '',
+      description: 'A planned GPX route',
       waypointIds: [],
       supportsActivityCategories: false,
       plannedRoute: {
         fileName: 'planned.gpx',
-        geometry: { type: 'MultiLineString', coordinates: [[[-2.1, 51.1], [-2.2, 51.2]]] },
+        geometry: {
+          type: 'MultiLineString',
+          coordinates: [
+            [
+              [-2.1, 51.1],
+              [-2.2, 51.2],
+            ],
+          ],
+        },
       },
     },
   ],

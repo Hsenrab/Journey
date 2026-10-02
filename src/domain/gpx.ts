@@ -1,9 +1,4 @@
-import {
-  GpxGeometrySchema,
-  MAX_GPX_GEOMETRY_POINTS,
-  MAX_GPX_GEOMETRY_SEGMENTS,
-  type PlannedRoute,
-} from './visit'
+import { GpxGeometrySchema, MAX_GPX_GEOMETRY_POINTS, MAX_GPX_GEOMETRY_SEGMENTS, type PlannedRoute } from './visit'
 
 export const MAX_GPX_FILE_SIZE_BYTES = 5 * 1024 * 1024
 export const MAX_GPX_POINT_COUNT = 50_000

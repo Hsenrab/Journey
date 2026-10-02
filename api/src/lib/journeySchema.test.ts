@@ -231,9 +231,20 @@ describe('Journey document validation', () => {
     const legacyEntity = { ...entity }
     delete (legacyEntity as { recordedTrack?: unknown }).recordedTrack
     expect(document(3, legacyEntity).success).toBe(true)
-    expect(document(4, { ...entity, recordedTrack: { ...geometry, coordinates: [[[-181, 0], [0, 0]]] } }).success).toBe(
-      false,
-    )
+    expect(
+      document(4, {
+        ...entity,
+        recordedTrack: {
+          ...geometry,
+          coordinates: [
+            [
+              [-181, 0],
+              [0, 0],
+            ],
+          ],
+        },
+      }).success,
+    ).toBe(false)
     expect(document(4, { ...entity, recordedTrack: { ...geometry, coordinates: [[[-2, 0]]] } }).success).toBe(false)
   })
 

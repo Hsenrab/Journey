@@ -93,10 +93,19 @@ describe('activity rules', () => {
 
     expect(activity.recordedTrack?.coordinates).toEqual(recordedTrack.coordinates)
     expect(() => ActivitySchema.parse({ ...activity, location: undefined })).toThrow()
-    expect(() =>     ActivitySchema.parse({
-      ...activity,
-      recordedTrack: { ...recordedTrack, coordinates: [[[-181, 0], [0, 0]]] },
-    }),
+    expect(() =>
+      ActivitySchema.parse({
+        ...activity,
+        recordedTrack: {
+          ...recordedTrack,
+          coordinates: [
+            [
+              [-181, 0],
+              [0, 0],
+            ],
+          ],
+        },
+      }),
     ).toThrow()
   })
 
