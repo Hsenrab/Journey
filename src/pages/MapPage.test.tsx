@@ -588,15 +588,19 @@ describe('MapPage', () => {
     ])
     expect(screen.getByRole('group', { name: 'Planned routes' })).toBeInTheDocument()
     const sourceAddsBeforeSelection = mapEvents.gpxSourceAdd.mock.calls.length
+    const sourceClearsBeforeSelection = mapEvents.gpxSourceClear.mock.calls.length
     await user.click(screen.getByRole('button', { name: 'National Trust' }))
-    await vi.waitFor(() => expect(mapEvents.gpxSourceAdd).toHaveBeenCalledTimes(sourceAddsBeforeSelection + 1))
+    expect(mapEvents.gpxSourceAdd).toHaveBeenCalledTimes(sourceAddsBeforeSelection)
+    expect(mapEvents.gpxSourceClear).toHaveBeenCalledTimes(sourceClearsBeforeSelection)
     expect(mapEvents.setCamera).toHaveBeenCalledWith({
       bounds: [-2.2, 51.8, -1.9, 52.1],
       padding: 48,
     })
     const sourceAddsBeforeNextSelection = mapEvents.gpxSourceAdd.mock.calls.length
+    const sourceClearsBeforeNextSelection = mapEvents.gpxSourceClear.mock.calls.length
     await user.click(screen.getByRole('button', { name: 'Second route' }))
-    await vi.waitFor(() => expect(mapEvents.gpxSourceAdd).toHaveBeenCalledTimes(sourceAddsBeforeNextSelection + 1))
+    expect(mapEvents.gpxSourceAdd).toHaveBeenCalledTimes(sourceAddsBeforeNextSelection)
+    expect(mapEvents.gpxSourceClear).toHaveBeenCalledTimes(sourceClearsBeforeNextSelection)
     expect(mapEvents.setCamera).toHaveBeenCalledWith({
       bounds: [-1.8, 51.7, -1.7, 51.8],
       padding: 48,
@@ -642,8 +646,10 @@ describe('MapPage', () => {
 
     await vi.waitFor(() => expect(mapEvents.gpxSourceAdd).toHaveBeenCalled())
     const sourceAddsBeforeSelection = mapEvents.gpxSourceAdd.mock.calls.length
+    const sourceClearsBeforeSelection = mapEvents.gpxSourceClear.mock.calls.length
     await user.click(screen.getByRole('button', { name: challenge.title }))
-    await vi.waitFor(() => expect(mapEvents.gpxSourceAdd).toHaveBeenCalledTimes(sourceAddsBeforeSelection + 1))
+    expect(mapEvents.gpxSourceAdd).toHaveBeenCalledTimes(sourceAddsBeforeSelection)
+    expect(mapEvents.gpxSourceClear).toHaveBeenCalledTimes(sourceClearsBeforeSelection)
     expect(mapEvents.setCamera).toHaveBeenCalledWith({ bounds: [179, 10, -179, 11], padding: 48 })
   })
 
@@ -684,47 +690,6 @@ describe('MapPage', () => {
     expect(mapEvents.gpxSourceAdd).toHaveBeenCalledWith([expect.objectContaining({ id: 'national-trust:0' })])
     await user.click(screen.getByRole('button', { name: 'National Trust' }))
     expect(mapEvents.setCamera).not.toHaveBeenCalled()
-  })
-
-  it('uses antimeridian-aware bounds when fitting a selected route', async () => {
-    const data = createDefaultData()
-    data.challenges = [
-      {
-        ...data.challenges[0]!,
-        plannedRoute: {
-          fileName: 'dateline.gpx',
-          geometry: {
-            type: 'MultiLineString',
-            coordinates: [
-              [
-                [179, 10],
-                [-179, 11],
-              ],
-            ],
-          },
-        },
-      },
-    ]
-    localStorage.setItem('waypoints-v1', JSON.stringify(data))
-    const user = userEvent.setup()
-    vi.stubGlobal(
-      'fetch',
-      vi.fn().mockResolvedValue(jsonResponse({ token: 'entra', expiresOn: '2026-01-01', clientId: 'maps-client-id' })),
-    )
-    render(
-      <MemoryRouter>
-        <WaypointsProvider>
-          <MapPage />
-        </WaypointsProvider>
-      </MemoryRouter>,
-    )
-
-    await vi.waitFor(() => expect(mapEvents.gpxSourceAdd).toHaveBeenCalled())
-    await user.click(screen.getByRole('button', { name: 'National Trust' }))
-    expect(mapEvents.setCamera).toHaveBeenCalledWith({
-      bounds: [179, 10, -179, 11],
-      padding: 48,
-    })
   })
 
   it('omits the missing-coordinate notice when every record is geocoded', async () => {

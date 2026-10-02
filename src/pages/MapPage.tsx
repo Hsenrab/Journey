@@ -699,7 +699,12 @@ export default function MapPage() {
           ),
       ),
     )
+  }, [gpxLines, mapReady])
 
+  useEffect(() => {
+    const instance = map.current
+    if (!instance) return
+    const features = gpxLineFeatures(gpxLines)
     if (!selectedRouteChallengeId) return
     const positions = features
       .filter((feature) => feature.lineId === selectedRouteChallengeId)
