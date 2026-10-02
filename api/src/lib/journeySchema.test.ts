@@ -143,6 +143,16 @@ describe('Journey document validation', () => {
         entity,
       }).success,
     ).toBe(true)
+    const routeWithFileName = (fileName: string) =>
+      JourneyDocumentSchema.safeParse({
+        id: 'challenge-1',
+        datasetId: 'production',
+        type: 'challenge',
+        schemaVersion: 2,
+        entity: { ...entity, plannedRoute: { ...entity.plannedRoute, fileName } },
+      })
+    expect(routeWithFileName('a'.repeat(255)).success).toBe(true)
+    expect(routeWithFileName('a'.repeat(256)).success).toBe(false)
     expect(
       JourneyDocumentSchema.safeParse({
         id: 'challenge-1',
