@@ -25,6 +25,8 @@ const mapEvents = vi.hoisted(() => ({
   tokenGetter: undefined as TokenGetter | undefined,
   deferReady: false,
   sourceAdd: vi.fn(),
+  gpxSourceAdd: vi.fn(),
+  gpxSourceClear: vi.fn(),
   waypointClusterLeaves: vi.fn(() =>
     Promise.resolve([
       { getProperties: () => ({ label: 'Clustered waypoint', award: 'Bronze', waypointId: 'waypoint-1' }) },
@@ -38,6 +40,7 @@ const mapEvents = vi.hoisted(() => ({
     ]),
   ),
   resize: vi.fn(),
+  setCamera: vi.fn(),
   popupClose: undefined as (() => void) | undefined,
   popupContent: undefined as HTMLElement | undefined,
 }))
@@ -111,6 +114,7 @@ vi.mock('azure-maps-control', () => ({
     layers = { add: vi.fn() }
     imageSprite = { add: vi.fn() }
     getCamera = vi.fn(() => ({ zoom: 8 }))
+    setCamera = mapEvents.setCamera
     dispose = vi.fn()
     resize = mapEvents.resize
   },
@@ -127,6 +131,10 @@ vi.mock('azure-maps-control', () => ({
       clear = vi.fn()
       getClusterLeaves: typeof mapEvents.waypointClusterLeaves
       constructor(id: string) {
+        if (id === 'gpx-lines') {
+          this.add = mapEvents.gpxSourceAdd
+          this.clear = mapEvents.gpxSourceClear
+        }
         this.getClusterLeaves = id === 'waypoints' ? mapEvents.waypointClusterLeaves : mapEvents.activityClusterLeaves
       }
     },
@@ -144,13 +152,32 @@ vi.mock('azure-maps-control', () => ({
         this.id = id
       }
     },
+    LineLayer: class {
+      id?: string
+      constructor(_source: unknown, id: string) {
+        this.id = id
+      }
+    },
   },
   data: {
     Feature: class {
-      constructor(..._args: unknown[]) {}
+      geometry: unknown
+      properties?: unknown
+      id?: string
+      constructor(geometry: unknown, properties?: unknown, id?: string) {
+        this.geometry = geometry
+        this.properties = properties
+        this.id = id
+      }
     },
     Point: class {
       constructor(..._args: unknown[]) {}
+    },
+    LineString: class {
+      coordinates: unknown
+      constructor(coordinates: unknown) {
+        this.coordinates = coordinates
+      }
     },
   },
 }))
@@ -172,6 +199,9 @@ describe('MapPage', () => {
     mapEvents.tokenGetter = undefined
     mapEvents.deferReady = false
     mapEvents.sourceAdd.mockClear()
+    mapEvents.gpxSourceAdd.mockClear()
+    mapEvents.gpxSourceClear.mockClear()
+    mapEvents.setCamera.mockClear()
     mapEvents.waypointClusterLeaves.mockClear()
     mapEvents.activityClusterLeaves.mockClear()
     mapEvents.resize.mockClear()
@@ -490,6 +520,88 @@ describe('MapPage', () => {
     const activityLink = screen.getByRole('link', { name: /Unnamed activity.*\d+\.\d miles.*2026-08-10/ })
     expect(activityLink).toHaveAttribute('title', 'Unnamed activity')
     expect(activityLink).toHaveTextContent(/^Unnamed activity/)
+  })
+
+  it('updates GPX segments, fits a selected line, and clears the source on update and teardown', async () => {
+    const route = {
+      id: 'route',
+      label: 'Route',
+      segments: [
+        [
+          [-2.2, 51.8],
+          [-2.1, 51.9],
+        ],
+        [
+          [-2, 52],
+          [-1.9, 52.1],
+        ],
+      ],
+    } as const
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(jsonResponse({ token: 'entra', expiresOn: '2026-01-01', clientId: 'maps-client-id' })),
+    )
+    const view = render(
+      <MemoryRouter>
+        <WaypointsProvider>
+          <MapPage gpxLines={[route]} selectedGpxLineId="route" />
+        </WaypointsProvider>
+      </MemoryRouter>,
+    )
+
+    await vi.waitFor(() => expect(mapEvents.gpxSourceAdd).toHaveBeenCalled())
+    const features = mapEvents.gpxSourceAdd.mock.calls[0]![0]
+    expect(features).toHaveLength(2)
+    expect(features.map((feature: { id: string }) => feature.id)).toEqual(['route:0', 'route:1'])
+    expect(mapEvents.setCamera).toHaveBeenCalledWith({
+      bounds: [-2.2, 51.8, -1.9, 52.1],
+      padding: 48,
+    })
+
+    view.rerender(
+      <MemoryRouter>
+        <WaypointsProvider>
+          <MapPage gpxLines={[]} selectedGpxLineId="route" />
+        </WaypointsProvider>
+      </MemoryRouter>,
+    )
+    await vi.waitFor(() => expect(mapEvents.gpxSourceAdd).toHaveBeenLastCalledWith([]))
+    expect(mapEvents.setCamera).toHaveBeenCalledOnce()
+    view.unmount()
+    expect(mapEvents.gpxSourceClear).toHaveBeenCalled()
+  })
+
+  it('does not fit the camera to empty or degenerate selected geometry', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(jsonResponse({ token: 'entra', expiresOn: '2026-01-01', clientId: 'maps-client-id' })),
+    )
+    render(
+      <MemoryRouter>
+        <WaypointsProvider>
+          <MapPage
+            gpxLines={[
+              { id: 'empty', label: 'Empty', segments: [] },
+              {
+                id: 'point',
+                label: 'Point',
+                segments: [
+                  [
+                    [1, 2],
+                    [1, 2],
+                  ],
+                ],
+              },
+            ]}
+            selectedGpxLineId="point"
+          />
+        </WaypointsProvider>
+      </MemoryRouter>,
+    )
+
+    await vi.waitFor(() => expect(mapEvents.gpxSourceAdd).toHaveBeenCalled())
+    expect(mapEvents.gpxSourceAdd).toHaveBeenCalledWith([expect.objectContaining({ id: 'point:0' })])
+    expect(mapEvents.setCamera).not.toHaveBeenCalled()
   })
 
   it('omits the missing-coordinate notice when every record is geocoded', async () => {
