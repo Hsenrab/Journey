@@ -1,6 +1,6 @@
 import type { ComponentProps } from 'react'
 import { MemoryRouter } from 'react-router-dom'
-import { render, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { ActivityEditor } from './ActivityEditor'
@@ -83,6 +83,64 @@ describe('ActivityEditor', () => {
     await user.click(screen.getByRole('button', { name: 'Save' }))
     expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ recordedTrack: replacementTrack }))
     expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ recordedTrack: replacementTrack }))
+  })
+
+  it('disables track actions while parsing and ignores stale GPX results', async () => {
+    const user = userEvent.setup()
+    const initialActivity = createActivity({
+      activityId: 'activity-with-track',
+      date: '2026-09-04',
+      location: { kind: 'postcode', postcode: 'GL1 1AA' },
+      recordedTrack: {
+        type: 'MultiLineString',
+        coordinates: [
+          [
+            [-2.1, 51.5],
+            [-2.2, 51.6],
+          ],
+        ],
+      },
+    })
+    const { onSubmit } = renderEditor({ initialActivity })
+    const input = screen.getByLabelText('GPX track file')
+    const pendingReads: Array<(xml: string) => void> = []
+    const pendingFile = (name: string) => {
+      const file = new File([], name, { type: 'application/gpx+xml' })
+      Object.defineProperty(file, 'text', {
+        value: () =>
+          new Promise<string>((resolve) => {
+            pendingReads.push(resolve)
+          }),
+      })
+      return file
+    }
+
+    await user.upload(input, pendingFile('first.gpx'))
+    expect(screen.getByRole('button', { name: 'Replace GPX track' })).toHaveAttribute('aria-disabled', 'true')
+    expect(screen.getByRole('button', { name: 'Remove GPX track' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled()
+    fireEvent.submit(input.closest('form')!)
+    expect(onSubmit).not.toHaveBeenCalled()
+
+    fireEvent.change(input, { target: { files: [pendingFile('second.gpx')] } })
+    await act(async () => pendingReads[1]!(gpxXml('-3.1')))
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Save' })).toBeEnabled())
+    await act(async () => pendingReads[0]!(gpxXml('-2.1')))
+
+    await user.click(screen.getByRole('button', { name: 'Save' }))
+    expect(onSubmit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        recordedTrack: {
+          type: 'MultiLineString',
+          coordinates: [
+            [
+              [-3.1, 51.5],
+              [-2.2, 51.6],
+            ],
+          ],
+        },
+      }),
+    )
   })
 
   it('removes an existing GPX track', async () => {

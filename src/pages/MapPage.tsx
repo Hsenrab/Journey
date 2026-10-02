@@ -770,7 +770,7 @@ export default function MapPage() {
       {loadState.status === 'loading' && <LoadingNotice message="Loading map data…" />}
       {loaded && (
         <>
-          {trackActivity && (
+          {mode === 'activities' && trackActivity && (
             <Alert severity="info">Showing the recorded track for {activityDisplayName(trackActivity)}.</Alert>
           )}
           <Card ref={filters}>

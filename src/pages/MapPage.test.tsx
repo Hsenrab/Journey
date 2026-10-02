@@ -467,6 +467,7 @@ describe('MapPage', () => {
   })
 
   it('shows an activity recorded track on the map page and fits its geometry', async () => {
+    const user = userEvent.setup()
     const data = createDefaultData()
     const coordinates: [number, number][] = [
       [-2.1, 51.5],
@@ -507,6 +508,9 @@ describe('MapPage', () => {
       expect.objectContaining({ bounds: { positions: coordinates }, padding: 40 }),
     )
     expect(screen.getByRole('tab', { name: 'Activities' })).toHaveAttribute('aria-selected', 'true')
+
+    await user.click(screen.getByRole('tab', { name: 'Waypoints' }))
+    expect(screen.queryByText('Showing the recorded track for Recorded walk.')).not.toBeInTheDocument()
   })
 
   it('uses fallback names without promoting dates to primary map list labels', async () => {
