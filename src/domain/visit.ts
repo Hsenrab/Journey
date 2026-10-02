@@ -57,25 +57,27 @@ const WaypointLocationSchema = z.object({
 
 const RoutePositionSchema = z.tuple([z.number().min(-180).max(180), z.number().min(-90).max(90)])
 
-export const MAX_PLANNED_ROUTE_SEGMENTS = 100
-export const MAX_PLANNED_ROUTE_POINTS = 10_000
+export const MAX_GPX_GEOMETRY_SEGMENTS = 100
+export const MAX_GPX_GEOMETRY_POINTS = 10_000
 export const MAX_GPX_FILE_SIZE_BYTES = 5 * 1024 * 1024
 
 export const GpxGeometrySchema = z
   .object({
     type: z.literal('MultiLineString'),
-    coordinates: z.array(z.array(RoutePositionSchema).min(2)).min(1).max(MAX_PLANNED_ROUTE_SEGMENTS),
+    coordinates: z.array(z.array(RoutePositionSchema).min(2)).min(1).max(MAX_GPX_GEOMETRY_SEGMENTS),
   })
   .strict()
   .superRefine((geometry, context) => {
     const pointCount = geometry.coordinates.reduce((total, segment) => total + segment.length, 0)
-    if (pointCount > MAX_PLANNED_ROUTE_POINTS)
+    if (pointCount > MAX_GPX_GEOMETRY_POINTS)
       context.addIssue({
         code: 'custom',
         path: ['coordinates'],
-        message: `A planned route cannot contain more than ${MAX_PLANNED_ROUTE_POINTS} points.`,
+        message: `GPX geometry cannot contain more than ${MAX_GPX_GEOMETRY_POINTS} points.`,
       })
   })
+
+export type GpxGeometry = z.infer<typeof GpxGeometrySchema>
 
 export const PlannedRouteSchema = z
   .object({
@@ -202,6 +204,7 @@ export const ActivitySchema = z
     date: isoDate,
     category: AwardedStatusSchema.optional(),
     location: ActivityLocationSchema,
+    recordedTrack: GpxGeometrySchema.optional(),
     notes: z.string(),
     referenceIds: z.array(z.string().min(1)),
     photoReferenceIds: z.array(z.string().min(1)),
@@ -329,6 +332,7 @@ export function createActivity(input: {
   date: string
   category?: AwardedStatus
   location: z.input<typeof ActivityLocationSchema>
+  recordedTrack?: z.input<typeof GpxGeometrySchema>
   notes?: string
   referenceIds?: string[]
   photoReferenceIds?: string[]
@@ -345,6 +349,7 @@ export function createActivity(input: {
     date: input.date,
     category: input.category,
     location: input.location,
+    recordedTrack: input.recordedTrack,
     notes: input.notes ?? '',
     referenceIds: input.referenceIds ?? [],
     photoReferenceIds: input.photoReferenceIds ?? [],
