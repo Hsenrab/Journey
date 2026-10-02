@@ -184,6 +184,11 @@ export default function ActivityDetails() {
       ) : (
         <Typography color="text.secondary">No description recorded.</Typography>
       )}
+      {activity.recordedTrack && (
+        <Button component={Link} to={`/map?activityId=${encodeURIComponent(activity.activityId)}`} variant="outlined">
+          View recorded track on map
+        </Button>
+      )}
 
       {photoReferences.length > 0 ? (
         <Card>

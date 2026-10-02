@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import {
   Alert,
   Box,
@@ -372,6 +372,7 @@ const CLUSTER_LIST_LIMIT = 25
 
 export default function MapPage() {
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
   const { data, loadState, statusFor } = useWaypoints()
   const container = useRef<HTMLDivElement>(null)
   const mapBox = useRef<HTMLDivElement>(null)
@@ -380,7 +381,10 @@ export default function MapPage() {
   const mapPopup = useRef<atlas.Popup | null>(null)
   const waypointSource = useRef<atlas.source.DataSource | null>(null)
   const activitySource = useRef<atlas.source.DataSource | null>(null)
-  const [mode, setMode] = useState<MapMode>('waypoints')
+  const activityTrackSource = useRef<atlas.source.DataSource | null>(null)
+  const trackActivityId = searchParams.get('activityId')
+  const trackActivity = data.activities.find((activity) => activity.activityId === trackActivityId)
+  const [mode, setMode] = useState<MapMode>(() => (trackActivityId ? 'activities' : 'waypoints'))
   const [statuses, setStatuses] = useState<Status[]>([...statusOrder])
   const [token, setToken] = useState<MapsToken | null>(null)
   const [mapReady, setMapReady] = useState(false)
@@ -463,7 +467,8 @@ export default function MapPage() {
       mapPopup.current = popup
       const waypoints = new atlas.source.DataSource('waypoints', { cluster: true, clusterRadius: 45 })
       const activities = new atlas.source.DataSource('activities', { cluster: true, clusterRadius: 45 })
-      instance.sources.add([waypoints, activities])
+      const activityTracks = new atlas.source.DataSource('activity-tracks')
+      instance.sources.add([waypoints, activities, activityTracks])
       const waypointLayer = new atlas.layer.SymbolLayer(waypoints, 'waypoints', {
         filter: ['!', ['has', 'point_count']],
         iconOptions: { image: ['get', 'icon'], allowOverlap: true, size: 0.5 },
@@ -515,6 +520,10 @@ export default function MapPage() {
       instance.layers.add([
         waypointClusterBubbleLayer,
         activityClusterBubbleLayer,
+        new atlas.layer.LineLayer(activityTracks, 'activity-tracks', {
+          strokeColor: '#7b1fa2',
+          strokeWidth: 5,
+        }),
         waypointLayer,
         waypointClusterLayer,
         activityLayer,
@@ -600,6 +609,14 @@ export default function MapPage() {
       })
       waypointSource.current = waypoints
       activitySource.current = activities
+      activityTrackSource.current = activityTracks
+      const trackCoordinates = trackActivity?.recordedTrack?.coordinates.flat()
+      if (trackCoordinates?.length) {
+        instance.setCamera({
+          bounds: atlas.data.BoundingBox.fromPositions(trackCoordinates),
+          padding: 40,
+        })
+      }
       setMapReady(true)
     })
     map.current = instance
@@ -608,10 +625,11 @@ export default function MapPage() {
       map.current = null
       waypointSource.current = null
       activitySource.current = null
+      activityTrackSource.current = null
       mapPopup.current = null
       setMapReady(false)
     }
-  }, [data.activities, data.waypoints, loaded, navigate, origin.latitude, origin.longitude, token])
+  }, [data.activities, data.waypoints, loaded, navigate, origin.latitude, origin.longitude, token, trackActivity])
 
   const visibleWaypoints = useMemo(
     () => filterWaypointsByStatus(data.waypoints, statuses, statusFor),
@@ -678,6 +696,24 @@ export default function MapPage() {
     }
   }, [data.activities, data.waypoints, mapReady, mode, selectedActivityId])
 
+  useEffect(() => {
+    const source = activityTrackSource.current
+    if (!source) return
+    source.clear()
+    if (mode !== 'activities') return
+    const activities = trackActivity ? [trackActivity] : data.activities
+    source.add(
+      activities.flatMap((activity) =>
+        activity.recordedTrack?.coordinates.map(
+          (coordinates) =>
+            new atlas.data.Feature(new atlas.data.LineString(coordinates), {
+              activityId: activity.activityId,
+            }),
+        ) ?? [],
+      ),
+    )
+  }, [data.activities, mapReady, mode, trackActivity])
+
   const findNearby = async () => {
     setError(null)
     let response: Response
@@ -733,6 +769,11 @@ export default function MapPage() {
       {loadState.status === 'loading' && <LoadingNotice message="Loading map data…" />}
       {loaded && (
         <>
+          {trackActivity && (
+            <Alert severity="info">
+              Showing the recorded track for {activityDisplayName(trackActivity)}.
+            </Alert>
+          )}
           <Card ref={filters}>
             <CardContent>
               <Stack

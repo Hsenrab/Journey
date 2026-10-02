@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, type ChangeEvent } from 'react'
 import { useBeforeUnload } from 'react-router-dom'
 import {
   Alert,
@@ -29,9 +29,11 @@ import {
   type ActivityLocation,
   type AwardedStatus,
   type ExternalPhotoReference,
+  type GpxGeometry,
   type Reference,
   type WaypointsData,
 } from '../domain/visit'
+import { parseGpxFile } from '../domain/gpx'
 import { activityImportExample, parseActivityDraftJson } from '../domain/draftJsonImport'
 import { activityJsonAiPrompt } from '../domain/aiPrompts'
 import { AiPromptButton } from './AiPromptButton'
@@ -128,6 +130,8 @@ export function ActivityEditor({
       url: photoReference.url,
     })),
   )
+  const [recordedTrack, setRecordedTrack] = useState<GpxGeometry | undefined>(initialActivity?.recordedTrack)
+  const [trackError, setTrackError] = useState<string | null>(null)
   const [errors, setErrors] = useState<Errors>({})
   const [message, setMessage] = useState<string | null>(null)
   const [mode, setMode] = useState<EditorMode>('form')
@@ -183,6 +187,7 @@ export function ActivityEditor({
         altText: item.altText ?? '',
         url: item.url,
       })),
+      recordedTrack: initialActivity?.recordedTrack,
     }
 
     const currentLocation =
@@ -200,6 +205,7 @@ export function ActivityEditor({
         location: locationEdited ? currentLocation : initialLocation,
         references,
         photoReferences,
+        recordedTrack,
       })
     )
   }, [
@@ -218,6 +224,7 @@ export function ActivityEditor({
     name,
     notes,
     photoReferences,
+    recordedTrack,
     postcode,
     references,
     ideaIds,
@@ -304,6 +311,7 @@ export function ActivityEditor({
               date,
               category: supportsCategories ? category || undefined : undefined,
               location: result.location,
+              recordedTrack,
               notes,
               references: references.map((reference) => ({
                 referenceId: reference.referenceId,
@@ -560,6 +568,46 @@ export function ActivityEditor({
                   {errors.coordinates && <Typography color="error">{errors.coordinates}</Typography>}
                 </Stack>
               )}
+
+              <Stack spacing={1}>
+                <Typography variant="h6">Recorded GPX track (optional)</Typography>
+                <Button component="label" variant="outlined">
+                  {recordedTrack ? 'Replace GPX track' : 'Attach GPX track'}
+                  <input
+                    aria-label="GPX track file"
+                    hidden
+                    type="file"
+                    accept=".gpx,application/gpx+xml,application/xml,text/xml"
+                    onChange={async (event: ChangeEvent<HTMLInputElement>) => {
+                      const file = event.target.files?.[0]
+                      event.target.value = ''
+                      if (!file) return
+                      setTrackError(null)
+                      try {
+                        const route = await parseGpxFile(file)
+                        setRecordedTrack(route.geometry)
+                      } catch (cause) {
+                        setTrackError(cause instanceof Error ? cause.message : String(cause))
+                      }
+                    }}
+                  />
+                </Button>
+                {recordedTrack && (
+                  <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
+                    <Typography color="text.secondary">A recorded GPX track is attached.</Typography>
+                    <Button
+                      color="error"
+                      onClick={() => {
+                        setRecordedTrack(undefined)
+                        setTrackError(null)
+                      }}
+                    >
+                      Remove GPX track
+                    </Button>
+                  </Stack>
+                )}
+                {trackError && <Alert severity="error">{trackError}</Alert>}
+              </Stack>
 
               <Stack spacing={1}>
                 <Typography variant="h6">References</Typography>
