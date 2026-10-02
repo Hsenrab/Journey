@@ -12,16 +12,11 @@ export type GpxLineFeature = {
   lineId: string
   label: string
   color: string
+  strokeWidth: number
   coordinates: [longitude: number, latitude: number][]
 }
 
 const lineColors = ['#1565c0', '#c62828', '#6a1b9a', '#ef6c00', '#00838f']
-
-function colorForLine(id: string): string {
-  let hash = 0
-  for (const character of id) hash = (hash * 31 + character.charCodeAt(0)) >>> 0
-  return lineColors[hash % lineColors.length]!
-}
 
 function validPosition(position: unknown): position is GpxPosition {
   if (!Array.isArray(position) || position.length !== 2) return false
@@ -38,7 +33,38 @@ function validPosition(position: unknown): position is GpxPosition {
   )
 }
 
+function validSegment(segment: unknown): segment is readonly GpxPosition[] {
+  return Array.isArray(segment) && segment.length >= 2 && segment.every(validPosition)
+}
+
 export function gpxLineFeatures(lines: readonly GpxMapLine[]): GpxLineFeature[] {
+  const fallbackLineIds = [
+    ...new Set(
+      lines
+        .filter(
+          (line) =>
+            line &&
+            typeof line.id === 'string' &&
+            !!line.id.trim() &&
+            typeof line.label === 'string' &&
+            !!line.label.trim() &&
+            Array.isArray(line.segments) &&
+            line.segments.some(validSegment) &&
+            !(line.color && /^#[0-9a-f]{6}$/i.test(line.color)),
+        )
+        .map(({ id }) => id),
+    ),
+  ].sort()
+  const fallbackStyles = new Map(
+    fallbackLineIds.map((id, index) => [
+      id,
+      {
+        color: lineColors[index % lineColors.length]!,
+        strokeWidth: 4 + Math.floor(index / lineColors.length),
+      },
+    ]),
+  )
+
   return lines.flatMap((line) => {
     if (
       !line ||
@@ -50,7 +76,10 @@ export function gpxLineFeatures(lines: readonly GpxMapLine[]): GpxLineFeature[] 
     ) {
       return []
     }
-    const color = line.color && /^#[0-9a-f]{6}$/i.test(line.color) ? line.color : colorForLine(line.id)
+    const explicitColor = line.color && /^#[0-9a-f]{6}$/i.test(line.color) ? line.color : undefined
+    const fallbackStyle = fallbackStyles.get(line.id) ?? { color: lineColors[0]!, strokeWidth: 4 }
+    const color = explicitColor ?? fallbackStyle.color
+    const strokeWidth = explicitColor ? 4 : fallbackStyle.strokeWidth
     return line.segments.flatMap((segment, segmentIndex) => {
       if (!Array.isArray(segment) || segment.length < 2 || !segment.every(validPosition)) {
         throw new Error(`GPX line "${line.id}" segment ${segmentIndex + 1} must contain at least two valid positions.`)
@@ -61,6 +90,7 @@ export function gpxLineFeatures(lines: readonly GpxMapLine[]): GpxLineFeature[] 
           lineId: line.id,
           label: line.label,
           color,
+          strokeWidth,
           coordinates: segment.map(([longitude, latitude]) => [longitude, latitude]),
         },
       ]

@@ -484,7 +484,7 @@ export default function MapPage() {
       instance.sources.add([gpx, waypoints, activities])
       const gpxLayer = new atlas.layer.LineLayer(gpx, 'gpx-lines', {
         strokeColor: ['get', 'color'],
-        strokeWidth: 4,
+        strokeWidth: ['get', 'strokeWidth'],
         lineCap: 'round',
         lineJoin: 'round',
       })
@@ -665,7 +665,12 @@ export default function MapPage() {
         (feature) =>
           new atlas.data.Feature(
             new atlas.data.LineString(feature.coordinates),
-            { lineId: feature.lineId, label: feature.label, color: feature.color },
+            {
+              lineId: feature.lineId,
+              label: feature.label,
+              color: feature.color,
+              strokeWidth: feature.strokeWidth,
+            },
             feature.id,
           ),
       ),
