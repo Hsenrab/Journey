@@ -25,6 +25,8 @@ const mapEvents = vi.hoisted(() => ({
   tokenGetter: undefined as TokenGetter | undefined,
   deferReady: false,
   sourceAdd: vi.fn(),
+  gpxSourceAdd: vi.fn(),
+  gpxSourceClear: vi.fn(),
   waypointClusterLeaves: vi.fn(() =>
     Promise.resolve([
       { getProperties: () => ({ label: 'Clustered waypoint', award: 'Bronze', waypointId: 'waypoint-1' }) },
@@ -130,6 +132,10 @@ vi.mock('azure-maps-control', () => ({
       clear = vi.fn()
       getClusterLeaves: typeof mapEvents.waypointClusterLeaves
       constructor(id: string) {
+        if (id === 'gpx-lines') {
+          this.add = mapEvents.gpxSourceAdd
+          this.clear = mapEvents.gpxSourceClear
+        }
         this.getClusterLeaves = id === 'waypoints' ? mapEvents.waypointClusterLeaves : mapEvents.activityClusterLeaves
       }
     },
@@ -156,14 +162,23 @@ vi.mock('azure-maps-control', () => ({
   },
   data: {
     Feature: class {
-      constructor(..._args: unknown[]) {}
+      geometry: unknown
+      properties?: unknown
+      id?: string
+      constructor(geometry: unknown, properties?: unknown, id?: string) {
+        this.geometry = geometry
+        this.properties = properties
+        this.id = id
+      }
     },
     Point: class {
       constructor(..._args: unknown[]) {}
     },
     LineString: class {
+      coordinates: unknown
       constructor(coordinates: number[][]) {
         mapEvents.lineStringCoordinates.push(coordinates)
+        this.coordinates = coordinates
       }
     },
     BoundingBox: {
@@ -189,6 +204,9 @@ describe('MapPage', () => {
     mapEvents.tokenGetter = undefined
     mapEvents.deferReady = false
     mapEvents.sourceAdd.mockClear()
+    mapEvents.gpxSourceAdd.mockClear()
+    mapEvents.gpxSourceClear.mockClear()
+    mapEvents.setCamera.mockClear()
     mapEvents.waypointClusterLeaves.mockClear()
     mapEvents.activityClusterLeaves.mockClear()
     mapEvents.resize.mockClear()
@@ -556,6 +574,176 @@ describe('MapPage', () => {
     const activityLink = screen.getByRole('link', { name: /Unnamed activity.*\d+\.\d miles.*2026-08-10/ })
     expect(activityLink).toHaveAttribute('title', 'Unnamed activity')
     expect(activityLink).toHaveTextContent(/^Unnamed activity/)
+  })
+
+  it('renders persisted challenge routes and fits the route selected from the map controls', async () => {
+    const data = createDefaultData()
+    const challenge = data.challenges[0]!
+    data.challenges = [
+      {
+        ...challenge,
+        plannedRoute: {
+          fileName: 'route.gpx',
+          geometry: {
+            type: 'MultiLineString',
+            coordinates: [
+              [
+                [-2.2, 51.8],
+                [-2.1, 51.9],
+              ],
+              [
+                [-2, 52],
+                [-1.9, 52.1],
+              ],
+            ],
+          },
+        },
+      },
+      {
+        ...challenge,
+        challengeId: 'second-route',
+        title: 'Second route',
+        waypointIds: [],
+        plannedRoute: {
+          fileName: 'second-route.gpx',
+          geometry: {
+            type: 'MultiLineString',
+            coordinates: [
+              [
+                [-1.8, 51.7],
+                [-1.7, 51.8],
+              ],
+            ],
+          },
+        },
+      },
+    ]
+    localStorage.setItem('waypoints-v1', JSON.stringify(data))
+    const user = userEvent.setup()
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(jsonResponse({ token: 'entra', expiresOn: '2026-01-01', clientId: 'maps-client-id' })),
+    )
+    const view = render(
+      <MemoryRouter>
+        <WaypointsProvider>
+          <MapPage />
+        </WaypointsProvider>
+      </MemoryRouter>,
+    )
+
+    await vi.waitFor(() => expect(mapEvents.gpxSourceAdd).toHaveBeenCalled())
+    const features = mapEvents.gpxSourceAdd.mock.calls[0]![0]
+    expect(features).toHaveLength(3)
+    expect(features.map((feature: { id: string }) => feature.id)).toEqual([
+      'national-trust:0',
+      'national-trust:1',
+      'second-route:0',
+    ])
+    expect(screen.getByRole('group', { name: 'Planned routes' })).toBeInTheDocument()
+    const sourceAddsBeforeSelection = mapEvents.gpxSourceAdd.mock.calls.length
+    const sourceClearsBeforeSelection = mapEvents.gpxSourceClear.mock.calls.length
+    await user.click(screen.getByRole('button', { name: 'National Trust' }))
+    expect(mapEvents.gpxSourceAdd).toHaveBeenCalledTimes(sourceAddsBeforeSelection)
+    expect(mapEvents.gpxSourceClear).toHaveBeenCalledTimes(sourceClearsBeforeSelection)
+    expect(mapEvents.setCamera).toHaveBeenCalledWith({
+      bounds: [-2.2, 51.8, -1.9, 52.1],
+      padding: 48,
+    })
+    const sourceAddsBeforeNextSelection = mapEvents.gpxSourceAdd.mock.calls.length
+    const sourceClearsBeforeNextSelection = mapEvents.gpxSourceClear.mock.calls.length
+    await user.click(screen.getByRole('button', { name: 'Second route' }))
+    expect(mapEvents.gpxSourceAdd).toHaveBeenCalledTimes(sourceAddsBeforeNextSelection)
+    expect(mapEvents.gpxSourceClear).toHaveBeenCalledTimes(sourceClearsBeforeNextSelection)
+    expect(mapEvents.setCamera).toHaveBeenCalledWith({
+      bounds: [-1.8, 51.7, -1.7, 51.8],
+      padding: 48,
+    })
+    const clearCountBeforeUnmount = mapEvents.gpxSourceClear.mock.calls.length
+    view.unmount()
+    expect(mapEvents.gpxSourceClear).toHaveBeenCalledTimes(clearCountBeforeUnmount + 1)
+  })
+
+  it('frames selected GPX geometry crossing the antimeridian by its short longitude interval', async () => {
+    const data = createDefaultData()
+    const challenge = data.challenges[0]!
+    data.challenges = [
+      {
+        ...challenge,
+        plannedRoute: {
+          fileName: 'dateline.gpx',
+          geometry: {
+            type: 'MultiLineString',
+            coordinates: [
+              [
+                [179, 10],
+                [-179, 11],
+              ],
+            ],
+          },
+        },
+      },
+    ]
+    localStorage.setItem('waypoints-v1', JSON.stringify(data))
+    const user = userEvent.setup()
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(jsonResponse({ token: 'entra', expiresOn: '2026-01-01', clientId: 'maps-client-id' })),
+    )
+    render(
+      <MemoryRouter>
+        <WaypointsProvider>
+          <MapPage />
+        </WaypointsProvider>
+      </MemoryRouter>,
+    )
+
+    await vi.waitFor(() => expect(mapEvents.gpxSourceAdd).toHaveBeenCalled())
+    const sourceAddsBeforeSelection = mapEvents.gpxSourceAdd.mock.calls.length
+    const sourceClearsBeforeSelection = mapEvents.gpxSourceClear.mock.calls.length
+    await user.click(screen.getByRole('button', { name: challenge.title }))
+    expect(mapEvents.gpxSourceAdd).toHaveBeenCalledTimes(sourceAddsBeforeSelection)
+    expect(mapEvents.gpxSourceClear).toHaveBeenCalledTimes(sourceClearsBeforeSelection)
+    expect(mapEvents.setCamera).toHaveBeenCalledWith({ bounds: [179, 10, -179, 11], padding: 48 })
+  })
+
+  it('does not fit the camera to degenerate persisted route geometry', async () => {
+    const data = createDefaultData()
+    data.challenges = [
+      {
+        ...data.challenges[0]!,
+        plannedRoute: {
+          fileName: 'point.gpx',
+          geometry: {
+            type: 'MultiLineString',
+            coordinates: [
+              [
+                [1, 2],
+                [1, 2],
+              ],
+            ],
+          },
+        },
+      },
+    ]
+    localStorage.setItem('waypoints-v1', JSON.stringify(data))
+    const user = userEvent.setup()
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(jsonResponse({ token: 'entra', expiresOn: '2026-01-01', clientId: 'maps-client-id' })),
+    )
+    render(
+      <MemoryRouter>
+        <WaypointsProvider>
+          <MapPage />
+        </WaypointsProvider>
+      </MemoryRouter>,
+    )
+
+    await vi.waitFor(() => expect(mapEvents.gpxSourceAdd).toHaveBeenCalled())
+    expect(mapEvents.gpxSourceAdd).toHaveBeenCalledWith([expect.objectContaining({ id: 'national-trust:0' })])
+    await user.click(screen.getByRole('button', { name: 'National Trust' }))
+    expect(mapEvents.setCamera).not.toHaveBeenCalled()
   })
 
   it('omits the missing-coordinate notice when every record is geocoded', async () => {

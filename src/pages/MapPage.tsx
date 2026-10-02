@@ -33,6 +33,7 @@ import {
   orderNearbyWaypoints,
   waypointCoordinates,
 } from '../domain/map'
+import { gpxLineFeatures, type GpxMapLine } from '../domain/gpxMap'
 import {
   statusLabels,
   statusOrder,
@@ -370,6 +371,29 @@ const MIN_MAP_HEIGHT = 320
 const MAP_BOTTOM_MARGIN = 24
 const CLUSTER_LIST_LIMIT = 25
 
+function normalizeLongitude(longitude: number): number {
+  return ((((longitude + 180) % 360) + 360) % 360) - 180
+}
+
+function smallestLongitudeBounds(longitudes: readonly number[]): [number, number] {
+  const sorted = [...new Map(longitudes.map((longitude) => [(longitude + 360) % 360, longitude] as const))]
+    .map(([value, longitude]) => ({ value, longitude }))
+    .sort((a, b) => a.value - b.value)
+  let largestGap = -1
+  let gapIndex = 0
+  for (let index = 0; index < sorted.length; index += 1) {
+    const current = sorted[index]!.value
+    const next = sorted[(index + 1) % sorted.length]!.value + (index === sorted.length - 1 ? 360 : 0)
+    if (next - current > largestGap) {
+      largestGap = next - current
+      gapIndex = index
+    }
+  }
+  const west = sorted[(gapIndex + 1) % sorted.length]!.longitude
+  const east = sorted[gapIndex]!.longitude
+  return [west, east]
+}
+
 export default function MapPage() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
@@ -385,12 +409,14 @@ export default function MapPage() {
   const trackActivityId = searchParams.get('activityId')
   const trackActivity = data.activities.find((activity) => activity.activityId === trackActivityId)
   const [mode, setMode] = useState<MapMode>(() => (trackActivityId ? 'activities' : 'waypoints'))
+  const gpxSource = useRef<atlas.source.DataSource | null>(null)
   const [statuses, setStatuses] = useState<Status[]>([...statusOrder])
   const [token, setToken] = useState<MapsToken | null>(null)
   const [mapReady, setMapReady] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [selectedWaypointId, setSelectedWaypointId] = useState<string | null>(null)
   const [selectedActivityId, setSelectedActivityId] = useState<string | null>(null)
+  const [selectedRouteChallengeId, setSelectedRouteChallengeId] = useState<string | null>(null)
   const [mobilePanel, setMobilePanel] = useState<'map' | 'list'>('map')
   const [originQuery, setOriginQuery] = useState('Brockworth, Gloucestershire')
   const [origin, setOrigin] = useState(brockworth)
@@ -399,6 +425,21 @@ export default function MapPage() {
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'), { noSsr: true })
   const [mapHeight, setMapHeight] = useState(MIN_MAP_HEIGHT)
   const loaded = loadState.status === 'loaded'
+  const gpxLines = useMemo<readonly GpxMapLine[]>(
+    () =>
+      data.challenges.flatMap((challenge) =>
+        challenge.plannedRoute
+          ? [
+              {
+                id: challenge.challengeId,
+                label: challenge.title,
+                segments: challenge.plannedRoute.geometry.coordinates,
+              },
+            ]
+          : [],
+      ),
+    [data.challenges],
+  )
 
   useEffect(() => {
     void getMapsToken()
@@ -465,10 +506,17 @@ export default function MapPage() {
         setSelectedActivityId(null)
       })
       mapPopup.current = popup
+      const gpx = new atlas.source.DataSource('gpx-lines')
       const waypoints = new atlas.source.DataSource('waypoints', { cluster: true, clusterRadius: 45 })
       const activities = new atlas.source.DataSource('activities', { cluster: true, clusterRadius: 45 })
       const activityTracks = new atlas.source.DataSource('activity-tracks')
-      instance.sources.add([waypoints, activities, activityTracks])
+      instance.sources.add([gpx, waypoints, activities, activityTracks])
+      const gpxLayer = new atlas.layer.LineLayer(gpx, 'gpx-lines', {
+        strokeColor: ['get', 'color'],
+        strokeWidth: ['get', 'strokeWidth'],
+        lineCap: 'round',
+        lineJoin: 'round',
+      })
       const waypointLayer = new atlas.layer.SymbolLayer(waypoints, 'waypoints', {
         filter: ['!', ['has', 'point_count']],
         iconOptions: { image: ['get', 'icon'], allowOverlap: true, size: 0.5 },
@@ -518,6 +566,7 @@ export default function MapPage() {
         strokeWidth: 2,
       })
       instance.layers.add([
+        gpxLayer,
         waypointClusterBubbleLayer,
         activityClusterBubbleLayer,
         new atlas.layer.LineLayer(activityTracks, 'activity-tracks', {
@@ -617,15 +666,18 @@ export default function MapPage() {
           padding: 40,
         })
       }
+      gpxSource.current = gpx
       setMapReady(true)
     })
     map.current = instance
     return () => {
+      gpxSource.current?.clear()
       instance.dispose()
       map.current = null
       waypointSource.current = null
       activitySource.current = null
       activityTrackSource.current = null
+      gpxSource.current = null
       mapPopup.current = null
       setMapReady(false)
     }
@@ -642,6 +694,61 @@ export default function MapPage() {
   )
   const waypointWithoutCoordinates = data.waypoints.filter((waypoint) => !waypointCoordinates(waypoint)).length
   const activityWithoutCoordinates = data.activities.filter((activity) => !activityCoordinates(activity)).length
+
+  useEffect(() => {
+    const source = gpxSource.current
+    const instance = map.current
+    if (!source || !instance) return
+
+    const features = gpxLineFeatures(gpxLines)
+    source.clear()
+    source.add(
+      features.map(
+        (feature) =>
+          new atlas.data.Feature(
+            new atlas.data.LineString(feature.coordinates),
+            {
+              lineId: feature.lineId,
+              label: feature.label,
+              color: feature.color,
+              strokeWidth: feature.strokeWidth,
+            },
+            feature.id,
+          ),
+      ),
+    )
+  }, [gpxLines, mapReady])
+
+  useEffect(() => {
+    const instance = map.current
+    if (!instance) return
+    const features = gpxLineFeatures(gpxLines)
+    if (!selectedRouteChallengeId) return
+    const positions = features
+      .filter((feature) => feature.lineId === selectedRouteChallengeId)
+      .flatMap((feature) => feature.coordinates)
+    if (positions.length < 2) return
+
+    let minLatitude = 90
+    let maxLatitude = -90
+    for (const [, latitude] of positions) {
+      minLatitude = Math.min(minLatitude, latitude)
+      maxLatitude = Math.max(maxLatitude, latitude)
+    }
+    const [minLongitude, maxLongitude] = smallestLongitudeBounds(positions.map(([longitude]) => longitude))
+    if (minLongitude === maxLongitude && minLatitude === maxLatitude) return
+    const longitudePadding = minLongitude === maxLongitude ? 0.005 : 0
+    const latitudePadding = minLatitude === maxLatitude ? 0.005 : 0
+    instance.setCamera({
+      bounds: [
+        longitudePadding ? normalizeLongitude(minLongitude - longitudePadding) : minLongitude,
+        Math.max(-90, minLatitude - latitudePadding),
+        longitudePadding ? normalizeLongitude(maxLongitude + longitudePadding) : maxLongitude,
+        Math.min(90, maxLatitude + latitudePadding),
+      ],
+      padding: 48,
+    })
+  }, [gpxLines, mapReady, selectedRouteChallengeId])
 
   useEffect(() => {
     const source = waypointSource.current
@@ -822,6 +929,25 @@ export default function MapPage() {
                   </Stack>
                 )}
               </Stack>
+              {gpxLines.length > 0 && (
+                <Stack spacing={0.5} sx={{ mt: 1.5 }}>
+                  <Typography variant="subtitle2">Planned routes</Typography>
+                  <ToggleButtonGroup
+                    exclusive
+                    value={selectedRouteChallengeId}
+                    onChange={(_, challengeId: string | null) => setSelectedRouteChallengeId(challengeId)}
+                    aria-label="Planned routes"
+                    size="small"
+                    sx={{ flexWrap: 'wrap' }}
+                  >
+                    {gpxLines.map((line) => (
+                      <ToggleButton key={line.id} value={line.id} title={line.label}>
+                        {line.label}
+                      </ToggleButton>
+                    ))}
+                  </ToggleButtonGroup>
+                </Stack>
+              )}
               {originResults.length > 0 && (
                 <Stack spacing={1} sx={{ mt: 2 }}>
                   <Typography variant="h6">Choose a nearby origin</Typography>
