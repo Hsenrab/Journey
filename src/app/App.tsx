@@ -13,6 +13,7 @@ import IdeaDetails from '../pages/IdeaDetails'
 import Activities from '../pages/Activities'
 import ActivityDetails from '../pages/ActivityDetails'
 import MapPage from '../pages/MapPage'
+import ChallengeDetails from '../pages/ChallengeDetails'
 
 export default function App() {
   return (
@@ -26,6 +27,7 @@ export default function App() {
               <Route path="/waypoints" element={<Locations />} />
               <Route path="/waypoints/:id" element={<LocationDetails />} />
               <Route path="/challenges" element={<Dashboard />} />
+              <Route path="/challenges/:challengeId" element={<ChallengeDetails />} />
               <Route path="/ideas" element={<Ideas />} />
               <Route path="/ideas/:ideaId" element={<IdeaDetails />} />
               <Route path="/activities" element={<Activities />} />

@@ -5,6 +5,7 @@ import {
   MAX_GPX_NESTING_DEPTH,
   MAX_GPX_POINT_COUNT,
   parseGpx,
+  parseGpxRoute,
 } from './gpx'
 
 describe('parseGpx', () => {
@@ -62,6 +63,15 @@ describe('parseGpx', () => {
         '<gpx xmlns="http://www.topografix.com/GPX/1/1"><ext:rte xmlns:ext="urn:extension"><ext:rtept lat="1" lon="2" /><ext:rtept lat="3" lon="4" /></ext:rte></gpx>',
       ),
     ).toThrow('does not contain supported track or route geometry')
+  })
+
+  it('reports unsupported GPX namespaces distinctly when parsing a route', () => {
+    expect(() =>
+      parseGpxRoute(
+        '<gpx xmlns="urn:not-gpx"><rte><rtept lat="1" lon="2" /><rtept lat="3" lon="4" /></rte></gpx>',
+        'route.gpx',
+      ),
+    ).toThrow('does not use a supported GPX namespace')
   })
 
   it('does not treat parsererror extension elements as parse errors', () => {

@@ -55,6 +55,10 @@ describe('Dashboard', () => {
     renderDashboard()
     expect(screen.getByRole('heading', { name: 'National Trust' })).toBeInTheDocument()
     expect(screen.getByRole('progressbar', { name: 'National Trust completion' })).toBeInTheDocument()
+    const title = screen.getByRole('heading', { name: 'National Trust' })
+    const challengeLink = screen.getByRole('link', { name: /National Trust/ })
+    expect(challengeLink).toHaveAttribute('href', '/challenges/national-trust')
+    expect(challengeLink).toHaveAttribute('aria-labelledby', title.id)
   })
 
   it('shows zero progress when no activities are recorded', () => {

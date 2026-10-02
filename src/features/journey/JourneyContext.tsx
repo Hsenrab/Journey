@@ -39,6 +39,7 @@ import {
   type Challenge,
   type ExternalPhotoReference,
   type Idea,
+  type PlannedRoute,
   type Reference,
   type Waypoint,
   WaypointSchema,
@@ -93,6 +94,7 @@ export type WaypointDraft = {
 
 type Action =
   | { type: 'add-challenge'; input: Challenge }
+  | { type: 'update-challenge-route'; challengeId: string; plannedRoute?: PlannedRoute }
   | { type: 'add-waypoint'; input: WaypointDraft }
   | { type: 'update-waypoint'; waypointId: string; input: WaypointDraft }
   | { type: 'delete-waypoint'; waypointId: string }
@@ -115,6 +117,7 @@ type WaypointsValue = {
   loadState: JourneyLoadState
   setDataMode: (mode: JourneyDataMode) => Promise<void>
   addChallenge: (input: Pick<Challenge, 'title' | 'description' | 'supportsActivityCategories'>) => Promise<void>
+  updateChallengeRoute: (challengeId: string, plannedRoute?: PlannedRoute) => Promise<void>
   addWaypoint: (input: WaypointDraft) => Promise<void>
   updateWaypoint: (waypointId: string, input: WaypointDraft) => Promise<void>
   deleteWaypoint: (waypointId: string) => Promise<void>
@@ -215,6 +218,17 @@ function reducer(data: WaypointsData, action: Action): WaypointsData {
       return action.data
     case 'add-challenge':
       return { ...data, challenges: [...data.challenges, ChallengeSchema.parse(action.input)] }
+    case 'update-challenge-route': {
+      const existing = data.challenges.find((challenge) => challenge.challengeId === action.challengeId)
+      if (!existing) throw new Error('Challenge not found')
+      const updated = ChallengeSchema.parse({ ...existing, plannedRoute: action.plannedRoute })
+      return {
+        ...data,
+        challenges: data.challenges.map((challenge) =>
+          challenge.challengeId === action.challengeId ? updated : challenge,
+        ),
+      }
+    }
     case 'add-waypoint': {
       const refs = upsertReferences(data, action.input.references)
       const photos = upsertPhotoReferences(data, action.input.photoReferences)
@@ -578,6 +592,11 @@ export function WaypointsProvider({ children }: { children: ReactNode }) {
             supportsActivityCategories: input.supportsActivityCategories,
           }),
         }
+        await persist(container, action, reducer(data, action))
+      },
+      updateChallengeRoute: async (challengeId, plannedRoute) => {
+        const container = writableContainer()
+        const action = { type: 'update-challenge-route' as const, challengeId, plannedRoute }
         await persist(container, action, reducer(data, action))
       },
       addWaypoint: async (input) => {

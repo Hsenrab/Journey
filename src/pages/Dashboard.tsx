@@ -3,8 +3,6 @@ import {
   Alert,
   Box,
   Button,
-  Card,
-  CardContent,
   Checkbox,
   FormControlLabel,
   LinearProgress,
@@ -21,6 +19,7 @@ import { PageHeader } from '../components/PageHeader'
 import { ReadOnlyNotice } from '../components/ReadOnlyNotice'
 import {
   awardableStatuses,
+  challengeWaypoints,
   completedWaypointCount,
   countLabel,
   lastActivityDate,
@@ -205,18 +204,16 @@ export default function Dashboard() {
         <>
           <Box sx={{ display: 'grid', gap: 2, gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))' }}>
             {data.challenges.map((challenge) => {
-              const members = waypoints.filter(
-                (waypoint) =>
-                  challenge.waypointIds.includes(waypoint.waypointId) ||
-                  waypoint.challengeIds.includes(challenge.challengeId),
-              )
+              const members = challengeWaypoints(challenge, waypoints)
               const complete = completedWaypointCount(members, activities)
               const completionPercent = members.length === 0 ? 0 : Math.round((complete / members.length) * 100)
               return (
-                <Card key={challenge.challengeId}>
-                  <CardContent>
+                <ClickableCard key={challenge.challengeId} to={`/challenges/${challenge.challengeId}`}>
+                  {(titleId) => (
                     <Stack spacing={1}>
-                      <Typography variant="h5">{challenge.title}</Typography>
+                      <Typography id={titleId} variant="h5">
+                        {challenge.title}
+                      </Typography>
                       <Typography color="text.secondary">{challenge.description}</Typography>
                       <Typography>{completionPercent}% complete</Typography>
                       <Typography color="text.secondary">
@@ -228,8 +225,8 @@ export default function Dashboard() {
                         aria-label={`${challenge.title} completion`}
                       />
                     </Stack>
-                  </CardContent>
-                </Card>
+                  )}
+                </ClickableCard>
               )
             })}
           </Box>

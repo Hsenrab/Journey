@@ -1,3 +1,5 @@
+import { GpxGeometrySchema, MAX_PLANNED_ROUTE_POINTS, MAX_PLANNED_ROUTE_SEGMENTS, type PlannedRoute } from './visit'
+
 export const MAX_GPX_FILE_SIZE_BYTES = 5 * 1024 * 1024
 export const MAX_GPX_POINT_COUNT = 50_000
 export const MAX_GPX_MARKUP_NODE_COUNT = MAX_GPX_POINT_COUNT * 4
@@ -266,4 +268,37 @@ export function parseGpx(xml: string): GpxGeometry {
   })
 
   return { segments, pointCount }
+}
+
+export function parseGpxRoute(contents: string, fileName: string): PlannedRoute {
+  try {
+    const parsed = parseGpx(contents)
+    const coordinates = parsed.segments.map((segment) =>
+      segment.map(({ longitude, latitude }) => [longitude, latitude] as [number, number]),
+    )
+    if (coordinates.length > MAX_PLANNED_ROUTE_SEGMENTS || parsed.pointCount > MAX_PLANNED_ROUTE_POINTS) {
+      throw new Error('GPX route exceeds the planned route geometry limits.')
+    }
+    return { fileName, geometry: GpxGeometrySchema.parse({ type: 'MultiLineString', coordinates }) }
+  } catch (cause) {
+    const message = cause instanceof Error ? cause.message : String(cause)
+    if (message.includes('supported gpx namespace')) {
+      throw new Error('The selected file does not use a supported GPX namespace.')
+    }
+    if (message.startsWith('GPX file is not valid XML')) {
+      if (/<(?:[\w-]+:)?gpx\b/i.test(contents)) throw new Error('The selected file is not valid XML.')
+      throw new Error('The selected file is not a GPX document.')
+    }
+    if (message.includes('point 1 has') || message.includes('point 1 must include')) {
+      throw new Error('GPX route contains a point with invalid latitude or longitude.')
+    }
+    throw cause
+  }
+}
+
+export async function parseGpxFile(file: File): Promise<PlannedRoute> {
+  if (file.size > MAX_GPX_FILE_SIZE_BYTES) {
+    throw new Error(`GPX files must be no larger than ${MAX_GPX_FILE_SIZE_BYTES} bytes.`)
+  }
+  return parseGpxRoute(await file.text(), file.name)
 }

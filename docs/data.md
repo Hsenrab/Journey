@@ -13,8 +13,8 @@ Cosmos stores one document per entity. Every document contains `id`, `datasetId`
 validated `WaypointsData` response. Cosmos ETags are kept in application memory and
 are not included in JSON exports.
 
-Each document type declares its own schema version (`activity` is version 3, `idea`
-and `waypoint` are version 2, and the other types are version 1). A document whose
+Each document type declares its own schema version (`activity` is version 3, `challenge`,
+`idea`, and `waypoint` are version 2, and the other types are version 1). A document whose
 version or entity shape does not match the current schema fails validation with its
 specific error. There is no
 migration, compatibility parser, or fallback for obsolete documents; production data
@@ -81,6 +81,9 @@ The persisted root object is:
 - `referenceIds` and `photoReferenceIds`
 
 Raw `Activity.photos` strings are not used for new data.
+
+`challenges` may include a `plannedRoute` containing the uploaded GPX file name and
+validated GeoJSON `MultiLineString` geometry. The original XML is not persisted.
 
 ## Validation and failure behavior
 
