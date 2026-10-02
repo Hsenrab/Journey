@@ -13,12 +13,13 @@ Cosmos stores one document per entity. Every document contains `id`, `datasetId`
 validated `WaypointsData` response. Cosmos ETags are kept in application memory and
 are not included in JSON exports.
 
-Each document type declares its own schema version (`activity` is version 3, `challenge`,
+Each document type declares its own schema version (`activity` is version 4, `challenge`,
 `idea`, and `waypoint` are version 2, and the other types are version 1). A document whose
 version or entity shape does not match the current schema fails validation with its
-specific error. There is no
-migration, compatibility parser, or fallback for obsolete documents; production data
-may be deleted and recreated instead.
+specific error. GPX-free Challenge version 1 and Activity version 3 documents remain
+readable; Challenge version 1 cannot contain `plannedRoute`, and Activity version 3
+cannot contain `recordedTrack`. Reading legacy documents does not migrate them, but a
+full-dataset replacement rewrites all supplied documents at their current versions.
 
 `src/data/demo.json` is the canonical demo fixture. Demo local loads it directly in the
 browser and is always read-only. The deployment workflow also reseeds the Cosmos `demo`
@@ -79,11 +80,16 @@ The persisted root object is:
   - `{ "kind": "coordinates", "latitude": number, "longitude": number }`
 - `notes`
 - `referenceIds` and `photoReferenceIds`
+- optional `recordedTrack`, a validated GeoJSON `MultiLineString` preserving GPX track
+  segment boundaries; it does not replace the required `location`
 
 Raw `Activity.photos` strings are not used for new data.
 
 `challenges` may include a `plannedRoute` containing the uploaded GPX file name and
-validated GeoJSON `MultiLineString` geometry. The original XML is not persisted.
+validated GeoJSON `MultiLineString` geometry. The original XML is not persisted. Route
+and track geometry each permit at most 100 segments and 10,000 points per entity, with
+planned-route filenames limited to 255 characters. Backup/import applies the same bounds;
+raw GPX XML is never retained.
 
 ## Validation and failure behavior
 

@@ -25,27 +25,27 @@ const activityLocation = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('postcode'), postcode: identifier, latitude, longitude }).strict(),
   z.object({ kind: z.literal('coordinates'), latitude, longitude }).strict(),
 ])
-const maxPlannedRouteSegments = 100
-const maxPlannedRoutePoints = 10_000
+const maxGpxGeometrySegments = 100
+const maxGpxGeometryPoints = 10_000
 const gpxGeometry = z
   .object({
     type: z.literal('MultiLineString'),
     coordinates: z
       .array(z.array(z.tuple([longitude, latitude])).min(2))
       .min(1)
-      .max(maxPlannedRouteSegments),
+      .max(maxGpxGeometrySegments),
   })
   .strict()
   .superRefine((geometry, context) => {
     const pointCount = geometry.coordinates.reduce((total, segment) => total + segment.length, 0)
-    if (pointCount > maxPlannedRoutePoints)
+    if (pointCount > maxGpxGeometryPoints)
       context.addIssue({
         code: 'custom',
         path: ['coordinates'],
-        message: `A planned route cannot contain more than ${maxPlannedRoutePoints} points.`,
+        message: `GPX geometry cannot contain more than ${maxGpxGeometryPoints} points.`,
       })
   })
-const plannedRoute = z.object({ fileName: text, geometry: gpxGeometry }).strict()
+const plannedRoute = z.object({ fileName: text.max(255), geometry: gpxGeometry }).strict()
 const schemas = {
   waypoint: z
     .object({
@@ -115,6 +115,7 @@ const schemas = {
       date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
       category: z.enum(['bronze', 'silver', 'gold']).optional(),
       location: activityLocation,
+      recordedTrack: gpxGeometry.optional(),
       notes: z.string(),
       referenceIds: z.array(identifier),
       photoReferenceIds: z.array(identifier),
@@ -140,7 +141,7 @@ export const schemaVersions = {
   waypoint: 2,
   challenge: 2,
   idea: 2,
-  activity: 3,
+  activity: 4,
   reference: 1,
   photoReference: 1,
 } as const satisfies Record<EntityType, number>
@@ -156,11 +157,25 @@ export const JourneyDocumentSchema = z
   .strict()
   .superRefine((document, context) => {
     const expected = schemaVersions[document.type]
-    if (document.schemaVersion !== expected)
+    const isLegacyChallenge = document.type === 'challenge' && document.schemaVersion === 1
+    const isLegacyActivity = document.type === 'activity' && document.schemaVersion === 3
+    if (document.schemaVersion !== expected && !isLegacyChallenge && !isLegacyActivity)
       context.addIssue({
         code: 'custom',
         path: ['schemaVersion'],
         message: `Document type "${document.type}" requires schema version ${expected}, received ${document.schemaVersion}.`,
+      })
+    if (isLegacyChallenge && 'plannedRoute' in document.entity)
+      context.addIssue({
+        code: 'custom',
+        path: ['entity', 'plannedRoute'],
+        message: 'Challenge schema version 1 cannot contain plannedRoute.',
+      })
+    if (isLegacyActivity && 'recordedTrack' in document.entity)
+      context.addIssue({
+        code: 'custom',
+        path: ['entity', 'recordedTrack'],
+        message: 'Activity schema version 3 cannot contain recordedTrack.',
       })
     const parsed = schemas[document.type].safeParse(document.entity)
     if (!parsed.success)

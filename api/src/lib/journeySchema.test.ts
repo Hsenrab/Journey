@@ -33,7 +33,7 @@ describe('Journey document validation', () => {
         id: 'activity-1',
         datasetId: 'production',
         type: 'activity',
-        schemaVersion: 3,
+        schemaVersion: 4,
         entity: {
           activityId: 'activity-1',
           ideaIds: [],
@@ -114,7 +114,7 @@ describe('Journey document validation', () => {
     ).toBe(false)
   })
 
-  it('accepts persisted Challenge GPX geometry and rejects obsolete Challenge documents', () => {
+  it('accepts persisted Challenge GPX geometry and GPX-free legacy Challenges', () => {
     const entity = {
       challengeId: 'challenge-1',
       title: 'Challenge',
@@ -143,6 +143,16 @@ describe('Journey document validation', () => {
         entity,
       }).success,
     ).toBe(true)
+    const routeWithFileName = (fileName: string) =>
+      JourneyDocumentSchema.safeParse({
+        id: 'challenge-1',
+        datasetId: 'production',
+        type: 'challenge',
+        schemaVersion: 2,
+        entity: { ...entity, plannedRoute: { ...entity.plannedRoute, fileName } },
+      })
+    expect(routeWithFileName('a'.repeat(255)).success).toBe(true)
+    expect(routeWithFileName('a'.repeat(256)).success).toBe(false)
     expect(
       JourneyDocumentSchema.safeParse({
         id: 'challenge-1',
@@ -152,6 +162,17 @@ describe('Journey document validation', () => {
         entity,
       }).success,
     ).toBe(false)
+    const legacyEntity = { ...entity }
+    delete (legacyEntity as { plannedRoute?: unknown }).plannedRoute
+    expect(
+      JourneyDocumentSchema.safeParse({
+        id: 'challenge-1',
+        datasetId: 'production',
+        type: 'challenge',
+        schemaVersion: 1,
+        entity: legacyEntity,
+      }).success,
+    ).toBe(true)
   })
 
   it('rejects Challenge routes exceeding the segment and total-point limits', () => {
@@ -173,10 +194,68 @@ describe('Journey document validation', () => {
           },
         },
       })
+
     const point: [number, number] = [-2.1, 51.1]
 
     expect(routeDocument(Array.from({ length: 101 }, () => [point, point])).success).toBe(false)
     expect(routeDocument([Array.from({ length: 10_001 }, () => point)]).success).toBe(false)
+  })
+
+  it('validates Activity tracks and accepts only matching document versions', () => {
+    const geometry = {
+      type: 'MultiLineString',
+      coordinates: [
+        [
+          [-2.1, 51.1],
+          [-2.2, 51.2],
+        ],
+        [
+          [-3.1, 52.1],
+          [-3.2, 52.2],
+        ],
+      ],
+    }
+    const entity = {
+      activityId: 'activity-1',
+      ideaIds: [],
+      date: '2026-09-04',
+      location: { kind: 'postcode', postcode: 'SN15 2LG', latitude: 51.415, longitude: -2.123 },
+      recordedTrack: geometry,
+      notes: '',
+      referenceIds: [],
+      photoReferenceIds: [],
+      createdAt: '2026-09-04T00:00:00.000Z',
+      updatedAt: '2026-09-04T00:00:00.000Z',
+    }
+    const document = (schemaVersion: number, activity: Record<string, unknown>) =>
+      JourneyDocumentSchema.safeParse({
+        id: 'activity-1',
+        datasetId: 'production',
+        type: 'activity',
+        schemaVersion,
+        entity: activity,
+      })
+
+    expect(document(4, entity).success).toBe(true)
+    expect(document(3, entity).success).toBe(false)
+    const legacyEntity = { ...entity }
+    delete (legacyEntity as { recordedTrack?: unknown }).recordedTrack
+    expect(document(3, legacyEntity).success).toBe(true)
+    expect(
+      document(4, {
+        ...entity,
+        recordedTrack: {
+          ...geometry,
+          coordinates: [
+            [
+              [-181, 0],
+              [0, 0],
+            ],
+          ],
+        },
+      }).success,
+    ).toBe(false)
+    expect(document(4, { ...entity, recordedTrack: { ...geometry, coordinates: [[[-2, 0]]] } }).success).toBe(false)
   })
 
   it('requires a rejection reason only for rejected ideas', () => {

@@ -1,4 +1,4 @@
-import { GpxGeometrySchema, MAX_PLANNED_ROUTE_POINTS, MAX_PLANNED_ROUTE_SEGMENTS, type PlannedRoute } from './visit'
+import { GpxGeometrySchema, MAX_GPX_GEOMETRY_POINTS, MAX_GPX_GEOMETRY_SEGMENTS, type PlannedRoute } from './visit'
 
 export const MAX_GPX_FILE_SIZE_BYTES = 5 * 1024 * 1024
 export const MAX_GPX_POINT_COUNT = 50_000
@@ -276,7 +276,7 @@ export function parseGpxRoute(contents: string, fileName: string): PlannedRoute 
     const coordinates = parsed.segments.map((segment) =>
       segment.map(({ longitude, latitude }) => [longitude, latitude] as [number, number]),
     )
-    if (coordinates.length > MAX_PLANNED_ROUTE_SEGMENTS || parsed.pointCount > MAX_PLANNED_ROUTE_POINTS) {
+    if (coordinates.length > MAX_GPX_GEOMETRY_SEGMENTS || parsed.pointCount > MAX_GPX_GEOMETRY_POINTS) {
       throw new Error('GPX route exceeds the planned route geometry limits.')
     }
     return { fileName, geometry: GpxGeometrySchema.parse({ type: 'MultiLineString', coordinates }) }
