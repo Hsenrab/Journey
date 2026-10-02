@@ -40,7 +40,7 @@ describe('gpxLineFeatures', () => {
     )
   })
 
-  it('allocates distinct fallback styles to visible line IDs and preserves explicit colors', () => {
+  it('allocates distinct fallback styles and preserves explicit colors', () => {
     const segment: GpxMapLine['segments'][number] = [
       [-2, 51],
       [-1, 52],
@@ -50,18 +50,17 @@ describe('gpxLineFeatures', () => {
       label: id,
       segments: [segment],
     }))
-    lines.push({ id: 'explicit', label: 'Explicit', color: '#abcdef', segments: [segment] })
+    lines.push({ id: 'explicit', label: 'Explicit', color: '#1565c0', segments: [segment] })
 
     const features = gpxLineFeatures(lines)
     const stylesByLine = Object.fromEntries(
       features.map(({ lineId, color, strokeWidth }) => [lineId, { color, strokeWidth }]),
     )
-
     expect(stylesByLine.a).not.toEqual(stylesByLine.f)
     expect(new Set(Object.values(stylesByLine).map(({ color, strokeWidth }) => `${color}:${strokeWidth}`)).size).toBe(
       lines.length,
     )
-    expect(stylesByLine.explicit).toEqual({ color: '#abcdef', strokeWidth: 4 })
+    expect(stylesByLine.explicit).toEqual({ color: '#1565c0', strokeWidth: 4 })
     expect(
       Object.fromEntries(
         gpxLineFeatures([...lines].reverse()).map(({ lineId, color, strokeWidth }) => [lineId, { color, strokeWidth }]),
@@ -92,7 +91,7 @@ describe('gpxLineFeatures', () => {
             segments: [segment],
           },
         ]),
-      ).toThrow('GPX line "invalid" segment 1 must contain at least two valid positions.')
+      ).toThrow('GPX line "invalid" segment 1 must contain at least two valid coordinates.')
     }
 
     expect(gpxLineFeatures([])).toEqual([])

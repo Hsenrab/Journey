@@ -686,6 +686,47 @@ describe('MapPage', () => {
     expect(mapEvents.setCamera).not.toHaveBeenCalled()
   })
 
+  it('uses antimeridian-aware bounds when fitting a selected route', async () => {
+    const data = createDefaultData()
+    data.challenges = [
+      {
+        ...data.challenges[0]!,
+        plannedRoute: {
+          fileName: 'dateline.gpx',
+          geometry: {
+            type: 'MultiLineString',
+            coordinates: [
+              [
+                [179, 10],
+                [-179, 11],
+              ],
+            ],
+          },
+        },
+      },
+    ]
+    localStorage.setItem('waypoints-v1', JSON.stringify(data))
+    const user = userEvent.setup()
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(jsonResponse({ token: 'entra', expiresOn: '2026-01-01', clientId: 'maps-client-id' })),
+    )
+    render(
+      <MemoryRouter>
+        <WaypointsProvider>
+          <MapPage />
+        </WaypointsProvider>
+      </MemoryRouter>,
+    )
+
+    await vi.waitFor(() => expect(mapEvents.gpxSourceAdd).toHaveBeenCalled())
+    await user.click(screen.getByRole('button', { name: 'National Trust' }))
+    expect(mapEvents.setCamera).toHaveBeenCalledWith({
+      bounds: [179, 10, -179, 11],
+      padding: 48,
+    })
+  })
+
   it('omits the missing-coordinate notice when every record is geocoded', async () => {
     localStorage.setItem('waypoints-v1', JSON.stringify(createDefaultData()))
     vi.stubGlobal(

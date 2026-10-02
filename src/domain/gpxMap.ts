@@ -18,6 +18,10 @@ export type GpxLineFeature = {
 
 const lineColors = ['#1565c0', '#c62828', '#6a1b9a', '#ef6c00', '#00838f']
 
+function isLineColor(color: string | undefined): color is string {
+  return color !== undefined && /^#[0-9a-f]{6}$/i.test(color)
+}
+
 function validPosition(position: unknown): position is GpxPosition {
   if (!Array.isArray(position) || position.length !== 2) return false
   const [longitude, latitude] = position
@@ -38,34 +42,7 @@ function validSegment(segment: unknown): segment is readonly GpxPosition[] {
 }
 
 export function gpxLineFeatures(lines: readonly GpxMapLine[]): GpxLineFeature[] {
-  const fallbackLineIds = [
-    ...new Set(
-      lines
-        .filter(
-          (line) =>
-            line &&
-            typeof line.id === 'string' &&
-            !!line.id.trim() &&
-            typeof line.label === 'string' &&
-            !!line.label.trim() &&
-            Array.isArray(line.segments) &&
-            line.segments.some(validSegment) &&
-            !(line.color && /^#[0-9a-f]{6}$/i.test(line.color)),
-        )
-        .map(({ id }) => id),
-    ),
-  ].sort()
-  const fallbackStyles = new Map(
-    fallbackLineIds.map((id, index) => [
-      id,
-      {
-        color: lineColors[index % lineColors.length]!,
-        strokeWidth: 4 + Math.floor(index / lineColors.length),
-      },
-    ]),
-  )
-
-  return lines.flatMap((line) => {
+  const validLines = lines.map((line, lineIndex) => {
     if (
       !line ||
       typeof line.id !== 'string' ||
@@ -74,23 +51,51 @@ export function gpxLineFeatures(lines: readonly GpxMapLine[]): GpxLineFeature[] 
       !line.label.trim() ||
       !Array.isArray(line.segments)
     ) {
-      return []
+      throw new Error(`GPX line ${lineIndex + 1} must have a non-empty id, label, and segments array.`)
     }
-    const explicitColor = line.color && /^#[0-9a-f]{6}$/i.test(line.color) ? line.color : undefined
-    const fallbackStyle = fallbackStyles.get(line.id) ?? { color: lineColors[0]!, strokeWidth: 4 }
-    const color = explicitColor ?? fallbackStyle.color
-    const strokeWidth = explicitColor ? 4 : fallbackStyle.strokeWidth
+    if (line.color !== undefined && !isLineColor(line.color)) {
+      throw new Error(`GPX line "${line.id}" color must be a six-digit hexadecimal color.`)
+    }
+    return line
+  })
+  const fallbackLineIds = [
+    ...new Set(
+      validLines.filter((line) => !isLineColor(line.color) && line.segments.some(validSegment)).map((line) => line.id),
+    ),
+  ].sort()
+  const usedStyles = new Set(
+    validLines.flatMap((line) => (isLineColor(line.color) ? [`${line.color.toLowerCase()}:4`] : [])),
+  )
+  const fallbackStyles = new Map<string, { color: string; strokeWidth: number }>()
+  let styleIndex = 0
+  for (const id of fallbackLineIds) {
+    let style: { color: string; strokeWidth: number }
+    do {
+      style = {
+        color: lineColors[styleIndex % lineColors.length]!,
+        strokeWidth: 4 + Math.floor(styleIndex / lineColors.length),
+      }
+      styleIndex += 1
+    } while (usedStyles.has(`${style.color}:${style.strokeWidth}`))
+    usedStyles.add(`${style.color}:${style.strokeWidth}`)
+    fallbackStyles.set(id, style)
+  }
+
+  return validLines.flatMap((line) => {
+    const style = isLineColor(line.color) ? { color: line.color, strokeWidth: 4 } : fallbackStyles.get(line.id)!
     return line.segments.flatMap((segment, segmentIndex) => {
-      if (!Array.isArray(segment) || segment.length < 2 || !segment.every(validPosition)) {
-        throw new Error(`GPX line "${line.id}" segment ${segmentIndex + 1} must contain at least two valid positions.`)
+      if (!validSegment(segment)) {
+        throw new Error(
+          `GPX line "${line.id}" segment ${segmentIndex + 1} must contain at least two valid coordinates.`,
+        )
       }
       return [
         {
           id: `${line.id}:${segmentIndex}`,
           lineId: line.id,
           label: line.label,
-          color,
-          strokeWidth,
+          color: style.color,
+          strokeWidth: style.strokeWidth,
           coordinates: segment.map(([longitude, latitude]) => [longitude, latitude]),
         },
       ]

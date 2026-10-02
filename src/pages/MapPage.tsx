@@ -370,6 +370,30 @@ async function getMapsToken(): Promise<MapsToken> {
 const MIN_MAP_HEIGHT = 320
 const MAP_BOTTOM_MARGIN = 24
 const CLUSTER_LIST_LIMIT = 25
+
+function normalizeLongitude(longitude: number): number {
+  return ((((longitude + 180) % 360) + 360) % 360) - 180
+}
+
+function smallestLongitudeBounds(longitudes: readonly number[]): [number, number] {
+  const sorted = [...new Map(longitudes.map((longitude) => [(longitude + 360) % 360, longitude] as const))]
+    .map(([value, longitude]) => ({ value, longitude }))
+    .sort((a, b) => a.value - b.value)
+  let largestGap = -1
+  let gapIndex = 0
+  for (let index = 0; index < sorted.length; index += 1) {
+    const current = sorted[index]!.value
+    const next = sorted[(index + 1) % sorted.length]!.value + (index === sorted.length - 1 ? 360 : 0)
+    if (next - current > largestGap) {
+      largestGap = next - current
+      gapIndex = index
+    }
+  }
+  const west = sorted[(gapIndex + 1) % sorted.length]!.longitude
+  const east = sorted[gapIndex]!.longitude
+  return [west, east]
+}
+
 export default function MapPage() {
   const navigate = useNavigate()
   const { data, loadState, statusFor } = useWaypoints()
@@ -684,34 +708,19 @@ export default function MapPage() {
 
     let minLatitude = 90
     let maxLatitude = -90
-    const longitudes = positions
-      .map(([longitude]) => ({ longitude: longitude === 180 ? -180 : longitude, circular: (longitude + 360) % 360 }))
-      .sort((left, right) => left.circular - right.circular)
-    let largestGap = -1
-    let west = 0
-    let east = 0
-    for (let index = 0; index < longitudes.length; index += 1) {
-      const current = longitudes[index]!
-      const next = longitudes[(index + 1) % longitudes.length]!
-      const gap = next.circular + (index + 1 === longitudes.length ? 360 : 0) - current.circular
-      if (gap > largestGap) {
-        largestGap = gap
-        west = next.longitude
-        east = current.longitude
-      }
-    }
     for (const [, latitude] of positions) {
       minLatitude = Math.min(minLatitude, latitude)
       maxLatitude = Math.max(maxLatitude, latitude)
     }
-    if (west === east && minLatitude === maxLatitude) return
-    const longitudePadding = west === east ? 0.005 : 0
+    const [minLongitude, maxLongitude] = smallestLongitudeBounds(positions.map(([longitude]) => longitude))
+    if (minLongitude === maxLongitude && minLatitude === maxLatitude) return
+    const longitudePadding = minLongitude === maxLongitude ? 0.005 : 0
     const latitudePadding = minLatitude === maxLatitude ? 0.005 : 0
     instance.setCamera({
       bounds: [
-        longitudePadding && west - longitudePadding < -180 ? west - longitudePadding + 360 : west - longitudePadding,
+        longitudePadding ? normalizeLongitude(minLongitude - longitudePadding) : minLongitude,
         Math.max(-90, minLatitude - latitudePadding),
-        longitudePadding && east + longitudePadding > 180 ? east + longitudePadding - 360 : east + longitudePadding,
+        longitudePadding ? normalizeLongitude(maxLongitude + longitudePadding) : maxLongitude,
         Math.min(90, maxLatitude + latitudePadding),
       ],
       padding: 48,
