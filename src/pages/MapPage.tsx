@@ -182,10 +182,6 @@ function CompactMapListItem({
 }
 
 type MapsToken = { token: string; expiresOn: string; clientId: string }
-export type MapPageProps = {
-  gpxLines?: readonly GpxMapLine[]
-  selectedGpxLineId?: string
-}
 type SearchResult = {
   position?: { lat: number; lon: number }
   address?: { freeformAddress?: string }
@@ -374,9 +370,7 @@ async function getMapsToken(): Promise<MapsToken> {
 const MIN_MAP_HEIGHT = 320
 const MAP_BOTTOM_MARGIN = 24
 const CLUSTER_LIST_LIMIT = 25
-const EMPTY_GPX_LINES: readonly GpxMapLine[] = []
-
-export default function MapPage({ gpxLines = EMPTY_GPX_LINES, selectedGpxLineId }: MapPageProps) {
+export default function MapPage() {
   const navigate = useNavigate()
   const { data, loadState, statusFor } = useWaypoints()
   const container = useRef<HTMLDivElement>(null)
@@ -394,6 +388,7 @@ export default function MapPage({ gpxLines = EMPTY_GPX_LINES, selectedGpxLineId 
   const [error, setError] = useState<string | null>(null)
   const [selectedWaypointId, setSelectedWaypointId] = useState<string | null>(null)
   const [selectedActivityId, setSelectedActivityId] = useState<string | null>(null)
+  const [selectedRouteChallengeId, setSelectedRouteChallengeId] = useState<string | null>(null)
   const [mobilePanel, setMobilePanel] = useState<'map' | 'list'>('map')
   const [originQuery, setOriginQuery] = useState('Brockworth, Gloucestershire')
   const [origin, setOrigin] = useState(brockworth)
@@ -402,6 +397,21 @@ export default function MapPage({ gpxLines = EMPTY_GPX_LINES, selectedGpxLineId 
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'), { noSsr: true })
   const [mapHeight, setMapHeight] = useState(MIN_MAP_HEIGHT)
   const loaded = loadState.status === 'loaded'
+  const gpxLines = useMemo<readonly GpxMapLine[]>(
+    () =>
+      data.challenges.flatMap((challenge) =>
+        challenge.plannedRoute
+          ? [
+              {
+                id: challenge.challengeId,
+                label: challenge.title,
+                segments: challenge.plannedRoute.geometry.coordinates,
+              },
+            ]
+          : [],
+      ),
+    [data.challenges],
+  )
 
   useEffect(() => {
     void getMapsToken()
@@ -661,9 +671,9 @@ export default function MapPage({ gpxLines = EMPTY_GPX_LINES, selectedGpxLineId 
       ),
     )
 
-    if (!selectedGpxLineId) return
+    if (!selectedRouteChallengeId) return
     const positions = features
-      .filter((feature) => feature.lineId === selectedGpxLineId)
+      .filter((feature) => feature.lineId === selectedRouteChallengeId)
       .flatMap((feature) => feature.coordinates)
     if (positions.length < 2) return
 
@@ -689,7 +699,7 @@ export default function MapPage({ gpxLines = EMPTY_GPX_LINES, selectedGpxLineId 
       ],
       padding: 48,
     })
-  }, [gpxLines, mapReady, selectedGpxLineId])
+  }, [gpxLines, mapReady, selectedRouteChallengeId])
 
   useEffect(() => {
     const source = waypointSource.current
@@ -848,6 +858,25 @@ export default function MapPage({ gpxLines = EMPTY_GPX_LINES, selectedGpxLineId 
                   </Stack>
                 )}
               </Stack>
+              {gpxLines.length > 0 && (
+                <Stack spacing={0.5} sx={{ mt: 1.5 }}>
+                  <Typography variant="subtitle2">Planned routes</Typography>
+                  <ToggleButtonGroup
+                    exclusive
+                    value={selectedRouteChallengeId}
+                    onChange={(_, challengeId: string | null) => setSelectedRouteChallengeId(challengeId)}
+                    aria-label="Planned routes"
+                    size="small"
+                    sx={{ flexWrap: 'wrap' }}
+                  >
+                    {gpxLines.map((line) => (
+                      <ToggleButton key={line.id} value={line.id} title={line.label}>
+                        {line.label}
+                      </ToggleButton>
+                    ))}
+                  </ToggleButtonGroup>
+                </Stack>
+              )}
               {originResults.length > 0 && (
                 <Stack spacing={1} sx={{ mt: 2 }}>
                   <Typography variant="h6">Choose a nearby origin</Typography>

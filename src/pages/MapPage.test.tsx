@@ -522,21 +522,50 @@ describe('MapPage', () => {
     expect(activityLink).toHaveTextContent(/^Unnamed activity/)
   })
 
-  it('updates GPX segments, fits a selected line, and clears the source on update and teardown', async () => {
-    const route = {
-      id: 'route',
-      label: 'Route',
-      segments: [
-        [
-          [-2.2, 51.8],
-          [-2.1, 51.9],
-        ],
-        [
-          [-2, 52],
-          [-1.9, 52.1],
-        ],
-      ],
-    } as const
+  it('renders persisted challenge routes and fits the route selected from the map controls', async () => {
+    const data = createDefaultData()
+    const challenge = data.challenges[0]!
+    data.challenges = [
+      {
+        ...challenge,
+        plannedRoute: {
+          fileName: 'route.gpx',
+          geometry: {
+            type: 'MultiLineString',
+            coordinates: [
+              [
+                [-2.2, 51.8],
+                [-2.1, 51.9],
+              ],
+              [
+                [-2, 52],
+                [-1.9, 52.1],
+              ],
+            ],
+          },
+        },
+      },
+      {
+        ...challenge,
+        challengeId: 'second-route',
+        title: 'Second route',
+        waypointIds: [],
+        plannedRoute: {
+          fileName: 'second-route.gpx',
+          geometry: {
+            type: 'MultiLineString',
+            coordinates: [
+              [
+                [-1.8, 51.7],
+                [-1.7, 51.8],
+              ],
+            ],
+          },
+        },
+      },
+    ]
+    localStorage.setItem('waypoints-v1', JSON.stringify(data))
+    const user = userEvent.setup()
     vi.stubGlobal(
       'fetch',
       vi.fn().mockResolvedValue(jsonResponse({ token: 'entra', expiresOn: '2026-01-01', clientId: 'maps-client-id' })),
@@ -544,35 +573,60 @@ describe('MapPage', () => {
     const view = render(
       <MemoryRouter>
         <WaypointsProvider>
-          <MapPage gpxLines={[route]} selectedGpxLineId="route" />
+          <MapPage />
         </WaypointsProvider>
       </MemoryRouter>,
     )
 
     await vi.waitFor(() => expect(mapEvents.gpxSourceAdd).toHaveBeenCalled())
     const features = mapEvents.gpxSourceAdd.mock.calls[0]![0]
-    expect(features).toHaveLength(2)
-    expect(features.map((feature: { id: string }) => feature.id)).toEqual(['route:0', 'route:1'])
+    expect(features).toHaveLength(3)
+    expect(features.map((feature: { id: string }) => feature.id)).toEqual([
+      'national-trust:0',
+      'national-trust:1',
+      'second-route:0',
+    ])
+    expect(screen.getByRole('group', { name: 'Planned routes' })).toBeInTheDocument()
+    const sourceAddsBeforeSelection = mapEvents.gpxSourceAdd.mock.calls.length
+    await user.click(screen.getByRole('button', { name: 'National Trust' }))
+    await vi.waitFor(() => expect(mapEvents.gpxSourceAdd).toHaveBeenCalledTimes(sourceAddsBeforeSelection + 1))
     expect(mapEvents.setCamera).toHaveBeenCalledWith({
       bounds: [-2.2, 51.8, -1.9, 52.1],
       padding: 48,
     })
-
-    view.rerender(
-      <MemoryRouter>
-        <WaypointsProvider>
-          <MapPage gpxLines={[]} selectedGpxLineId="route" />
-        </WaypointsProvider>
-      </MemoryRouter>,
-    )
-    await vi.waitFor(() => expect(mapEvents.gpxSourceAdd).toHaveBeenLastCalledWith([]))
-    expect(mapEvents.setCamera).toHaveBeenCalledOnce()
-const clearCountBeforeUnmount = mapEvents.gpxSourceClear.mock.calls.length
+    const sourceAddsBeforeNextSelection = mapEvents.gpxSourceAdd.mock.calls.length
+    await user.click(screen.getByRole('button', { name: 'Second route' }))
+    await vi.waitFor(() => expect(mapEvents.gpxSourceAdd).toHaveBeenCalledTimes(sourceAddsBeforeNextSelection + 1))
+    expect(mapEvents.setCamera).toHaveBeenCalledWith({
+      bounds: [-1.8, 51.7, -1.7, 51.8],
+      padding: 48,
+    })
+    const clearCountBeforeUnmount = mapEvents.gpxSourceClear.mock.calls.length
     view.unmount()
     expect(mapEvents.gpxSourceClear).toHaveBeenCalledTimes(clearCountBeforeUnmount + 1)
   })
 
-  it('does not fit the camera to empty or degenerate selected geometry', async () => {
+  it('does not fit the camera to degenerate persisted route geometry', async () => {
+    const data = createDefaultData()
+    data.challenges = [
+      {
+        ...data.challenges[0]!,
+        plannedRoute: {
+          fileName: 'point.gpx',
+          geometry: {
+            type: 'MultiLineString',
+            coordinates: [
+              [
+                [1, 2],
+                [1, 2],
+              ],
+            ],
+          },
+        },
+      },
+    ]
+    localStorage.setItem('waypoints-v1', JSON.stringify(data))
+    const user = userEvent.setup()
     vi.stubGlobal(
       'fetch',
       vi.fn().mockResolvedValue(jsonResponse({ token: 'entra', expiresOn: '2026-01-01', clientId: 'maps-client-id' })),
@@ -580,28 +634,14 @@ const clearCountBeforeUnmount = mapEvents.gpxSourceClear.mock.calls.length
     render(
       <MemoryRouter>
         <WaypointsProvider>
-          <MapPage
-            gpxLines={[
-              { id: 'empty', label: 'Empty', segments: [] },
-              {
-                id: 'point',
-                label: 'Point',
-                segments: [
-                  [
-                    [1, 2],
-                    [1, 2],
-                  ],
-                ],
-              },
-            ]}
-            selectedGpxLineId="point"
-          />
+          <MapPage />
         </WaypointsProvider>
       </MemoryRouter>,
     )
 
     await vi.waitFor(() => expect(mapEvents.gpxSourceAdd).toHaveBeenCalled())
-    expect(mapEvents.gpxSourceAdd).toHaveBeenCalledWith([expect.objectContaining({ id: 'point:0' })])
+    expect(mapEvents.gpxSourceAdd).toHaveBeenCalledWith([expect.objectContaining({ id: 'national-trust:0' })])
+    await user.click(screen.getByRole('button', { name: 'National Trust' }))
     expect(mapEvents.setCamera).not.toHaveBeenCalled()
   })
 
