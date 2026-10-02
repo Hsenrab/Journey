@@ -150,7 +150,12 @@ describe('ActivityDetails', () => {
           location: { kind: 'postcode', postcode: 'BA12 6QF' },
           recordedTrack: GpxGeometrySchema.parse({
             type: 'MultiLineString',
-            coordinates: [[[-2.1, 51.5], [-2.2, 51.6]]],
+            coordinates: [
+              [
+                [-2.1, 51.5],
+                [-2.2, 51.6],
+              ],
+            ],
           }),
           notes: '',
           referenceIds: [],

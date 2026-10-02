@@ -703,13 +703,14 @@ export default function MapPage() {
     if (mode !== 'activities') return
     const activities = trackActivityId ? (trackActivity ? [trackActivity] : []) : data.activities
     source.add(
-      activities.flatMap((activity) =>
-        activity.recordedTrack?.coordinates.map(
-          (coordinates) =>
-            new atlas.data.Feature(new atlas.data.LineString(coordinates), {
-              activityId: activity.activityId,
-            }),
-        ) ?? [],
+      activities.flatMap(
+        (activity) =>
+          activity.recordedTrack?.coordinates.map(
+            (coordinates) =>
+              new atlas.data.Feature(new atlas.data.LineString(coordinates), {
+                activityId: activity.activityId,
+              }),
+          ) ?? [],
       ),
     )
   }, [data.activities, mapReady, mode, trackActivity, trackActivityId])
@@ -770,9 +771,7 @@ export default function MapPage() {
       {loaded && (
         <>
           {trackActivity && (
-            <Alert severity="info">
-              Showing the recorded track for {activityDisplayName(trackActivity)}.
-            </Alert>
+            <Alert severity="info">Showing the recorded track for {activityDisplayName(trackActivity)}.</Alert>
           )}
           <Card ref={filters}>
             <CardContent>

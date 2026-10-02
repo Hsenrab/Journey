@@ -122,7 +122,12 @@ describe('activity rules', () => {
       location: { kind: 'coordinates', latitude: 51.415, longitude: -2.123 },
       recordedTrack: {
         type: 'MultiLineString',
-        coordinates: [[[-2.1, 51.1], [-2.2, 51.2]]],
+        coordinates: [
+          [
+            [-2.1, 51.1],
+            [-2.2, 51.2],
+          ],
+        ],
       },
     })
 

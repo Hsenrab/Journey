@@ -67,7 +67,12 @@ describe('ActivityEditor', () => {
     const input = screen.getByLabelText('GPX track file')
     const replacementTrack = GpxGeometrySchema.parse({
       type: 'MultiLineString',
-      coordinates: [[[-3.1, 51.5], [-2.2, 51.6]]],
+      coordinates: [
+        [
+          [-3.1, 51.5],
+          [-2.2, 51.6],
+        ],
+      ],
     })
 
     await user.upload(input, gpxFile(gpxXml('-2.1')))
@@ -88,7 +93,12 @@ describe('ActivityEditor', () => {
       location: { kind: 'postcode', postcode: 'GL1 1AA' },
       recordedTrack: {
         type: 'MultiLineString',
-        coordinates: [[[-2.1, 51.5], [-2.2, 51.6]]],
+        coordinates: [
+          [
+            [-2.1, 51.5],
+            [-2.2, 51.6],
+          ],
+        ],
       },
     })
     const { onSubmit } = renderEditor({ initialActivity })
@@ -103,7 +113,12 @@ describe('ActivityEditor', () => {
     const user = userEvent.setup()
     const recordedTrack = GpxGeometrySchema.parse({
       type: 'MultiLineString',
-      coordinates: [[[-2.1, 51.5], [-2.2, 51.6]]],
+      coordinates: [
+        [
+          [-2.1, 51.5],
+          [-2.2, 51.6],
+        ],
+      ],
     })
     const initialActivity = createActivity({
       activityId: 'activity-with-track',
@@ -120,9 +135,7 @@ describe('ActivityEditor', () => {
     expect(await screen.findByText('The selected file is not a GPX document.')).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: 'Save' }))
     await waitFor(() =>
-      expect(onSubmit).toHaveBeenCalledWith(
-        expect.objectContaining({ notes: 'Other edits remain', recordedTrack }),
-      ),
+      expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ notes: 'Other edits remain', recordedTrack })),
     )
   })
 
