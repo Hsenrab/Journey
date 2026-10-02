@@ -1,11 +1,12 @@
 import type { ComponentProps } from 'react'
 import { MemoryRouter } from 'react-router-dom'
-import { render, screen } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { ActivityEditor } from './ActivityEditor'
 import { createDefaultData } from '../services/storage'
 import type { ActivityDraft } from '../features/journey/JourneyContext'
+import { createActivity, GpxGeometrySchema } from '../domain/visit'
 
 function renderEditor(overrides: Partial<ComponentProps<typeof ActivityEditor>> = {}) {
   const onSubmit = vi.fn<(draft: ActivityDraft) => void>()
@@ -29,6 +30,15 @@ function renderEditor(overrides: Partial<ComponentProps<typeof ActivityEditor>> 
   return { data, onSubmit, onCancel, onDelete }
 }
 
+function gpxFile(xml: string, name = 'recorded.gpx') {
+  const file = new File([xml], name, { type: 'application/gpx+xml' })
+  Object.defineProperty(file, 'text', { value: () => Promise.resolve(xml) })
+  return file
+}
+
+const gpxXml = (longitude: string) =>
+  `<gpx><trk><trkseg><trkpt lat="51.5" lon="${longitude}" /><trkpt lat="51.6" lon="-2.2" /></trkseg></trk></gpx>`
+
 describe('ActivityEditor', () => {
   beforeEach(() => {
     vi.restoreAllMocks()
@@ -48,6 +58,71 @@ describe('ActivityEditor', () => {
         location: { kind: 'postcode', postcode: 'GL1 1AA' },
         notes: 'Nice day',
       }),
+    )
+  })
+
+  it('attaches and replaces a GPX track in the shared activity form', async () => {
+    const user = userEvent.setup()
+    const { onSubmit } = renderEditor()
+    const input = screen.getByLabelText('GPX track file')
+    const replacementTrack = GpxGeometrySchema.parse({
+      type: 'MultiLineString',
+      coordinates: [[[-3.1, 51.5], [-2.2, 51.6]]],
+    })
+
+    await user.upload(input, gpxFile(gpxXml('-2.1')))
+    expect(await screen.findByText('A recorded GPX track is attached.')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Replace GPX track' })).toBeInTheDocument()
+    await user.upload(input, gpxFile(gpxXml('-3.1'), 'replacement.gpx'))
+    await user.type(screen.getByLabelText('Postcode'), 'GL1 1AA')
+    await user.click(screen.getByRole('button', { name: 'Save' }))
+    expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ recordedTrack: replacementTrack }))
+    expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ recordedTrack: replacementTrack }))
+  })
+
+  it('removes an existing GPX track', async () => {
+    const user = userEvent.setup()
+    const initialActivity = createActivity({
+      activityId: 'activity-with-track',
+      date: '2026-09-04',
+      location: { kind: 'postcode', postcode: 'GL1 1AA' },
+      recordedTrack: {
+        type: 'MultiLineString',
+        coordinates: [[[-2.1, 51.5], [-2.2, 51.6]]],
+      },
+    })
+    const { onSubmit } = renderEditor({ initialActivity })
+
+    await user.click(screen.getByRole('button', { name: 'Remove GPX track' }))
+    await user.click(screen.getByRole('button', { name: 'Save' }))
+
+    expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ recordedTrack: undefined }))
+  })
+
+  it('reports invalid GPX without losing other edits or an existing track', async () => {
+    const user = userEvent.setup()
+    const recordedTrack = GpxGeometrySchema.parse({
+      type: 'MultiLineString',
+      coordinates: [[[-2.1, 51.5], [-2.2, 51.6]]],
+    })
+    const initialActivity = createActivity({
+      activityId: 'activity-with-track',
+      date: '2026-09-04',
+      location: { kind: 'postcode', postcode: 'GL1 1AA' },
+      recordedTrack,
+    })
+    const { onSubmit } = renderEditor({ initialActivity })
+
+    await user.clear(screen.getByLabelText('Description / notes'))
+    await user.type(screen.getByLabelText('Description / notes'), 'Other edits remain')
+    await user.upload(screen.getByLabelText('GPX track file'), gpxFile('<not-gpx />'))
+
+    expect(await screen.findByText('The selected file is not a GPX document.')).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Save' }))
+    await waitFor(() =>
+      expect(onSubmit).toHaveBeenCalledWith(
+        expect.objectContaining({ notes: 'Other edits remain', recordedTrack }),
+      ),
     )
   })
 

@@ -38,6 +38,8 @@ const mapEvents = vi.hoisted(() => ({
     ]),
   ),
   resize: vi.fn(),
+  setCamera: vi.fn(),
+  lineStringCoordinates: [] as number[][][],
   popupClose: undefined as (() => void) | undefined,
   popupContent: undefined as HTMLElement | undefined,
 }))
@@ -111,6 +113,7 @@ vi.mock('azure-maps-control', () => ({
     layers = { add: vi.fn() }
     imageSprite = { add: vi.fn() }
     getCamera = vi.fn(() => ({ zoom: 8 }))
+    setCamera = mapEvents.setCamera
     dispose = vi.fn()
     resize = mapEvents.resize
   },
@@ -144,6 +147,12 @@ vi.mock('azure-maps-control', () => ({
         this.id = id
       }
     },
+    LineLayer: class {
+      id?: string
+      constructor(_source: unknown, id: string) {
+        this.id = id
+      }
+    },
   },
   data: {
     Feature: class {
@@ -151,6 +160,14 @@ vi.mock('azure-maps-control', () => ({
     },
     Point: class {
       constructor(..._args: unknown[]) {}
+    },
+    LineString: class {
+      constructor(coordinates: number[][]) {
+        mapEvents.lineStringCoordinates.push(coordinates)
+      }
+    },
+    BoundingBox: {
+      fromPositions: vi.fn((positions: number[][]) => ({ positions })),
     },
   },
 }))
@@ -175,6 +192,8 @@ describe('MapPage', () => {
     mapEvents.waypointClusterLeaves.mockClear()
     mapEvents.activityClusterLeaves.mockClear()
     mapEvents.resize.mockClear()
+    mapEvents.setCamera.mockClear()
+    mapEvents.lineStringCoordinates = []
     mapEvents.popupClose = undefined
     mapEvents.popupContent = undefined
   })
@@ -445,6 +464,49 @@ describe('MapPage', () => {
     expect(screen.queryByText(/Bronze:/)).not.toBeInTheDocument()
     expect(screen.queryByText(/NOT STARTED|GOLD|SILVER|BRONZE/)).not.toBeInTheDocument()
     expect(screen.getByText(/1 waypoint and 1 activity have no coordinates/)).toBeInTheDocument()
+  })
+
+  it('shows an activity recorded track on the map page and fits its geometry', async () => {
+    const data = createDefaultData()
+    const coordinates: [number, number][] = [
+      [-2.1, 51.5],
+      [-2.2, 51.6],
+    ]
+    data.activities = [
+      {
+        activityId: 'activity-with-track',
+        name: 'Recorded walk',
+        ideaIds: [],
+        date: '2026-08-10',
+        location: { kind: 'coordinates', latitude: 51.5, longitude: -2.1 },
+        recordedTrack: { type: 'MultiLineString', coordinates: [coordinates] },
+        notes: '',
+        referenceIds: [],
+        photoReferenceIds: [],
+        createdAt: '2026-08-10T00:00:00.000Z',
+        updatedAt: '2026-08-10T00:00:00.000Z',
+      },
+    ]
+    localStorage.setItem('waypoints-v1', JSON.stringify(data))
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(jsonResponse({ token: 'entra', expiresOn: '2026-01-01', clientId: 'maps-client-id' })),
+    )
+
+    render(
+      <MemoryRouter initialEntries={['/map?activityId=activity-with-track']}>
+        <WaypointsProvider>
+          <MapPage />
+        </WaypointsProvider>
+      </MemoryRouter>,
+    )
+
+    expect(await screen.findByText('Showing the recorded track for Recorded walk.')).toBeInTheDocument()
+    await vi.waitFor(() => expect(mapEvents.lineStringCoordinates).toEqual([coordinates]))
+    expect(mapEvents.setCamera).toHaveBeenCalledWith(
+      expect.objectContaining({ bounds: { positions: coordinates }, padding: 40 }),
+    )
+    expect(screen.getByRole('tab', { name: 'Activities' })).toHaveAttribute('aria-selected', 'true')
   })
 
   it('uses fallback names without promoting dates to primary map list labels', async () => {

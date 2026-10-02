@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import ActivityDetails from './ActivityDetails'
 import { WaypointsProvider } from '../features/journey/JourneyContext'
 import { createDefaultData, load, save } from '../services/storage'
+import { GpxGeometrySchema } from '../domain/visit'
 
 function renderDetails(path = '/activities/a1') {
   return render(
@@ -135,6 +136,37 @@ describe('ActivityDetails', () => {
     expect(screen.getByText('Guide')).toBeInTheDocument()
     expect(screen.getByRole('img', { name: 'View' })).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Orangery idea' })).toBeInTheDocument()
+  })
+
+  it('links an attached recorded track to the existing map page', () => {
+    const seed = createDefaultData()
+    save({
+      ...seed,
+      activities: [
+        {
+          activityId: 'a1',
+          ideaIds: [],
+          date: '2026-08-01',
+          location: { kind: 'postcode', postcode: 'BA12 6QF' },
+          recordedTrack: GpxGeometrySchema.parse({
+            type: 'MultiLineString',
+            coordinates: [[[-2.1, 51.5], [-2.2, 51.6]]],
+          }),
+          notes: '',
+          referenceIds: [],
+          photoReferenceIds: [],
+          createdAt: '2026-08-01T10:00:00.000Z',
+          updatedAt: '2026-08-01T10:00:00.000Z',
+        },
+      ],
+    })
+
+    renderDetails()
+
+    expect(screen.getByRole('link', { name: 'View recorded track on map' })).toHaveAttribute(
+      'href',
+      '/map?activityId=a1',
+    )
   })
 
   it('renders empty optional fields and invalid reference hostnames', () => {

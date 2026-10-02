@@ -701,7 +701,7 @@ export default function MapPage() {
     if (!source) return
     source.clear()
     if (mode !== 'activities') return
-    const activities = trackActivity ? [trackActivity] : data.activities
+    const activities = trackActivityId ? (trackActivity ? [trackActivity] : []) : data.activities
     source.add(
       activities.flatMap((activity) =>
         activity.recordedTrack?.coordinates.map(
@@ -712,7 +712,7 @@ export default function MapPage() {
         ) ?? [],
       ),
     )
-  }, [data.activities, mapReady, mode, trackActivity])
+  }, [data.activities, mapReady, mode, trackActivity, trackActivityId])
 
   const findNearby = async () => {
     setError(null)

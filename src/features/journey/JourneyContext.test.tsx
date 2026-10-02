@@ -138,15 +138,10 @@ describe('WaypointsContext', () => {
     ])
   })
 
-  it('updates and deletes while preserving tracks and cleaning unreferenced records', async () => {
+  it('adds, replaces, and removes recorded tracks during activity mutations', async () => {
     const { result } = renderHook(() => useWaypoints(), { wrapper: WaypointsProvider })
 
-    act(() => {
-      result.current.addActivity(draft)
-    })
-
-    const created = result.current.data.activities[0]!
-    const recordedTrack = GpxGeometrySchema.parse({
+    const firstTrack = GpxGeometrySchema.parse({
       type: 'MultiLineString' as const,
       coordinates: [
         [
@@ -155,32 +150,45 @@ describe('WaypointsContext', () => {
         ],
       ],
     })
+    const replacementTrack = GpxGeometrySchema.parse({
+      type: 'MultiLineString' as const,
+      coordinates: [
+        [
+          [-4.1, 53.1],
+          [-4.2, 53.2],
+        ],
+      ],
+    })
+    let activityId = ''
 
     await act(async () => {
-      await result.current.restore({
-        ...result.current.data,
-        activities: [{ ...created, recordedTrack }],
-      })
+      await result.current.addActivity({ ...draft, recordedTrack: firstTrack })
     })
+    activityId = result.current.data.activities[0]!.activityId
+    expect(result.current.data.activities[0]?.recordedTrack).toEqual(firstTrack)
+    expect(load().activities[0]?.recordedTrack).toEqual(firstTrack)
 
-    act(() => {
-      result.current.updateActivity(created.activityId, {
+    await act(async () => {
+      await result.current.updateActivity(activityId, { ...draft, recordedTrack: replacementTrack })
+    })
+    expect(result.current.data.activities[0]?.recordedTrack).toEqual(replacementTrack)
+
+    await act(async () => {
+      await result.current.updateActivity(activityId, {
         ...draft,
-        category: 'gold',
+        recordedTrack: undefined,
         references: [{ title: 'Updated', url: 'https://example.com/new-ref' }],
         photoReferences: [],
       })
     })
 
-    expect(result.current.data.activities[0]?.activityId).toBe(created.activityId)
+    expect(result.current.data.activities[0]?.activityId).toBe(activityId)
     expect(result.current.data.activities[0]?.name).toBe('Abbey visit')
-    expect(result.current.data.activities[0]?.recordedTrack).toEqual(recordedTrack)
-    expect(result.current.data.activities[0]?.createdAt).toBe(created.createdAt)
-    expect(result.current.data.activities[0]?.updatedAt).not.toBe(created.updatedAt)
+    expect(result.current.data.activities[0]?.recordedTrack).toBeUndefined()
     expect(result.current.data.photoReferences).toEqual([])
 
-    act(() => {
-      result.current.deleteActivity(created.activityId)
+    await act(async () => {
+      await result.current.deleteActivity(activityId)
     })
 
     expect(result.current.data.activities).toEqual([])

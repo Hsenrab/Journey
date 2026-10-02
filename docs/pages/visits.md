@@ -13,12 +13,13 @@ Activities can be linked to a waypoint or left unlinked.
 
 ## Shared editor behavior
 
-- Fields: date, description/notes, linked waypoint (or no waypoint), optional linked ideas, conditional Bronze/Silver/Gold category, location, references, and external photo references.
+- Fields: date, description/notes, linked waypoint (or no waypoint), optional linked ideas, conditional Bronze/Silver/Gold category, required location, optional recorded GPX track, references, and external photo references.
 - Location is explicit: **Postcode** or **Latitude and longitude**.
 - Category is shown only when the selected waypoint belongs to at least one challenge with `supportsActivityCategories: true`.
 - If category eligibility is lost after changing waypoint, the category is cleared before save.
 - Idea selections are independent from waypoint selection. Changing or clearing waypoint does not clear selected ideas.
 - Invalid input keeps entered values and shows field-level messages.
+- A GPX track can be attached, replaced, or removed. Invalid GPX shows its parser error and keeps other form values and any previously attached track.
 - Unsaved edits show a leave warning on page unload and when cancelling the form.
 - Add mode includes **Form** and **Paste JSON** tabs. Paste JSON accepts one activity content object
   without entity links or generated identifiers and rejects arrays and unlisted fields.
@@ -51,10 +52,12 @@ Activities can be linked to a waypoint or left unlinked.
 
 ## Activity details (`/activities/:activityId`)
 
-- Shows date, full notes, location, optional category, optional linked waypoint, linked ideas, references, and photos.
+- Shows date, full notes, location, optional category, optional linked waypoint, linked ideas, references, photos, and a link to view an attached recorded GPX track on the map.
 - Photos are rendered in a simple gallery with previous/next controls.
 - References render as metadata cards (title, optional description, optional preview image, hostname, external-link action).
 - Supports edit via the shared editor and delete with confirmation.
+
+The Map page opens the Activities view for a linked recorded track and fits the map to its recorded geometry. The Activities view also draws attached tracks when opened without a selected activity.
 
 ## Delete behavior
 
