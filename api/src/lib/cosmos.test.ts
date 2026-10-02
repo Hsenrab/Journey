@@ -30,7 +30,7 @@ const activity = {
 const idea = {
   ideaId: 'idea-1',
   title: 'Orangery tour',
-  description: '',
+  description: 'A planned GPX route',
   notes: '',
   waypointIds: [],
   planningState: 'active',

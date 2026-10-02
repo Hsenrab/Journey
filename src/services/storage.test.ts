@@ -10,7 +10,7 @@ import {
   save,
   setDataMode,
 } from './storage'
-import { type Activity, type WaypointsData } from '../domain/visit'
+import { GpxGeometrySchema, type Activity, type WaypointsData } from '../domain/visit'
 
 const activity: Activity = {
   activityId: 'a1',
@@ -106,7 +106,7 @@ describe('createBackup/parseImport', () => {
   })
 
   it('round-trips Challenge routes and Activity tracks without raw GPX content', () => {
-    const geometry = {
+    const geometry = GpxGeometrySchema.parse({
       type: 'MultiLineString' as const,
       coordinates: [
         [
@@ -118,7 +118,7 @@ describe('createBackup/parseImport', () => {
           [-3.2, 52.2],
         ],
       ],
-    }
+    })
     const data = createDefaultData()
     const challenge = {
       ...data.challenges[0]!,

@@ -12,6 +12,7 @@ import {
   createDemoData,
   createSeedData,
   difficultyDescriptions,
+  GpxGeometrySchema,
   ideaUsageCount,
   ideasForActivity,
   ideasForWaypoint,
@@ -71,7 +72,7 @@ describe('activity rules', () => {
   })
 
   it('preserves validated recorded GPX geometry as distinct segments', () => {
-    const recordedTrack = {
+    const recordedTrack = GpxGeometrySchema.parse({
       type: 'MultiLineString' as const,
       coordinates: [
         [
@@ -83,7 +84,7 @@ describe('activity rules', () => {
           [-3.2, 52.2],
         ],
       ],
-    }
+    })
     const activity = createActivity({
       date: '2026-09-04',
       location: { kind: 'coordinates', latitude: 51.415, longitude: -2.123 },
@@ -92,11 +93,11 @@ describe('activity rules', () => {
 
     expect(activity.recordedTrack?.coordinates).toEqual(recordedTrack.coordinates)
     expect(() => ActivitySchema.parse({ ...activity, location: undefined })).toThrow()
-    expect(() => createActivity({
-      date: '2026-09-04',
-      location: { kind: 'coordinates', latitude: 51.415, longitude: -2.123 },
+    expect(() =>     ActivitySchema.parse({
+      ...activity,
       recordedTrack: { ...recordedTrack, coordinates: [[[-181, 0], [0, 0]]] },
-    })).toThrow()
+    }),
+    ).toThrow()
   })
 
   it('makes category optional and validates eligibility by challenge config', () => {

@@ -2,7 +2,7 @@ import { act, renderHook, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { WaypointsProvider, useWaypoints } from './JourneyContext'
 import { createDefaultData, createDemoModeData, load, save, setDataMode } from '../../services/storage'
-import { createActivity, createIdea } from '../../domain/visit'
+import { createActivity, createIdea, GpxGeometrySchema } from '../../domain/visit'
 
 const lacockId = 'lacock-abbey-fox-talbot-museum-and-village'
 
@@ -146,7 +146,7 @@ describe('WaypointsContext', () => {
     })
 
     const created = result.current.data.activities[0]!
-    const recordedTrack = {
+    const recordedTrack = GpxGeometrySchema.parse({
       type: 'MultiLineString' as const,
       coordinates: [
         [
@@ -154,7 +154,7 @@ describe('WaypointsContext', () => {
           [-2.2, 51.2],
         ],
       ],
-    }
+    })
 
     await act(async () => {
       await result.current.restore({
