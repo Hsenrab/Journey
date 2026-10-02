@@ -640,11 +640,10 @@ describe('MapPage', () => {
       </MemoryRouter>,
     )
 
+    await vi.waitFor(() => expect(mapEvents.gpxSourceAdd).toHaveBeenCalled())
     const sourceAddsBeforeSelection = mapEvents.gpxSourceAdd.mock.calls.length
     await user.click(screen.getByRole('button', { name: challenge.title }))
-    await vi.waitFor(() =>
-      expect(mapEvents.gpxSourceAdd).toHaveBeenCalledTimes(sourceAddsBeforeSelection + 1),
-    )
+    await vi.waitFor(() => expect(mapEvents.gpxSourceAdd).toHaveBeenCalledTimes(sourceAddsBeforeSelection + 1))
     expect(mapEvents.setCamera).toHaveBeenCalledWith({ bounds: [179, 10, -179, 11], padding: 48 })
   })
 
