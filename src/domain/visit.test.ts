@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   ActivitySchema,
   IdeaSchema,
+  PlannedRouteSchema,
   activitiesForWaypoint,
   activitiesUsingIdea,
   awardableStatuses,
@@ -12,6 +13,7 @@ import {
   createDemoData,
   createSeedData,
   difficultyDescriptions,
+  GpxGeometrySchema,
   ideaUsageCount,
   ideasForActivity,
   ideasForWaypoint,
@@ -49,6 +51,7 @@ describe('activity rules', () => {
       category: 'bronze',
       location: { kind: 'postcode', postcode: 'SN15 2LG' },
     })
+
     expect(activity.activityId).not.toHaveLength(0)
     expect(activity.createdAt).toBe(activity.updatedAt)
   })
@@ -65,6 +68,44 @@ describe('activity rules', () => {
       createActivity({
         date: '2026-08-01',
         location: { kind: 'coordinates', latitude: 120, longitude: 0 },
+      }),
+    ).toThrow()
+  })
+
+  it('preserves validated recorded GPX geometry as distinct segments', () => {
+    const recordedTrack = GpxGeometrySchema.parse({
+      type: 'MultiLineString' as const,
+      coordinates: [
+        [
+          [-2.1, 51.1],
+          [-2.2, 51.2],
+        ],
+        [
+          [-3.1, 52.1],
+          [-3.2, 52.2],
+        ],
+      ],
+    })
+    const activity = createActivity({
+      date: '2026-09-04',
+      location: { kind: 'coordinates', latitude: 51.415, longitude: -2.123 },
+      recordedTrack,
+    })
+
+    expect(activity.recordedTrack?.coordinates).toEqual(recordedTrack.coordinates)
+    expect(() => ActivitySchema.parse({ ...activity, location: undefined })).toThrow()
+    expect(() =>
+      ActivitySchema.parse({
+        ...activity,
+        recordedTrack: {
+          ...recordedTrack,
+          coordinates: [
+            [
+              [-181, 0],
+              [0, 0],
+            ],
+          ],
+        },
       }),
     ).toThrow()
   })
@@ -150,6 +191,25 @@ describe('activity rules', () => {
     expect(completionRuleLabel({ ...counted, completion: { mode: 'count', target: 1 } })).toBe(
       'Completed after 1 logged activity.',
     )
+  })
+})
+
+describe('planned route schema', () => {
+  it('accepts 255-character filenames and rejects 256-character filenames', () => {
+    const route = {
+      geometry: {
+        type: 'MultiLineString' as const,
+        coordinates: [
+          [
+            [-2.1, 51.1],
+            [-2.2, 51.2],
+          ],
+        ],
+      },
+    }
+
+    expect(PlannedRouteSchema.safeParse({ ...route, fileName: 'a'.repeat(255) }).success).toBe(true)
+    expect(PlannedRouteSchema.safeParse({ ...route, fileName: 'a'.repeat(256) }).success).toBe(false)
   })
 })
 
