@@ -138,7 +138,7 @@ describe('WaypointsContext', () => {
     ])
   })
 
-  it('updates and deletes while preserving cleanup of unreferenced records', () => {
+  it('updates and deletes while preserving tracks and cleaning unreferenced records', async () => {
     const { result } = renderHook(() => useWaypoints(), { wrapper: WaypointsProvider })
 
     act(() => {
@@ -146,6 +146,22 @@ describe('WaypointsContext', () => {
     })
 
     const created = result.current.data.activities[0]!
+    const recordedTrack = {
+      type: 'MultiLineString' as const,
+      coordinates: [
+        [
+          [-2.1, 51.1],
+          [-2.2, 51.2],
+        ],
+      ],
+    }
+
+    await act(async () => {
+      await result.current.restore({
+        ...result.current.data,
+        activities: [{ ...created, recordedTrack }],
+      })
+    })
 
     act(() => {
       result.current.updateActivity(created.activityId, {
@@ -158,6 +174,7 @@ describe('WaypointsContext', () => {
 
     expect(result.current.data.activities[0]?.activityId).toBe(created.activityId)
     expect(result.current.data.activities[0]?.name).toBe('Abbey visit')
+    expect(result.current.data.activities[0]?.recordedTrack).toEqual(recordedTrack)
     expect(result.current.data.activities[0]?.createdAt).toBe(created.createdAt)
     expect(result.current.data.activities[0]?.updatedAt).not.toBe(created.updatedAt)
     expect(result.current.data.photoReferences).toEqual([])

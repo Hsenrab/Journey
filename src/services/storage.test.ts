@@ -105,6 +105,39 @@ describe('createBackup/parseImport', () => {
     expect(parseImport(JSON.stringify(exported))).toMatchObject({ activities: [activity] })
   })
 
+  it('round-trips Challenge routes and Activity tracks without raw GPX content', () => {
+    const geometry = {
+      type: 'MultiLineString' as const,
+      coordinates: [
+        [
+          [-2.1, 51.1],
+          [-2.2, 51.2],
+        ],
+        [
+          [-3.1, 52.1],
+          [-3.2, 52.2],
+        ],
+      ],
+    }
+    const data = createDefaultData()
+    const challenge = {
+      ...data.challenges[0]!,
+      plannedRoute: { fileName: 'planned.gpx', geometry },
+    }
+    const trackedActivity = { ...activity, recordedTrack: geometry }
+    const exported = createBackup({
+      ...data,
+      challenges: [challenge, ...data.challenges.slice(1)],
+      activities: [trackedActivity],
+    })
+
+    expect(parseImport(JSON.stringify(exported))).toMatchObject({
+      challenges: [challenge],
+      activities: [trackedActivity],
+    })
+    expect(JSON.stringify(exported)).not.toContain('<gpx')
+  })
+
   it('rejects unsupported versions', () => {
     expect(() => parseImport(backup({ version: backupVersion + 1 }))).toThrow()
   })

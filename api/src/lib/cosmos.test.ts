@@ -7,6 +7,19 @@ const activity = {
   ideaIds: ['idea-1'],
   date: '2026-08-02',
   location: { kind: 'postcode', postcode: 'GL3 4AQ', latitude: 51.844, longitude: -2.153 },
+  recordedTrack: {
+    type: 'MultiLineString',
+    coordinates: [
+      [
+        [-2.1, 51.1],
+        [-2.2, 51.2],
+      ],
+      [
+        [-3.1, 52.1],
+        [-3.2, 52.2],
+      ],
+    ],
+  },
   notes: '',
   referenceIds: [],
   photoReferenceIds: [],
@@ -29,7 +42,19 @@ const idea = {
 
 const data: JourneyData = {
   waypoints: [],
-  challenges: [],
+  challenges: [
+    {
+      challengeId: 'challenge-1',
+      title: 'Route challenge',
+      description: '',
+      waypointIds: [],
+      supportsActivityCategories: false,
+      plannedRoute: {
+        fileName: 'planned.gpx',
+        geometry: { type: 'MultiLineString', coordinates: [[[-2.1, 51.1], [-2.2, 51.2]]] },
+      },
+    },
+  ],
   ideas: [idea],
   activities: [activity],
   references: [],
@@ -39,7 +64,8 @@ const data: JourneyData = {
 describe('Cosmos Journey persistence', () => {
   it('converts a complete dataset to typed documents and back', () => {
     const documents = documentsFor('dataset', data)
-    expect(documents['activity-1']).toMatchObject({ type: 'activity', schemaVersion: 3 })
+    expect(documents['activity-1']).toMatchObject({ type: 'activity', schemaVersion: 4 })
+    expect(documents['challenge-1']).toMatchObject({ type: 'challenge', schemaVersion: 2 })
     expect(documents['idea-1']).toMatchObject({ type: 'idea', schemaVersion: 2 })
     expect(documentsToData(Object.values(documents))).toEqual(data)
   })
