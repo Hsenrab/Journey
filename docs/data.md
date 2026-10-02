@@ -18,8 +18,8 @@ Each document type declares its own schema version (`activity` is version 4, `ch
 version or entity shape does not match the current schema fails validation with its
 specific error. GPX-free Challenge version 1 and Activity version 3 documents remain
 readable; Challenge version 1 cannot contain `plannedRoute`, and Activity version 3
-cannot contain `recordedTrack`. Updates write the current version, without rewriting
-unchanged legacy documents.
+cannot contain `recordedTrack`. Reading legacy documents does not migrate them, but a
+full-dataset replacement rewrites all supplied documents at their current versions.
 
 `src/data/demo.json` is the canonical demo fixture. Demo local loads it directly in the
 browser and is always read-only. The deployment workflow also reseeds the Cosmos `demo`
