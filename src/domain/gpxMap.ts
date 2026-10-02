@@ -52,7 +52,9 @@ export function gpxLineFeatures(lines: readonly GpxMapLine[]): GpxLineFeature[] 
     }
     const color = line.color && /^#[0-9a-f]{6}$/i.test(line.color) ? line.color : colorForLine(line.id)
     return line.segments.flatMap((segment, segmentIndex) => {
-      if (!Array.isArray(segment) || segment.length < 2 || !segment.every(validPosition)) return []
+      if (!Array.isArray(segment) || segment.length < 2 || !segment.every(validPosition)) {
+        throw new Error(`GPX line "${line.id}" segment ${segmentIndex + 1} must contain at least two valid positions.`)
+      }
       return [
         {
           id: `${line.id}:${segmentIndex}`,

@@ -40,27 +40,32 @@ describe('gpxLineFeatures', () => {
     )
   })
 
-  it('omits empty, short, and invalid runtime geometry', () => {
-    expect(
-      gpxLineFeatures([
-        {
-          id: 'invalid',
-          label: 'Invalid',
-          segments: [
-            [],
-            [[1, 2]],
-            [
-              [Number.NaN, 2],
-              [3, 4],
-            ],
-            [
-              [181, 2],
-              [3, 4],
-            ],
-          ],
-        },
-      ]),
-    ).toEqual([])
+  it('rejects invalid runtime segments with line and segment details', () => {
+    const invalidSegments: (readonly (readonly [number, number])[])[] = [
+      [],
+      [[1, 2]],
+      [
+        [Number.NaN, 2],
+        [3, 4],
+      ],
+      [
+        [181, 2],
+        [3, 4],
+      ],
+    ]
+
+    for (const segment of invalidSegments) {
+      expect(() =>
+        gpxLineFeatures([
+          {
+            id: 'invalid',
+            label: 'Invalid',
+            segments: [segment],
+          },
+        ]),
+      ).toThrow('GPX line "invalid" segment 1 must contain at least two valid positions.')
+    }
+
     expect(gpxLineFeatures([])).toEqual([])
   })
 })
