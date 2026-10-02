@@ -87,8 +87,9 @@ Raw `Activity.photos` strings are not used for new data.
 
 `challenges` may include a `plannedRoute` containing the uploaded GPX file name and
 validated GeoJSON `MultiLineString` geometry. The original XML is not persisted. Route
-and track geometry each permit at most 100 segments and 10,000 points per entity, keeping
-each Cosmos geometry document bounded; backup/import uses the same validated fields.
+and track geometry each permit at most 100 segments and 10,000 points per entity, with
+planned-route filenames limited to 255 characters. Backup/import applies the same bounds;
+raw GPX XML is never retained.
 
 ## Validation and failure behavior
 

@@ -81,7 +81,7 @@ export type GpxGeometry = z.infer<typeof GpxGeometrySchema>
 
 export const PlannedRouteSchema = z
   .object({
-    fileName: z.string().trim().min(1),
+    fileName: z.string().trim().min(1).max(255),
     geometry: GpxGeometrySchema,
   })
   .strict()

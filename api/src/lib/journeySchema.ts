@@ -45,7 +45,7 @@ const gpxGeometry = z
         message: `GPX geometry cannot contain more than ${maxGpxGeometryPoints} points.`,
       })
   })
-const plannedRoute = z.object({ fileName: text, geometry: gpxGeometry }).strict()
+const plannedRoute = z.object({ fileName: text.max(255), geometry: gpxGeometry }).strict()
 const schemas = {
   waypoint: z
     .object({
