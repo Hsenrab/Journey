@@ -300,7 +300,7 @@ after the application boundary validates the caller's Entra provider and assigne
   from the deployment itself.
 - Test deployments publish to the test Static Web App's primary environment, where
   the linked Functions backend is supported. Pull-request runs validate the code and
-  may deploy changed infrastructure or API components, but do not create a Static
+  may deploy changed infrastructure, but do not deploy the API or create a Static
   Web Apps preview. To publish a branch to the shared test site, manually dispatch
   `Deploy test environment` from that branch. An identity invited as a `viewer` on
   the test resource can access the shared test site; invite only identities that may
