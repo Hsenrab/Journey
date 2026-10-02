@@ -567,8 +567,9 @@ describe('MapPage', () => {
     )
     await vi.waitFor(() => expect(mapEvents.gpxSourceAdd).toHaveBeenLastCalledWith([]))
     expect(mapEvents.setCamera).toHaveBeenCalledOnce()
+const clearCountBeforeUnmount = mapEvents.gpxSourceClear.mock.calls.length
     view.unmount()
-    expect(mapEvents.gpxSourceClear).toHaveBeenCalled()
+    expect(mapEvents.gpxSourceClear).toHaveBeenCalledTimes(clearCountBeforeUnmount + 1)
   })
 
   it('does not fit the camera to empty or degenerate selected geometry', async () => {
