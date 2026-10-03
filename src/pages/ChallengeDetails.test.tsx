@@ -5,10 +5,24 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { WaypointsProvider } from '../features/journey/JourneyContext'
 import { createDefaultData, createDemoModeData, save, setDataMode } from '../services/storage'
 import ChallengeDetails from './ChallengeDetails'
+import type { GpxMapLine } from '../domain/gpxMap'
 
 vi.mock('../components/ChallengeRouteMap', () => ({
-  ChallengeRouteMap: ({ plannedRoute, waypoints }: { plannedRoute?: { fileName: string }; waypoints: unknown[] }) => (
-    <div data-testid="challenge-map">{`${plannedRoute?.fileName ?? 'No route'} · ${waypoints.length} waypoints`}</div>
+  ChallengeRouteMap: ({
+    plannedRoute,
+    waypoints,
+    recordedTracks,
+  }: {
+    plannedRoute?: { fileName: string }
+    waypoints: unknown[]
+    recordedTracks: GpxMapLine[]
+  }) => (
+    <div data-testid="challenge-map">
+      {`${plannedRoute?.fileName ?? 'No route'} · ${waypoints.length} waypoints`}
+      {recordedTracks.map((track) => (
+        <span key={track.id}>{track.label}</span>
+      ))}
+    </div>
   ),
 }))
 
@@ -56,6 +70,37 @@ describe('ChallengeDetails', () => {
     renderDetails()
 
     expect(screen.queryByTestId('challenge-map')).not.toBeInTheDocument()
+  })
+
+  it('shows linked Activity tracks even without a planned route or located Waypoints', () => {
+    const data = createDefaultData()
+    data.waypoints = data.waypoints.map((waypoint) => ({ ...waypoint, location: undefined }))
+    const activity = {
+      ...createDemoModeData().activities[0]!,
+      waypointId: data.waypoints[0]!.waypointId,
+      referenceIds: [],
+      photoReferenceIds: [],
+      ideaIds: [],
+      recordedTrack: {
+        type: 'MultiLineString' as const,
+        coordinates: [
+          [
+            [-2.1, 51.1],
+            [-2.2, 51.2],
+          ],
+        ] as [number, number][][],
+      },
+    }
+    data.activities = [
+      { ...activity, activityId: 'linked', name: 'Linked walk' },
+      { ...activity, activityId: 'unlinked', name: 'Unlinked walk', waypointId: undefined },
+    ]
+    save(data)
+    renderDetails()
+
+    expect(screen.getByTestId('challenge-map')).toHaveTextContent('No route')
+    expect(screen.getByTestId('challenge-map')).toHaveTextContent('Linked walk')
+    expect(screen.getByTestId('challenge-map')).not.toHaveTextContent('Unlinked walk')
   })
 
   it('attaches, saves, and reloads a planned GPX route', async () => {

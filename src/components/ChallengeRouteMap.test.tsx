@@ -1,34 +1,52 @@
 import { render, screen, waitFor } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { PlannedRoute, Waypoint } from '../domain/visit'
+import type { GpxMapLine } from '../domain/gpxMap'
 
 const mapState = vi.hoisted(() => ({
   layerIds: [] as string[],
   sourceFeatures: new Map<string, unknown[]>(),
   cameraOptions: [] as unknown[],
+  layerOptions: new Map<string, unknown>(),
+  sourceInstances: new Map<string, unknown>(),
+  created: vi.fn(),
+  disposed: vi.fn(),
 }))
 
 vi.mock('azure-maps-control', () => {
   class DataSource {
-    private id: string
+    readonly id: string
     constructor(id: string) {
       this.id = id
     }
     add(features: unknown[]) {
       mapState.sourceFeatures.set(this.id, features)
     }
+    clear() {
+      mapState.sourceFeatures.set(this.id, [])
+    }
   }
   class Layer {
     id: string
-    constructor(_source: unknown, id: string) {
+    constructor(_source: unknown, id: string, options: unknown) {
       this.id = id
+      mapState.layerOptions.set(id, options)
     }
   }
   return {
     AuthenticationType: { anonymous: 'anonymous' },
     Map: class {
+      constructor() {
+        mapState.created()
+      }
       events = { add: (_event: string, callback: () => void) => callback() }
-      sources = { add: vi.fn() }
+      sources = {
+        add: (sources: DataSource[]) => {
+          for (const source of sources) mapState.sourceInstances.set(source.id, source)
+        },
+        getById: (id: string) => mapState.sourceInstances.get(id),
+      }
       layers = {
         add: (layers: Layer[]) => {
           mapState.layerIds = layers.map((layer) => layer.id)
@@ -37,7 +55,7 @@ vi.mock('azure-maps-control', () => {
       setCamera = (options: unknown) => {
         mapState.cameraOptions.push(options)
       }
-      dispose = vi.fn()
+      dispose = mapState.disposed
     },
     source: { DataSource },
     layer: { LineLayer: Layer, BubbleLayer: Layer, SymbolLayer: Layer },
@@ -99,12 +117,17 @@ const waypoint: Waypoint = {
   referenceIds: [],
   photoReferenceIds: [],
 }
+const track: GpxMapLine = { id: 'activity-1', label: 'Recorded walk', segments: route.geometry.coordinates }
 
 describe('ChallengeRouteMap', () => {
   beforeEach(() => {
     mapState.layerIds = []
     mapState.sourceFeatures.clear()
     mapState.cameraOptions = []
+    mapState.layerOptions.clear()
+    mapState.sourceInstances.clear()
+    mapState.created.mockClear()
+    mapState.disposed.mockClear()
     vi.stubGlobal(
       'fetch',
       vi.fn().mockResolvedValue(
@@ -124,11 +147,12 @@ describe('ChallengeRouteMap', () => {
     await waitFor(() =>
       expect(mapState.layerIds).toEqual([
         'challenge-route-line',
+        'challenge-track-lines',
         'challenge-waypoint-symbols',
         'challenge-waypoint-labels',
       ]),
     )
-    expect(mapState.sourceFeatures.get('challenge-route')).toHaveLength(2)
+    await waitFor(() => expect(mapState.sourceFeatures.get('challenge-route')).toHaveLength(2))
     expect(mapState.sourceFeatures.get('challenge-waypoints')).toHaveLength(1)
     expect(mapState.cameraOptions).toEqual([
       {
@@ -150,6 +174,59 @@ describe('ChallengeRouteMap', () => {
     render(<ChallengeRouteMap waypoints={[waypoint]} />)
 
     await waitFor(() => expect(mapState.cameraOptions).toEqual([{ center: [-2.15, 51.15], zoom: 9 }]))
+  })
+
+  it('keeps overlapping planned and recorded segments distinguishable and toggles only tracks', async () => {
+    const user = userEvent.setup()
+    render(<ChallengeRouteMap plannedRoute={route} waypoints={[waypoint]} recordedTracks={[track]} />)
+
+    const toggle = await screen.findByRole('checkbox', { name: 'Show recorded Activity tracks (1)' })
+    await waitFor(() => expect(mapState.sourceFeatures.get('challenge-tracks')).toHaveLength(2))
+    expect(toggle).toBeChecked()
+    expect(screen.getByLabelText('Recorded Activity tracks')).toHaveTextContent('Recorded walk')
+    expect(mapState.layerOptions.get('challenge-route-line')).toMatchObject({ strokeColor: '#7b1fa2', strokeWidth: 7 })
+    expect(mapState.layerOptions.get('challenge-track-lines')).toMatchObject({
+      strokeColor: '#1565c0',
+      strokeWidth: 3,
+      strokeDashArray: [2, 2],
+    })
+    expect(mapState.sourceFeatures.get('challenge-tracks')).toEqual([
+      expect.objectContaining({ geometry: { coordinates: route.geometry.coordinates[0] } }),
+      expect.objectContaining({ geometry: { coordinates: route.geometry.coordinates[1] } }),
+    ])
+
+    await user.click(toggle)
+    expect(mapState.sourceFeatures.get('challenge-tracks')).toEqual([])
+    expect(mapState.sourceFeatures.get('challenge-route')).toHaveLength(2)
+    expect(mapState.sourceFeatures.get('challenge-waypoints')).toHaveLength(1)
+    expect(screen.queryByLabelText('Recorded Activity tracks')).not.toBeInTheDocument()
+    await user.click(toggle)
+    expect(mapState.sourceFeatures.get('challenge-tracks')).toHaveLength(2)
+    expect(mapState.created).toHaveBeenCalledTimes(1)
+  })
+
+  it('shows tracks without a planned route or located Waypoints and fits their extent', async () => {
+    render(<ChallengeRouteMap waypoints={[]} recordedTracks={[track]} />)
+
+    await waitFor(() => expect(mapState.sourceFeatures.get('challenge-tracks')).toHaveLength(2))
+    expect(mapState.sourceFeatures.get('challenge-route')).toEqual([])
+    expect(mapState.cameraOptions).toEqual([{ bounds: { positions: route.geometry.coordinates.flat() }, padding: 40 }])
+  })
+
+  it('updates geometry without recreating the map and disposes on unmount', async () => {
+    const view = render(<ChallengeRouteMap plannedRoute={route} waypoints={[waypoint]} recordedTracks={[track]} />)
+    await waitFor(() => expect(mapState.sourceFeatures.get('challenge-tracks')).toHaveLength(2))
+
+    view.rerender(<ChallengeRouteMap waypoints={[]} recordedTracks={[]} />)
+    expect(mapState.sourceFeatures.get('challenge-tracks')).toEqual([])
+    expect(mapState.sourceFeatures.get('challenge-route')).toEqual([])
+    expect(mapState.sourceFeatures.get('challenge-waypoints')).toEqual([])
+    expect(screen.getByText("No recorded GPX tracks linked to this challenge's Waypoints.")).toBeInTheDocument()
+    expect(screen.queryByRole('checkbox')).not.toBeInTheDocument()
+    expect(mapState.created).toHaveBeenCalledTimes(1)
+    expect(mapState.disposed).not.toHaveBeenCalled()
+    view.unmount()
+    expect(mapState.disposed).toHaveBeenCalledTimes(1)
   })
 
   it('shows loading instead of an empty map while the token is pending', async () => {

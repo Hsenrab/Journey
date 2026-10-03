@@ -1,3 +1,18 @@
+import { activityTitle, challengeWaypoints, type Activity, type Challenge, type Waypoint } from './visit'
+
+export function challengeRecordedTracks(
+  challenge: Challenge,
+  waypoints: readonly Waypoint[],
+  activities: readonly Activity[],
+): GpxMapLine[] {
+  const waypointIds = new Set(challengeWaypoints(challenge, waypoints).map((waypoint) => waypoint.waypointId))
+  return activities.flatMap((activity) =>
+    activity.waypointId && waypointIds.has(activity.waypointId) && activity.recordedTrack
+      ? [{ id: activity.activityId, label: activityTitle(activity), segments: activity.recordedTrack.coordinates }]
+      : [],
+  )
+}
+
 export type GpxPosition = readonly [longitude: number, latitude: number]
 
 export type GpxMapLine = {
