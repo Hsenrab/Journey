@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import {
   Alert,
   Box,
@@ -396,6 +396,7 @@ function smallestLongitudeBounds(longitudes: readonly number[]): [number, number
 
 export default function MapPage() {
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
   const { data, loadState, statusFor } = useWaypoints()
   const container = useRef<HTMLDivElement>(null)
   const mapBox = useRef<HTMLDivElement>(null)
@@ -404,8 +405,14 @@ export default function MapPage() {
   const mapPopup = useRef<atlas.Popup | null>(null)
   const waypointSource = useRef<atlas.source.DataSource | null>(null)
   const activitySource = useRef<atlas.source.DataSource | null>(null)
+  const activityTrackSource = useRef<atlas.source.DataSource | null>(null)
+  const trackActivityId = searchParams.get('activityId')
+  const trackActivity = data.activities.find((activity) => activity.activityId === trackActivityId)
+  const [mode, setMode] = useState<MapMode>(() => (trackActivityId ? 'activities' : 'waypoints'))
+  const modeRef = useRef(mode)
+  const lastFittedTrack = useRef<{ activityId: string; geometry: NonNullable<Activity['recordedTrack']> } | null>(null)
+  const lastFittedRoute = useRef<{ id: string; segments: GpxMapLine['segments'] } | null>(null)
   const gpxSource = useRef<atlas.source.DataSource | null>(null)
-  const [mode, setMode] = useState<MapMode>('waypoints')
   const [statuses, setStatuses] = useState<Status[]>([...statusOrder])
   const [token, setToken] = useState<MapsToken | null>(null)
   const [mapReady, setMapReady] = useState(false)
@@ -505,7 +512,8 @@ export default function MapPage() {
       const gpx = new atlas.source.DataSource('gpx-lines')
       const waypoints = new atlas.source.DataSource('waypoints', { cluster: true, clusterRadius: 45 })
       const activities = new atlas.source.DataSource('activities', { cluster: true, clusterRadius: 45 })
-      instance.sources.add([gpx, waypoints, activities])
+      const activityTracks = new atlas.source.DataSource('activity-tracks')
+      instance.sources.add([gpx, waypoints, activities, activityTracks])
       const gpxLayer = new atlas.layer.LineLayer(gpx, 'gpx-lines', {
         strokeColor: ['get', 'color'],
         strokeWidth: ['get', 'strokeWidth'],
@@ -564,6 +572,10 @@ export default function MapPage() {
         gpxLayer,
         waypointClusterBubbleLayer,
         activityClusterBubbleLayer,
+        new atlas.layer.LineLayer(activityTracks, 'activity-tracks', {
+          strokeColor: '#7b1fa2',
+          strokeWidth: 5,
+        }),
         waypointLayer,
         waypointClusterLayer,
         activityLayer,
@@ -649,6 +661,36 @@ export default function MapPage() {
       })
       waypointSource.current = waypoints
       activitySource.current = activities
+      activityTrackSource.current = activityTracks
+      const trackGeometry = trackActivity?.recordedTrack
+      const trackAlreadyFitted =
+        trackActivity &&
+        lastFittedTrack.current?.activityId === trackActivity.activityId &&
+        lastFittedTrack.current.geometry === trackGeometry
+      const trackCoordinates = trackGeometry?.coordinates.flat() ?? []
+      if (modeRef.current === 'activities' && trackGeometry && !trackAlreadyFitted && trackCoordinates.length >= 2) {
+        let minLatitude = 90
+        let maxLatitude = -90
+        for (const [, latitude] of trackCoordinates) {
+          minLatitude = Math.min(minLatitude, latitude)
+          maxLatitude = Math.max(maxLatitude, latitude)
+        }
+        const [minLongitude, maxLongitude] = smallestLongitudeBounds(trackCoordinates.map(([longitude]) => longitude))
+        if (minLongitude !== maxLongitude || minLatitude !== maxLatitude) {
+          const longitudePadding = minLongitude === maxLongitude ? 0.005 : 0
+          const latitudePadding = minLatitude === maxLatitude ? 0.005 : 0
+          instance.setCamera({
+            bounds: [
+              longitudePadding ? normalizeLongitude(minLongitude - longitudePadding) : minLongitude,
+              Math.max(-90, minLatitude - latitudePadding),
+              longitudePadding ? normalizeLongitude(maxLongitude + longitudePadding) : maxLongitude,
+              Math.min(90, maxLatitude + latitudePadding),
+            ],
+            padding: 40,
+          })
+          lastFittedTrack.current = { activityId: trackActivity.activityId, geometry: trackGeometry }
+        }
+      }
       gpxSource.current = gpx
       setMapReady(true)
     })
@@ -659,11 +701,12 @@ export default function MapPage() {
       map.current = null
       waypointSource.current = null
       activitySource.current = null
+      activityTrackSource.current = null
       gpxSource.current = null
       mapPopup.current = null
       setMapReady(false)
     }
-  }, [data.activities, data.waypoints, loaded, navigate, origin.latitude, origin.longitude, token])
+  }, [data.activities, data.waypoints, loaded, navigate, origin.latitude, origin.longitude, token, trackActivity])
 
   const visibleWaypoints = useMemo(
     () => filterWaypointsByStatus(data.waypoints, statuses, statusFor),
@@ -704,8 +747,19 @@ export default function MapPage() {
   useEffect(() => {
     const instance = map.current
     if (!instance) return
+    if (!selectedRouteChallengeId) {
+      lastFittedRoute.current = null
+      return
+    }
     const features = gpxLineFeatures(gpxLines)
-    if (!selectedRouteChallengeId) return
+    const selectedRoute = gpxLines.find((line) => line.id === selectedRouteChallengeId)
+    if (!selectedRoute) return
+    if (
+      lastFittedRoute.current?.id === selectedRoute.id &&
+      lastFittedRoute.current.segments === selectedRoute.segments
+    ) {
+      return
+    }
     const positions = features
       .filter((feature) => feature.lineId === selectedRouteChallengeId)
       .flatMap((feature) => feature.coordinates)
@@ -730,6 +784,7 @@ export default function MapPage() {
       ],
       padding: 48,
     })
+    lastFittedRoute.current = { id: selectedRoute.id, segments: selectedRoute.segments }
   }, [gpxLines, mapReady, selectedRouteChallengeId])
 
   useEffect(() => {
@@ -785,6 +840,25 @@ export default function MapPage() {
     }
   }, [data.activities, data.waypoints, mapReady, mode, selectedActivityId])
 
+  useEffect(() => {
+    const source = activityTrackSource.current
+    if (!source) return
+    source.clear()
+    if (mode !== 'activities') return
+    const activities = trackActivityId ? (trackActivity ? [trackActivity] : []) : data.activities
+    source.add(
+      activities.flatMap(
+        (activity) =>
+          activity.recordedTrack?.coordinates.map(
+            (coordinates) =>
+              new atlas.data.Feature(new atlas.data.LineString(coordinates), {
+                activityId: activity.activityId,
+              }),
+          ) ?? [],
+      ),
+    )
+  }, [data.activities, mapReady, mode, trackActivity, trackActivityId])
+
   const findNearby = async () => {
     setError(null)
     let response: Response
@@ -822,6 +896,7 @@ export default function MapPage() {
         <Tabs
           value={mode}
           onChange={(_, nextMode: MapMode) => {
+            modeRef.current = nextMode
             mapPopup.current?.close()
             setSelectedWaypointId(null)
             setSelectedActivityId(null)
@@ -840,6 +915,9 @@ export default function MapPage() {
       {loadState.status === 'loading' && <LoadingNotice message="Loading map data…" />}
       {loaded && (
         <>
+          {mode === 'activities' && trackActivity?.recordedTrack && (
+            <Alert severity="info">Showing the recorded track for {activityDisplayName(trackActivity)}.</Alert>
+          )}
           <Card ref={filters}>
             <CardContent>
               <Stack
