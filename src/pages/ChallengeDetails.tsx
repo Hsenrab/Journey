@@ -9,6 +9,7 @@ import { LoadFailureAlert } from '../components/LoadFailureAlert'
 import { LoadingNotice } from '../components/LoadingNotice'
 import { ReadOnlyNotice } from '../components/ReadOnlyNotice'
 import { parseGpxFile } from '../domain/gpx'
+import { challengeRecordedTracks } from '../domain/gpxMap'
 import { challengeWaypoints, type PlannedRoute } from '../domain/visit'
 import { useWaypoints } from '../features/journey/JourneyContext'
 import { JourneyConflictError } from '../services/journeyApi'
@@ -28,6 +29,10 @@ export default function ChallengeDetails() {
   const waypoints = useMemo(
     () => (challenge ? challengeWaypoints(challenge, data.waypoints) : []),
     [challenge, data.waypoints],
+  )
+  const recordedTracks = useMemo(
+    () => (challenge ? challengeRecordedTracks(challenge, data.waypoints, data.activities) : []),
+    [challenge, data.waypoints, data.activities],
   )
   const breadcrumbs = [{ label: 'Challenges', to: '/challenges' }]
 
@@ -50,6 +55,10 @@ export default function ChallengeDetails() {
   }
 
   const displayedRoute = draftRoute === undefined ? challenge.plannedRoute : (draftRoute ?? undefined)
+  const hasMapFeatures =
+    displayedRoute !== undefined ||
+    recordedTracks.length > 0 ||
+    waypoints.some((waypoint) => waypoint.location?.latitude !== undefined && waypoint.location.longitude !== undefined)
 
   const selectFile = async (file: File | undefined) => {
     if (!file || saving) return
@@ -173,10 +182,12 @@ export default function ChallengeDetails() {
             )}
           </Stack>
         )}
-        {(displayedRoute ||
-          waypoints.some(
-            (waypoint) => waypoint.location?.latitude !== undefined && waypoint.location.longitude !== undefined,
-          )) && <ChallengeRouteMap plannedRoute={displayedRoute} waypoints={waypoints} />}
+        {hasMapFeatures && (
+          <ChallengeRouteMap plannedRoute={displayedRoute} waypoints={waypoints} recordedTracks={recordedTracks} />
+        )}
+        {!hasMapFeatures && (
+          <Typography color="text.secondary">No recorded GPX tracks linked to this challenge's Waypoints.</Typography>
+        )}
       </Stack>
 
       <Stack spacing={2}>

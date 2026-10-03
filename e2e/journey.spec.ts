@@ -52,4 +52,42 @@ test.describe('activity management flow', () => {
 
     await expect(page).toHaveURL(/\/activities$/)
   })
+
+  test('shows an optional linked GPX track on its Challenge map without changing completion', async ({ page }) => {
+    await page.route('**/api/maps/token', (route) =>
+      route.fulfill({
+        contentType: 'application/json',
+        body: JSON.stringify({ token: 'test-token', clientId: 'test-client' }),
+      }),
+    )
+    await page.route('**/*.atlas.microsoft.com/**', (route) => route.abort())
+    await page.goto('/waypoints')
+    await page.getByLabel('Search waypoints').fill('Chedworth')
+    await page.getByRole('link', { name: 'Chedworth Roman Villa' }).click()
+    await page.getByRole('button', { name: 'Log activity' }).click()
+    await page.getByRole('combobox', { name: 'Activity category' }).click()
+    await page.getByRole('option', { name: 'Gold' }).click()
+    await page.locator('input[type="file"]').setInputFiles({
+      name: 'walk.gpx',
+      mimeType: 'application/gpx+xml',
+      buffer: Buffer.from(
+        '<gpx><trk><trkseg><trkpt lat="51.78" lon="-1.92"/><trkpt lat="51.79" lon="-1.93"/></trkseg></trk></gpx>',
+      ),
+    })
+    await expect(page.getByRole('button', { name: 'Remove GPX track' })).toBeVisible()
+    await page.getByRole('button', { name: 'Save activity' }).click()
+    await expect(page.getByText('Activity saved.')).toBeVisible()
+    await expect(page.getByText('Completion: Done', { exact: true })).toBeVisible()
+
+    await page.getByRole('link', { name: 'Progress', exact: true }).click()
+    await page.getByRole('link', { name: 'National Trust', exact: true }).click()
+    await expect(page.getByText('No planned GPX route attached.')).toBeVisible()
+    const tracks = page.getByRole('checkbox', { name: 'Show recorded Activity tracks (1)' })
+    await expect(tracks).toBeChecked()
+    await expect(page.getByLabel('Recorded Activity tracks', { exact: true })).toBeVisible()
+    await tracks.uncheck()
+    await expect(page.getByLabel('Recorded Activity tracks', { exact: true })).not.toBeVisible()
+    await tracks.check()
+    await expect(page.getByLabel('Recorded Activity tracks', { exact: true })).toBeVisible()
+  })
 })

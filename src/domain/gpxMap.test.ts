@@ -1,5 +1,59 @@
 import { describe, expect, it } from 'vitest'
-import { gpxLineFeatures, type GpxMapLine } from './gpxMap'
+import { challengeRecordedTracks, gpxLineFeatures, type GpxMapLine } from './gpxMap'
+import { createDemoData, waypointCompletionProgress, type Activity } from './visit'
+
+describe('challengeRecordedTracks', () => {
+  it('selects tracks through either Waypoint membership direction, not direct Activity Challenge links', () => {
+    const data = createDemoData()
+    const challenge = { ...data.challenges[0]!, waypointIds: ['forward'] }
+    const waypoints = [
+      { ...data.waypoints[0]!, waypointId: 'forward', challengeIds: [] },
+      { ...data.waypoints[0]!, waypointId: 'reverse', challengeIds: [challenge.challengeId] },
+      { ...data.waypoints[0]!, waypointId: 'outside', challengeIds: [] },
+    ]
+    const recordedTrack: NonNullable<Activity['recordedTrack']> = {
+      type: 'MultiLineString',
+      coordinates: [
+        [
+          [-2, 51],
+          [-1, 52],
+        ],
+      ],
+    }
+    const activity = { ...data.activities[0]!, recordedTrack }
+    const activities = [
+      { ...activity, activityId: 'a', name: 'Forward walk', waypointId: 'forward' },
+      { ...activity, activityId: 'b', name: 'Reverse walk', waypointId: 'reverse' },
+      { ...activity, activityId: 'c', waypointId: 'outside', challengeId: challenge.challengeId },
+      { ...activity, activityId: 'd', waypointId: undefined, challengeId: challenge.challengeId },
+      { ...activity, activityId: 'e', waypointId: 'forward', recordedTrack: undefined },
+    ]
+
+    expect(challengeRecordedTracks(challenge, waypoints, activities)).toEqual([
+      { id: 'a', label: 'Forward walk', segments: recordedTrack.coordinates },
+      { id: 'b', label: 'Reverse walk', segments: recordedTrack.coordinates },
+    ])
+    expect(challengeRecordedTracks(challenge, waypoints, [])).toEqual([])
+    expect(challengeRecordedTracks(challenge, [], activities)).toEqual([])
+  })
+
+  it('does not change once/count completion or require a track on qualifying Activities', () => {
+    const data = createDemoData()
+    const waypoint = data.waypoints[0]!
+    const activity = { ...data.activities[0]!, waypointId: waypoint.waypointId, recordedTrack: undefined }
+    const activities = [activity, { ...activity, activityId: 'second' }]
+    const before = waypointCompletionProgress(waypoint, activities)
+
+    expect(challengeRecordedTracks(data.challenges[0]!, [waypoint], activities)).toEqual([])
+    expect(waypointCompletionProgress(waypoint, activities)).toEqual(before)
+    expect(before.complete).toBe(true)
+    expect(waypointCompletionProgress({ ...waypoint, completion: { mode: 'count', target: 3 } }, activities)).toEqual({
+      count: 2,
+      target: 3,
+      complete: false,
+    })
+  })
+})
 
 describe('gpxLineFeatures', () => {
   it('keeps segments separate and assigns stable, distinguishable line colors', () => {
