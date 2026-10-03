@@ -659,12 +659,29 @@ export default function MapPage() {
       waypointSource.current = waypoints
       activitySource.current = activities
       activityTrackSource.current = activityTracks
-      const trackCoordinates = trackActivity?.recordedTrack?.coordinates.flat()
-      if (trackCoordinates?.length) {
-        instance.setCamera({
-          bounds: atlas.data.BoundingBox.fromPositions(trackCoordinates),
-          padding: 40,
-        })
+      if (trackCoordinates && trackCoordinates.length >= 2) {
+        let minLatitude = 90
+        let maxLatitude = -90
+        for (const [, latitude] of trackCoordinates) {
+          minLatitude = Math.min(minLatitude, latitude)
+          maxLatitude = Math.max(maxLatitude, latitude)
+        }
+        const [minLongitude, maxLongitude] = smallestLongitudeBounds(
+          trackCoordinates.map(([longitude]) => longitude),
+        )
+        if (minLongitude !== maxLongitude || minLatitude !== maxLatitude) {
+          const longitudePadding = minLongitude === maxLongitude ? 0.005 : 0
+          const latitudePadding = minLatitude === maxLatitude ? 0.005 : 0
+          instance.setCamera({
+            bounds: [
+              longitudePadding ? normalizeLongitude(minLongitude - longitudePadding) : minLongitude,
+              Math.max(-90, minLatitude - latitudePadding),
+              longitudePadding ? normalizeLongitude(maxLongitude + longitudePadding) : maxLongitude,
+              Math.min(90, maxLatitude + latitudePadding),
+            ],
+            padding: 40,
+          })
+        }
       }
       gpxSource.current = gpx
       setMapReady(true)
