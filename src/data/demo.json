@@ -212,6 +212,69 @@
       "photoReferenceIds": ["photo-demo-glasshouse-panel"]
     },
     {
+      "waypointId": "demo-cotswold-north-beacon",
+      "title": "Foxglove Beacon (Demo)",
+      "description": "A fictional hilltop viewpoint on a made-up stretch of the Cotswold Way-inspired demo route.",
+      "category": "Walking route",
+      "tags": ["Fictional", "Cotswold Way-inspired", "Walking"],
+      "challengeIds": ["cotswold-way-demo"],
+      "completion": {
+        "mode": "once"
+      },
+      "location": {
+        "placeName": "Foxglove Beacon (Demo)",
+        "addressOrRegion": "Fictional North Cotswolds",
+        "latitude": 52.03,
+        "longitude": -1.84,
+        "source": "Fabricated demo data",
+        "approximate": true
+      },
+      "referenceIds": [],
+      "photoReferenceIds": []
+    },
+    {
+      "waypointId": "demo-cotswold-midway-gate",
+      "title": "Bramblewick Gate (Demo)",
+      "description": "A fictional trail gate near an invented Cotswold escarpment viewpoint.",
+      "category": "Walking route",
+      "tags": ["Fictional", "Cotswold Way-inspired", "Walking"],
+      "challengeIds": ["cotswold-way-demo"],
+      "completion": {
+        "mode": "once"
+      },
+      "location": {
+        "placeName": "Bramblewick Gate (Demo)",
+        "addressOrRegion": "Fictional Cotswolds",
+        "latitude": 51.79,
+        "longitude": -2.2,
+        "source": "Fabricated demo data",
+        "approximate": true
+      },
+      "referenceIds": [],
+      "photoReferenceIds": []
+    },
+    {
+      "waypointId": "demo-cotswold-south-view",
+      "title": "Thistlewick View (Demo)",
+      "description": "A fictional southern trail viewpoint on the fabricated route toward Bath.",
+      "category": "Walking route",
+      "tags": ["Fictional", "Cotswold Way-inspired", "Walking"],
+      "challengeIds": ["cotswold-way-demo"],
+      "completion": {
+        "mode": "once"
+      },
+      "location": {
+        "placeName": "Thistlewick View (Demo)",
+        "addressOrRegion": "Fictional South Cotswolds",
+        "latitude": 51.48,
+        "longitude": -2.35,
+        "source": "Fabricated demo data",
+        "approximate": true
+      },
+      "referenceIds": [],
+      "photoReferenceIds": []
+    },
+    {
       "waypointId": "demo-tannery-lane-pottery",
       "title": "Tannery Lane Pottery (Demo)",
       "description": "A fictional riverside pottery running evening wheel-throwing tasters.",
@@ -288,6 +351,42 @@
       "description": "An empty challenge for previewing the no-waypoints state.",
       "waypointIds": [],
       "supportsActivityCategories": false
+    },
+    {
+      "challengeId": "cotswold-way-demo",
+      "title": "Cotswold Way Explorer (Fictional Demo)",
+      "description": "A wholly fabricated GPX challenge inspired by the Cotswold Way. Its simplified route, places and visit tracks are demo data, not a navigational route.",
+      "waypointIds": ["demo-cotswold-north-beacon", "demo-cotswold-midway-gate", "demo-cotswold-south-view"],
+      "supportsActivityCategories": false,
+      "plannedRoute": {
+        "fileName": "fictional-cotswold-way-demo.gpx",
+        "geometry": {
+          "type": "MultiLineString",
+          "coordinates": [
+            [
+              [-1.78, 52.05],
+              [-1.85, 52.04],
+              [-1.83, 52.02],
+              [-1.9, 52.0],
+              [-1.97, 51.95],
+              [-2.02, 51.95],
+              [-2.08, 51.9],
+              [-2.08, 51.86],
+              [-2.13, 51.82],
+              [-2.2, 51.79],
+              [-2.22, 51.74],
+              [-2.36, 51.62],
+              [-2.35, 51.63],
+              [-2.33, 51.62],
+              [-2.39, 51.56],
+              [-2.35, 51.52],
+              [-2.37, 51.51],
+              [-2.34, 51.47],
+              [-2.36, 51.38]
+            ]
+          ]
+        }
+      }
     }
   ],
   "ideas": [
@@ -568,6 +667,62 @@
       "photoReferenceIds": ["photo-demo-glasshouse-panel"],
       "createdAt": "2026-07-16T13:00:00.000Z",
       "updatedAt": "2026-07-16T13:00:00.000Z"
+    },
+    {
+      "activityId": "activity-demo-cotswold-north",
+      "name": "Foxglove Beacon Walk (Demo)",
+      "waypointId": "demo-cotswold-north-beacon",
+      "challengeId": "cotswold-way-demo",
+      "ideaIds": [],
+      "date": "2026-06-18",
+      "location": {
+        "kind": "coordinates",
+        "latitude": 52.03,
+        "longitude": -1.84
+      },
+      "recordedTrack": {
+        "type": "MultiLineString",
+        "coordinates": [
+          [
+            [-1.78, 52.05],
+            [-1.85, 52.04],
+            [-1.83, 52.02]
+          ]
+        ]
+      },
+      "notes": "Fabricated recorded GPX track for the Cotswold Way-inspired demo challenge.",
+      "referenceIds": [],
+      "photoReferenceIds": [],
+      "createdAt": "2026-06-18T10:00:00.000Z",
+      "updatedAt": "2026-06-18T10:00:00.000Z"
+    },
+    {
+      "activityId": "activity-demo-cotswold-midway",
+      "name": "Bramblewick Gate Walk (Demo)",
+      "waypointId": "demo-cotswold-midway-gate",
+      "challengeId": "cotswold-way-demo",
+      "ideaIds": [],
+      "date": "2026-07-22",
+      "location": {
+        "kind": "coordinates",
+        "latitude": 51.79,
+        "longitude": -2.2
+      },
+      "recordedTrack": {
+        "type": "MultiLineString",
+        "coordinates": [
+          [
+            [-2.13, 51.82],
+            [-2.2, 51.79],
+            [-2.22, 51.74]
+          ]
+        ]
+      },
+      "notes": "Fabricated recorded GPX track for the Cotswold Way-inspired demo challenge.",
+      "referenceIds": [],
+      "photoReferenceIds": [],
+      "createdAt": "2026-07-22T10:00:00.000Z",
+      "updatedAt": "2026-07-22T10:00:00.000Z"
     }
   ],
   "references": [

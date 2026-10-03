@@ -1,8 +1,30 @@
 import { describe, expect, it } from 'vitest'
 import { challengeRecordedTracks, gpxLineFeatures, type GpxMapLine } from './gpxMap'
-import { createDemoData, waypointCompletionProgress, type Activity } from './visit'
+import { challengeWaypoints, createDemoData, waypointCompletionProgress, type Activity } from './visit'
 
 describe('challengeRecordedTracks', () => {
+  it('loads the fictional Cotswold Way demo challenge with valid linked waypoints and recorded tracks', () => {
+    const data = createDemoData()
+    const challenge = data.challenges.find((item) => item.challengeId === 'cotswold-way-demo')!
+    const waypoints = challengeWaypoints(challenge, data.waypoints)
+    const tracks = challengeRecordedTracks(challenge, data.waypoints, data.activities)
+
+    expect(challenge.title).toContain('(Fictional Demo)')
+    expect(challenge.description).toContain('fabricated')
+    expect(challenge.plannedRoute?.fileName).toBe('fictional-cotswold-way-demo.gpx')
+    expect(challenge.plannedRoute?.geometry.coordinates[0]!.length).toBeGreaterThan(2)
+    expect(waypoints.map((waypoint) => waypoint.waypointId)).toEqual(challenge.waypointIds)
+    expect(waypoints.every((waypoint) => waypoint.challengeIds.includes(challenge.challengeId))).toBe(true)
+    expect(waypoints.every((waypoint) => waypoint.title.includes('(Demo)'))).toBe(true)
+    expect(tracks.map(({ id }) => id)).toEqual(['activity-demo-cotswold-north', 'activity-demo-cotswold-midway'])
+    expect(tracks.every(({ segments }) => segments.length > 0)).toBe(true)
+    expect(
+      data.activities
+        .filter((activity) => activity.challengeId === challenge.challengeId)
+        .every((activity) => challenge.waypointIds.includes(activity.waypointId!)),
+    ).toBe(true)
+  })
+
   it('selects tracks through either Waypoint membership direction, not direct Activity Challenge links', () => {
     const data = createDemoData()
     const challenge = { ...data.challenges[0]!, waypointIds: ['forward'] }

@@ -257,6 +257,9 @@ describe('demo data', () => {
       'demo-puddlebrook-paddle',
       'demo-copper-kettle-trail',
       'demo-glasshouse-workshop',
+      'demo-cotswold-north-beacon',
+      'demo-cotswold-midway-gate',
+      'demo-cotswold-south-view',
       'demo-tannery-lane-pottery',
     ])
     expect(data.waypoints.every((waypoint) => waypoint.tags.includes('Fictional'))).toBe(true)
@@ -294,8 +297,8 @@ describe('demo data', () => {
     expect(activitiesForWaypoint(data.activities, 'demo-puddlebrook-paddle')).toHaveLength(2)
     expect(activitiesForWaypoint(data.activities, 'demo-lantern-hill-fort')).toEqual([])
     expect(visitCounts.filter((count) => count > 1).length).toBe(2)
-    expect(visitCounts.filter((count) => count === 1).length).toBe(6)
-    expect(visitCounts.filter((count) => count === 0).length).toBe(3)
+    expect(visitCounts.filter((count) => count === 1).length).toBe(8)
+    expect(visitCounts.filter((count) => count === 0).length).toBe(4)
     expect([...years].sort()).toEqual(['2024', '2025', '2026'])
     expect(new Set(data.activities.map((activity) => activity.date.slice(0, 7))).size).toBe(8)
   })
