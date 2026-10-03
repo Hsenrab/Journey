@@ -55,6 +55,10 @@ export default function ChallengeDetails() {
   }
 
   const displayedRoute = draftRoute === undefined ? challenge.plannedRoute : (draftRoute ?? undefined)
+  const hasMapFeatures =
+    displayedRoute !== undefined ||
+    recordedTracks.length > 0 ||
+    waypoints.some((waypoint) => waypoint.location?.latitude !== undefined && waypoint.location.longitude !== undefined)
 
   const selectFile = async (file: File | undefined) => {
     if (!file || saving) return
@@ -178,12 +182,11 @@ export default function ChallengeDetails() {
             )}
           </Stack>
         )}
-        {(displayedRoute ||
-          recordedTracks.length > 0 ||
-          waypoints.some(
-            (waypoint) => waypoint.location?.latitude !== undefined && waypoint.location.longitude !== undefined,
-          )) && (
+        {hasMapFeatures && (
           <ChallengeRouteMap plannedRoute={displayedRoute} waypoints={waypoints} recordedTracks={recordedTracks} />
+        )}
+        {!hasMapFeatures && (
+          <Typography color="text.secondary">No recorded GPX tracks linked to this challenge's Waypoints.</Typography>
         )}
       </Stack>
 

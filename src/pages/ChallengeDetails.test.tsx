@@ -72,6 +72,16 @@ describe('ChallengeDetails', () => {
     expect(screen.queryByTestId('challenge-map')).not.toBeInTheDocument()
   })
 
+  it('shows the no-tracks state when no map features are available', () => {
+    const data = createDefaultData()
+    data.waypoints = data.waypoints.map((waypoint) => ({ ...waypoint, location: undefined }))
+    save(data)
+    renderDetails()
+
+    expect(screen.queryByTestId('challenge-map')).not.toBeInTheDocument()
+    expect(screen.getByText("No recorded GPX tracks linked to this challenge's Waypoints.")).toBeInTheDocument()
+  })
+
   it('shows linked Activity tracks even without a planned route or located Waypoints', () => {
     const data = createDefaultData()
     data.waypoints = data.waypoints.map((waypoint) => ({ ...waypoint, location: undefined }))
