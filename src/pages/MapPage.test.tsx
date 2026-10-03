@@ -181,9 +181,6 @@ vi.mock('azure-maps-control', () => ({
         this.coordinates = coordinates
       }
     },
-    BoundingBox: {
-      fromPositions: vi.fn((positions: number[][]) => ({ positions })),
-    },
   },
 }))
 
@@ -523,7 +520,7 @@ describe('MapPage', () => {
     expect(await screen.findByText('Showing the recorded track for Recorded walk.')).toBeInTheDocument()
     await vi.waitFor(() => expect(mapEvents.lineStringCoordinates).toEqual([coordinates]))
     expect(mapEvents.setCamera).toHaveBeenCalledWith(
-      expect.objectContaining({ bounds: { positions: coordinates }, padding: 40 }),
+      expect.objectContaining({ bounds: [-2.2, 51.5, -2.1, 51.6], padding: 40 }),
     )
     expect(screen.getByRole('tab', { name: 'Activities' })).toHaveAttribute('aria-selected', 'true')
 

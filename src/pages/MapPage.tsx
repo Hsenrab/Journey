@@ -659,16 +659,15 @@ export default function MapPage() {
       waypointSource.current = waypoints
       activitySource.current = activities
       activityTrackSource.current = activityTracks
-      if (trackCoordinates && trackCoordinates.length >= 2) {
+      const trackCoordinates = trackActivity?.recordedTrack?.coordinates.flat() ?? []
+      if (trackCoordinates.length >= 2) {
         let minLatitude = 90
         let maxLatitude = -90
         for (const [, latitude] of trackCoordinates) {
           minLatitude = Math.min(minLatitude, latitude)
           maxLatitude = Math.max(maxLatitude, latitude)
         }
-        const [minLongitude, maxLongitude] = smallestLongitudeBounds(
-          trackCoordinates.map(([longitude]) => longitude),
-        )
+        const [minLongitude, maxLongitude] = smallestLongitudeBounds(trackCoordinates.map(([longitude]) => longitude))
         if (minLongitude !== maxLongitude || minLatitude !== maxLatitude) {
           const longitudePadding = minLongitude === maxLongitude ? 0.005 : 0
           const latitudePadding = minLatitude === maxLatitude ? 0.005 : 0
