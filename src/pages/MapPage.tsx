@@ -409,6 +409,9 @@ export default function MapPage() {
   const trackActivityId = searchParams.get('activityId')
   const trackActivity = data.activities.find((activity) => activity.activityId === trackActivityId)
   const [mode, setMode] = useState<MapMode>(() => (trackActivityId ? 'activities' : 'waypoints'))
+  const modeRef = useRef(mode)
+  const lastFittedTrack = useRef<{ activityId: string; geometry: NonNullable<Activity['recordedTrack']> } | null>(null)
+  const lastFittedRoute = useRef<{ id: string; segments: GpxMapLine['segments'] } | null>(null)
   const gpxSource = useRef<atlas.source.DataSource | null>(null)
   const [statuses, setStatuses] = useState<Status[]>([...statusOrder])
   const [token, setToken] = useState<MapsToken | null>(null)
@@ -659,8 +662,13 @@ export default function MapPage() {
       waypointSource.current = waypoints
       activitySource.current = activities
       activityTrackSource.current = activityTracks
-      const trackCoordinates = trackActivity?.recordedTrack?.coordinates.flat() ?? []
-      if (trackCoordinates.length >= 2) {
+      const trackGeometry = trackActivity?.recordedTrack
+      const trackAlreadyFitted =
+        trackActivity &&
+        lastFittedTrack.current?.activityId === trackActivity.activityId &&
+        lastFittedTrack.current.geometry === trackGeometry
+      const trackCoordinates = trackGeometry?.coordinates.flat() ?? []
+      if (modeRef.current === 'activities' && trackGeometry && !trackAlreadyFitted && trackCoordinates.length >= 2) {
         let minLatitude = 90
         let maxLatitude = -90
         for (const [, latitude] of trackCoordinates) {
@@ -680,6 +688,7 @@ export default function MapPage() {
             ],
             padding: 40,
           })
+          lastFittedTrack.current = { activityId: trackActivity.activityId, geometry: trackGeometry }
         }
       }
       gpxSource.current = gpx
@@ -738,8 +747,19 @@ export default function MapPage() {
   useEffect(() => {
     const instance = map.current
     if (!instance) return
+    if (!selectedRouteChallengeId) {
+      lastFittedRoute.current = null
+      return
+    }
     const features = gpxLineFeatures(gpxLines)
-    if (!selectedRouteChallengeId) return
+    const selectedRoute = gpxLines.find((line) => line.id === selectedRouteChallengeId)
+    if (!selectedRoute) return
+    if (
+      lastFittedRoute.current?.id === selectedRoute.id &&
+      lastFittedRoute.current.segments === selectedRoute.segments
+    ) {
+      return
+    }
     const positions = features
       .filter((feature) => feature.lineId === selectedRouteChallengeId)
       .flatMap((feature) => feature.coordinates)
@@ -764,6 +784,7 @@ export default function MapPage() {
       ],
       padding: 48,
     })
+    lastFittedRoute.current = { id: selectedRoute.id, segments: selectedRoute.segments }
   }, [gpxLines, mapReady, selectedRouteChallengeId])
 
   useEffect(() => {
@@ -875,6 +896,7 @@ export default function MapPage() {
         <Tabs
           value={mode}
           onChange={(_, nextMode: MapMode) => {
+            modeRef.current = nextMode
             mapPopup.current?.close()
             setSelectedWaypointId(null)
             setSelectedActivityId(null)

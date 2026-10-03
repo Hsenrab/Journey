@@ -43,6 +43,7 @@ const mapEvents = vi.hoisted(() => ({
   ),
   resize: vi.fn(),
   setCamera: vi.fn(),
+  mapCenters: [] as number[][],
   lineStringCoordinates: [] as number[][][],
   popupClose: undefined as (() => void) | undefined,
   popupContent: undefined as HTMLElement | undefined,
@@ -86,8 +87,9 @@ vi.mock('azure-maps-control', () => ({
   AuthenticationType: { anonymous: 'anonymous' },
   Map: class {
     constructor(...args: unknown[]) {
-      const options = args[1] as { authOptions?: { getToken?: TokenGetter } } | undefined
+      const options = args[1] as { center?: number[]; authOptions?: { getToken?: TokenGetter } } | undefined
       mapEvents.tokenGetter = options?.authOptions?.getToken
+      if (options?.center) mapEvents.mapCenters.push(options.center)
     }
     events = {
       add: (...args: unknown[]) => {
@@ -216,6 +218,7 @@ describe('MapPage', () => {
     mapEvents.activityClusterLeaves.mockClear()
     mapEvents.resize.mockClear()
     mapEvents.setCamera.mockClear()
+    mapEvents.mapCenters = []
     mapEvents.lineStringCoordinates = []
     mapEvents.popupClose = undefined
     mapEvents.popupContent = undefined
@@ -512,9 +515,24 @@ describe('MapPage', () => {
       },
     ]
     localStorage.setItem('waypoints-v1', JSON.stringify(data))
+    let searchCount = 0
     vi.stubGlobal(
       'fetch',
-      vi.fn().mockResolvedValue(jsonResponse({ token: 'entra', expiresOn: '2026-01-01', clientId: 'maps-client-id' })),
+      vi.fn().mockImplementation((input: RequestInfo | URL) => {
+        if (String(input).includes('/api/maps/search?')) {
+          searchCount += 1
+          return Promise.resolve(
+            jsonResponse({
+              results: [
+                {
+                  position: searchCount === 1 ? { lat: 52.1, lon: -2.3 } : { lat: 52.2, lon: -2.4 },
+                },
+              ],
+            }),
+          )
+        }
+        return Promise.resolve(jsonResponse({ token: 'entra', expiresOn: '2026-01-01', clientId: 'maps-client-id' }))
+      }),
     )
 
     function RemoveTrack() {
@@ -554,10 +572,18 @@ describe('MapPage', () => {
 
     await user.click(screen.getByRole('tab', { name: 'Waypoints' }))
     expect(screen.queryByText('Showing the recorded track for Recorded walk.')).not.toBeInTheDocument()
+    mapEvents.setCamera.mockClear()
+    await user.click(screen.getByRole('button', { name: 'Search' }))
+    await vi.waitFor(() => expect(mapEvents.mapCenters.at(-1)).toEqual([-2.3, 52.1]))
+    expect(mapEvents.setCamera).not.toHaveBeenCalled()
 
     await user.click(screen.getByRole('tab', { name: 'Activities' }))
     expect(screen.getByText('Showing the recorded track for Recorded walk.')).toBeInTheDocument()
     await vi.waitFor(() => expect(mapEvents.activityTrackSourceAdd).toHaveBeenLastCalledWith([expect.anything()]))
+    mapEvents.setCamera.mockClear()
+    await user.click(screen.getByRole('button', { name: 'Search' }))
+    await vi.waitFor(() => expect(mapEvents.mapCenters.at(-1)).toEqual([-2.4, 52.2]))
+    expect(mapEvents.setCamera).not.toHaveBeenCalled()
     mapEvents.activityTrackSourceClear.mockClear()
 
     await user.click(screen.getByRole('button', { name: 'Remove track' }))
@@ -659,7 +685,15 @@ describe('MapPage', () => {
     const user = userEvent.setup()
     vi.stubGlobal(
       'fetch',
-      vi.fn().mockResolvedValue(jsonResponse({ token: 'entra', expiresOn: '2026-01-01', clientId: 'maps-client-id' })),
+      vi.fn().mockImplementation((input: RequestInfo | URL) =>
+        Promise.resolve(
+          String(input).includes('/api/maps/search?')
+            ? jsonResponse({
+                results: [{ position: { lat: 52.3, lon: -2.5 } }],
+              })
+            : jsonResponse({ token: 'entra', expiresOn: '2026-01-01', clientId: 'maps-client-id' }),
+        ),
+      ),
     )
     const view = render(
       <MemoryRouter>
@@ -696,6 +730,10 @@ describe('MapPage', () => {
       bounds: [-1.8, 51.7, -1.7, 51.8],
       padding: 48,
     })
+    mapEvents.setCamera.mockClear()
+    await user.click(screen.getByRole('button', { name: 'Search' }))
+    await vi.waitFor(() => expect(mapEvents.mapCenters.at(-1)).toEqual([-2.5, 52.3]))
+    expect(mapEvents.setCamera).not.toHaveBeenCalled()
     const clearCountBeforeUnmount = mapEvents.gpxSourceClear.mock.calls.length
     view.unmount()
     expect(mapEvents.gpxSourceClear).toHaveBeenCalledTimes(clearCountBeforeUnmount + 1)
