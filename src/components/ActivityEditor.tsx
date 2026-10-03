@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react'
 import { useBeforeUnload } from 'react-router-dom'
 import {
   Alert,
@@ -29,9 +29,11 @@ import {
   type ActivityLocation,
   type AwardedStatus,
   type ExternalPhotoReference,
+  type GpxGeometry,
   type Reference,
   type WaypointsData,
 } from '../domain/visit'
+import { parseGpxFile } from '../domain/gpx'
 import { activityImportExample, parseActivityDraftJson } from '../domain/draftJsonImport'
 import { activityJsonAiPrompt } from '../domain/aiPrompts'
 import { AiPromptButton } from './AiPromptButton'
@@ -128,6 +130,11 @@ export function ActivityEditor({
       url: photoReference.url,
     })),
   )
+  const [recordedTrack, setRecordedTrack] = useState<GpxGeometry | undefined>(initialActivity?.recordedTrack)
+  const [trackError, setTrackError] = useState<string | null>(null)
+  const [trackParsing, setTrackParsing] = useState(false)
+  const trackParsingRef = useRef(false)
+  const trackSelectionGeneration = useRef(0)
   const [errors, setErrors] = useState<Errors>({})
   const [message, setMessage] = useState<string | null>(null)
   const [mode, setMode] = useState<EditorMode>('form')
@@ -183,6 +190,7 @@ export function ActivityEditor({
         altText: item.altText ?? '',
         url: item.url,
       })),
+      recordedTrack: initialActivity?.recordedTrack,
     }
 
     const currentLocation =
@@ -200,6 +208,7 @@ export function ActivityEditor({
         location: locationEdited ? currentLocation : initialLocation,
         references,
         photoReferences,
+        recordedTrack,
       })
     )
   }, [
@@ -218,6 +227,7 @@ export function ActivityEditor({
     name,
     notes,
     photoReferences,
+    recordedTrack,
     postcode,
     references,
     ideaIds,
@@ -291,6 +301,7 @@ export function ActivityEditor({
             event.preventDefault()
             // Save controls are hidden in JSON mode; submission remains form-only.
             if (addMode && mode === 'json') return
+            if (trackParsingRef.current) return
             const result = validate()
             if (Object.keys(result.errors).length > 0 || !result.location) {
               setErrors(result.errors)
@@ -304,6 +315,7 @@ export function ActivityEditor({
               date,
               category: supportsCategories ? category || undefined : undefined,
               location: result.location,
+              recordedTrack,
               notes,
               references: references.map((reference) => ({
                 referenceId: reference.referenceId,
@@ -562,6 +574,58 @@ export function ActivityEditor({
               )}
 
               <Stack spacing={1}>
+                <Typography variant="h6">Recorded GPX track (optional)</Typography>
+                <Button component="label" variant="outlined" disabled={trackParsing}>
+                  {recordedTrack ? 'Replace GPX track' : 'Attach GPX track'}
+                  <input
+                    aria-label="GPX track file"
+                    hidden
+                    type="file"
+                    accept=".gpx,application/gpx+xml,application/xml,text/xml"
+                    disabled={trackParsing}
+                    onChange={async (event: ChangeEvent<HTMLInputElement>) => {
+                      const file = event.target.files?.[0]
+                      event.target.value = ''
+                      if (!file) return
+                      const generation = ++trackSelectionGeneration.current
+                      trackParsingRef.current = true
+                      setTrackParsing(true)
+                      setTrackError(null)
+                      try {
+                        const route = await parseGpxFile(file)
+                        if (generation !== trackSelectionGeneration.current) return
+                        setRecordedTrack(route.geometry)
+                      } catch (cause) {
+                        if (generation !== trackSelectionGeneration.current) return
+                        setTrackError(cause instanceof Error ? cause.message : String(cause))
+                      } finally {
+                        if (generation === trackSelectionGeneration.current) {
+                          trackParsingRef.current = false
+                          setTrackParsing(false)
+                        }
+                      }
+                    }}
+                  />
+                </Button>
+                {recordedTrack && (
+                  <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
+                    <Typography color="text.secondary">A recorded GPX track is attached.</Typography>
+                    <Button
+                      color="error"
+                      disabled={trackParsing}
+                      onClick={() => {
+                        setRecordedTrack(undefined)
+                        setTrackError(null)
+                      }}
+                    >
+                      Remove GPX track
+                    </Button>
+                  </Stack>
+                )}
+                {trackError && <Alert severity="error">{trackError}</Alert>}
+              </Stack>
+
+              <Stack spacing={1}>
                 <Typography variant="h6">References</Typography>
                 {references.map((reference, index) => (
                   <Box
@@ -762,7 +826,7 @@ export function ActivityEditor({
               </Stack>
 
               <Stack direction="row" spacing={1}>
-                <Button type="submit" variant="contained">
+                <Button type="submit" variant="contained" disabled={trackParsing}>
                   {submitLabel}
                 </Button>
                 {onCancel && (

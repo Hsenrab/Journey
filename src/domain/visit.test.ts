@@ -110,6 +110,35 @@ describe('activity rules', () => {
     ).toThrow()
   })
 
+  it('keeps recorded tracks optional and independent of activity completion', () => {
+    const activity = createActivity({
+      waypointId: 'no-track',
+      date: '2026-09-04',
+      location: { kind: 'coordinates', latitude: 51.415, longitude: -2.123 },
+    })
+    const trackedActivity = createActivity({
+      waypointId: 'no-track',
+      date: '2026-09-05',
+      location: { kind: 'coordinates', latitude: 51.415, longitude: -2.123 },
+      recordedTrack: {
+        type: 'MultiLineString',
+        coordinates: [
+          [
+            [-2.1, 51.1],
+            [-2.2, 51.2],
+          ],
+        ],
+      },
+    })
+
+    expect(activity.recordedTrack).toBeUndefined()
+    expect(waypointCompletionProgress(waypoint('no-track'), [activity, trackedActivity])).toEqual({
+      count: 2,
+      target: 1,
+      complete: true,
+    })
+  })
+
   it('makes category optional and validates eligibility by challenge config', () => {
     const data = createSeedData(locations)
     const waypointId = data.waypoints[0]!.waypointId

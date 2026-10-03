@@ -33,6 +33,7 @@ import {
   statusForWaypoint,
   validateActivityCategory,
   type Activity,
+  type GpxGeometry,
   type ActivityLocation,
   type AwardedStatus,
   ChallengeSchema,
@@ -63,6 +64,7 @@ export type ActivityDraft = {
   date: string
   category?: AwardedStatus
   location: ActivityLocation
+  recordedTrack?: GpxGeometry
   notes: string
   references: DraftReference[]
   photoReferences: DraftPhotoReference[]
@@ -346,6 +348,7 @@ function reducer(data: WaypointsData, action: Action): WaypointsData {
           date: action.input.date,
           category,
           location: action.input.location,
+          recordedTrack: action.input.recordedTrack,
           notes: action.input.notes,
           referenceIds: refs.referenceIds,
           photoReferenceIds: photos.photoReferenceIds,
@@ -380,7 +383,7 @@ function reducer(data: WaypointsData, action: Action): WaypointsData {
           date: action.input.date,
           category: action.input.waypointId ? action.input.category : undefined,
           location: action.input.location,
-          recordedTrack: existing.recordedTrack,
+          recordedTrack: action.input.recordedTrack,
           notes: action.input.notes,
           referenceIds: refs.referenceIds,
           photoReferenceIds: photos.photoReferenceIds,
