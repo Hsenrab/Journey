@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createDefaultData } from '../services/storage'
-import { WaypointsProvider } from '../features/journey/JourneyContext'
+import { useWaypoints, WaypointsProvider } from '../features/journey/JourneyContext'
 
 type MapClickHandler = (event: {
   shapes?: Array<{
@@ -27,6 +27,8 @@ const mapEvents = vi.hoisted(() => ({
   sourceAdd: vi.fn(),
   gpxSourceAdd: vi.fn(),
   gpxSourceClear: vi.fn(),
+  activityTrackSourceAdd: vi.fn(),
+  activityTrackSourceClear: vi.fn(),
   waypointClusterLeaves: vi.fn(() =>
     Promise.resolve([
       { getProperties: () => ({ label: 'Clustered waypoint', award: 'Bronze', waypointId: 'waypoint-1' }) },
@@ -136,6 +138,10 @@ vi.mock('azure-maps-control', () => ({
           this.add = mapEvents.gpxSourceAdd
           this.clear = mapEvents.gpxSourceClear
         }
+        if (id === 'activity-tracks') {
+          this.add = mapEvents.activityTrackSourceAdd
+          this.clear = mapEvents.activityTrackSourceClear
+        }
         this.getClusterLeaves = id === 'waypoints' ? mapEvents.waypointClusterLeaves : mapEvents.activityClusterLeaves
       }
     },
@@ -203,6 +209,8 @@ describe('MapPage', () => {
     mapEvents.sourceAdd.mockClear()
     mapEvents.gpxSourceAdd.mockClear()
     mapEvents.gpxSourceClear.mockClear()
+    mapEvents.activityTrackSourceAdd.mockClear()
+    mapEvents.activityTrackSourceClear.mockClear()
     mapEvents.setCamera.mockClear()
     mapEvents.waypointClusterLeaves.mockClear()
     mapEvents.activityClusterLeaves.mockClear()
@@ -481,7 +489,7 @@ describe('MapPage', () => {
     expect(screen.getByText(/1 waypoint and 1 activity have no coordinates/)).toBeInTheDocument()
   })
 
-  it('shows an activity recorded track on the map page and fits its geometry', async () => {
+  it('fits a recorded track and only shows its status while the track is present in Activities mode', async () => {
     const user = userEvent.setup()
     const data = createDefaultData()
     const coordinates: [number, number][] = [
@@ -509,10 +517,30 @@ describe('MapPage', () => {
       vi.fn().mockResolvedValue(jsonResponse({ token: 'entra', expiresOn: '2026-01-01', clientId: 'maps-client-id' })),
     )
 
+    function RemoveTrack() {
+      const { updateActivity } = useWaypoints()
+      const activity = data.activities[0]!
+      return (
+        <button
+          onClick={() =>
+            void updateActivity(activity.activityId, {
+              ...activity,
+              recordedTrack: undefined,
+              references: [],
+              photoReferences: [],
+            })
+          }
+        >
+          Remove track
+        </button>
+      )
+    }
+
     render(
       <MemoryRouter initialEntries={['/map?activityId=activity-with-track']}>
         <WaypointsProvider>
           <MapPage />
+          <RemoveTrack />
         </WaypointsProvider>
       </MemoryRouter>,
     )
@@ -526,6 +554,18 @@ describe('MapPage', () => {
 
     await user.click(screen.getByRole('tab', { name: 'Waypoints' }))
     expect(screen.queryByText('Showing the recorded track for Recorded walk.')).not.toBeInTheDocument()
+
+    await user.click(screen.getByRole('tab', { name: 'Activities' }))
+    expect(screen.getByText('Showing the recorded track for Recorded walk.')).toBeInTheDocument()
+    await vi.waitFor(() => expect(mapEvents.activityTrackSourceAdd).toHaveBeenLastCalledWith([expect.anything()]))
+    mapEvents.activityTrackSourceClear.mockClear()
+
+    await user.click(screen.getByRole('button', { name: 'Remove track' }))
+
+    expect(screen.queryByText(/Showing the recorded track for/)).not.toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: 'Activities' })).toHaveAttribute('aria-selected', 'true')
+    expect(mapEvents.activityTrackSourceClear).toHaveBeenCalled()
+    expect(mapEvents.activityTrackSourceAdd).toHaveBeenLastCalledWith([])
   })
 
   it('uses fallback names without promoting dates to primary map list labels', async () => {
