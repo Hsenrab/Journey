@@ -407,7 +407,7 @@ safe to re-run. Use `--what-if` first to preview changes.
 
 The `Deploy test environment` GitHub Actions workflow (`.github/workflows/deploy-test.yml`)
 runs for pull requests targeting `main` and can also be started manually from any
-non-`main` branch. It provisions and deploys a full stack to the Static Web App identified
+branch, including `main`. It provisions and deploys a full stack to the Static Web App identified
 by the `hh-env-test` GitHub environment's `AZURE_STATIC_WEB_APP_NAME` variable. The
 reusable workflow runs CI first; deployment then waits for approval when required
 reviewers are configured on `hh-env-test`:
