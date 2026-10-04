@@ -34,12 +34,6 @@ jobs:
       deploy_infra: ${{ steps.decide.outputs.deploy_infra }}
       deploy_api: ${{ steps.decide.outputs.deploy_api }}
     steps:
-      - name: Reject workflow dispatch from main
-        if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'
-        run: |
-          echo "::error::Test deploys can only be dispatched from a branch other than main."
-          exit 1
-
       - name: Checkout
         uses: actions/checkout@v6
         with:
