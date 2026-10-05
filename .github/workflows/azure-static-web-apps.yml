@@ -28,6 +28,7 @@ jobs:
     uses: ./.github/workflows/deploy-environment.yml
     with:
       github_environment: hh-env
+      default_data_mode: production
       bicep_environment_name: prod
       deployment_heading: Azure Static Web App
       deploy_infra: true

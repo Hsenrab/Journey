@@ -460,7 +460,7 @@ function reducer(data: WaypointsData, action: Action): WaypointsData {
 
 export function WaypointsProvider({ children }: { children: ReactNode }) {
   const localTestMode = import.meta.env.MODE === 'test'
-  const initialDataMode = getDataMode()
+  const initialDataMode = getDataMode(import.meta.env.VITE_DEFAULT_DATA_MODE)
   const emptyData = (): WaypointsData => ({
     waypoints: [],
     challenges: [],

@@ -480,6 +480,23 @@ describe('WaypointsContext in production mode', () => {
     await expect(result.current.addActivity(draft)).rejects.toThrow('Demo local data is read-only.')
   })
 
+  it('starts in the deployment demo mode when production is saved', async () => {
+    setDataMode('production')
+    vi.stubEnv('VITE_DEFAULT_DATA_MODE', 'demo-cosmos')
+    const demoData = createDemoModeData()
+    const fetch = vi
+      .fn()
+      .mockResolvedValue(new Response(JSON.stringify({ data: demoData, etags: {}, role: 'admin' }), { status: 200 }))
+    vi.stubGlobal('fetch', fetch)
+
+    const { result } = renderHook(() => useWaypoints(), { wrapper: WaypointsProvider })
+    await waitFor(() => expect(result.current.data).toEqual(demoData))
+
+    expect(result.current.activeDataMode).toBe('demo-cosmos')
+    expect(fetch).toHaveBeenCalledWith('/api/journey/demo', expect.anything())
+    expect(fetch).not.toHaveBeenCalledWith('/api/journey/production', expect.anything())
+  })
+
   it('blocks mutations while a mode load is in flight and ignores the stale response', async () => {
     setDataMode('demo-cosmos')
     const resolvers: ((response: Response) => void)[] = []
@@ -556,6 +573,7 @@ describe('WaypointsContext in production mode', () => {
     })
     expect(result.current.readOnly).toBe(true)
     expect(result.current.data).not.toEqual(createDemoModeData())
+    expect(fetch).toHaveBeenCalledWith('/api/journey/production', expect.anything())
     await expect(result.current.addActivity(draft)).rejects.toThrow('Production data is not loaded')
   })
 

@@ -83,4 +83,12 @@ describe('Layout', () => {
     expect(screen.getByText('Production')).toBeInTheDocument()
     expect(screen.getByText('Activities: 0')).toBeInTheDocument()
   })
+
+  it('identifies the read-only demo fallback in the status chip', async () => {
+    localStorage.setItem('journey-data-mode-v1', 'demo-cosmos')
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('Cosmos unavailable')))
+    renderLayout()
+
+    expect(await screen.findByText('Demo local fallback read-only')).toBeInTheDocument()
+  })
 })

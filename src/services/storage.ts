@@ -32,11 +32,17 @@ export function createDemoModeData(): WaypointsData {
   return createDemoData()
 }
 
-export function getDataMode(): JourneyDataMode {
-  const stored = localStorage.getItem(dataModeKey)
-  if (dataModes.has(stored as JourneyDataMode)) return stored as JourneyDataMode
+export function getDataMode(defaultMode: string = 'production'): JourneyDataMode {
+  if (!dataModes.has(defaultMode as JourneyDataMode))
+    throw new Error(`Unknown default Journey data mode: ${defaultMode}`)
 
-  return 'production'
+  const stored = localStorage.getItem(dataModeKey)
+  if (dataModes.has(stored as JourneyDataMode)) {
+    const storedMode = stored as JourneyDataMode
+    return storedMode === 'production' && defaultMode !== 'production' ? (defaultMode as JourneyDataMode) : storedMode
+  }
+
+  return defaultMode as JourneyDataMode
 }
 
 export function setDataMode(mode: JourneyDataMode) {

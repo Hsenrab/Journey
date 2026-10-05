@@ -52,6 +52,10 @@ the user-controlled backup.
 
 The app exposes three explicit modes in the header:
 
+- The deployment supplies the initial mode: test starts in Demo Cosmos, while production
+  retains Production data. Test overrides a previously saved Production selection so it
+  never requests the production container on startup; the test identity remains without
+  production-container access.
 - **Demo local** loads the bundled `src/data/demo.json` fixture in the browser. It is
   always read-only and works in local development and Static Web Apps previews even
   when no linked Functions API or Cosmos access is available.

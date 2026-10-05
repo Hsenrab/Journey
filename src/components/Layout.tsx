@@ -41,7 +41,7 @@ const dataModeStatusView: Record<
   DataModeStatus,
   { label: string; color: 'default' | 'error' | 'info' | 'warning'; filled: boolean }
 > = {
-  fallback: { label: 'Local fallback read-only', color: 'warning', filled: true },
+  fallback: { label: 'Demo local fallback read-only', color: 'warning', filled: true },
   error: { label: 'Load error', color: 'error', filled: true },
   viewer: { label: 'Viewer read-only', color: 'warning', filled: true },
   demoLocal: { label: 'Demo local read-only', color: 'warning', filled: true },
