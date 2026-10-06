@@ -135,55 +135,51 @@ export default function ChallengeDetails() {
         {hasMapFeatures && (
           <ChallengeRouteMap plannedRoute={displayedRoute} waypoints={waypoints} recordedTracks={recordedTracks} />
         )}
-        {(displayedRoute || !readOnly) && (
-          <Stack spacing={2}>
-            {displayedRoute && (
-              <>
-                <Typography variant="h5">Planned route</Typography>
-                <Typography color="text.secondary">
-                  {displayedRoute.fileName}
-                  {draftRoute !== undefined ? ' · Ready to save' : ''}
-                </Typography>
-              </>
+        {!readOnly && (
+          <Stack
+            direction="row"
+            spacing={1}
+            useFlexGap
+            role="group"
+            aria-label="GPX route actions"
+            sx={{ alignItems: 'center', flexWrap: 'wrap' }}
+          >
+            {draftRoute !== null && (
+              <Button component="label" variant="outlined" disabled={saving || parsing}>
+                {displayedRoute ? 'Replace GPX route' : 'Attach GPX route'}
+                <input
+                  hidden
+                  type="file"
+                  accept=".gpx,application/gpx+xml,application/xml,text/xml"
+                  disabled={saving || parsing}
+                  onChange={(event) => {
+                    const file = event.target.files?.[0]
+                    event.target.value = ''
+                    void selectFile(file)
+                  }}
+                />
+              </Button>
             )}
-            {!readOnly && (
-              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} sx={{ alignItems: { sm: 'center' } }}>
-                <Button component="label" variant="outlined" disabled={saving || parsing}>
-                  {displayedRoute ? 'Replace GPX route' : 'Attach GPX route'}
-                  <input
-                    hidden
-                    type="file"
-                    accept=".gpx,application/gpx+xml,application/xml,text/xml"
-                    disabled={saving || parsing}
-                    onChange={(event) => {
-                      const file = event.target.files?.[0]
-                      event.target.value = ''
-                      void selectFile(file)
-                    }}
-                  />
+            {displayedRoute && (
+              <Button color="error" disabled={saving || parsing} onClick={() => setDraftRoute(null)}>
+                Remove route
+              </Button>
+            )}
+            {draftRoute !== undefined && (
+              <>
+                <Button variant="contained" disabled={saving || parsing} onClick={() => void saveRoute()}>
+                  Save route
                 </Button>
-                {displayedRoute && (
-                  <Button color="error" disabled={saving || parsing} onClick={() => setDraftRoute(null)}>
-                    Remove route
-                  </Button>
-                )}
-                {draftRoute !== undefined && (
-                  <>
-                    <Button variant="contained" disabled={saving || parsing} onClick={() => void saveRoute()}>
-                      Save route
-                    </Button>
-                    <Button
-                      disabled={saving || parsing}
-                      onClick={() => {
-                        setDraftRoute(undefined)
-                        setMessage(null)
-                      }}
-                    >
-                      Cancel
-                    </Button>
-                  </>
-                )}
-              </Stack>
+                <Button
+                  disabled={saving || parsing}
+                  onClick={() => {
+                    setDraftRoute(undefined)
+                    setMessage(null)
+                  }}
+                >
+                  Cancel
+                </Button>
+              </>
             )}
           </Stack>
         )}
