@@ -113,7 +113,15 @@ jobs:
         run: npm run build
 
       - name: Install Azure Functions Core Tools
-        run: sudo apt-get update && sudo apt-get install -y azure-functions-core-tools-4
+        run: |
+          set -euo pipefail
+          . /etc/os-release
+          curl --fail --silent --show-error --location \
+            "https://packages.microsoft.com/config/ubuntu/${VERSION_ID}/packages-microsoft-prod.deb" \
+            --output "${RUNNER_TEMP}/packages-microsoft-prod.deb"
+          sudo dpkg -i "${RUNNER_TEMP}/packages-microsoft-prod.deb"
+          sudo apt-get update
+          sudo apt-get install -y azure-functions-core-tools-4
 
       - name: Built Functions host smoke tests
         run: npm run test:smoke
