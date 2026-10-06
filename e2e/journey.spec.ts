@@ -81,7 +81,7 @@ test.describe('activity management flow', () => {
 
     await page.getByRole('link', { name: 'Progress', exact: true }).click()
     await page.getByRole('link', { name: 'National Trust', exact: true }).click()
-    await expect(page.getByText('No planned GPX route attached.')).toBeVisible()
+    await expect(page.getByLabel('Challenge map legend', { exact: true })).not.toContainText('Planned route')
     const tracks = page.getByRole('checkbox', { name: 'Show recorded Activity tracks (1)' })
     await expect(tracks).toBeChecked()
     await expect(page.getByLabel('Recorded Activity tracks', { exact: true })).toBeVisible()
