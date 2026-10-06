@@ -4,7 +4,18 @@ import CircleIcon from '@mui/icons-material/Circle'
 import * as atlas from 'azure-maps-control'
 import 'azure-maps-control/dist/atlas.min.css'
 import type { PlannedRoute, Waypoint } from '../domain/visit'
-import { gpxLineFeatures, type GpxMapLine } from '../domain/gpxMap'
+import {
+  GPX_LINE_OPACITY,
+  GPX_LINE_OUTLINE_COLOR,
+  GPX_LINE_OUTLINE_WIDTH,
+  GPX_ROUTE_COLOR,
+  GPX_ROUTE_STROKE_WIDTH,
+  GPX_TRACK_COLOR,
+  GPX_TRACK_DASH_ARRAY,
+  GPX_TRACK_STROKE_WIDTH,
+  gpxLineFeatures,
+  type GpxMapLine,
+} from '../domain/gpxMap'
 import { LoadingNotice } from './LoadingNotice'
 
 type MapsToken = { token: string; clientId: string }
@@ -81,14 +92,29 @@ export function ChallengeRouteMap({
       const waypointSource = new atlas.source.DataSource('challenge-waypoints')
       instance.sources.add([routeSource, trackSource, waypointSource])
       instance.layers.add([
+        new atlas.layer.LineLayer(routeSource, 'challenge-route-outline', {
+          strokeColor: GPX_LINE_OUTLINE_COLOR,
+          strokeWidth: GPX_ROUTE_STROKE_WIDTH + GPX_LINE_OUTLINE_WIDTH,
+          strokeOpacity: 0.95,
+        }),
         new atlas.layer.LineLayer(routeSource, 'challenge-route-line', {
-          strokeColor: '#7b1fa2',
-          strokeWidth: 7,
+          strokeColor: GPX_ROUTE_COLOR,
+          strokeWidth: GPX_ROUTE_STROKE_WIDTH,
+          strokeOpacity: GPX_LINE_OPACITY,
+        }),
+        new atlas.layer.LineLayer(trackSource, 'challenge-track-outline', {
+          strokeColor: GPX_LINE_OUTLINE_COLOR,
+          strokeWidth: GPX_TRACK_STROKE_WIDTH + GPX_LINE_OUTLINE_WIDTH,
+          strokeDashArray: GPX_TRACK_DASH_ARRAY.map(
+            (length) => (length * GPX_TRACK_STROKE_WIDTH) / (GPX_TRACK_STROKE_WIDTH + GPX_LINE_OUTLINE_WIDTH),
+          ),
+          strokeOpacity: 0.95,
         }),
         new atlas.layer.LineLayer(trackSource, 'challenge-track-lines', {
-          strokeColor: '#1565c0',
-          strokeWidth: 3,
-          strokeDashArray: [2, 2],
+          strokeColor: GPX_TRACK_COLOR,
+          strokeWidth: GPX_TRACK_STROKE_WIDTH,
+          strokeDashArray: [...GPX_TRACK_DASH_ARRAY],
+          strokeOpacity: GPX_LINE_OPACITY,
         }),
         new atlas.layer.BubbleLayer(waypointSource, 'challenge-waypoint-symbols', {
           color: '#007c83',
@@ -184,11 +210,47 @@ export function ChallengeRouteMap({
       />
       <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} aria-label="Challenge map legend">
         <Typography variant="body2" color="text.secondary">
-          <Box component="span" sx={{ display: 'inline-block', width: 24, borderTop: '4px solid #7b1fa2', mr: 1 }} />
+          <Box
+            component="span"
+            sx={{
+              display: 'inline-block',
+              width: 24,
+              height: GPX_ROUTE_STROKE_WIDTH + GPX_LINE_OUTLINE_WIDTH,
+              position: 'relative',
+              bgcolor: GPX_LINE_OUTLINE_COLOR,
+              mr: 1,
+              '&::after': {
+                content: '""',
+                position: 'absolute',
+                insetInline: 0,
+                top: GPX_LINE_OUTLINE_WIDTH / 2,
+                borderTop: `${GPX_ROUTE_STROKE_WIDTH}px solid ${GPX_ROUTE_COLOR}`,
+                opacity: GPX_LINE_OPACITY,
+              },
+            }}
+          />
           Planned route
         </Typography>
         <Typography variant="body2" color="text.secondary">
-          <Box component="span" sx={{ display: 'inline-block', width: 24, borderTop: '3px dashed #1565c0', mr: 1 }} />
+          <Box
+            component="span"
+            sx={{
+              display: 'inline-block',
+              width: 24,
+              height: GPX_TRACK_STROKE_WIDTH + GPX_LINE_OUTLINE_WIDTH,
+              position: 'relative',
+              bgcolor: GPX_LINE_OUTLINE_COLOR,
+              mr: 1,
+              '&::after': {
+                content: '""',
+                position: 'absolute',
+                insetInline: 0,
+                top: GPX_LINE_OUTLINE_WIDTH / 2,
+                borderTop: `${GPX_TRACK_STROKE_WIDTH}px dashed ${GPX_TRACK_COLOR}`,
+                opacity: GPX_LINE_OPACITY,
+              },
+            }}
+          />
           Recorded Activity tracks (dashed)
         </Typography>
         <Typography variant="body2" color="text.secondary">
