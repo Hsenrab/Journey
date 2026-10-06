@@ -174,8 +174,13 @@ describe('ChallengeRouteMap', () => {
     expect(mapState.layerOptions.get('challenge-track-outline')).toMatchObject({
       strokeColor: '#ffffff',
       strokeWidth: 7,
-      strokeDashArray: [2, 2],
+      strokeDashArray: [8 / 7, 8 / 7],
     })
+    expect(
+      (
+        mapState.layerOptions.get('challenge-track-outline') as { strokeDashArray: number[]; strokeWidth: number }
+      ).strokeDashArray.map((length) => length * 7),
+    ).toEqual([8, 8])
     expect(mapState.cameraOptions).toEqual([
       {
         bounds: {

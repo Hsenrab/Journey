@@ -543,7 +543,9 @@ export default function MapPage() {
       const activityTrackOutlineLayer = new atlas.layer.LineLayer(activityTracks, 'activity-tracks-outline', {
         strokeColor: GPX_LINE_OUTLINE_COLOR,
         strokeWidth: GPX_TRACK_STROKE_WIDTH + GPX_LINE_OUTLINE_WIDTH,
-        strokeDashArray: [...GPX_TRACK_DASH_ARRAY],
+        strokeDashArray: GPX_TRACK_DASH_ARRAY.map(
+          (length) => (length * GPX_TRACK_STROKE_WIDTH) / (GPX_TRACK_STROKE_WIDTH + GPX_LINE_OUTLINE_WIDTH),
+        ),
         strokeOpacity: 0.95,
         lineCap: 'round',
         lineJoin: 'round',

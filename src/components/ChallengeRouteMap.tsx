@@ -105,7 +105,9 @@ export function ChallengeRouteMap({
         new atlas.layer.LineLayer(trackSource, 'challenge-track-outline', {
           strokeColor: GPX_LINE_OUTLINE_COLOR,
           strokeWidth: GPX_TRACK_STROKE_WIDTH + GPX_LINE_OUTLINE_WIDTH,
-          strokeDashArray: [...GPX_TRACK_DASH_ARRAY],
+          strokeDashArray: GPX_TRACK_DASH_ARRAY.map(
+            (length) => (length * GPX_TRACK_STROKE_WIDTH) / (GPX_TRACK_STROKE_WIDTH + GPX_LINE_OUTLINE_WIDTH),
+          ),
           strokeOpacity: 0.95,
         }),
         new atlas.layer.LineLayer(trackSource, 'challenge-track-lines', {

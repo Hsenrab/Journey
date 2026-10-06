@@ -577,7 +577,13 @@ describe('MapPage', () => {
     expect(mapEvents.layerOptions.get('activity-tracks-outline')).toMatchObject({
       strokeColor: '#ffffff',
       strokeWidth: 7,
+      strokeDashArray: [8 / 7, 8 / 7],
     })
+    expect(
+      (
+        mapEvents.layerOptions.get('activity-tracks-outline') as { strokeDashArray: number[]; strokeWidth: number }
+      ).strokeDashArray.map((length) => length * 7),
+    ).toEqual([8, 8])
     expect(mapEvents.setCamera).toHaveBeenCalledWith(
       expect.objectContaining({ bounds: [-2.2, 51.5, -2.1, 51.6], padding: 40 }),
     )
