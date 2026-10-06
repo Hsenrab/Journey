@@ -47,12 +47,13 @@ describe('ChallengeDetails', () => {
     vi.unstubAllGlobals()
   })
 
-  it('shows the Challenge Waypoints and empty route state', () => {
+  it('shows the Challenge Waypoints and only the attach action when no route is present', () => {
     const data = createDefaultData()
     renderDetails()
 
     expect(screen.getByRole('heading', { name: 'National Trust' })).toBeInTheDocument()
-    expect(screen.getByText('No planned GPX route attached.')).toBeInTheDocument()
+    expect(screen.queryByText('No planned GPX route attached.')).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Attach GPX route' })).toBeInTheDocument()
     expect(screen.getByTestId('challenge-map')).toHaveTextContent(`${data.waypoints.length} waypoints`)
     expect(screen.getAllByRole('link', { name: 'View waypoint' })[0]).toHaveAttribute(
       'href',
@@ -72,14 +73,15 @@ describe('ChallengeDetails', () => {
     expect(screen.queryByTestId('challenge-map')).not.toBeInTheDocument()
   })
 
-  it('shows the no-tracks state when no map features are available', () => {
+  it('keeps only the attach action when there are no map features or GPX data', () => {
     const data = createDefaultData()
     data.waypoints = data.waypoints.map((waypoint) => ({ ...waypoint, location: undefined }))
     save(data)
     renderDetails()
 
     expect(screen.queryByTestId('challenge-map')).not.toBeInTheDocument()
-    expect(screen.getByText("No recorded GPX tracks linked to this challenge's Waypoints.")).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Attach GPX route' })).toBeInTheDocument()
+    expect(screen.queryByText("No recorded GPX tracks linked to this challenge's Waypoints.")).not.toBeInTheDocument()
   })
 
   it('shows linked Activity tracks even without a planned route or located Waypoints', () => {
@@ -244,7 +246,8 @@ describe('ChallengeDetails', () => {
     renderDetails()
 
     await user.click(screen.getByRole('button', { name: 'Remove route' }))
-    expect(screen.getByText('No planned GPX route attached.')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Attach GPX route' })).toBeInTheDocument()
+    expect(screen.queryByText('No planned GPX route attached.')).not.toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: 'Save route' }))
     await waitFor(() => expect(screen.getByText('Planned route removed.')).toBeInTheDocument())
   })

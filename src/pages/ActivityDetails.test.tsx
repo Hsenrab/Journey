@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
 import { fireEvent } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
@@ -58,6 +58,7 @@ describe('ActivityDetails', () => {
 
     renderDetails()
 
+    expect(screen.queryByRole('link', { name: 'View recorded track on map' })).not.toBeInTheDocument()
     await user.click(screen.getByRole('link', { name: 'Activities' }))
     expect(screen.getByText('Activity log')).toBeInTheDocument()
   })
@@ -171,6 +172,52 @@ describe('ActivityDetails', () => {
     expect(screen.getByRole('link', { name: 'View recorded track on map' })).toHaveAttribute(
       'href',
       '/map?activityId=a1',
+    )
+  })
+
+  it('updates the map action as a recorded track is attached and removed', async () => {
+    const user = userEvent.setup()
+    const seed = createDefaultData()
+    save({
+      ...seed,
+      activities: [
+        {
+          activityId: 'a1',
+          ideaIds: [],
+          date: '2026-08-01',
+          location: { kind: 'postcode', postcode: 'BA12 6QF' },
+          notes: '',
+          referenceIds: [],
+          photoReferenceIds: [],
+          createdAt: '2026-08-01T10:00:00.000Z',
+          updatedAt: '2026-08-01T10:00:00.000Z',
+        },
+      ],
+    })
+    renderDetails()
+
+    expect(screen.queryByRole('link', { name: 'View recorded track on map' })).not.toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Edit activity' }))
+    await user.upload(
+      screen.getByLabelText('GPX track file'),
+      new File(
+        ['<gpx><trk><trkseg><trkpt lat="51.1" lon="-2.1"/><trkpt lat="51.2" lon="-2.2"/></trkseg></trk></gpx>'],
+        'track.gpx',
+        { type: 'application/gpx+xml' },
+      ),
+    )
+    expect(await screen.findByText('A recorded GPX track is attached.')).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Save changes' }))
+    expect(await screen.findByRole('link', { name: 'View recorded track on map' })).toHaveAttribute(
+      'href',
+      '/map?activityId=a1',
+    )
+
+    await user.click(screen.getByRole('button', { name: 'Edit activity' }))
+    await user.click(screen.getByRole('button', { name: 'Remove GPX track' }))
+    await user.click(screen.getByRole('button', { name: 'Save changes' }))
+    await waitFor(() =>
+      expect(screen.queryByRole('link', { name: 'View recorded track on map' })).not.toBeInTheDocument(),
     )
   })
 

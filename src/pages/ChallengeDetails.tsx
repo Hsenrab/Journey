@@ -1,10 +1,8 @@
 import { useMemo, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { Alert, Button, Card, CardContent, Stack, Typography } from '@mui/material'
-import RouteOutlinedIcon from '@mui/icons-material/RouteOutlined'
 import { ChallengeRouteMap } from '../components/ChallengeRouteMap'
 import { DetailPageHeader } from '../components/DetailPageHeader'
-import { EmptyState } from '../components/EmptyState'
 import { LoadFailureAlert } from '../components/LoadFailureAlert'
 import { LoadingNotice } from '../components/LoadingNotice'
 import { ReadOnlyNotice } from '../components/ReadOnlyNotice'
@@ -134,59 +132,60 @@ export default function ChallengeDetails() {
       )}
 
       <Stack spacing={2}>
-        <Typography variant="h5">Planned route</Typography>
-        {displayedRoute ? (
-          <Typography color="text.secondary">
-            {displayedRoute.fileName}
-            {draftRoute !== undefined ? ' · Ready to save' : ''}
-          </Typography>
-        ) : (
-          <EmptyState icon={<RouteOutlinedIcon color="disabled" />} message="No planned GPX route attached." />
-        )}
-        {!readOnly && (
-          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} sx={{ alignItems: { sm: 'center' } }}>
-            <Button component="label" variant="outlined" disabled={saving || parsing}>
-              {displayedRoute ? 'Replace GPX route' : 'Attach GPX route'}
-              <input
-                hidden
-                type="file"
-                accept=".gpx,application/gpx+xml,application/xml,text/xml"
-                disabled={saving || parsing}
-                onChange={(event) => {
-                  const file = event.target.files?.[0]
-                  event.target.value = ''
-                  void selectFile(file)
-                }}
-              />
-            </Button>
-            {displayedRoute && (
-              <Button color="error" disabled={saving || parsing} onClick={() => setDraftRoute(null)}>
-                Remove route
-              </Button>
-            )}
-            {draftRoute !== undefined && (
-              <>
-                <Button variant="contained" disabled={saving || parsing} onClick={() => void saveRoute()}>
-                  Save route
-                </Button>
-                <Button
-                  disabled={saving || parsing}
-                  onClick={() => {
-                    setDraftRoute(undefined)
-                    setMessage(null)
-                  }}
-                >
-                  Cancel
-                </Button>
-              </>
-            )}
-          </Stack>
-        )}
         {hasMapFeatures && (
           <ChallengeRouteMap plannedRoute={displayedRoute} waypoints={waypoints} recordedTracks={recordedTracks} />
         )}
-        {!hasMapFeatures && (
-          <Typography color="text.secondary">No recorded GPX tracks linked to this challenge's Waypoints.</Typography>
+        {(displayedRoute || !readOnly) && (
+          <Stack spacing={2}>
+            {displayedRoute && (
+              <>
+                <Typography variant="h5">Planned route</Typography>
+                <Typography color="text.secondary">
+                  {displayedRoute.fileName}
+                  {draftRoute !== undefined ? ' · Ready to save' : ''}
+                </Typography>
+              </>
+            )}
+            {!readOnly && (
+              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} sx={{ alignItems: { sm: 'center' } }}>
+                <Button component="label" variant="outlined" disabled={saving || parsing}>
+                  {displayedRoute ? 'Replace GPX route' : 'Attach GPX route'}
+                  <input
+                    hidden
+                    type="file"
+                    accept=".gpx,application/gpx+xml,application/xml,text/xml"
+                    disabled={saving || parsing}
+                    onChange={(event) => {
+                      const file = event.target.files?.[0]
+                      event.target.value = ''
+                      void selectFile(file)
+                    }}
+                  />
+                </Button>
+                {displayedRoute && (
+                  <Button color="error" disabled={saving || parsing} onClick={() => setDraftRoute(null)}>
+                    Remove route
+                  </Button>
+                )}
+                {draftRoute !== undefined && (
+                  <>
+                    <Button variant="contained" disabled={saving || parsing} onClick={() => void saveRoute()}>
+                      Save route
+                    </Button>
+                    <Button
+                      disabled={saving || parsing}
+                      onClick={() => {
+                        setDraftRoute(undefined)
+                        setMessage(null)
+                      }}
+                    >
+                      Cancel
+                    </Button>
+                  </>
+                )}
+              </Stack>
+            )}
+          </Stack>
         )}
       </Stack>
 
