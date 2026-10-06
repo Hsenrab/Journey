@@ -195,64 +195,66 @@ export function ChallengeRouteMap({
 
   return (
     <Stack spacing={1}>
-      {recordedTracks.length > 0 ? (
-        <FormControlLabel
-          control={<Checkbox checked={showTracks} onChange={(_, checked) => setShowTracks(checked)} />}
-          label={`Show recorded Activity tracks (${recordedTracks.length})`}
-        />
-      ) : (
-        <Typography color="text.secondary">No recorded GPX tracks linked to this challenge's Waypoints.</Typography>
-      )}
       <Box
         ref={container}
         aria-label="Challenge route map"
         sx={{ height: { xs: 360, sm: 480 }, width: 1, borderRadius: 1, overflow: 'hidden' }}
       />
+      {recordedTracks.length > 0 && (
+        <FormControlLabel
+          control={<Checkbox checked={showTracks} onChange={(_, checked) => setShowTracks(checked)} />}
+          label={`Show recorded Activity tracks (${recordedTracks.length})`}
+        />
+      )}
       <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} aria-label="Challenge map legend">
-        <Typography variant="body2" color="text.secondary">
-          <Box
-            component="span"
-            sx={{
-              display: 'inline-block',
-              width: 24,
-              height: GPX_ROUTE_STROKE_WIDTH + GPX_LINE_OUTLINE_WIDTH,
-              position: 'relative',
-              bgcolor: GPX_LINE_OUTLINE_COLOR,
-              mr: 1,
-              '&::after': {
-                content: '""',
-                position: 'absolute',
-                insetInline: 0,
-                top: GPX_LINE_OUTLINE_WIDTH / 2,
-                borderTop: `${GPX_ROUTE_STROKE_WIDTH}px solid ${GPX_ROUTE_COLOR}`,
-                opacity: GPX_LINE_OPACITY,
-              },
-            }}
-          />
-          Planned route
-        </Typography>
-        <Typography variant="body2" color="text.secondary">
-          <Box
-            component="span"
-            sx={{
-              display: 'inline-block',
-              width: 24,
-              height: GPX_TRACK_STROKE_WIDTH + GPX_LINE_OUTLINE_WIDTH,
-              position: 'relative',
-              bgcolor: GPX_LINE_OUTLINE_COLOR,
-              mr: 1,
-              '&::after': {
-                content: '""',
-                position: 'absolute',
-                insetInline: 0,
-                top: GPX_LINE_OUTLINE_WIDTH / 2,
-                borderTop: `${GPX_TRACK_STROKE_WIDTH}px dashed ${GPX_TRACK_COLOR}`,
-                opacity: GPX_LINE_OPACITY,
-              },
-            }}
-          />
-          Recorded Activity tracks (dashed)
-        </Typography>
+        {plannedRoute && (
+          <Typography variant="body2" color="text.secondary">
+            <Box
+              component="span"
+              sx={{
+                display: 'inline-block',
+                width: 24,
+                height: GPX_ROUTE_STROKE_WIDTH + GPX_LINE_OUTLINE_WIDTH,
+                position: 'relative',
+                bgcolor: GPX_LINE_OUTLINE_COLOR,
+                mr: 1,
+                '&::after': {
+                  content: '""',
+                  position: 'absolute',
+                  insetInline: 0,
+                  top: GPX_LINE_OUTLINE_WIDTH / 2,
+                  borderTop: `${GPX_ROUTE_STROKE_WIDTH}px solid ${GPX_ROUTE_COLOR}`,
+                  opacity: GPX_LINE_OPACITY,
+                },
+              }}
+            />
+            Planned route
+          </Typography>
+        )}
+        {recordedTracks.length > 0 && (
+          <Typography variant="body2" color="text.secondary">
+            <Box
+              component="span"
+              sx={{
+                display: 'inline-block',
+                width: 24,
+                height: GPX_TRACK_STROKE_WIDTH + GPX_LINE_OUTLINE_WIDTH,
+                position: 'relative',
+                bgcolor: GPX_LINE_OUTLINE_COLOR,
+                mr: 1,
+                '&::after': {
+                  content: '""',
+                  position: 'absolute',
+                  insetInline: 0,
+                  top: GPX_LINE_OUTLINE_WIDTH / 2,
+                  borderTop: `${GPX_TRACK_STROKE_WIDTH}px dashed ${GPX_TRACK_COLOR}`,
+                  opacity: GPX_LINE_OPACITY,
+                },
+              }}
+            />
+            Recorded Activity tracks (dashed)
+          </Typography>
+        )}
         <Typography variant="body2" color="text.secondary">
           <CircleIcon sx={{ color: '#007c83', fontSize: 14, mr: 0.5 }} />
           Waypoints

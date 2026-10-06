@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { WaypointsProvider } from '../features/journey/JourneyContext'
-import { createDefaultData, createDemoModeData, save, setDataMode } from '../services/storage'
+import { createDefaultData, createDemoModeData, load, save, setDataMode } from '../services/storage'
 import ChallengeDetails from './ChallengeDetails'
 import type { GpxMapLine } from '../domain/gpxMap'
 
@@ -18,7 +18,7 @@ vi.mock('../components/ChallengeRouteMap', () => ({
     recordedTracks: GpxMapLine[]
   }) => (
     <div data-testid="challenge-map">
-      {`${plannedRoute?.fileName ?? 'No route'} · ${waypoints.length} waypoints`}
+      {`${plannedRoute ? 'Route attached' : 'No route'} · ${waypoints.length} waypoints`}
       {recordedTracks.map((track) => (
         <span key={track.id}>{track.label}</span>
       ))}
@@ -47,12 +47,14 @@ describe('ChallengeDetails', () => {
     vi.unstubAllGlobals()
   })
 
-  it('shows the Challenge Waypoints and empty route state', () => {
+  it('shows the Challenge Waypoints and only the attach action when no route is present', () => {
     const data = createDefaultData()
     renderDetails()
 
     expect(screen.getByRole('heading', { name: 'National Trust' })).toBeInTheDocument()
-    expect(screen.getByText('No planned GPX route attached.')).toBeInTheDocument()
+    expect(screen.queryByText('No planned GPX route attached.')).not.toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: 'Planned route' })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Attach GPX route' })).toBeInTheDocument()
     expect(screen.getByTestId('challenge-map')).toHaveTextContent(`${data.waypoints.length} waypoints`)
     expect(screen.getAllByRole('link', { name: 'View waypoint' })[0]).toHaveAttribute(
       'href',
@@ -72,14 +74,15 @@ describe('ChallengeDetails', () => {
     expect(screen.queryByTestId('challenge-map')).not.toBeInTheDocument()
   })
 
-  it('shows the no-tracks state when no map features are available', () => {
+  it('keeps only the attach action when there are no map features or GPX data', () => {
     const data = createDefaultData()
     data.waypoints = data.waypoints.map((waypoint) => ({ ...waypoint, location: undefined }))
     save(data)
     renderDetails()
 
     expect(screen.queryByTestId('challenge-map')).not.toBeInTheDocument()
-    expect(screen.getByText("No recorded GPX tracks linked to this challenge's Waypoints.")).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Attach GPX route' })).toBeInTheDocument()
+    expect(screen.queryByText("No recorded GPX tracks linked to this challenge's Waypoints.")).not.toBeInTheDocument()
   })
 
   it('shows linked Activity tracks even without a planned route or located Waypoints', () => {
@@ -120,14 +123,19 @@ describe('ChallengeDetails', () => {
     expect(input).not.toBeNull()
 
     await user.upload(input as HTMLInputElement, new File([validGpx], 'planned.gpx', { type: 'application/gpx+xml' }))
-    expect(await screen.findByText(/planned.gpx · Ready to save/)).toBeInTheDocument()
+    expect(await screen.findByRole('button', { name: 'Save route' })).toBeInTheDocument()
+    expect(screen.queryByText('planned.gpx')).not.toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: 'Save route' }))
     expect(await screen.findByText('Planned route saved.')).toBeInTheDocument()
 
     view.unmount()
     renderDetails()
-    expect(screen.getByText('planned.gpx')).toBeInTheDocument()
-    expect(screen.getByTestId('challenge-map')).toHaveTextContent('planned.gpx')
+    expect(screen.getByTestId('challenge-map')).toHaveTextContent('Route attached')
+    expect(screen.queryByRole('heading', { name: 'Planned route' })).not.toBeInTheDocument()
+    expect(screen.getByRole('group', { name: 'GPX route actions' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Replace GPX route' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Remove route' })).toBeInTheDocument()
+    expect(screen.queryByText('planned.gpx')).not.toBeInTheDocument()
   })
 
   it('keeps the saved route when a replacement file is invalid', async () => {
@@ -155,8 +163,8 @@ describe('ChallengeDetails', () => {
     await user.upload(input as HTMLInputElement, new File(['<gpx>'], 'broken.gpx', { type: 'application/gpx+xml' }))
 
     expect(await screen.findByText('The selected file is not valid XML.')).toBeInTheDocument()
-    expect(screen.getByText('saved.gpx')).toBeInTheDocument()
-    expect(screen.getByTestId('challenge-map')).toHaveTextContent('saved.gpx')
+    expect(screen.getByTestId('challenge-map')).toHaveTextContent('Route attached')
+    expect(screen.queryByText('saved.gpx')).not.toBeInTheDocument()
   })
 
   it('allows retrying a corrected GPX file with the same name', async () => {
@@ -168,7 +176,7 @@ describe('ChallengeDetails', () => {
     expect(await screen.findByText('The selected file is not valid XML.')).toBeInTheDocument()
 
     await user.upload(input, new File([validGpx], 'planned.gpx', { type: 'application/gpx+xml' }))
-    expect(await screen.findByText(/planned.gpx · Ready to save/)).toBeInTheDocument()
+    expect(await screen.findByRole('button', { name: 'Save route' })).toBeInTheDocument()
   })
 
   it('blocks saving and editing a previous draft while a replacement is being parsed', async () => {
@@ -176,7 +184,7 @@ describe('ChallengeDetails', () => {
     const view = renderDetails()
     const input = view.container.querySelector('input[type="file"]') as HTMLInputElement
     await user.upload(input, new File([validGpx], 'first.gpx', { type: 'application/gpx+xml' }))
-    await screen.findByText(/first.gpx · Ready to save/)
+    await screen.findByRole('button', { name: 'Save route' })
 
     let finishRead!: (contents: string) => void
     const replacement = new File([validGpx], 'second.gpx', { type: 'application/gpx+xml' })
@@ -193,11 +201,9 @@ describe('ChallengeDetails', () => {
     expect(screen.getByRole('button', { name: 'Remove route' })).toBeDisabled()
     expect(screen.getByRole('button', { name: 'Replace GPX route' })).toHaveAttribute('aria-disabled', 'true')
     expect(input).toBeDisabled()
-    expect(screen.getByText(/first.gpx · Ready to save/)).toBeInTheDocument()
 
     finishRead(validGpx)
-    expect(await screen.findByText(/second.gpx · Ready to save/)).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Save route' })).toBeEnabled()
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Save route' })).toBeEnabled())
   })
 
   it('ignores an earlier GPX read that finishes after a newer selection', async () => {
@@ -215,11 +221,13 @@ describe('ChallengeDetails', () => {
 
     const second = new File([validGpx], 'second.gpx')
     fireEvent.change(input, { target: { files: [second] } })
-    expect(await screen.findByText(/second.gpx · Ready to save/)).toBeInTheDocument()
+    expect(await screen.findByRole('button', { name: 'Save route' })).toBeInTheDocument()
 
     await act(async () => finishFirst(validGpx))
-    expect(screen.getByText(/second.gpx · Ready to save/)).toBeInTheDocument()
-    expect(screen.queryByText(/first.gpx/)).not.toBeInTheDocument()
+    const user = userEvent.setup()
+    await user.click(screen.getByRole('button', { name: 'Save route' }))
+    await screen.findByText('Planned route saved.')
+    expect(load().challenges[0]?.plannedRoute?.fileName).toBe('second.gpx')
   })
 
   it('removes and persists a planned route only after saving', async () => {
@@ -244,9 +252,11 @@ describe('ChallengeDetails', () => {
     renderDetails()
 
     await user.click(screen.getByRole('button', { name: 'Remove route' }))
-    expect(screen.getByText('No planned GPX route attached.')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Attach GPX route' })).not.toBeInTheDocument()
+    expect(screen.queryByText('No planned GPX route attached.')).not.toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: 'Save route' }))
     await waitFor(() => expect(screen.getByText('Planned route removed.')).toBeInTheDocument())
+    expect(screen.getByRole('button', { name: 'Attach GPX route' })).toBeInTheDocument()
   })
 
   it('shows an explicit read-only state without route controls', () => {
@@ -278,11 +288,12 @@ describe('ChallengeDetails', () => {
     fireEvent.change(input as HTMLInputElement, {
       target: { files: [new File([validGpx], 'replacement.gpx', { type: 'application/gpx+xml' })] },
     })
-    await screen.findByText(/replacement.gpx · Ready to save/)
+    await screen.findByRole('button', { name: 'Save route' })
     await user.click(screen.getByRole('button', { name: 'Save route' }))
 
     expect(await screen.findByText(/Journey API request failed with 500/)).toBeInTheDocument()
-    expect(screen.getByText(/replacement.gpx · Ready to save/)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Save route' })).toBeInTheDocument()
+    expect(screen.queryByText('replacement.gpx')).not.toBeInTheDocument()
   })
 
   it('disables route editing while saving', async () => {

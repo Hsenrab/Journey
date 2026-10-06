@@ -143,7 +143,9 @@ describe('ChallengeRouteMap', () => {
 
     expect(await screen.findByLabelText('Challenge route map')).toBeInTheDocument()
     expect(screen.getByLabelText('Challenge map legend')).toHaveTextContent('Planned route')
+    expect(screen.getByLabelText('Challenge map legend')).not.toHaveTextContent('Recorded Activity tracks')
     expect(screen.getByLabelText('Challenge map legend')).toHaveTextContent('Waypoints')
+    expect(screen.queryByRole('checkbox')).not.toBeInTheDocument()
     await waitFor(() =>
       expect(mapState.layerIds).toEqual([
         'challenge-route-outline',
@@ -200,6 +202,11 @@ describe('ChallengeRouteMap', () => {
   it('centers the map when there is only one located waypoint', async () => {
     render(<ChallengeRouteMap waypoints={[waypoint]} />)
 
+    await screen.findByLabelText('Challenge route map')
+    expect(screen.getByLabelText('Challenge map legend')).not.toHaveTextContent('Planned route')
+    expect(screen.getByLabelText('Challenge map legend')).not.toHaveTextContent('Recorded Activity tracks')
+    expect(screen.getByLabelText('Challenge map legend')).toHaveTextContent('Waypoints')
+    expect(screen.queryByRole('checkbox')).not.toBeInTheDocument()
     await waitFor(() => expect(mapState.cameraOptions).toEqual([{ center: [-2.15, 51.15], zoom: 9 }]))
   })
 
@@ -229,20 +236,38 @@ describe('ChallengeRouteMap', () => {
   it('shows tracks without a planned route or located Waypoints and fits their extent', async () => {
     render(<ChallengeRouteMap waypoints={[]} recordedTracks={[track]} />)
 
+    await screen.findByLabelText('Challenge route map')
+    expect(screen.getByLabelText('Challenge map legend')).not.toHaveTextContent('Planned route')
+    expect(screen.getByLabelText('Challenge map legend')).toHaveTextContent('Recorded Activity tracks')
+    expect(screen.getByRole('checkbox', { name: 'Show recorded Activity tracks (1)' })).toBeInTheDocument()
     await waitFor(() => expect(mapState.sourceFeatures.get('challenge-tracks')).toHaveLength(2))
     expect(mapState.sourceFeatures.get('challenge-route')).toEqual([])
     expect(mapState.cameraOptions).toEqual([{ bounds: { positions: route.geometry.coordinates.flat() }, padding: 40 }])
   })
 
   it('updates geometry without recreating the map and disposes on unmount', async () => {
-    const view = render(<ChallengeRouteMap plannedRoute={route} waypoints={[waypoint]} recordedTracks={[track]} />)
-    await waitFor(() => expect(mapState.sourceFeatures.get('challenge-tracks')).toHaveLength(2))
+    const view = render(<ChallengeRouteMap waypoints={[waypoint]} />)
+    await screen.findByLabelText('Challenge route map')
+    expect(screen.getByLabelText('Challenge map legend')).not.toHaveTextContent('Planned route')
+    expect(screen.queryByRole('checkbox')).not.toBeInTheDocument()
 
-    view.rerender(<ChallengeRouteMap waypoints={[]} recordedTracks={[]} />)
+    view.rerender(<ChallengeRouteMap plannedRoute={route} waypoints={[waypoint]} recordedTracks={[track]} />)
+    await waitFor(() => expect(mapState.sourceFeatures.get('challenge-tracks')).toHaveLength(2))
+    expect(screen.getByLabelText('Challenge map legend')).toHaveTextContent('Planned route')
+    expect(screen.getByLabelText('Challenge map legend')).toHaveTextContent('Recorded Activity tracks')
+
+    view.rerender(<ChallengeRouteMap waypoints={[waypoint]} recordedTracks={[track]} />)
+    expect(mapState.sourceFeatures.get('challenge-tracks')).toHaveLength(2)
+    expect(mapState.sourceFeatures.get('challenge-route')).toEqual([])
+    expect(screen.getByLabelText('Challenge map legend')).not.toHaveTextContent('Planned route')
+    expect(screen.getByLabelText('Challenge map legend')).toHaveTextContent('Recorded Activity tracks')
+
+    view.rerender(<ChallengeRouteMap waypoints={[waypoint]} />)
     expect(mapState.sourceFeatures.get('challenge-tracks')).toEqual([])
     expect(mapState.sourceFeatures.get('challenge-route')).toEqual([])
-    expect(mapState.sourceFeatures.get('challenge-waypoints')).toEqual([])
-    expect(screen.getByText("No recorded GPX tracks linked to this challenge's Waypoints.")).toBeInTheDocument()
+    expect(mapState.sourceFeatures.get('challenge-waypoints')).toHaveLength(1)
+    expect(screen.getByLabelText('Challenge map legend')).not.toHaveTextContent('Planned route')
+    expect(screen.getByLabelText('Challenge map legend')).not.toHaveTextContent('Recorded Activity tracks')
     expect(screen.queryByRole('checkbox')).not.toBeInTheDocument()
     expect(mapState.created).toHaveBeenCalledTimes(1)
     expect(mapState.disposed).not.toHaveBeenCalled()
@@ -266,6 +291,7 @@ describe('ChallengeRouteMap', () => {
     expect(screen.getByRole('status')).toHaveTextContent('Loading challenge map…')
     expect(screen.queryByLabelText('Challenge route map')).not.toBeInTheDocument()
     expect(screen.queryByLabelText('Challenge map legend')).not.toBeInTheDocument()
+    expect(screen.queryByRole('checkbox')).not.toBeInTheDocument()
 
     finishRequest(
       new Response(JSON.stringify({ token: 'token', clientId: 'client' }), {
