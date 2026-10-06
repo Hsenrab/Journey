@@ -114,6 +114,7 @@ jobs:
     uses: ./.github/workflows/deploy-environment.yml
     with:
       github_environment: hh-env-test
+      default_data_mode: demo-cosmos
       bicep_environment_name: dev
       deployment_heading: Journey test environment
       deploy_infra: ${{ needs.plan.outputs.deploy_infra == 'true' }}

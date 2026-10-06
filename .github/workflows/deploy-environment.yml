@@ -7,6 +7,10 @@ on:
         description: GitHub environment containing the target's Azure configuration
         required: true
         type: string
+      default_data_mode:
+        description: Initial Journey data mode for this deployment
+        required: true
+        type: string
       bicep_environment_name:
         description: Environment tag passed to the Bicep deployment
         required: true
@@ -390,6 +394,8 @@ jobs:
 
       - name: Deploy to Azure Static Web Apps
         uses: Azure/static-web-apps-deploy@v1
+        env:
+          VITE_DEFAULT_DATA_MODE: ${{ inputs.default_data_mode }}
         with:
           azure_static_web_apps_api_token: ${{ steps.swa_token.outputs.token }}
           repo_token: ${{ secrets.GITHUB_TOKEN }}

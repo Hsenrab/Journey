@@ -70,12 +70,23 @@ describe('load', () => {
     )
   })
 
-  it('defaults missing or unknown mode preferences to production', () => {
+  it('defaults missing or unknown mode preferences to the deployment mode', () => {
     localStorage.setItem('journey-data-mode-v1', 'obsolete')
 
-    expect(getDataMode()).toBe('production')
+    expect(getDataMode('demo-cosmos')).toBe('demo-cosmos')
     localStorage.removeItem('journey-data-mode-v1')
-    expect(getDataMode()).toBe('production')
+    expect(getDataMode('demo-cosmos')).toBe('demo-cosmos')
+  })
+
+  it('uses the deployment demo mode instead of a saved production preference', () => {
+    setDataMode('production')
+
+    expect(getDataMode('demo-cosmos')).toBe('demo-cosmos')
+    expect(getDataMode('production')).toBe('production')
+  })
+
+  it('rejects an unsupported deployment default', () => {
+    expect(() => getDataMode('test')).toThrow('Unknown default Journey data mode: test')
   })
 
   it('persists the selected Cosmos demo mode without changing production storage', () => {
