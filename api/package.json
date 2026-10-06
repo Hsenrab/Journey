@@ -10,6 +10,7 @@
     "lint": "oxlint",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
+    "test:smoke": "vitest run --config vitest.smoke.config.ts",
     "start": "npm run build && func start"
   },
   "dependencies": {

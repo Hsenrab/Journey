@@ -361,10 +361,55 @@ jobs:
             --yes \
             --output none
 
+  verify_api:
+    name: Verify Functions routes and backend link
+    needs: [infra, deploy_api]
+    if: always() && (inputs.deploy_api || inputs.deploy_application) && needs.infra.result == 'success' && (needs.deploy_api.result == 'success' || needs.deploy_api.result == 'skipped')
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.github_environment }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: 24
+
+      - name: Azure login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Verify deployed Functions registration and backend link
+        env:
+          RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
+          STATIC_WEB_APP_NAME: ${{ vars.AZURE_STATIC_WEB_APP_NAME }}
+          FUNCTION_APP_NAME: ${{ needs.infra.outputs.function_app_name }}
+        run: |
+          set -euo pipefail
+          function_app_id="$(az functionapp show --resource-group "${RESOURCE_GROUP}" \
+            --name "${FUNCTION_APP_NAME}" --query id --output tsv)"
+          static_app_id="$(az staticwebapp show --resource-group "${RESOURCE_GROUP}" \
+            --name "${STATIC_WEB_APP_NAME}" --query id --output tsv)"
+          az functionapp function list --resource-group "${RESOURCE_GROUP}" \
+            --name "${FUNCTION_APP_NAME}" \
+            --query '[].{name:name, config:config, isDisabled:isDisabled}' \
+            --output json > "${RUNNER_TEMP}/functions.json"
+          az rest --method get \
+            --url "https://management.azure.com${static_app_id}/userProvidedFunctionApps?api-version=2023-12-01" \
+            --query 'value[].properties.functionAppResourceId' \
+            --output json > "${RUNNER_TEMP}/backends.json"
+          node api/scripts/verify-functions.ts "${RUNNER_TEMP}/functions.json" \
+            "${RUNNER_TEMP}/backends.json" "${function_app_id}"
+          echo "Functions HTTP trigger registration and SWA backend link verified; authenticated downstream calls remain unverified." >> "$GITHUB_STEP_SUMMARY"
+
   deploy:
     name: Deploy application
-    needs: [infra, deploy_api]
-    if: inputs.deploy_application && always() && needs.infra.result == 'success' && (needs.deploy_api.result == 'success' || needs.deploy_api.result == 'skipped')
+    needs: [infra, verify_api]
+    if: inputs.deploy_application && always() && needs.infra.result == 'success' && needs.verify_api.result == 'success'
     runs-on: ubuntu-latest
     environment: ${{ inputs.github_environment }}
     steps:
@@ -403,7 +448,7 @@ jobs:
           app_location: /
           output_location: dist
 
-      - name: Verify deployment
+      - name: Verify application sign-in boundary
         if: github.event_name != 'pull_request'
         env:
           APPLICATION_URL: ${{ needs.infra.outputs.application_url }}
@@ -414,7 +459,7 @@ jobs:
               --output /dev/null --write-out '%{http_code}' "${APPLICATION_URL}" || echo '000')"
             echo "Attempt ${attempt}: HTTP ${status}"
             if [ "${status}" = "302" ]; then
-              echo "Deployment verified at ${APPLICATION_URL}" >> "$GITHUB_STEP_SUMMARY"
+              echo "Application sign-in boundary verified at ${APPLICATION_URL} (not API health)" >> "$GITHUB_STEP_SUMMARY"
               exit 0
             fi
             sleep 15
