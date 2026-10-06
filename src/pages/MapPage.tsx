@@ -33,7 +33,18 @@ import {
   orderNearbyWaypoints,
   waypointCoordinates,
 } from '../domain/map'
-import { gpxLineFeatures, type GpxMapLine } from '../domain/gpxMap'
+import {
+  GPX_LINE_OPACITY,
+  GPX_LINE_OUTLINE_COLOR,
+  GPX_LINE_OUTLINE_WIDTH,
+  GPX_ROUTE_COLOR,
+  GPX_ROUTE_STROKE_WIDTH,
+  GPX_TRACK_COLOR,
+  GPX_TRACK_DASH_ARRAY,
+  GPX_TRACK_STROKE_WIDTH,
+  gpxLineFeatures,
+  type GpxMapLine,
+} from '../domain/gpxMap'
 import {
   statusLabels,
   statusOrder,
@@ -437,6 +448,7 @@ export default function MapPage() {
                 id: challenge.challengeId,
                 label: challenge.title,
                 segments: challenge.plannedRoute.geometry.coordinates,
+                color: GPX_ROUTE_COLOR,
               },
             ]
           : [],
@@ -514,9 +526,27 @@ export default function MapPage() {
       const activities = new atlas.source.DataSource('activities', { cluster: true, clusterRadius: 45 })
       const activityTracks = new atlas.source.DataSource('activity-tracks')
       instance.sources.add([gpx, waypoints, activities, activityTracks])
+      const gpxOutlineLayer = new atlas.layer.LineLayer(gpx, 'gpx-lines-outline', {
+        strokeColor: GPX_LINE_OUTLINE_COLOR,
+        strokeWidth: ['+', ['get', 'strokeWidth'], GPX_LINE_OUTLINE_WIDTH],
+        strokeOpacity: 0.95,
+        lineCap: 'round',
+        lineJoin: 'round',
+      })
       const gpxLayer = new atlas.layer.LineLayer(gpx, 'gpx-lines', {
         strokeColor: ['get', 'color'],
         strokeWidth: ['get', 'strokeWidth'],
+        strokeOpacity: GPX_LINE_OPACITY,
+        lineCap: 'round',
+        lineJoin: 'round',
+      })
+      const activityTrackOutlineLayer = new atlas.layer.LineLayer(activityTracks, 'activity-tracks-outline', {
+        strokeColor: GPX_LINE_OUTLINE_COLOR,
+        strokeWidth: GPX_TRACK_STROKE_WIDTH + GPX_LINE_OUTLINE_WIDTH,
+        strokeDashArray: GPX_TRACK_DASH_ARRAY.map(
+          (length) => (length * GPX_TRACK_STROKE_WIDTH) / (GPX_TRACK_STROKE_WIDTH + GPX_LINE_OUTLINE_WIDTH),
+        ),
+        strokeOpacity: 0.95,
         lineCap: 'round',
         lineJoin: 'round',
       })
@@ -569,12 +599,18 @@ export default function MapPage() {
         strokeWidth: 2,
       })
       instance.layers.add([
+        gpxOutlineLayer,
         gpxLayer,
         waypointClusterBubbleLayer,
         activityClusterBubbleLayer,
+        activityTrackOutlineLayer,
         new atlas.layer.LineLayer(activityTracks, 'activity-tracks', {
-          strokeColor: '#7b1fa2',
-          strokeWidth: 5,
+          strokeColor: GPX_TRACK_COLOR,
+          strokeWidth: GPX_TRACK_STROKE_WIDTH,
+          strokeDashArray: [...GPX_TRACK_DASH_ARRAY],
+          strokeOpacity: GPX_LINE_OPACITY,
+          lineCap: 'round',
+          lineJoin: 'round',
         }),
         waypointLayer,
         waypointClusterLayer,
@@ -736,7 +772,7 @@ export default function MapPage() {
               lineId: feature.lineId,
               label: feature.label,
               color: feature.color,
-              strokeWidth: feature.strokeWidth,
+              strokeWidth: GPX_ROUTE_STROKE_WIDTH,
             },
             feature.id,
           ),
