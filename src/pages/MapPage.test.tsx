@@ -29,6 +29,7 @@ const mapEvents = vi.hoisted(() => ({
   gpxSourceClear: vi.fn(),
   activityTrackSourceAdd: vi.fn(),
   activityTrackSourceClear: vi.fn(),
+  layerOptions: new Map<string, unknown>(),
   waypointClusterLeaves: vi.fn(() =>
     Promise.resolve([
       { getProperties: () => ({ label: 'Clustered waypoint', award: 'Bronze', waypointId: 'waypoint-1' }) },
@@ -163,8 +164,9 @@ vi.mock('azure-maps-control', () => ({
     },
     LineLayer: class {
       id?: string
-      constructor(_source: unknown, id: string) {
+      constructor(_source: unknown, id: string, options: unknown) {
         this.id = id
+        mapEvents.layerOptions.set(id, options)
       }
     },
   },
@@ -213,6 +215,7 @@ describe('MapPage', () => {
     mapEvents.gpxSourceClear.mockClear()
     mapEvents.activityTrackSourceAdd.mockClear()
     mapEvents.activityTrackSourceClear.mockClear()
+    mapEvents.layerOptions.clear()
     mapEvents.setCamera.mockClear()
     mapEvents.waypointClusterLeaves.mockClear()
     mapEvents.activityClusterLeaves.mockClear()
@@ -565,6 +568,16 @@ describe('MapPage', () => {
 
     expect(await screen.findByText('Showing the recorded track for Recorded walk.')).toBeInTheDocument()
     await vi.waitFor(() => expect(mapEvents.lineStringCoordinates).toEqual([coordinates]))
+    expect(mapEvents.layerOptions.get('activity-tracks')).toMatchObject({
+      strokeColor: '#1565c0',
+      strokeWidth: 4,
+      strokeDashArray: [2, 2],
+      strokeOpacity: 0.85,
+    })
+    expect(mapEvents.layerOptions.get('activity-tracks-outline')).toMatchObject({
+      strokeColor: '#ffffff',
+      strokeWidth: 7,
+    })
     expect(mapEvents.setCamera).toHaveBeenCalledWith(
       expect.objectContaining({ bounds: [-2.2, 51.5, -2.1, 51.6], padding: 40 }),
     )
@@ -711,6 +724,12 @@ describe('MapPage', () => {
       'national-trust:1',
       'second-route:0',
     ])
+    expect(mapEvents.layerOptions.get('gpx-lines')).toMatchObject({ strokeOpacity: 0.85 })
+    expect(mapEvents.layerOptions.get('gpx-lines-outline')).toMatchObject({
+      strokeColor: '#ffffff',
+      strokeWidth: ['+', ['get', 'strokeWidth'], 3],
+    })
+    expect(features[0]).toMatchObject({ properties: { color: '#e65100' } })
     expect(screen.getByRole('group', { name: 'Planned routes' })).toBeInTheDocument()
     const sourceAddsBeforeSelection = mapEvents.gpxSourceAdd.mock.calls.length
     const sourceClearsBeforeSelection = mapEvents.gpxSourceClear.mock.calls.length

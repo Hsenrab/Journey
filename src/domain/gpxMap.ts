@@ -31,7 +31,16 @@ export type GpxLineFeature = {
   coordinates: [longitude: number, latitude: number][]
 }
 
-const lineColors = ['#1565c0', '#c62828', '#6a1b9a', '#ef6c00', '#00838f']
+export const GPX_ROUTE_COLOR = '#e65100'
+export const GPX_TRACK_COLOR = '#1565c0'
+export const GPX_LINE_OUTLINE_COLOR = '#ffffff'
+export const GPX_LINE_OUTLINE_WIDTH = 3
+export const GPX_LINE_OPACITY = 0.85
+export const GPX_ROUTE_STROKE_WIDTH = 7
+export const GPX_TRACK_STROKE_WIDTH = 4
+export const GPX_TRACK_DASH_ARRAY = [2, 2] as const
+
+const lineColors = [GPX_ROUTE_COLOR, '#ad1457', '#558b2f', '#00838f', '#6d4c41']
 
 function isLineColor(color: string | undefined): color is string {
   return color !== undefined && /^#[0-9a-f]{6}$/i.test(color)

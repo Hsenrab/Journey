@@ -146,7 +146,9 @@ describe('ChallengeRouteMap', () => {
     expect(screen.getByLabelText('Challenge map legend')).toHaveTextContent('Waypoints')
     await waitFor(() =>
       expect(mapState.layerIds).toEqual([
+        'challenge-route-outline',
         'challenge-route-line',
+        'challenge-track-outline',
         'challenge-track-lines',
         'challenge-waypoint-symbols',
         'challenge-waypoint-labels',
@@ -154,6 +156,26 @@ describe('ChallengeRouteMap', () => {
     )
     await waitFor(() => expect(mapState.sourceFeatures.get('challenge-route')).toHaveLength(2))
     expect(mapState.sourceFeatures.get('challenge-waypoints')).toHaveLength(1)
+    expect(mapState.layerOptions.get('challenge-route-line')).toMatchObject({
+      strokeColor: '#e65100',
+      strokeWidth: 7,
+      strokeOpacity: 0.85,
+    })
+    expect(mapState.layerOptions.get('challenge-track-lines')).toMatchObject({
+      strokeColor: '#1565c0',
+      strokeWidth: 4,
+      strokeDashArray: [2, 2],
+      strokeOpacity: 0.85,
+    })
+    expect(mapState.layerOptions.get('challenge-route-outline')).toMatchObject({
+      strokeColor: '#ffffff',
+      strokeWidth: 10,
+    })
+    expect(mapState.layerOptions.get('challenge-track-outline')).toMatchObject({
+      strokeColor: '#ffffff',
+      strokeWidth: 7,
+      strokeDashArray: [2, 2],
+    })
     expect(mapState.cameraOptions).toEqual([
       {
         bounds: {
@@ -184,12 +206,6 @@ describe('ChallengeRouteMap', () => {
     await waitFor(() => expect(mapState.sourceFeatures.get('challenge-tracks')).toHaveLength(2))
     expect(toggle).toBeChecked()
     expect(screen.getByLabelText('Recorded Activity tracks')).toHaveTextContent('Recorded walk')
-    expect(mapState.layerOptions.get('challenge-route-line')).toMatchObject({ strokeColor: '#7b1fa2', strokeWidth: 7 })
-    expect(mapState.layerOptions.get('challenge-track-lines')).toMatchObject({
-      strokeColor: '#1565c0',
-      strokeWidth: 3,
-      strokeDashArray: [2, 2],
-    })
     expect(mapState.sourceFeatures.get('challenge-tracks')).toEqual([
       expect.objectContaining({ geometry: { coordinates: route.geometry.coordinates[0] } }),
       expect.objectContaining({ geometry: { coordinates: route.geometry.coordinates[1] } }),
