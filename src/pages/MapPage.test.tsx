@@ -729,7 +729,8 @@ describe('MapPage', () => {
       strokeColor: '#ffffff',
       strokeWidth: ['+', ['get', 'strokeWidth'], 3],
     })
-    expect(features[0]).toMatchObject({ properties: { color: '#e65100' } })
+    expect(features[0]).toMatchObject({ properties: { color: '#e65100', strokeWidth: 7 } })
+    expect(features[2]).toMatchObject({ properties: { color: '#e65100', strokeWidth: 7 } })
     expect(screen.getByRole('group', { name: 'Planned routes' })).toBeInTheDocument()
     const sourceAddsBeforeSelection = mapEvents.gpxSourceAdd.mock.calls.length
     const sourceClearsBeforeSelection = mapEvents.gpxSourceClear.mock.calls.length
