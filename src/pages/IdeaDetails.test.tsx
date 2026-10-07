@@ -286,7 +286,7 @@ describe('IdeaDetails', () => {
     renderDetails()
     expect(screen.getByRole('link', { name: 'Log activity from this idea' })).toHaveAttribute(
       'href',
-      '/activities?mode=add&idea=idea-1&waypoint=stourhead',
+      '/activities?mode=add&idea=idea-1&waypoint=demo-foxglove-manor',
     )
   })
 

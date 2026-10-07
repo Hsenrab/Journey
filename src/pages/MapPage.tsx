@@ -26,12 +26,12 @@ import * as atlas from 'azure-maps-control'
 import 'azure-maps-control/dist/atlas.min.css'
 import {
   activityCoordinates,
-  brockworth,
   completionStateForWaypoint,
   filterWaypointsByStatus,
   orderNearbyActivities,
   orderNearbyWaypoints,
   waypointCoordinates,
+  type Coordinates,
 } from '../domain/map'
 import {
   GPX_LINE_OPACITY,
@@ -432,8 +432,8 @@ export default function MapPage() {
   const [selectedActivityId, setSelectedActivityId] = useState<string | null>(null)
   const [selectedRouteChallengeId, setSelectedRouteChallengeId] = useState<string | null>(null)
   const [mobilePanel, setMobilePanel] = useState<'map' | 'list'>('map')
-  const [originQuery, setOriginQuery] = useState('Brockworth, Gloucestershire')
-  const [origin, setOrigin] = useState(brockworth)
+  const [originQuery, setOriginQuery] = useState('')
+  const [origin, setOrigin] = useState<Coordinates | null>(null)
   const [originResults, setOriginResults] = useState<SearchResult[]>([])
   const theme = useTheme()
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'), { noSsr: true })
@@ -496,7 +496,7 @@ export default function MapPage() {
     if (!token || !container.current || map.current) return
     let initialToken: string | undefined = token.token
     const instance = new atlas.Map(container.current, {
-      center: [origin.longitude, origin.latitude],
+      center: [origin?.longitude ?? 0, origin?.latitude ?? 0],
       zoom: 8,
       authOptions: {
         authType: atlas.AuthenticationType.anonymous,
@@ -742,15 +742,18 @@ export default function MapPage() {
       mapPopup.current = null
       setMapReady(false)
     }
-  }, [data.activities, data.waypoints, loaded, navigate, origin.latitude, origin.longitude, token, trackActivity])
+  }, [data.activities, data.waypoints, loaded, navigate, origin?.latitude, origin?.longitude, token, trackActivity])
 
   const visibleWaypoints = useMemo(
     () => filterWaypointsByStatus(data.waypoints, statuses, statusFor),
     [data.waypoints, statuses, statusFor],
   )
-  const nearby = useMemo(() => orderNearbyWaypoints(visibleWaypoints, origin).slice(0, 10), [origin, visibleWaypoints])
+  const nearby = useMemo(
+    () => (origin ? orderNearbyWaypoints(visibleWaypoints, origin).slice(0, 10) : []),
+    [origin, visibleWaypoints],
+  )
   const nearbyActivities = useMemo(
-    () => orderNearbyActivities(data.activities, origin).slice(0, 10),
+    () => (origin ? orderNearbyActivities(data.activities, origin).slice(0, 10) : []),
     [data.activities, origin],
   )
   const waypointWithoutCoordinates = data.waypoints.filter((waypoint) => !waypointCoordinates(waypoint)).length
@@ -970,6 +973,7 @@ export default function MapPage() {
                     label="Nearby origin"
                     value={originQuery}
                     onChange={(event) => setOriginQuery(event.target.value)}
+                    required
                     sx={{ flex: { sm: 1 }, minWidth: 0 }}
                   />
                   <Button type="submit" variant="contained" sx={{ alignSelf: { sm: 'flex-start' } }}>
@@ -1096,7 +1100,14 @@ export default function MapPage() {
                       />
                     ))}
                 {mode === 'waypoints' && nearby.length === 0 && (
-                  <Typography color="text.secondary">No visible waypoints.</Typography>
+                  <Typography color="text.secondary">
+                    {origin ? 'No visible waypoints.' : 'Choose a nearby origin to see waypoints.'}
+                  </Typography>
+                )}
+                {mode === 'activities' && nearbyActivities.length === 0 && (
+                  <Typography color="text.secondary">
+                    {origin ? 'No activities with coordinates.' : 'Choose a nearby origin to see activities.'}
+                  </Typography>
                 )}
                 {mode === 'activities' && nearbyActivities.length === 0 && (
                   <Typography color="text.secondary">No mapped activities yet.</Typography>

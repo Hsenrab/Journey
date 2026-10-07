@@ -252,7 +252,8 @@ describe('MapPage', () => {
     expect(screen.getByRole('checkbox', { name: 'Gold' })).toBeChecked()
     await user.click(screen.getByRole('checkbox', { name: 'Gold' }))
     expect(screen.getByRole('checkbox', { name: 'Gold' })).not.toBeChecked()
-    expect(screen.getByLabelText('Nearby origin')).toHaveValue('Brockworth, Gloucestershire')
+    expect(screen.getByLabelText('Nearby origin')).toHaveValue('')
+    expect(screen.getByText('Choose a nearby origin to see waypoints.')).toBeInTheDocument()
     expect(await screen.findByText('Map access failed: Sign in required')).toBeInTheDocument()
   })
 
@@ -363,6 +364,7 @@ describe('MapPage', () => {
       </MemoryRouter>,
     )
     await user.click(screen.getByRole('checkbox', { name: 'Gold' }))
+    await user.type(screen.getByLabelText('Nearby origin'), 'no match')
     await user.click(screen.getByRole('button', { name: 'Search' }))
     expect(await screen.findByText(/No places matched that search/)).toBeInTheDocument()
     expect(screen.getByRole('tab', { name: 'Activities' })).toHaveAttribute('aria-selected', 'false')
@@ -392,6 +394,7 @@ describe('MapPage', () => {
         </WaypointsProvider>
       </MemoryRouter>,
     )
+    await user.type(screen.getByLabelText('Nearby origin'), 'Example')
     await user.click(screen.getByRole('button', { name: 'Search' }))
     expect(await screen.findByText('Choose a nearby origin')).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: 'Brockworth A' }))
@@ -418,6 +421,7 @@ describe('MapPage', () => {
         </WaypointsProvider>
       </MemoryRouter>,
     )
+    await user.type(screen.getByLabelText('Nearby origin'), 'Oxford')
     await user.click(screen.getByRole('button', { name: 'Search' }))
     expect(screen.queryByText('Choose a nearby origin')).not.toBeInTheDocument()
     expect(screen.queryByRole('alert', { name: /error/i })).not.toBeInTheDocument()
@@ -439,6 +443,7 @@ describe('MapPage', () => {
         </WaypointsProvider>
       </MemoryRouter>,
     )
+    await user.type(screen.getByLabelText('Nearby origin'), 'Example')
     await user.click(screen.getByRole('button', { name: 'Search' }))
     expect(await screen.findByText('Nearby search failed: Search requires authentication')).toBeInTheDocument()
   })
@@ -479,7 +484,13 @@ describe('MapPage', () => {
     const user = userEvent.setup()
     vi.stubGlobal(
       'fetch',
-      vi.fn().mockResolvedValue(jsonResponse({ token: 'entra', expiresOn: '2026-01-01', clientId: 'maps-client-id' })),
+      vi.fn().mockImplementation((input: RequestInfo | URL) =>
+        Promise.resolve(
+          String(input).includes('/api/maps/search?')
+            ? jsonResponse({ results: [{ position: { lat: 51.8, lon: -2.2 } }] })
+            : jsonResponse({ token: 'entra', expiresOn: '2026-01-01', clientId: 'maps-client-id' }),
+        ),
+      ),
     )
     render(
       <MemoryRouter>
@@ -489,6 +500,8 @@ describe('MapPage', () => {
       </MemoryRouter>,
     )
     await user.click(screen.getByRole('checkbox', { name: 'Gold' }))
+    await user.type(screen.getByLabelText('Nearby origin'), 'Example')
+    await user.click(screen.getByRole('button', { name: 'Search' }))
     await user.click(screen.getByRole('tab', { name: 'Activities' }))
     const activityLink = screen.getByRole('link', { name: /Canal loop.*\d+\.\d miles.*2026-08-10/ })
     expect(activityLink).toHaveAttribute('title', 'Canal loop')
@@ -601,6 +614,7 @@ describe('MapPage', () => {
     await user.click(screen.getByRole('tab', { name: 'Waypoints' }))
     expect(screen.queryByText('Showing the recorded track for Recorded walk.')).not.toBeInTheDocument()
     mapEvents.setCamera.mockClear()
+    await user.type(screen.getByLabelText('Nearby origin'), 'Example')
     await user.click(screen.getByRole('button', { name: 'Search' }))
     await vi.waitFor(() => expect(mapEvents.mapCenters.at(-1)).toEqual([-2.3, 52.1]))
     expect(mapEvents.setCamera).not.toHaveBeenCalled()
@@ -646,7 +660,13 @@ describe('MapPage', () => {
     const user = userEvent.setup()
     vi.stubGlobal(
       'fetch',
-      vi.fn().mockResolvedValue(jsonResponse({ token: 'entra', expiresOn: '2026-01-01', clientId: 'maps-client-id' })),
+      vi.fn().mockImplementation((input: RequestInfo | URL) =>
+        Promise.resolve(
+          String(input).includes('/api/maps/search?')
+            ? jsonResponse({ results: [{ position: { lat: 51.8, lon: -2.2 } }] })
+            : jsonResponse({ token: 'entra', expiresOn: '2026-01-01', clientId: 'maps-client-id' }),
+        ),
+      ),
     )
     render(
       <MemoryRouter>
@@ -656,6 +676,8 @@ describe('MapPage', () => {
       </MemoryRouter>,
     )
 
+    await user.type(screen.getByLabelText('Nearby origin'), 'Example')
+    await user.click(screen.getByRole('button', { name: 'Search' }))
     const waypointLink = screen.getByRole('link', { name: /Unnamed waypoint.*\d+\.\d miles/ })
     expect(waypointLink).toHaveAttribute('title', 'Unnamed waypoint')
     expect(screen.getAllByLabelText('Not completed').length).toBeGreaterThan(0)
@@ -766,6 +788,7 @@ describe('MapPage', () => {
       padding: 48,
     })
     mapEvents.setCamera.mockClear()
+    await user.type(screen.getByLabelText('Nearby origin'), 'Example')
     await user.click(screen.getByRole('button', { name: 'Search' }))
     await vi.waitFor(() => expect(mapEvents.mapCenters.at(-1)).toEqual([-2.5, 52.3]))
     expect(mapEvents.setCamera).not.toHaveBeenCalled()
