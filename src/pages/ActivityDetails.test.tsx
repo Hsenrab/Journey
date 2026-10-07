@@ -5,8 +5,11 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import ActivityDetails from './ActivityDetails'
 import { WaypointsProvider } from '../features/journey/JourneyContext'
-import { createDefaultData, load, save } from '../services/storage'
+import { load, save } from '../services/storage'
 import { GpxGeometrySchema } from '../domain/visit'
+import { createDemoTestData } from '../test/demoData'
+
+const createDefaultData = createDemoTestData
 
 function renderDetails(path = '/activities/a1') {
   return render(
@@ -72,7 +75,7 @@ describe('ActivityDetails', () => {
         {
           activityId: 'a1',
           ideaIds: [],
-          waypointId: 'stourhead',
+          waypointId: 'demo-foxglove-manor',
           date: '2026-08-01',
           location: { kind: 'postcode', postcode: 'BA12 6QF' },
           notes: '',
@@ -87,7 +90,7 @@ describe('ActivityDetails', () => {
     renderDetails()
 
     expect(screen.queryByRole('link', { name: 'Activities' })).not.toBeInTheDocument()
-    await user.click(screen.getByRole('link', { name: 'Stourhead' }))
+    await user.click(screen.getByRole('link', { name: 'Foxglove Manor (Demo)' }))
     expect(screen.getByText('Waypoint details')).toBeInTheDocument()
   })
 
@@ -101,7 +104,7 @@ describe('ActivityDetails', () => {
           title: 'Orangery idea',
           description: '',
           notes: '',
-          waypointIds: ['stourhead'],
+          waypointIds: ['demo-foxglove-manor'],
           planningState: 'active',
           difficulty: 1,
           referenceIds: [],
@@ -115,7 +118,7 @@ describe('ActivityDetails', () => {
         {
           activityId: 'a1',
           ideaIds: ['idea-1'],
-          waypointId: 'stourhead',
+          waypointId: 'demo-foxglove-manor',
           date: '2026-08-01',
           category: 'gold',
           location: { kind: 'postcode', postcode: 'BA12 6QF' },
@@ -133,7 +136,7 @@ describe('ActivityDetails', () => {
     expect(
       screen.getByRole('heading', { name: new Date('2026-08-01T00:00:00').toLocaleDateString(), level: 1 }),
     ).toBeInTheDocument()
-    expect(screen.getAllByText('Stourhead').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('Foxglove Manor (Demo)').length).toBeGreaterThan(0)
     expect(screen.getByText('Guide')).toBeInTheDocument()
     expect(screen.getByRole('img', { name: 'View' })).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Orangery idea' })).toBeInTheDocument()
@@ -297,7 +300,7 @@ describe('ActivityDetails', () => {
         {
           activityId: 'a1',
           ideaIds: [],
-          waypointId: 'stourhead',
+          waypointId: 'demo-foxglove-manor',
           date: '2026-08-01',
           category: 'gold',
           location: { kind: 'postcode', postcode: 'BA12 6QF' },
@@ -326,7 +329,7 @@ describe('ActivityDetails', () => {
     const activity = {
       activityId: 'a1',
       ideaIds: [],
-      waypointId: 'stourhead',
+      waypointId: 'demo-foxglove-manor',
       date: '2026-08-01',
       category: 'gold' as const,
       location: { kind: 'postcode' as const, postcode: 'BA12 6QF' },
@@ -373,7 +376,7 @@ describe('ActivityDetails', () => {
         {
           activityId: 'a1',
           ideaIds: [],
-          waypointId: 'stourhead',
+          waypointId: 'demo-foxglove-manor',
           date: '2026-08-01',
           category: 'gold',
           location: { kind: 'postcode', postcode: 'BA12 6QF' },
@@ -413,7 +416,7 @@ describe('ActivityDetails', () => {
         {
           activityId: 'a1',
           ideaIds: [],
-          waypointId: 'stourhead',
+          waypointId: 'demo-foxglove-manor',
           date: '2026-08-01',
           category: 'gold',
           location: { kind: 'postcode', postcode: 'BA12 6QF' },

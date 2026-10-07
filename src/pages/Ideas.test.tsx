@@ -4,7 +4,10 @@ import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import Ideas from './Ideas'
 import { WaypointsProvider } from '../features/journey/JourneyContext'
-import { createDefaultData, load, save, setDataMode } from '../services/storage'
+import { load, save, setDataMode } from '../services/storage'
+import { createDemoTestData } from '../test/demoData'
+
+const createDefaultData = createDemoTestData
 
 function renderIdeas(path = '/ideas') {
   return render(
@@ -19,7 +22,10 @@ function renderIdeas(path = '/ideas') {
 }
 
 describe('Ideas', () => {
-  beforeEach(() => localStorage.clear())
+  beforeEach(() => {
+    localStorage.clear()
+    save(createDemoTestData())
+  })
   afterEach(() => vi.unstubAllGlobals())
 
   it('creates an idea with required fields and a linked waypoint', async () => {
@@ -193,7 +199,7 @@ describe('Ideas', () => {
 
   it('shows add mode from query params and closes editor on cancel', async () => {
     const user = userEvent.setup()
-    renderIdeas('/ideas?mode=add&waypoint=stourhead')
+    renderIdeas('/ideas?mode=add&waypoint=demo-foxglove-manor')
 
     expect(screen.getByRole('button', { name: 'Save idea' })).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: 'Cancel' }))
@@ -221,7 +227,7 @@ describe('Ideas', () => {
     renderIdeas()
     await user.click(await screen.findByRole('button', { name: 'Add idea' }))
     await user.click(screen.getByRole('combobox', { name: 'Linked waypoints' }))
-    await user.click(await screen.findByRole('option', { name: 'Stourhead' }))
+    await user.click(await screen.findByRole('option', { name: 'Foxglove Manor (Demo)' }))
 
     await user.type(screen.getByLabelText('Title'), 'Weekend hill walk')
     await user.click(screen.getByRole('button', { name: 'Save idea' }))
@@ -263,7 +269,7 @@ describe('Ideas', () => {
     renderIdeas()
     await user.click(await screen.findByRole('button', { name: 'Add idea' }))
     await user.click(screen.getByRole('combobox', { name: 'Linked waypoints' }))
-    await user.click(await screen.findByRole('option', { name: 'Stourhead' }))
+    await user.click(await screen.findByRole('option', { name: 'Foxglove Manor (Demo)' }))
 
     await user.type(screen.getByLabelText('Title'), 'Weekend hill walk')
     await user.click(screen.getByRole('button', { name: 'Save idea' }))

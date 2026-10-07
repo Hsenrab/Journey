@@ -4,9 +4,11 @@ import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { ActivityEditor } from './ActivityEditor'
-import { createDefaultData } from '../services/storage'
+import { createDemoModeData } from '../services/storage'
 import type { ActivityDraft } from '../features/journey/JourneyContext'
 import { createActivity, GpxGeometrySchema } from '../domain/visit'
+
+const createDefaultData = createDemoModeData
 
 function renderEditor(overrides: Partial<ComponentProps<typeof ActivityEditor>> = {}) {
   const onSubmit = vi.fn<(draft: ActivityDraft) => void>()

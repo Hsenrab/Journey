@@ -2,8 +2,9 @@
 
 Waypoints is a private planner for destinations, experiences, and activities. Real
 data is persisted in Azure Cosmos DB through the authenticated Functions API.
-The first built-in challenge is **National Trust**, represented directly as a challenge made
-up of waypoints.
+Create challenges to organize your own waypoints around shared goals. Production starts
+with an empty dataset; the bundled sample content is available only in the explicitly
+labelled demo modes.
 
 ## Core concepts
 
@@ -26,21 +27,14 @@ Navigation includes:
 - Map
 - Settings
 
-## National Trust implementation
+## Progress
 
-- National Trust is modelled as a challenge (`national-trust`).
-- National Trust catalogue entries are seeded as waypoints using
-  `src/data/locations.json`.
-- National Trust visits are saved as activities linked to waypoint/challenge IDs.
 - The root route redirects to `/challenges`, so the app opens on the progress
   dashboard; the **Progress** navigation item and the app bar title lead to the same
   route.
-- The `/challenges` page presents the National Trust Challenge dashboard: overall
-  completion percentage and completed waypoint count are the primary summary, with
-  Bronze/Silver/Gold activity-category counts shown underneath as secondary
-  information. Bronze/Silver/Gold describe how well an activity fits the challenge;
-  they are not challenge completion milestones. Each category count links to a
-  filtered Waypoints view (e.g. `/waypoints?status=bronze`).
+- The `/challenges` page summarizes each challenge's completion and activity-category
+  progress. Bronze/Silver/Gold describe how well an activity fits its challenge; they
+  are not challenge completion milestones.
 
 ## Data and validation
 
@@ -58,6 +52,8 @@ Shared domain validation lives in `src/domain/visit.ts` and is reused by UI + st
   Viewers can read every shared dataset but cannot make changes.
 - If Demo Cosmos cannot load, the app uses visible read-only Demo local fallback data for
   that session. Production load failures never fall back to demo data.
+- Production has no bundled waypoint or challenge seed. Legacy browser-local records
+  remain untouched; no local or Cosmos production data is migrated or deleted.
 - Every page that hides write actions renders the shared `ReadOnlyNotice`, which names the
   read-only reason (local fallback, load error, viewer role or demo local) and links to
   Settings.

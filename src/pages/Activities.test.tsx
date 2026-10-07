@@ -6,6 +6,7 @@ import Activities from './Activities'
 import { WaypointsProvider } from '../features/journey/JourneyContext'
 import { createDefaultData, load, save } from '../services/storage'
 import type { Activity } from '../domain/visit'
+import { createDemoTestData } from '../test/demoData'
 
 function renderActivities() {
   render(
@@ -74,11 +75,11 @@ describe('Activities', () => {
   })
 
   it('shows activity names, formatted fallback dates, waypoint labels and detail counts', () => {
-    const seed = createDefaultData()
+    const seed = createDemoTestData()
     const namedActivity: Activity = {
       activityId: 'a1',
       ideaIds: [],
-      waypointId: 'stourhead',
+      waypointId: 'demo-foxglove-manor',
       challengeId: 'national-trust',
       date: '2026-08-01',
       name: 'Summer visit',
@@ -107,9 +108,9 @@ describe('Activities', () => {
 
     expect(screen.getByRole('link', { name: 'Summer visit' })).toBeInTheDocument()
     expect(screen.getByRole('link', { name: new Date('2026-08-02T00:00:00').toLocaleDateString() })).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: 'View Stourhead waypoint' })).toHaveAttribute(
+    expect(screen.getByRole('link', { name: 'View Foxglove Manor (Demo) waypoint' })).toHaveAttribute(
       'href',
-      '/waypoints/stourhead',
+      '/waypoints/demo-foxglove-manor',
     )
     expect(screen.getByText('1 photo')).toBeInTheDocument()
     expect(screen.getByText('1 link')).toBeInTheDocument()

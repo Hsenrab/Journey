@@ -105,11 +105,6 @@ or Activity is persisted without coordinates. A location that Azure Maps cannot
 resolve fails the write with a 400 response, and an Azure Maps search failure fails
 the request outright; the record is never saved without coordinates.
 
-The static seed catalogue in `src/data/locations.json` is geocoded once, offline, by
-`scripts/backfill-location-coordinates.ts`, which writes the coordinates back into the
-checked-in file. Run it manually (`az login`, then
-`AZURE_MAPS_CLIENT_ID=<client id> node --experimental-strip-types scripts/backfill-location-coordinates.ts`)
-when catalogue entries are added. Static content is never re-geocoded at runtime.
 Application Insights should be used to review token, search, error, and throttling
 counts without recording search strings or precise locations.
 

@@ -24,7 +24,6 @@ import { LoadFailureAlert } from '../components/LoadFailureAlert'
 import { LoadingNotice } from '../components/LoadingNotice'
 import { ReadOnlyNotice } from '../components/ReadOnlyNotice'
 import { WaypointEditor } from '../components/WaypointEditor'
-import { locations } from '../data/locations'
 import {
   activitySubtitle,
   activityTitle,
@@ -42,8 +41,6 @@ import {
 import { useWaypoints } from '../features/journey/JourneyContext'
 import { JourneyConflictError } from '../services/journeyApi'
 
-const catalogueLocationById = new Map(locations.map((location) => [location.locationId, location]))
-
 export default function LocationDetails() {
   const { id = '' } = useParams()
   const navigate = useNavigate()
@@ -57,7 +54,6 @@ export default function LocationDetails() {
   )
   const breadcrumbs = [{ label: 'Waypoints', to: '/waypoints' }]
   const waypoint = data.waypoints.find((item) => item.waypointId === id)
-  const sourceLocation = waypoint ? catalogueLocationById.get(waypoint.waypointId) : undefined
 
   if (!waypoint) {
     return (
@@ -141,12 +137,9 @@ export default function LocationDetails() {
       </Stack>
       <Typography color="text.secondary">{completionRuleLabel(waypoint)}</Typography>
       <Typography>{waypoint.description}</Typography>
-      {sourceLocation && (
-        <Typography color="text.secondary">
-          {sourceLocation.area} · {sourceLocation.category} · {sourceLocation.travel.distanceMiles} miles ·{' '}
-          {sourceLocation.travel.driveTimeMinutes} min drive from Brockworth GL3
-        </Typography>
-      )}
+      <Typography color="text.secondary">
+        {[waypoint.category, waypoint.location?.placeName, waypoint.location?.addressOrRegion].filter(Boolean).join(' · ')}
+      </Typography>
 
       {message && (
         <Alert

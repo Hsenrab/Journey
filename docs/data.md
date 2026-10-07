@@ -26,8 +26,8 @@ browser and is always read-only. The deployment workflow also reseeds the Cosmos
 partition from that file on every infrastructure redeploy; Demo Cosmos is writable
 during the deployment lifetime, but those changes are intentionally temporary. Every
 place, activity, idea and reference in the fixture is fabricated and visibly labelled as
-demo content. The fixture mixes fictional National Trust-style places with unrelated
-local activities. It is parsed with `DataSchema` before use; only challenges that
+demo content. The fixture contains fictional places and unrelated local activities. It
+is parsed with `DataSchema` before use; only challenges that
 explicitly set `supportsActivityCategories` can use Bronze, Silver or Gold activity
 categories.
 
@@ -36,7 +36,7 @@ entities spread over waypoints, challenges, ideas, activities, references and ph
 references. It includes waypoints with repeat visits, exactly one visit and none at
 all; shared categories and a reference shared by several waypoints; waypoints and
 activities with several, one or no photo references; Bronze, Silver and Gold each
-awarded more than once within the `national-trust` challenge; several ideas in each
+awarded more than once within a demo challenge; several ideas in each
 planning state, some used by more than one activity and exactly three unused; and activity
 dates spread across multiple months and years. Every challenge that has waypoints is
 partially complete, and `future-shortlist` is intentionally empty so the no-waypoints
@@ -151,6 +151,8 @@ explicit `409 Conflict`; the UI must preserve unsaved values and offer Reload la
 Cancel rather than retrying or overwriting another tab.
 
 Production begins empty and never falls back to either demo dataset. Existing
-browser-local records are not migrated. The test container is used only with unique run
+browser-local `waypoints-v1` records remain untouched and are loaded as saved when
+running in local development; no catalogue data is recreated or migrated. Cosmos
+production data is not changed. The test container is used only with unique run
 partitions such as `ci-<run-id>` and every run must delete and verify its partition
 after success or failure.

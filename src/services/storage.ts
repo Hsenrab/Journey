@@ -1,6 +1,5 @@
 import { z } from 'zod'
-import { locations } from '../data/locations'
-import { createDemoData, createSeedData, DataSchema, type WaypointsData } from '../domain/visit'
+import { createDemoData, DataSchema, type WaypointsData } from '../domain/visit'
 
 export type Backup = { version: number; exportedAt: string; data: WaypointsData }
 export type JourneyDataMode = 'demo-local' | 'demo-cosmos' | 'production'
@@ -25,7 +24,7 @@ function requireProductionDataMode() {
 }
 
 export function createDefaultData(): WaypointsData {
-  return createSeedData(locations)
+  return { waypoints: [], challenges: [], ideas: [], activities: [], references: [], photoReferences: [] }
 }
 
 export function createDemoModeData(): WaypointsData {

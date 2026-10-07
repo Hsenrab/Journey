@@ -2,7 +2,7 @@ import { act, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { createDefaultData } from '../services/storage'
+import { createDemoModeData, save } from '../services/storage'
 import { useWaypoints, WaypointsProvider } from '../features/journey/JourneyContext'
 
 type MapClickHandler = (event: {
@@ -196,9 +196,12 @@ vi.mock('azure-maps-control', () => ({
 
 import MapPage from './MapPage'
 
+const createDefaultData = createDemoModeData
+
 describe('MapPage', () => {
   beforeEach(() => {
     localStorage.clear()
+    save(createDemoModeData())
     vi.unstubAllEnvs()
     setViewport(1200)
     mapEvents.click = undefined
@@ -489,7 +492,7 @@ describe('MapPage', () => {
     await user.click(screen.getByRole('tab', { name: 'Activities' }))
     const activityLink = screen.getByRole('link', { name: /Canal loop.*\d+\.\d miles.*2026-08-10/ })
     expect(activityLink).toHaveAttribute('title', 'Canal loop')
-    expect(screen.getByLabelText('Bronze tier')).toBeInTheDocument()
+    expect(screen.getAllByLabelText('Bronze tier').length).toBeGreaterThan(0)
     expect(screen.queryByText(/Bronze:/)).not.toBeInTheDocument()
     expect(screen.queryByText(/NOT STARTED|GOLD|SILVER|BRONZE/)).not.toBeInTheDocument()
     expect(screen.getByText(/1 waypoint and 1 activity have no coordinates/)).toBeInTheDocument()
@@ -498,6 +501,12 @@ describe('MapPage', () => {
   it('fits a recorded track and only shows its status while the track is present in Activities mode', async () => {
     const user = userEvent.setup()
     const data = createDefaultData()
+    data.waypoints = []
+    data.challenges = []
+    data.ideas = []
+    data.references = []
+    data.photoReferences = []
+    data.activities = []
     const coordinates: [number, number][] = [
       [-2.1, 51.5],
       [-2.2, 51.6],
@@ -740,7 +749,7 @@ describe('MapPage', () => {
     expect(screen.getByRole('group', { name: 'Planned routes' })).toBeInTheDocument()
     const sourceAddsBeforeSelection = mapEvents.gpxSourceAdd.mock.calls.length
     const sourceClearsBeforeSelection = mapEvents.gpxSourceClear.mock.calls.length
-    await user.click(screen.getByRole('button', { name: 'National Trust' }))
+    await user.click(screen.getByRole('button', { name: 'National Trust Demo Collection (Fictional)' }))
     expect(mapEvents.gpxSourceAdd).toHaveBeenCalledTimes(sourceAddsBeforeSelection)
     expect(mapEvents.gpxSourceClear).toHaveBeenCalledTimes(sourceClearsBeforeSelection)
     expect(mapEvents.setCamera).toHaveBeenCalledWith({
@@ -843,7 +852,7 @@ describe('MapPage', () => {
 
     await vi.waitFor(() => expect(mapEvents.gpxSourceAdd).toHaveBeenCalled())
     expect(mapEvents.gpxSourceAdd).toHaveBeenCalledWith([expect.objectContaining({ id: 'national-trust:0' })])
-    await user.click(screen.getByRole('button', { name: 'National Trust' }))
+    await user.click(screen.getByRole('button', { name: 'National Trust Demo Collection (Fictional)' }))
     expect(mapEvents.setCamera).not.toHaveBeenCalled()
   })
 

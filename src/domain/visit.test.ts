@@ -11,7 +11,6 @@ import {
   completionRuleLabel,
   createActivity,
   createDemoData,
-  createSeedData,
   difficultyDescriptions,
   GpxGeometrySchema,
   ideaUsageCount,
@@ -26,7 +25,6 @@ import {
   type WaypointsData,
 } from './visit'
 import { completionStateForWaypoint, waypointCoordinates } from './map'
-import { locations } from '../data/locations'
 
 function waypoint(waypointId: string): Waypoint {
   return {
@@ -35,7 +33,7 @@ function waypoint(waypointId: string): Waypoint {
     description: `${waypointId} description`,
     category: 'Historic building',
     tags: ['Test'],
-    challengeIds: ['national-trust'],
+    challengeIds: ['challenge-1'],
     completion: { mode: 'once' },
     location: { placeName: waypointId },
     referenceIds: [],
@@ -140,9 +138,23 @@ describe('activity rules', () => {
   })
 
   it('makes category optional and validates eligibility by challenge config', () => {
-    const data = createSeedData(locations)
-    const waypointId = data.waypoints[0]!.waypointId
-    expect(data.waypoints.every((item) => waypointCoordinates(item) !== undefined)).toBe(true)
+    const waypointId = 'waypoint-1'
+    const data: WaypointsData = {
+      waypoints: [waypoint(waypointId)],
+      challenges: [
+        {
+          challengeId: 'challenge-1',
+          title: 'Test challenge',
+          description: 'A challenge for this test.',
+          waypointIds: [waypointId],
+          supportsActivityCategories: true,
+        },
+      ],
+      ideas: [],
+      activities: [],
+      references: [],
+      photoReferences: [],
+    }
     expect(waypointSupportsActivityCategory(data, waypointId)).toBe(true)
 
     const activity = createActivity({
