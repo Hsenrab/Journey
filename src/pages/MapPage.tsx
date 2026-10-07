@@ -43,7 +43,14 @@ import {
   gpxLineFeatures,
   type GpxMapLine,
 } from '../domain/gpxMap'
-import { awardableStatuses, statusLabels, type Activity, type AwardedStatus, type Waypoint } from '../domain/visit'
+import {
+  awardableStatuses,
+  statusLabels,
+  waypointCompletionProgress,
+  type Activity,
+  type AwardedStatus,
+  type Waypoint,
+} from '../domain/visit'
 import { PageHeader } from '../components/PageHeader'
 import { LoadFailureAlert } from '../components/LoadFailureAlert'
 import { LoadingNotice } from '../components/LoadingNotice'
@@ -742,11 +749,13 @@ export default function MapPage() {
         const status = statusFor(waypoint.waypointId)
         const matchesProgress =
           progressFilter === 'all' ||
-          (progressFilter === 'started' ? status !== 'not-started' : status === 'not-started')
+          (progressFilter === 'started'
+            ? waypointCompletionProgress(waypoint, data.activities).count > 0
+            : waypointCompletionProgress(waypoint, data.activities).count === 0)
         const matchesMedal = medalFilter === 'all' || status === medalFilter
         return matchesProgress && matchesMedal
       }),
-    [data.waypoints, medalFilter, progressFilter, statusFor],
+    [data.activities, data.waypoints, medalFilter, progressFilter, statusFor],
   )
   const nearby = useMemo(() => orderNearbyWaypoints(visibleWaypoints, origin).slice(0, 10), [origin, visibleWaypoints])
   const nearbyActivities = useMemo(

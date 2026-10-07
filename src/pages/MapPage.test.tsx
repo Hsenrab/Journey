@@ -318,6 +318,34 @@ describe('MapPage', () => {
     expect(within(waypointList).getByText(notStartedWaypoint!.title)).toBeInTheDocument()
   })
 
+  it('treats an uncategorized linked activity as started progress', async () => {
+    const data = createDefaultData()
+    const waypoint = data.waypoints[0]!
+    waypoint.location = { latitude: 51.84, longitude: -2.15 }
+    const uncategorizedActivity = activity(waypoint.waypointId, 'bronze')
+    delete uncategorizedActivity.category
+    data.activities = [uncategorizedActivity]
+    localStorage.setItem('waypoints-v1', JSON.stringify(data))
+    const user = userEvent.setup()
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(jsonResponse({ token: 'entra', expiresOn: '2026-01-01', clientId: 'maps-client-id' })),
+    )
+    render(
+      <MemoryRouter>
+        <WaypointsProvider>
+          <MapPage />
+        </WaypointsProvider>
+      </MemoryRouter>,
+    )
+    const waypointList = screen.getByLabelText('Nearest visible waypoints')
+
+    await user.click(screen.getByRole('combobox', { name: 'Progress status' }))
+    await user.click(screen.getByRole('option', { name: 'Started' }))
+
+    expect(within(waypointList).getByText(waypoint.title)).toBeInTheDocument()
+  })
+
   it('shows a loading notice instead of filters and an empty map while production data is in flight', async () => {
     vi.stubEnv('MODE', 'production')
     vi.stubGlobal(
