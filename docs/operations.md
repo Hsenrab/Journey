@@ -390,6 +390,38 @@ integration needs to be fully removed.
 The reusable deployment workflow requires anonymous `/api/maps/token` requests to
 return HTTP 302. Its curl checks use `--max-redirs 0` so they inspect the
 application's redirect response without following the interactive sign-in flow.
+This verifies only the sign-in boundary, not API health: Static Web Apps can redirect
+even when the linked Functions host has registered no routes.
+
+CI also runs `cd api && npm run build && npm run test:smoke` with Azure Functions
+Core Tools v4 installed. It starts a temporary copy of the built package using its
+actual `package.json` entry point, `host.json`, compiled output, and installed
+dependencies. Anonymous GETs to `/api/journey/production`, `/api/maps/search`, and
+`/api/maps/token` must return the application's JSON `403` authorization rejection,
+not `404`, a redirect, or a host error. No principal or Azure credentials are supplied,
+so Cosmos and Maps are never called. A regression package with an entry point that
+registers no functions must fail the same route check.
+
+After Functions deployment, the workflow uses the existing Azure OIDC login to read
+registered function metadata with `az functionapp function list`. Deployment fails
+unless `journey`, `mapsSearch`, and `mapsToken` are enabled HTTP triggers with the
+expected routes, methods, and authorization levels. It also reads the Static Web App's
+`userProvidedFunctionApps` link through ARM and requires exactly the intended Function
+App. These checks use management-plane reads only, request no Function keys or user
+session cookies, do not open direct Function App access, and neither write nor clear
+any Cosmos dataset.
+
+Actions' deployment identity is not an invited interactive Static Web Apps user.
+Its ARM access token cannot replace a Static Web Apps session. Consequently these
+automated checks verify package callability locally and deployed route/link
+registration, **not** authenticated proxy callability or downstream Cosmos/Maps
+availability. Trigger sync success alone is not accepted as registration evidence.
+After deployment, an invited user can verify the remaining boundary in the signed-in
+browser: GET `/api/journey/production` must return JSON HTTP 200 (read-only; do not
+use import, replace, clear, or other mutation operations), and GETs to
+`/api/maps/token` and `/api/maps/search?query=London` must return JSON HTTP 200.
+Do not log or copy the returned Journey data, Maps token, or session cookie into
+Actions. The existing direct-host rejection check remains separate from route health.
 
 Failures surface in the GitHub Actions run: the failing job is marked red and
 verification failures are reported with an `::error::` annotation.
