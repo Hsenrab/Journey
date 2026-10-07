@@ -233,7 +233,9 @@ describe('LocationDetails', () => {
     vi.stubEnv('MODE', 'production')
     vi.stubGlobal(
       'fetch',
-      vi.fn().mockResolvedValue(new Response(JSON.stringify({ data: createDemoModeData(), etags: {}, role: 'viewer' }))),
+      vi
+        .fn()
+        .mockResolvedValue(new Response(JSON.stringify({ data: createDemoModeData(), etags: {}, role: 'viewer' }))),
     )
 
     renderDetails(demoWaypointId)

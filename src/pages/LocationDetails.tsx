@@ -138,7 +138,9 @@ export default function LocationDetails() {
       <Typography color="text.secondary">{completionRuleLabel(waypoint)}</Typography>
       <Typography>{waypoint.description}</Typography>
       <Typography color="text.secondary">
-        {[waypoint.category, waypoint.location?.placeName, waypoint.location?.addressOrRegion].filter(Boolean).join(' · ')}
+        {[waypoint.category, waypoint.location?.placeName, waypoint.location?.addressOrRegion]
+          .filter(Boolean)
+          .join(' · ')}
       </Typography>
 
       {message && (

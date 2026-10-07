@@ -82,20 +82,11 @@ export default function Locations() {
 
   const areas = useMemo(
     () =>
-      Array.from(
-        new Set(
-          data.waypoints.map((waypoint) => waypoint.location?.addressOrRegion ?? 'Unspecified'),
-        ),
-      ).sort(),
+      Array.from(new Set(data.waypoints.map((waypoint) => waypoint.location?.addressOrRegion ?? 'Unspecified'))).sort(),
     [data.waypoints],
   )
   const categories = useMemo(
-    () =>
-      Array.from(
-        new Set(
-          data.waypoints.map((waypoint) => waypoint.category),
-        ),
-      ).sort(),
+    () => Array.from(new Set(data.waypoints.map((waypoint) => waypoint.category))).sort(),
     [data.waypoints],
   )
 

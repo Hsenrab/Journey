@@ -92,7 +92,9 @@ describe('Dashboard', () => {
     renderDashboard()
     const card = screen.getByRole('heading', { name: challenge.title }).closest('.MuiCard-root')
     expect(within(card as HTMLElement).getByText('0% complete')).toBeInTheDocument()
-    expect(within(card as HTMLElement).getByText(`0 of ${seed.waypoints.length} waypoints completed`)).toBeInTheDocument()
+    expect(
+      within(card as HTMLElement).getByText(`0 of ${seed.waypoints.length} waypoints completed`),
+    ).toBeInTheDocument()
   })
 
   it('shows every demo challenge with its own waypoint progress and explains read-only mode', async () => {

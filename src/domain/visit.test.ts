@@ -24,7 +24,7 @@ import {
   type Waypoint,
   type WaypointsData,
 } from './visit'
-import { completionStateForWaypoint, waypointCoordinates } from './map'
+import { completionStateForWaypoint } from './map'
 
 function waypoint(waypointId: string): Waypoint {
   return {

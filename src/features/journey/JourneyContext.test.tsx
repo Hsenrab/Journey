@@ -2,12 +2,12 @@ import { act, renderHook, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { WaypointsProvider, useWaypoints } from './JourneyContext'
 import { createDemoModeData, load, save, setDataMode } from '../../services/storage'
-import { createActivity, createIdea, GpxGeometrySchema } from '../../domain/visit'
+import { createActivity, createIdea, GpxGeometrySchema, type WaypointsData } from '../../domain/visit'
 
 const waypointId = 'demo-foxglove-manor'
 const lacockId = waypointId
 
-function testData() {
+function testData(): WaypointsData {
   const data = createDemoModeData()
   const challenge = data.challenges[0]!
   return {

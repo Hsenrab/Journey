@@ -434,6 +434,12 @@ export default function MapPage() {
   const [mobilePanel, setMobilePanel] = useState<'map' | 'list'>('map')
   const [originQuery, setOriginQuery] = useState('')
   const [origin, setOrigin] = useState<Coordinates | null>(null)
+  const mapCenter = origin ??
+    data.waypoints.map(waypointCoordinates).find((coordinates) => coordinates !== undefined) ??
+    data.activities.map(activityCoordinates).find((coordinates) => coordinates !== undefined) ?? {
+      latitude: 0,
+      longitude: 0,
+    }
   const [originResults, setOriginResults] = useState<SearchResult[]>([])
   const theme = useTheme()
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'), { noSsr: true })
@@ -496,7 +502,7 @@ export default function MapPage() {
     if (!token || !container.current || map.current) return
     let initialToken: string | undefined = token.token
     const instance = new atlas.Map(container.current, {
-      center: [origin?.longitude ?? 0, origin?.latitude ?? 0],
+      center: [mapCenter.longitude, mapCenter.latitude],
       zoom: 8,
       authOptions: {
         authType: atlas.AuthenticationType.anonymous,
@@ -742,7 +748,7 @@ export default function MapPage() {
       mapPopup.current = null
       setMapReady(false)
     }
-  }, [data.activities, data.waypoints, loaded, navigate, origin?.latitude, origin?.longitude, token, trackActivity])
+  }, [data.activities, data.waypoints, loaded, mapCenter.latitude, mapCenter.longitude, navigate, token, trackActivity])
 
   const visibleWaypoints = useMemo(
     () => filterWaypointsByStatus(data.waypoints, statuses, statusFor),
