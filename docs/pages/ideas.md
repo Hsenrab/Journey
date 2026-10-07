@@ -17,8 +17,7 @@ more activities through activity `ideaIds`.
 - Usage filter is independent from planning state: **All usage**, **Used ideas**, **Not used**.
 - Search covers title, description, notes, linked waypoint names, reference titles,
   and reference hostnames.
-- Sorting supports distance from Brockworth when coordinates exist, recently updated,
-  and difficulty.
+- Sorting supports recently updated and difficulty.
 - Cards show planning state, difficulty, linked waypoints, location summary,
   reference preview, and derived usage text.
 

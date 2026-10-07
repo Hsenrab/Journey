@@ -51,12 +51,7 @@ type Errors = Record<string, string>
 type EditorMode = 'form' | 'json'
 
 export function WaypointEditor({ data, submitLabel, onSubmit, onCancel, errorMessage, initialWaypoint }: Props) {
-  const defaultChallengeIds = useMemo(
-    () =>
-      initialWaypoint?.challengeIds ??
-      (data.challenges.some((challenge) => challenge.challengeId === 'national-trust') ? ['national-trust'] : []),
-    [data.challenges, initialWaypoint],
-  )
+  const defaultChallengeIds = initialWaypoint?.challengeIds ?? []
   const defaultReferences: EditorReference[] = useMemo(
     () =>
       initialWaypoint
@@ -192,7 +187,6 @@ export function WaypointEditor({ data, submitLabel, onSubmit, onCancel, errorMes
     if (!title.trim()) nextErrors.title = 'Waypoint title is required.'
     if (!description.trim()) nextErrors.description = 'Waypoint description is required.'
     if (!category.trim()) nextErrors.category = 'Waypoint category is required.'
-    if (challengeIds.length === 0) nextErrors.challengeIds = 'Select at least one challenge.'
 
     const tags = tagsInput
       .split(',')

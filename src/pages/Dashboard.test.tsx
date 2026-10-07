@@ -4,10 +4,22 @@ import { MemoryRouter } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import Dashboard from './Dashboard'
 import { WaypointsProvider } from '../features/journey/JourneyContext'
-import { createDefaultData, createDemoModeData, save, setDataMode } from '../services/storage'
+import { createDemoModeData, save, setDataMode } from '../services/storage'
 import type { Activity } from '../domain/visit'
 
-const lacockId = 'lacock-abbey-fox-talbot-museum-and-village'
+const lacockId = 'demo-foxglove-manor'
+function testData() {
+  const data = createDemoModeData()
+  const challenge = data.challenges[0]!
+  return {
+    ...data,
+    challenges: [challenge],
+    waypoints: data.waypoints.filter((waypoint) => challenge.waypointIds.includes(waypoint.waypointId)),
+    activities: [],
+  }
+}
+
+const createDefaultData = testData
 
 function activity(waypointId: string, category: 'bronze' | 'silver' | 'gold'): Activity {
   return {
@@ -37,7 +49,10 @@ function renderDashboard() {
 }
 
 describe('Dashboard', () => {
-  beforeEach(() => localStorage.clear())
+  beforeEach(() => {
+    localStorage.clear()
+    save(testData())
+  })
   afterEach(() => {
     vi.unstubAllEnvs()
     vi.unstubAllGlobals()
@@ -52,20 +67,34 @@ describe('Dashboard', () => {
   })
 
   it('shows a single challenge with its own name and progress', () => {
+    const data = createDemoModeData()
+    data.challenges = [data.challenges[0]!]
+    data.waypoints = data.waypoints.filter((waypoint) => data.challenges[0]!.waypointIds.includes(waypoint.waypointId))
+    data.activities = []
+    save(data)
     renderDashboard()
-    expect(screen.getByRole('heading', { name: 'National Trust' })).toBeInTheDocument()
-    expect(screen.getByRole('progressbar', { name: 'National Trust completion' })).toBeInTheDocument()
-    const title = screen.getByRole('heading', { name: 'National Trust' })
-    const challengeLink = screen.getByRole('link', { name: /National Trust/ })
+    const challengeTitle = 'National Trust Demo Collection (Fictional)'
+    expect(screen.getByRole('heading', { name: challengeTitle })).toBeInTheDocument()
+    expect(screen.getByRole('progressbar', { name: `${challengeTitle} completion` })).toBeInTheDocument()
+    const title = screen.getByRole('heading', { name: challengeTitle })
+    const challengeLink = screen.getByRole('link', { name: challengeTitle })
     expect(challengeLink).toHaveAttribute('href', '/challenges/national-trust')
     expect(challengeLink).toHaveAttribute('aria-labelledby', title.id)
   })
 
   it('shows zero progress when no activities are recorded', () => {
     const seed = createDefaultData()
+    const challenge = seed.challenges[0]!
+    seed.challenges = [challenge]
+    seed.waypoints = seed.waypoints.filter((waypoint) => challenge.waypointIds.includes(waypoint.waypointId))
+    seed.activities = []
+    save(seed)
     renderDashboard()
-    expect(screen.getByText('0% complete')).toBeInTheDocument()
-    expect(screen.getByText(`0 of ${seed.waypoints.length} waypoints completed`, { exact: false })).toBeInTheDocument()
+    const card = screen.getByRole('heading', { name: challenge.title }).closest('.MuiCard-root')
+    expect(within(card as HTMLElement).getByText('0% complete')).toBeInTheDocument()
+    expect(
+      within(card as HTMLElement).getByText(`0 of ${seed.waypoints.length} waypoints completed`),
+    ).toBeInTheDocument()
   })
 
   it('shows every demo challenge with its own waypoint progress and explains read-only mode', async () => {
@@ -121,6 +150,7 @@ describe('Dashboard', () => {
           ? { ...waypoint, challengeIds: [...waypoint.challengeIds, 'walking'] }
           : waypoint,
       ),
+      activities: [],
     })
     renderDashboard()
     const card = screen.getByRole('heading', { name: 'Walking' }).closest('.MuiCard-root')
@@ -241,9 +271,16 @@ describe('Dashboard', () => {
 
   it('counts completed waypoints when any activity exists (including bronze)', () => {
     const seed = createDefaultData()
+    const challenge = seed.challenges[0]!
+    seed.challenges = [challenge]
+    seed.waypoints = seed.waypoints.filter((waypoint) => challenge.waypointIds.includes(waypoint.waypointId))
     save({
       ...seed,
-      activities: [activity(lacockId, 'silver'), activity('stourhead', 'gold'), activity('cliveden', 'bronze')],
+      activities: [
+        activity('demo-foxglove-manor', 'silver'),
+        activity('demo-bramblewick-gardens', 'gold'),
+        activity('demo-cindercombe-mill', 'bronze'),
+      ],
     })
 
     renderDashboard()
@@ -252,7 +289,11 @@ describe('Dashboard', () => {
   })
 
   it('derives status counts per waypoint and links each to a filtered Waypoints view', () => {
-    save({ ...createDefaultData(), activities: [activity(lacockId, 'silver')] })
+    const data = createDefaultData()
+    const waypoint = data.waypoints.find((item) => item.waypointId === lacockId)!
+    data.waypoints = [waypoint]
+    data.challenges = [{ ...data.challenges[0]!, waypointIds: [lacockId] }]
+    save({ ...data, activities: [activity(lacockId, 'silver')] })
 
     const { getByRole } = renderDashboard()
 
@@ -265,7 +306,11 @@ describe('Dashboard', () => {
   })
 
   it('formats recent activity dates for the user locale', () => {
-    save({ ...createDefaultData(), activities: [activity(lacockId, 'silver')] })
+    const data = createDefaultData()
+    const waypoint = data.waypoints.find((item) => item.waypointId === lacockId)!
+    data.waypoints = [waypoint]
+    data.challenges = [{ ...data.challenges[0]!, waypointIds: [lacockId] }]
+    save({ ...data, activities: [activity(lacockId, 'silver')] })
 
     renderDashboard()
 
@@ -273,10 +318,14 @@ describe('Dashboard', () => {
   })
 
   it('makes recent-waypoint rows keyboard accessible links to the waypoint', () => {
-    save({ ...createDefaultData(), activities: [activity(lacockId, 'silver')] })
+    const data = createDefaultData()
+    const waypoint = data.waypoints.find((item) => item.waypointId === lacockId)!
+    data.waypoints = [waypoint]
+    data.challenges = [{ ...data.challenges[0]!, waypointIds: [lacockId] }]
+    save({ ...data, activities: [activity(lacockId, 'silver')] })
 
     const { getByRole } = renderDashboard()
 
-    expect(getByRole('link', { name: /Lacock Abbey/ })).toHaveAttribute('href', `/waypoints/${lacockId}`)
+    expect(getByRole('link', { name: /Foxglove Manor/ })).toHaveAttribute('href', `/waypoints/${lacockId}`)
   })
 })

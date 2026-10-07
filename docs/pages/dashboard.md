@@ -6,7 +6,7 @@ at the same route.
 
 ## Purpose
 
-Summarize challenge progress and activity-category distribution for the National Trust challenge.
+Summarize progress and activity-category distribution for each challenge.
 
 ## Key behavior
 

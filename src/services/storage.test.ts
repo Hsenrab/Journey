@@ -15,8 +15,8 @@ import { GpxGeometrySchema, type Activity, type WaypointsData } from '../domain/
 const activity: Activity = {
   activityId: 'a1',
   ideaIds: [],
-  waypointId: 'dyrham-park',
-  challengeId: 'national-trust',
+  waypointId: 'waypoint-1',
+  challengeId: 'challenge-1',
   date: '2026-08-01',
   category: 'silver',
   location: { kind: 'postcode', postcode: 'GL1 1AA' },
@@ -37,13 +37,46 @@ const backup = (overrides: { version?: number; data?: Partial<WaypointsData> } =
 describe('load', () => {
   beforeEach(() => localStorage.clear())
 
-  it('returns seeded waypoints when nothing is stored', () => {
-    expect(load().waypoints.length).toBeGreaterThan(0)
+  it('starts with empty data and does not write a legacy catalogue into local storage', () => {
+    expect(load()).toEqual(createDefaultData())
+    expect(load()).toEqual({
+      waypoints: [],
+      challenges: [],
+      ideas: [],
+      activities: [],
+      references: [],
+      photoReferences: [],
+    })
+    expect(localStorage.getItem('waypoints-v1')).toBeNull()
   })
 
   it('returns previously saved data', () => {
     save({ ...createDefaultData(), activities: [activity] })
     expect(load().activities).toEqual([activity])
+  })
+
+  it('preserves existing browser-local data without rewriting it', () => {
+    const saved = JSON.stringify({
+      ...createDefaultData(),
+      waypoints: [
+        {
+          waypointId: 'saved-waypoint',
+          title: 'Saved waypoint',
+          description: 'Keep this record.',
+          category: 'Custom',
+          tags: [],
+          challengeIds: [],
+          completion: { mode: 'once' },
+          location: { placeName: 'Saved place' },
+          referenceIds: [],
+          photoReferenceIds: [],
+        },
+      ],
+    })
+    localStorage.setItem('waypoints-v1', saved)
+
+    expect(load().waypoints[0]?.waypointId).toBe('saved-waypoint')
+    expect(localStorage.getItem('waypoints-v1')).toBe(saved)
   })
 
   it('throws when stored json is invalid', () => {
@@ -132,7 +165,11 @@ describe('createBackup/parseImport', () => {
     })
     const data = createDefaultData()
     const challenge = {
-      ...data.challenges[0]!,
+      challengeId: 'challenge-1',
+      title: 'Test challenge',
+      description: 'A challenge used to test route backup.',
+      waypointIds: [],
+      supportsActivityCategories: false,
       plannedRoute: { fileName: 'planned.gpx', geometry },
     }
     const trackedActivity = { ...activity, recordedTrack: geometry }
