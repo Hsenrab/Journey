@@ -151,8 +151,8 @@ explicit `409 Conflict`; the UI must preserve unsaved values and offer Reload la
 Cancel rather than retrying or overwriting another tab.
 
 Production begins empty and never falls back to either demo dataset. Existing
-browser-local `waypoints-v1` records remain untouched and are loaded as saved when
-running in local development; no catalogue data is recreated or migrated. Cosmos
-production data is not changed. The test container is used only with unique run
+browser-local `waypoints-v1` records remain untouched; the legacy loader reads them
+only in test mode when production is selected. No catalogue data is recreated or
+migrated, and Cosmos production data is not changed. The test container is used only with unique run
 partitions such as `ci-<run-id>` and every run must delete and verify its partition
 after success or failure.

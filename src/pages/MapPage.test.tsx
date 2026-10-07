@@ -311,6 +311,8 @@ describe('MapPage', () => {
     expect(screen.getByRole('tab', { name: 'Waypoints' })).toHaveAttribute('aria-selected', 'false')
     expect(screen.getByRole('tab', { name: 'Activities' })).toHaveAttribute('aria-selected', 'true')
     expect(screen.getByLabelText('Nearest activities')).toBeInTheDocument()
+    expect(screen.getByText('Choose a nearby origin to see activities.')).toBeInTheDocument()
+    expect(screen.queryByText('No mapped activities yet.')).not.toBeInTheDocument()
     expect(screen.queryByRole('group', { name: 'Waypoint filters' })).not.toBeInTheDocument()
   })
 

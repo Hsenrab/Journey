@@ -1115,9 +1115,6 @@ export default function MapPage() {
                     {origin ? 'No activities with coordinates.' : 'Choose a nearby origin to see activities.'}
                   </Typography>
                 )}
-                {mode === 'activities' && nearbyActivities.length === 0 && (
-                  <Typography color="text.secondary">No mapped activities yet.</Typography>
-                )}
                 {selectedWaypointId && <Typography role="status">Opening waypoint details.</Typography>}
               </Stack>
             </Box>
