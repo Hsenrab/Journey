@@ -1,14 +1,33 @@
 import { act, renderHook, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { WaypointsProvider, useWaypoints } from './JourneyContext'
-import { createDefaultData, createDemoModeData, load, save, setDataMode } from '../../services/storage'
-import { createActivity, createIdea, GpxGeometrySchema } from '../../domain/visit'
+import { createDemoModeData, load, save, setDataMode } from '../../services/storage'
+import { createActivity, createIdea, GpxGeometrySchema, type WaypointsData } from '../../domain/visit'
 
-const lacockId = 'lacock-abbey-fox-talbot-museum-and-village'
+const waypointId = 'demo-foxglove-manor'
+const lacockId = waypointId
+
+function testData(): WaypointsData {
+  const data = createDemoModeData()
+  const challenge = data.challenges[0]!
+  return {
+    ...data,
+    challenges: [challenge],
+    waypoints: data.waypoints
+      .filter((waypoint) => challenge.waypointIds.includes(waypoint.waypointId))
+      .map((waypoint) => ({ ...waypoint, challengeIds: [challenge.challengeId] })),
+    ideas: [],
+    activities: [],
+    references: [],
+    photoReferences: [],
+  }
+}
+
+const createDefaultData = testData
 
 const draft = {
   name: 'Abbey visit',
-  waypointId: lacockId,
+  waypointId,
   ideaIds: [],
   date: '2026-08-01',
   category: 'silver' as const,
@@ -19,7 +38,10 @@ const draft = {
 }
 
 describe('WaypointsContext', () => {
-  beforeEach(() => localStorage.clear())
+  beforeEach(() => {
+    localStorage.clear()
+    save(testData())
+  })
 
   it('saves an activity and persists it to localStorage', () => {
     const { result } = renderHook(() => useWaypoints(), { wrapper: WaypointsProvider })

@@ -1,5 +1,4 @@
 import { z } from 'zod'
-import type { Location } from './location'
 import rawDemoData from '../data/demo.json'
 
 export const statusOrder = ['not-started', 'bronze', 'silver', 'gold'] as const
@@ -253,48 +252,6 @@ export function locationSummary(location: ActivityLocation): string {
   return location.kind === 'postcode'
     ? `Postcode: ${location.postcode}`
     : `${location.latitude.toFixed(5)}, ${location.longitude.toFixed(5)}`
-}
-
-export function createSeedData(locations: readonly Location[]): WaypointsData {
-  const waypoints: Waypoint[] = locations.map((location) => ({
-    waypointId: location.locationId,
-    title: location.name,
-    description: location.notes,
-    category: location.category,
-    tags: [location.area, location.category],
-    challengeIds: ['national-trust'],
-    completion: { mode: 'once' },
-    location: {
-      placeName: location.name,
-      addressOrRegion: location.area,
-      latitude: location.latitude,
-      longitude: location.longitude,
-      source: 'Azure Maps search backfill',
-    },
-    referenceIds: [`reference-${location.locationId}`],
-    photoReferenceIds: [],
-  }))
-
-  return {
-    waypoints,
-    challenges: [
-      {
-        challengeId: 'national-trust',
-        title: 'National Trust',
-        description: 'Visit National Trust properties using the shared Waypoints model.',
-        waypointIds: waypoints.map((waypoint) => waypoint.waypointId),
-        supportsActivityCategories: true,
-      },
-    ],
-    ideas: [],
-    activities: [],
-    references: locations.map((location) => ({
-      referenceId: `reference-${location.locationId}`,
-      title: `${location.name} visitor information`,
-      url: location.url,
-    })),
-    photoReferences: [],
-  }
 }
 
 export function createDemoData(): WaypointsData {

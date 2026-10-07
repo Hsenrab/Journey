@@ -15,7 +15,6 @@ import {
 import FlagIcon from '@mui/icons-material/Flag'
 import LinkIcon from '@mui/icons-material/Link'
 import PlaceIcon from '@mui/icons-material/Place'
-import RouteIcon from '@mui/icons-material/Route'
 import SearchOffIcon from '@mui/icons-material/SearchOff'
 import { CardDetailRow } from '../components/CardDetailRow'
 import { ClickableCard } from '../components/ClickableCard'
@@ -25,7 +24,6 @@ import { LoadFailureAlert } from '../components/LoadFailureAlert'
 import { LoadingNotice } from '../components/LoadingNotice'
 import { PageHeader } from '../components/PageHeader'
 import { ReadOnlyNotice } from '../components/ReadOnlyNotice'
-import { brockworth, distanceMiles } from '../domain/map'
 import {
   countLabel,
   difficultyLabels,
@@ -40,16 +38,11 @@ import { IdeaEditor } from '../components/IdeaEditor'
 import { useWaypoints } from '../features/journey/JourneyContext'
 import { JourneyConflictError } from '../services/journeyApi'
 
-type SortKey = 'distance' | 'updated' | 'difficulty'
+type SortKey = 'updated' | 'difficulty'
 type UsageFilter = 'all' | 'used' | 'not-used'
 type StateFilter = Idea['planningState'] | 'all'
 
 const stateFilters: StateFilter[] = ['all', ...planningStates]
-
-function distanceFromBrockworth(idea: Idea): number | undefined {
-  if (idea.location?.latitude === undefined || idea.location?.longitude === undefined) return undefined
-  return distanceMiles(brockworth, { latitude: idea.location.latitude, longitude: idea.location.longitude })
-}
 
 function referenceHostname(url: string): string {
   try {
@@ -69,7 +62,7 @@ export default function Ideas() {
   const showEditor = searchParams.get('mode') === 'add'
   const [query, setQuery] = useState('')
   const [usage, setUsage] = useState<UsageFilter>('all')
-  const [sort, setSort] = useState<SortKey>('distance')
+  const [sort, setSort] = useState<SortKey>('updated')
   const [message, setMessage] = useState<{
     severity: 'success' | 'error'
     text: string
@@ -142,13 +135,7 @@ export default function Ideas() {
       .filter((idea) => selectedState === 'all' || idea.planningState === selectedState)
       .sort((a, b) => {
         if (sort === 'updated') return b.updatedAt.localeCompare(a.updatedAt)
-        if (sort === 'difficulty') return a.difficulty - b.difficulty || a.title.localeCompare(b.title)
-        const distanceA = distanceFromBrockworth(a)
-        const distanceB = distanceFromBrockworth(b)
-        if (distanceA === undefined && distanceB === undefined) return a.title.localeCompare(b.title)
-        if (distanceA === undefined) return 1
-        if (distanceB === undefined) return -1
-        return distanceA - distanceB || a.title.localeCompare(b.title)
+        return a.difficulty - b.difficulty || a.title.localeCompare(b.title)
       })
   }, [ideasMatchingSearchAndUsage, selectedState, sort])
 
@@ -249,7 +236,6 @@ export default function Ideas() {
             <MenuItem value="not-used">Not used</MenuItem>
           </TextField>
           <TextField select label="Sort" value={sort} onChange={(event) => setSort(event.target.value as SortKey)}>
-            <MenuItem value="distance">Distance from Brockworth</MenuItem>
             <MenuItem value="updated">Recently updated</MenuItem>
             <MenuItem value="difficulty">Difficulty</MenuItem>
           </TextField>
@@ -339,7 +325,6 @@ export default function Ideas() {
             const linkedWaypointNames = idea.waypointIds
               .map((id) => waypointById.get(id)?.title)
               .filter((name): name is string => Boolean(name))
-            const distance = distanceFromBrockworth(idea)
             return (
               <ClickableCard key={idea.ideaId} to={`/ideas/${idea.ideaId}`}>
                 {(titleId) => (
@@ -361,11 +346,6 @@ export default function Ideas() {
                     <CardDetailRow icon={<PlaceIcon fontSize="small" />}>
                       Location: {ideaLocationSummary(idea.location)}
                     </CardDetailRow>
-                    {distance !== undefined && (
-                      <CardDetailRow icon={<RouteIcon fontSize="small" />}>
-                        {distance.toFixed(1)} miles from Brockworth
-                      </CardDetailRow>
-                    )}
                     <CardDetailRow icon={<LinkIcon fontSize="small" />}>
                       {countLabel(references.length, 'link')}
                       {references[0] ? ` · ${referenceHostname(references[0].url)}` : ''}

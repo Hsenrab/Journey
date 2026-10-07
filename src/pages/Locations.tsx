@@ -14,10 +14,7 @@ import {
   Typography,
 } from '@mui/material'
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
-import DirectionsCarIcon from '@mui/icons-material/DirectionsCar'
-import RouteIcon from '@mui/icons-material/Route'
 import SearchOffIcon from '@mui/icons-material/SearchOff'
-import { CardDetailRow } from '../components/CardDetailRow'
 import { ClickableCard } from '../components/ClickableCard'
 import { EmptyState } from '../components/EmptyState'
 import { FilterBar } from '../components/FilterBar'
@@ -26,8 +23,6 @@ import { LoadingNotice } from '../components/LoadingNotice'
 import { PageHeader } from '../components/PageHeader'
 import { ReadOnlyNotice } from '../components/ReadOnlyNotice'
 import { WaypointEditor } from '../components/WaypointEditor'
-import { locations } from '../data/locations'
-import { brockworth, distanceMiles, waypointCoordinates } from '../domain/map'
 import {
   completionProgressLabel,
   lastActivityDates,
@@ -38,8 +33,7 @@ import {
 import { useWaypoints } from '../features/journey/JourneyContext'
 import { JourneyConflictError } from '../services/journeyApi'
 
-const locationById = new Map(locations.map((location) => [location.locationId, location]))
-type SortKey = 'name' | 'travel' | 'distance' | 'status' | 'lastActivity'
+type SortKey = 'name' | 'status' | 'lastActivity'
 
 export default function Locations() {
   const { addWaypoint, data, loadState, readOnly, reload, statusFor } = useWaypoints()
@@ -60,10 +54,9 @@ export default function Locations() {
   }
   const [query, setQuery] = useState('')
   const [sort, setSort] = useState<SortKey>('name')
-  const [maxDistance, setMaxDistance] = useState('all')
   const [area, setArea] = useState('all')
   const [category, setCategory] = useState('all')
-  const activeMoreFilterCount = [maxDistance, area, category].filter((value) => value !== 'all').length
+  const activeMoreFilterCount = [area, category].filter((value) => value !== 'all').length
   const [message, setMessage] = useState<{
     severity: 'success' | 'error'
     text: string
@@ -89,36 +82,11 @@ export default function Locations() {
 
   const areas = useMemo(
     () =>
-      Array.from(
-        new Set(
-          data.waypoints.map((waypoint) => {
-            const source = locationById.get(waypoint.waypointId)
-            return source?.area ?? 'Custom'
-          }),
-        ),
-      ).sort(),
+      Array.from(new Set(data.waypoints.map((waypoint) => waypoint.location?.addressOrRegion ?? 'Unspecified'))).sort(),
     [data.waypoints],
   )
   const categories = useMemo(
-    () =>
-      Array.from(
-        new Set(
-          data.waypoints.map((waypoint) => {
-            const source = locationById.get(waypoint.waypointId)
-            return source?.category ?? waypoint.category
-          }),
-        ),
-      ).sort(),
-    [data.waypoints],
-  )
-  const distanceByWaypointId = useMemo(
-    () =>
-      new Map(
-        data.waypoints.map((waypoint) => {
-          const coordinates = waypointCoordinates(waypoint)
-          return [waypoint.waypointId, coordinates ? distanceMiles(brockworth, coordinates) : undefined]
-        }),
-      ),
+    () => Array.from(new Set(data.waypoints.map((waypoint) => waypoint.category))).sort(),
     [data.waypoints],
   )
 
@@ -126,38 +94,17 @@ export default function Locations() {
     const dates = lastActivityDates(activities)
     return data.waypoints
       .filter((waypoint) => {
-        const source = locationById.get(waypoint.waypointId)
-        const distance = distanceByWaypointId.get(waypoint.waypointId)
-        const waypointArea = source?.area ?? 'Custom'
-        const waypointCategory = source?.category ?? waypoint.category
+        const waypointArea = waypoint.location?.addressOrRegion ?? 'Unspecified'
         const waypointStatus = statusFor(waypoint.waypointId)
-        // Retain unknown distances so filters never silently hide saved waypoints.
-        const withinDistance = maxDistance === 'all' || distance === undefined || distance <= Number(maxDistance)
         return (
           (status === 'all' || waypointStatus === status) &&
-          withinDistance &&
           (area === 'all' || waypointArea === area) &&
-          (category === 'all' || waypointCategory === category) &&
-          `${waypoint.title} ${waypointArea} ${waypointCategory}`.toLowerCase().includes(query.toLowerCase())
+          (category === 'all' || waypoint.category === category) &&
+          `${waypoint.title} ${waypointArea} ${waypoint.category}`.toLowerCase().includes(query.toLowerCase())
         )
       })
       .sort((a, b) => {
-        const sourceA = locationById.get(a.waypointId)
-        const sourceB = locationById.get(b.waypointId)
         switch (sort) {
-          case 'travel':
-            if (!sourceA && !sourceB) return a.title.localeCompare(b.title)
-            if (!sourceA) return 1
-            if (!sourceB) return -1
-            return sourceA.travel.driveTimeMinutes - sourceB.travel.driveTimeMinutes
-          case 'distance': {
-            const distanceA = distanceByWaypointId.get(a.waypointId)
-            const distanceB = distanceByWaypointId.get(b.waypointId)
-            if (distanceA === undefined && distanceB === undefined) return a.title.localeCompare(b.title)
-            if (distanceA === undefined) return 1
-            if (distanceB === undefined) return -1
-            return distanceA - distanceB || a.title.localeCompare(b.title)
-          }
           case 'status':
             return statusOrder.indexOf(statusFor(b.waypointId)) - statusOrder.indexOf(statusFor(a.waypointId))
           case 'lastActivity':
@@ -166,7 +113,7 @@ export default function Locations() {
             return a.title.localeCompare(b.title)
         }
       })
-  }, [activities, area, category, data.waypoints, distanceByWaypointId, maxDistance, query, sort, status, statusFor])
+  }, [activities, area, category, data.waypoints, query, sort, status, statusFor])
 
   return (
     <Stack spacing={2}>
@@ -265,8 +212,6 @@ export default function Locations() {
           >
             <MenuItem value="name">Name</MenuItem>
             <MenuItem value="status">Award tier</MenuItem>
-            <MenuItem value="distance">Distance (nearest first)</MenuItem>
-            <MenuItem value="travel">Drive time (where available)</MenuItem>
             <MenuItem value="lastActivity">Last activity date</MenuItem>
           </TextField>
         </FilterBar>
@@ -278,19 +223,6 @@ export default function Locations() {
           </AccordionSummary>
           <AccordionDetails>
             <FilterBar>
-              <TextField
-                id="maximum-driving-distance"
-                select
-                label="Maximum driving distance"
-                value={maxDistance}
-                onChange={(e) => setMaxDistance(e.target.value)}
-              >
-                <MenuItem value="all">Any distance</MenuItem>
-                <MenuItem value="25">Up to 25 miles (plus unknown)</MenuItem>
-                <MenuItem value="50">Up to 50 miles (plus unknown)</MenuItem>
-                <MenuItem value="100">Up to 100 miles (plus unknown)</MenuItem>
-                <MenuItem value="200">Up to 200 miles (plus unknown)</MenuItem>
-              </TextField>
               <TextField select label="Area" value={area} onChange={(e) => setArea(e.target.value)}>
                 <MenuItem value="all">All areas</MenuItem>
                 {areas.map((item) => (
@@ -324,8 +256,6 @@ export default function Locations() {
           }}
         >
           {list.map((waypoint) => {
-            const source = locationById.get(waypoint.waypointId)
-            const distance = distanceByWaypointId.get(waypoint.waypointId)
             const waypointStatus = statusFor(waypoint.waypointId)
             const progress = waypointCompletionProgress(waypoint, activities)
             return (
@@ -336,7 +266,7 @@ export default function Locations() {
                       {waypoint.title}
                     </Typography>
                     <Typography color="text.secondary">
-                      {(source?.area ?? 'Custom') + ' · ' + (source?.category ?? waypoint.category)}
+                      {[waypoint.category, waypoint.location?.addressOrRegion].filter(Boolean).join(' · ')}
                     </Typography>
                     <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: 'wrap' }}>
                       <Chip
@@ -345,18 +275,6 @@ export default function Locations() {
                       />
                       <Chip variant="outlined" label={`Award tier: ${statusLabels[waypointStatus]}`} />
                     </Stack>
-                    <CardDetailRow icon={<RouteIcon fontSize="small" />}>
-                      {distance === undefined ? 'Distance unknown' : `${distance.toFixed(1)} miles from Brockworth`}
-                    </CardDetailRow>
-                    {source ? (
-                      <CardDetailRow icon={<DirectionsCarIcon fontSize="small" />}>
-                        {source.travel.driveTimeMinutes} min drive
-                      </CardDetailRow>
-                    ) : (
-                      <CardDetailRow icon={<DirectionsCarIcon fontSize="small" />}>
-                        Drive time unavailable
-                      </CardDetailRow>
-                    )}
                   </Stack>
                 )}
               </ClickableCard>

@@ -5,14 +5,14 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import Locations from './Locations'
 import { WaypointsProvider } from '../features/journey/JourneyContext'
 import { createDefaultData, save, setDataMode } from '../services/storage'
-import type { Activity } from '../domain/visit'
+import type { Activity, Waypoint, WaypointsData } from '../domain/visit'
 
 function activity(waypointId: string, category: 'bronze' | 'silver' | 'gold'): Activity {
   return {
     activityId: `${waypointId}-${category}`,
     ideaIds: [],
     waypointId,
-    challengeId: 'national-trust',
+    challengeId: 'test-challenge',
     date: '2026-08-01',
     category,
     location: { kind: 'postcode', postcode: waypointId },
@@ -21,6 +21,44 @@ function activity(waypointId: string, category: 'bronze' | 'silver' | 'gold'): A
     photoReferenceIds: [],
     createdAt: '2026-08-01T10:00:00.000Z',
     updatedAt: '2026-08-01T10:00:00.000Z',
+  }
+}
+
+function waypoint(waypointId: string, title: string, area: string, category: string): Waypoint {
+  return {
+    waypointId,
+    title,
+    description: `${title} description.`,
+    category,
+    tags: [],
+    challengeIds: ['test-challenge'],
+    completion: { mode: 'once' },
+    location: { addressOrRegion: area },
+    referenceIds: [],
+    photoReferenceIds: [],
+  }
+}
+
+function testData(): WaypointsData {
+  return {
+    ...createDefaultData(),
+    waypoints: [
+      waypoint('stourhead', 'Stourhead', 'Wiltshire', 'Garden'),
+      waypoint('dyrham-park', 'Dyrham Park', 'Bristol', 'Historic building'),
+      waypoint('may-hill', 'May Hill', 'Gloucestershire', 'Countryside'),
+      waypoint('hidcote', 'Hidcote', 'Gloucestershire', 'Garden'),
+      waypoint('westbury-court-garden', 'Westbury Court Garden', 'Gloucestershire', 'Garden'),
+      waypoint('corfe-castle', 'Corfe Castle', 'Dorset', 'Castle'),
+    ],
+    challenges: [
+      {
+        challengeId: 'test-challenge',
+        title: 'Test challenge',
+        description: 'A challenge for testing waypoint behavior.',
+        waypointIds: ['stourhead', 'dyrham-park', 'may-hill', 'hidcote', 'westbury-court-garden', 'corfe-castle'],
+        supportsActivityCategories: true,
+      },
+    ],
   }
 }
 
@@ -46,7 +84,10 @@ function waypointNames() {
 const SLOW_EDITOR_TEST_TIMEOUT_MS = 20_000
 
 describe('Locations', () => {
-  beforeEach(() => localStorage.clear())
+  beforeEach(() => {
+    localStorage.clear()
+    save(testData())
+  })
   afterEach(() => vi.unstubAllGlobals())
 
   it('lists every waypoint by default', () => {
@@ -57,7 +98,7 @@ describe('Locations', () => {
   })
 
   it('shows completion progress and award tier on waypoint cards', () => {
-    const data = createDefaultData()
+    const data = testData()
     save({
       ...data,
       waypoints: data.waypoints.map((waypoint) =>
@@ -89,7 +130,7 @@ describe('Locations', () => {
     expect(regionId).toBe('more-filters')
     expect(document.querySelectorAll(`#${regionId}`)).toHaveLength(1)
     expect(document.getElementById(regionId!)).toHaveAttribute('aria-labelledby', 'more-filters-header')
-    expect(screen.getByText('Any distance')).not.toBeVisible()
+    expect(screen.queryByRole('combobox', { name: 'Maximum driving distance' })).not.toBeInTheDocument()
   })
 
   it('filters by search term across title, area and category', async () => {
@@ -104,7 +145,7 @@ describe('Locations', () => {
   })
 
   it('filters by status', async () => {
-    save({ ...createDefaultData(), activities: [activity('stourhead', 'gold')] })
+    save({ ...testData(), activities: [activity('stourhead', 'gold')] })
     const user = userEvent.setup()
     renderLocations()
 
@@ -116,7 +157,7 @@ describe('Locations', () => {
   })
 
   it('applies the status filter from a URL query parameter', () => {
-    save({ ...createDefaultData(), activities: [activity('stourhead', 'gold')] })
+    save({ ...testData(), activities: [activity('stourhead', 'gold')] })
     renderLocations(['/waypoints?status=gold'])
 
     expect(screen.getByText('Stourhead')).toBeInTheDocument()
@@ -131,7 +172,7 @@ describe('Locations', () => {
   })
 
   it('re-sorts the list when switching to award tier order', async () => {
-    save({ ...createDefaultData(), activities: [activity('may-hill', 'gold'), activity('dyrham-park', 'silver')] })
+    save({ ...testData(), activities: [activity('may-hill', 'gold'), activity('dyrham-park', 'silver')] })
     const user = userEvent.setup()
     renderLocations()
 
@@ -145,57 +186,29 @@ describe('Locations', () => {
     expect([...namesByProgress].sort()).toEqual([...namesByName].sort())
   })
 
-  it.each([
-    ['Distance (nearest first)', 'Crickley Hill'],
-    ['Drive time (where available)', 'Crickley Hill'],
-    ['Last activity date', 'Stourhead'],
-  ])('sorts by %s', async (sortOption, expectedFirstWaypoint) => {
-    save({ ...createDefaultData(), activities: [activity('stourhead', 'gold')] })
+  it('sorts by last activity date', async () => {
+    save({ ...testData(), activities: [activity('stourhead', 'gold')] })
     const user = userEvent.setup()
     renderLocations()
 
     const namesByName = waypointNames()
 
     await user.click(screen.getAllByRole('combobox')[1])
-    await user.click(screen.getByRole('option', { name: sortOption }))
+    await user.click(screen.getByRole('option', { name: 'Last activity date' }))
 
     const namesBySort = waypointNames()
-    expect(namesBySort[0]).toBe(expectedFirstWaypoint)
+    expect(namesBySort[0]).toBe('Stourhead')
     expect([...namesBySort].sort()).toEqual([...namesByName].sort())
   })
 
-  it('keeps custom waypoints with coordinates in a distance filter', async () => {
-    const data = createDefaultData()
-    save({
-      ...data,
-      waypoints: [
-        ...data.waypoints,
-        {
-          waypointId: 'custom-nearby',
-          title: 'Custom nearby waypoint',
-          description: 'A nearby custom waypoint.',
-          category: 'Custom',
-          tags: [],
-          challengeIds: ['national-trust'],
-          completion: { mode: 'once' },
-          location: { latitude: 51.85, longitude: -2.15 },
-          referenceIds: [],
-          photoReferenceIds: [],
-        },
-      ],
-    })
-    const user = userEvent.setup()
+  it('shows saved custom location labels and categories', async () => {
     renderLocations()
 
-    await openMoreFilters(user)
-    await user.click(screen.getByRole('combobox', { name: 'Maximum driving distance' }))
-    await user.click(screen.getByRole('option', { name: 'Up to 25 miles (plus unknown)' }))
-
-    expect(screen.getByText('Custom nearby waypoint')).toBeInTheDocument()
-    expect(screen.getByText('0.4 miles from Brockworth')).toBeInTheDocument()
+    expect(screen.getByText('Garden · Wiltshire')).toBeInTheDocument()
+    expect(screen.getByText('Historic building · Bristol')).toBeInTheDocument()
   })
 
-  it('lists waypoints assigned to any challenge and retains unknown distances in distance filters', async () => {
+  it('lists waypoints from any challenge and uses their own generic category and area', async () => {
     save({
       ...createDefaultData(),
       waypoints: [
@@ -207,6 +220,7 @@ describe('Locations', () => {
           tags: [],
           challengeIds: ['other-challenge'],
           completion: { mode: 'once' },
+          location: { addressOrRegion: 'Custom area' },
           referenceIds: [],
           photoReferenceIds: [],
         },
@@ -222,15 +236,11 @@ describe('Locations', () => {
       ],
     })
 
-    const user = userEvent.setup()
     renderLocations()
 
-    await openMoreFilters(user)
-    await user.click(screen.getByRole('combobox', { name: 'Maximum driving distance' }))
-    await user.click(screen.getByRole('option', { name: 'Up to 25 miles (plus unknown)' }))
-
     expect(screen.getByText('Other challenge waypoint')).toBeInTheDocument()
-    expect(screen.getByText('Distance unknown')).toBeInTheDocument()
+    expect(screen.getByText('Custom · Custom area')).toBeInTheDocument()
+    expect(screen.queryByText('Distance unknown')).not.toBeInTheDocument()
   })
 
   it('filters by area and category', async () => {

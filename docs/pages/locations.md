@@ -4,22 +4,21 @@ Route: `/waypoints` — implemented in `src/pages/Locations.tsx`.
 
 ## Purpose
 
-Browse every qualifying location, see its current status, and navigate to a location to log or
-review a visit.
+Browse user-created waypoints, see their current status, and open a waypoint to log or
+review an activity.
 
 ## Supported actions
 
-- Search by name, area or category
+- Search by title, saved area or category
 - Filter by status (all, Not Started, Bronze, Silver, Gold)
-- Filter by maximum driving distance from Brockworth, area and category under **More filters**, a
+- Filter by saved area and category under **More filters**, a
   closed-by-default accordion whose summary reports how many of those filters are active
-- Sort by name, progress, distance (nearest first), travel time or last visit date
+- Sort by name, award tier or last activity date
 - Add a waypoint with the shared waypoint add form
 - Open a location's details page
 
 ## Data read
 
-- `locations` from `src/data/locations.ts`
 - Waypoints and activities from `useWaypoints().data`, and derived statuses from `useWaypoints().statusFor`
 
 ## Data written
@@ -28,13 +27,11 @@ review a visit.
 
 ## Rules and data flow
 
-1. Locations with no visits are shown as `not-started`; otherwise the highest status awarded by
+1. Waypoints with no visits are shown as `not-started`; otherwise the highest status awarded by
    their visits is shown.
-2. Search is case-insensitive and matches the combined name, area and category text.
+2. Search is case-insensitive and matches the waypoint title, saved area and category.
 3. Filtering is applied before sorting; sorting by name uses locale comparison, sorting by progress
-   orders by status value, sorting by distance orders by road miles from Brockworth, sorting by
-   travel time orders by estimated drive minutes, and sorting by last visit date shows newest visits
-   first.
+   orders by status value, and sorting by last activity date shows newest activities first.
 4. Add mode includes **Form** and **Paste JSON** tabs. Paste JSON accepts one waypoint content object
    without entity links or generated identifiers and rejects arrays and unlisted fields.
 5. **Copy example JSON** copies a representative draft shape. **Load into form** validates the pasted

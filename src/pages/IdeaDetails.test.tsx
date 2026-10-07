@@ -5,7 +5,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import Activities from './Activities'
 import IdeaDetails from './IdeaDetails'
 import { WaypointsProvider } from '../features/journey/JourneyContext'
-import { createDefaultData, load, save, setDataMode } from '../services/storage'
+import { load, save, setDataMode } from '../services/storage'
+import { createDemoTestData } from '../test/demoData'
+
+const createDefaultData = createDemoTestData
 
 function renderDetails(path = '/ideas/idea-1') {
   return render(
@@ -42,7 +45,10 @@ function renderDetailsWithActivities(path = '/ideas/idea-1') {
 }
 
 describe('IdeaDetails', () => {
-  beforeEach(() => localStorage.clear())
+  beforeEach(() => {
+    localStorage.clear()
+    save(createDemoTestData())
+  })
   afterEach(() => {
     vi.restoreAllMocks()
     vi.unstubAllGlobals()
@@ -85,7 +91,7 @@ describe('IdeaDetails', () => {
           title: 'Try the outer trail',
           description: '',
           notes: '',
-          waypointIds: ['stourhead'],
+          waypointIds: ['demo-foxglove-manor'],
           planningState: 'active',
           difficulty: 2,
           referenceIds: [],
@@ -97,7 +103,7 @@ describe('IdeaDetails', () => {
         {
           activityId: 'a1',
           ideaIds: ['idea-1'],
-          waypointId: 'stourhead',
+          waypointId: 'demo-foxglove-manor',
           date: '2026-08-05',
           category: 'gold',
           location: { kind: 'postcode', postcode: 'BA12 6QF' },
@@ -267,7 +273,7 @@ describe('IdeaDetails', () => {
           title: 'Try the outer trail',
           description: '',
           notes: '',
-          waypointIds: ['stourhead'],
+          waypointIds: ['demo-foxglove-manor'],
           planningState: 'active',
           difficulty: 2,
           referenceIds: [],
@@ -280,7 +286,7 @@ describe('IdeaDetails', () => {
     renderDetails()
     expect(screen.getByRole('link', { name: 'Log activity from this idea' })).toHaveAttribute(
       'href',
-      '/activities?mode=add&idea=idea-1&waypoint=stourhead',
+      '/activities?mode=add&idea=idea-1&waypoint=demo-foxglove-manor',
     )
   })
 
@@ -294,7 +300,7 @@ describe('IdeaDetails', () => {
           title: 'Try the outer trail',
           description: '',
           notes: '',
-          waypointIds: ['stourhead', 'bath-skyline'],
+          waypointIds: ['demo-foxglove-manor', 'demo-bramblewick-gardens'],
           planningState: 'active',
           difficulty: 2,
           referenceIds: [],
@@ -360,7 +366,7 @@ describe('IdeaDetails', () => {
           title: 'Try the outer trail',
           description: '',
           notes: '',
-          waypointIds: ['stourhead'],
+          waypointIds: ['demo-foxglove-manor'],
           planningState: 'active',
           difficulty: 2,
           referenceIds: [],
@@ -374,7 +380,7 @@ describe('IdeaDetails', () => {
     await user.click(screen.getByRole('link', { name: 'Log activity from this idea' }))
 
     expect(await screen.findByText('Activities')).toBeInTheDocument()
-    expect(screen.getByRole('combobox', { name: 'Linked waypoint' })).toHaveValue('Stourhead')
+    expect(screen.getByRole('combobox', { name: 'Linked waypoint' })).toHaveValue('Foxglove Manor (Demo)')
     expect(screen.getByText('Try the outer trail')).toBeInTheDocument()
 
     await user.click(screen.getByRole('combobox', { name: 'Activity category' }))
@@ -384,7 +390,7 @@ describe('IdeaDetails', () => {
     expect(await screen.findByRole('heading', { name: 'Try the outer trail', level: 1 })).toBeInTheDocument()
     expect(screen.getByText('Used in 1 activity')).toBeInTheDocument()
     expect(load().activities[0]?.ideaIds).toEqual(['idea-1'])
-    expect(load().activities[0]?.waypointId).toBe('stourhead')
+    expect(load().activities[0]?.waypointId).toBe('demo-foxglove-manor')
 
     await user.click(screen.getByRole('button', { name: 'Back' }))
     expect(screen.getByRole('heading', { name: 'Try the outer trail', level: 1 })).toBeInTheDocument()
@@ -402,7 +408,7 @@ describe('IdeaDetails', () => {
           title: 'Try the outer trail',
           description: '',
           notes: '',
-          waypointIds: ['stourhead'],
+          waypointIds: ['demo-foxglove-manor'],
           planningState: 'active',
           difficulty: 2,
           referenceIds: [],
@@ -435,7 +441,7 @@ describe('IdeaDetails', () => {
         title: 'Try the outer trail',
         description: '',
         notes: '',
-        waypointIds: ['stourhead'],
+        waypointIds: ['demo-foxglove-manor'],
         planningState: 'active',
         difficulty: 2,
         referenceIds: [],

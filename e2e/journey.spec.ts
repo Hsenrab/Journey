@@ -2,13 +2,47 @@ import { expect, test } from '@playwright/test'
 
 test.describe('activity management flow', () => {
   test.beforeEach(async ({ page }) => {
-    await page.addInitScript(() => window.localStorage.clear())
+    await page.addInitScript(() => {
+      window.localStorage.clear()
+      window.localStorage.setItem(
+        'waypoints-v1',
+        JSON.stringify({
+          waypoints: [
+            {
+              waypointId: 'e2e-waypoint',
+              title: 'Example Waypoint',
+              description: 'A waypoint created for the end-to-end test.',
+              category: 'Walk',
+              tags: [],
+              challengeIds: ['e2e-challenge'],
+              completion: { mode: 'once' },
+              location: { latitude: 51.783, longitude: -1.92 },
+              referenceIds: [],
+              photoReferenceIds: [],
+            },
+          ],
+          challenges: [
+            {
+              challengeId: 'e2e-challenge',
+              title: 'Example Challenge',
+              description: 'A challenge created for the end-to-end test.',
+              waypointIds: ['e2e-waypoint'],
+              supportsActivityCategories: true,
+            },
+          ],
+          ideas: [],
+          activities: [],
+          references: [],
+          photoReferences: [],
+        }),
+      )
+    })
   })
 
   test('creates a linked categorized activity from waypoint details', async ({ page }) => {
     await page.goto('/waypoints')
-    await page.getByLabel('Search waypoints').fill('Chedworth')
-    await page.getByRole('link', { name: 'Chedworth Roman Villa' }).click()
+    await page.getByLabel('Search waypoints').fill('Example Waypoint')
+    await page.getByRole('link', { name: 'Example Waypoint' }).click()
 
     await page.getByRole('button', { name: 'Log activity' }).click()
     await expect(page.getByLabel('Latitude')).toHaveValue('51.783')
@@ -22,7 +56,7 @@ test.describe('activity management flow', () => {
 
     await page.getByRole('link', { name: '2026' }).first().click()
     await expect(page.getByRole('heading', { name: /\d{1,4}[/-]\d{1,2}[/-]\d{1,4}/ })).toBeVisible()
-    await expect(page.getByText('Chedworth Roman Villa').first()).toBeVisible()
+    await expect(page.getByText('Example Waypoint').first()).toBeVisible()
   })
 
   test('creates unlinked activity, edits it, and deletes it', async ({ page }) => {
@@ -62,8 +96,8 @@ test.describe('activity management flow', () => {
     )
     await page.route('**/*.atlas.microsoft.com/**', (route) => route.abort())
     await page.goto('/waypoints')
-    await page.getByLabel('Search waypoints').fill('Chedworth')
-    await page.getByRole('link', { name: 'Chedworth Roman Villa' }).click()
+    await page.getByLabel('Search waypoints').fill('Example Waypoint')
+    await page.getByRole('link', { name: 'Example Waypoint' }).click()
     await page.getByRole('button', { name: 'Log activity' }).click()
     await page.getByRole('combobox', { name: 'Activity category' }).click()
     await page.getByRole('option', { name: 'Gold' }).click()
@@ -80,7 +114,7 @@ test.describe('activity management flow', () => {
     await expect(page.getByText('Completion: Done', { exact: true })).toBeVisible()
 
     await page.getByRole('link', { name: 'Progress', exact: true }).click()
-    await page.getByRole('link', { name: 'National Trust', exact: true }).click()
+    await page.getByRole('link', { name: 'Example Challenge', exact: true }).click()
     await expect(page.getByLabel('Challenge map legend', { exact: true })).not.toContainText('Planned route')
     const tracks = page.getByRole('checkbox', { name: 'Show recorded Activity tracks (1)' })
     await expect(tracks).toBeChecked()

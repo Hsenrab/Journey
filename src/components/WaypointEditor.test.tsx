@@ -129,7 +129,7 @@ describe('WaypointEditor', () => {
         description: payload.description,
         category: payload.category,
         tags: payload.tags,
-        challengeIds: ['national-trust'],
+        challengeIds: [],
         completion: payload.completion,
         references: [expect.objectContaining({ title: 'Guide' })],
         photoReferences: [expect.objectContaining({ title: 'Photo' })],

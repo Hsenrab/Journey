@@ -2,8 +2,39 @@ import { cleanup, fireEvent, render, screen, within } from '@testing-library/rea
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import App from './App'
+import { createDefaultData, save } from '../services/storage'
+import type { Waypoint } from '../domain/visit'
 
 afterEach(cleanup)
+
+const customWaypoint = (waypointId: string, title: string): Waypoint => ({
+  waypointId,
+  title,
+  description: `${title} description`,
+  category: 'Walking route',
+  tags: [],
+  challengeIds: ['custom-challenge'],
+  completion: { mode: 'once' },
+  location: { placeName: title, addressOrRegion: 'Test area', latitude: 51.86, longitude: -2.22 },
+  referenceIds: [],
+  photoReferenceIds: [],
+})
+
+function saveTestData() {
+  save({
+    ...createDefaultData(),
+    waypoints: [customWaypoint('test-path', 'Pinewood Path'), customWaypoint('test-garden', 'Riverside Garden')],
+    challenges: [
+      {
+        challengeId: 'custom-challenge',
+        title: 'Personal goals',
+        description: 'A custom challenge for these tests.',
+        waypointIds: ['test-path', 'test-garden'],
+        supportsActivityCategories: true,
+      },
+    ],
+  })
+}
 
 describe('landing route', () => {
   beforeEach(() => {
@@ -16,8 +47,8 @@ describe('landing route', () => {
     render(<App />)
 
     expect(screen.getByRole('heading', { name: 'Challenges' })).toBeInTheDocument()
-    expect(screen.getByRole('heading', { name: 'National Trust' })).toBeInTheDocument()
-    expect(screen.getByText('Activity categories')).toBeInTheDocument()
+    expect(screen.getByText('No challenges are available yet.')).toBeInTheDocument()
+    expect(screen.queryByText('National Trust')).not.toBeInTheDocument()
   })
 
   it('keeps /waypoints reachable as its own route', () => {
@@ -37,44 +68,23 @@ describe('waypoint list', () => {
 
   it('filters waypoints by a search term', async () => {
     const user = userEvent.setup()
+    saveTestData()
     render(<App />)
 
-    await user.type(screen.getByLabelText('Search waypoints'), 'Chedworth')
+    await user.type(screen.getByLabelText('Search waypoints'), 'Pinewood')
 
-    expect(screen.getByText('Chedworth Roman Villa')).toBeInTheDocument()
-    expect(screen.queryByText('Dyrham Park')).not.toBeInTheDocument()
+    expect(screen.getByText('Pinewood Path')).toBeInTheDocument()
+    expect(screen.queryByText('Riverside Garden')).not.toBeInTheDocument()
   })
 
-  it('shows waypoint distance and drive time', async () => {
+  it('shows custom waypoint details without catalogue travel metadata', async () => {
+    saveTestData()
     render(<App />)
 
-    expect(screen.getAllByText('33.3 miles from Brockworth').length).toBeGreaterThan(0)
-    expect(screen.getAllByText('75 min drive').length).toBeGreaterThan(0)
-  })
-
-  it('sorts waypoints by nearest driving distance first', async () => {
-    const user = userEvent.setup()
-    render(<App />)
-
-    await user.click(screen.getByRole('combobox', { name: 'Sort' }))
-    await user.click(screen.getByRole('option', { name: 'Distance (nearest first)' }))
-
-    const nearest = screen.getByText('May Hill')
-    const farther = screen.getByText('Quarry Bank')
-    expect(nearest.compareDocumentPosition(farther) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
-  })
-
-  it('filters waypoints by maximum distance', async () => {
-    const user = userEvent.setup()
-    render(<App />)
-
-    await user.click(screen.getByRole('button', { name: 'More filters (0 active)' }))
-    await user.click(screen.getByRole('combobox', { name: 'Maximum driving distance' }))
-    await user.click(screen.getByRole('option', { name: 'Up to 25 miles (plus unknown)' }))
-
-    expect(screen.getByText('Croome')).toBeInTheDocument()
-    expect(screen.getByText('Snowshill Manor and Garden')).toBeInTheDocument()
-    expect(screen.queryByText('Bath Skyline')).not.toBeInTheDocument()
+    expect(screen.getAllByText('Walking route · Test area')).toHaveLength(2)
+    expect(screen.queryByText(/miles from Brockworth|min drive|Drive time/)).not.toBeInTheDocument()
+    expect(screen.queryByRole('combobox', { name: 'Maximum driving distance' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('option', { name: 'Drive time (where available)' })).not.toBeInTheDocument()
   })
 })
 
@@ -96,9 +106,10 @@ describe('activity logging', () => {
   // consistently close to the default 10s timeout on slower/loaded CI runners.
   it('records activities, keeps history and derives the highest status', async () => {
     const user = userEvent.setup()
+    saveTestData()
     render(<App />)
 
-    await user.click(screen.getByRole('link', { name: 'Chedworth Roman Villa' }))
+    await user.click(screen.getByRole('link', { name: 'Pinewood Path' }))
 
     await logActivity(user, 'Gold', '2026-08-01')
     expect(screen.getByText('Activity saved.')).toBeInTheDocument()
@@ -112,7 +123,7 @@ describe('activity logging', () => {
     cleanup()
     render(<App />)
     await user.click(within(screen.getByTestId('detail-breadcrumbs')).getByRole('link', { name: 'Waypoints' }))
-    await user.click(screen.getByRole('link', { name: 'Chedworth Roman Villa' }))
+    await user.click(screen.getByRole('link', { name: 'Pinewood Path' }))
     expect(screen.getByText('Award tier: Gold')).toBeInTheDocument()
   }, 20000)
 })

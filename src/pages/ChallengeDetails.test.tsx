@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { WaypointsProvider } from '../features/journey/JourneyContext'
-import { createDefaultData, createDemoModeData, load, save, setDataMode } from '../services/storage'
+import { createDemoModeData, load, save, setDataMode } from '../services/storage'
 import ChallengeDetails from './ChallengeDetails'
 import type { GpxMapLine } from '../domain/gpxMap'
 
@@ -39,9 +39,13 @@ function renderDetails(challengeId = 'national-trust') {
 }
 
 const validGpx = '<gpx><trk><trkseg><trkpt lat="51.1" lon="-2.1"/><trkpt lat="51.2" lon="-2.2"/></trkseg></trk></gpx>'
+const createDefaultData = createDemoModeData
 
 describe('ChallengeDetails', () => {
-  beforeEach(() => localStorage.clear())
+  beforeEach(() => {
+    localStorage.clear()
+    save(createDemoModeData())
+  })
   afterEach(() => {
     vi.unstubAllEnvs()
     vi.unstubAllGlobals()
@@ -51,11 +55,11 @@ describe('ChallengeDetails', () => {
     const data = createDefaultData()
     renderDetails()
 
-    expect(screen.getByRole('heading', { name: 'National Trust' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'National Trust Demo Collection (Fictional)' })).toBeInTheDocument()
     expect(screen.queryByText('No planned GPX route attached.')).not.toBeInTheDocument()
     expect(screen.queryByRole('heading', { name: 'Planned route' })).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Attach GPX route' })).toBeInTheDocument()
-    expect(screen.getByTestId('challenge-map')).toHaveTextContent(`${data.waypoints.length} waypoints`)
+    expect(screen.getByTestId('challenge-map')).toHaveTextContent(`${data.challenges[0]!.waypointIds.length} waypoints`)
     expect(screen.getAllByRole('link', { name: 'View waypoint' })[0]).toHaveAttribute(
       'href',
       `/waypoints/${data.waypoints[0]?.waypointId}`,
@@ -283,7 +287,7 @@ describe('ChallengeDetails', () => {
     )
     const user = userEvent.setup()
     const view = renderDetails()
-    await screen.findByRole('heading', { name: 'National Trust' })
+    await screen.findByRole('heading', { name: 'National Trust Demo Collection (Fictional)' })
     const input = view.container.querySelector('input[type="file"]')
     fireEvent.change(input as HTMLInputElement, {
       target: { files: [new File([validGpx], 'replacement.gpx', { type: 'application/gpx+xml' })] },
@@ -315,7 +319,7 @@ describe('ChallengeDetails', () => {
     )
     const user = userEvent.setup()
     const view = renderDetails()
-    await screen.findByRole('heading', { name: 'National Trust' })
+    await screen.findByRole('heading', { name: 'National Trust Demo Collection (Fictional)' })
     const input = view.container.querySelector('input[type="file"]') as HTMLInputElement
 
     await user.upload(input, new File([validGpx], 'planned.gpx', { type: 'application/gpx+xml' }))
