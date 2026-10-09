@@ -214,6 +214,16 @@ export const JourneyDataSchema = z
   })
 export type JourneyData = z.infer<typeof JourneyDataSchema>
 
+// z.record drops "__proto__", but every entity ID must retain its ETag.
+const etagsSchema = z.custom<Record<string, string>>(
+  (value) =>
+    typeof value === 'object' &&
+    value !== null &&
+    !Array.isArray(value) &&
+    Object.entries(value).every(([id, etag]) => identifier.safeParse(id).success && identifier.safeParse(etag).success),
+  'ETags must map nonempty entity IDs to nonempty strings.',
+)
+
 export const JourneyMutationSchema = z.discriminatedUnion('operation', [
   z.object({ operation: z.literal('create'), type: EntityTypeSchema, entity: z.record(z.string(), z.unknown()) }),
   z.object({
@@ -226,5 +236,5 @@ export const JourneyMutationSchema = z.discriminatedUnion('operation', [
   z.object({ operation: z.literal('delete'), type: EntityTypeSchema, id: identifier, ifMatch: identifier }),
   z.object({ operation: z.literal('clear') }),
   z.object({ operation: z.literal('import'), data: JourneyDataSchema }),
-  z.object({ operation: z.literal('replace'), data: JourneyDataSchema, etags: z.record(identifier, identifier) }),
+  z.object({ operation: z.literal('replace'), data: JourneyDataSchema, etags: etagsSchema }),
 ])
