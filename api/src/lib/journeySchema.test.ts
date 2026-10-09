@@ -27,6 +27,19 @@ function document(entity: Record<string, unknown>) {
 }
 
 describe('Journey document validation', () => {
+  it.each([null, [], 'etag', { id: '' }, { '': 'etag' }, { id: 123 }, JSON.parse('{"__proto__":123}')])(
+    'rejects invalid replacement ETags: %j',
+    (etags) => {
+      expect(
+        JourneyMutationSchema.safeParse({
+          operation: 'replace',
+          data: { waypoints: [], challenges: [], ideas: [], activities: [], references: [], photoReferences: [] },
+          etags,
+        }).success,
+      ).toBe(false)
+    },
+  )
+
   it('requires the partition and entity discriminator', () => {
     expect(
       JourneyDocumentSchema.parse({

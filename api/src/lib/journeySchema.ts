@@ -193,7 +193,36 @@ export const JourneyDataSchema = z
     photoReferences: z.array(schemas.photoReference),
   })
   .strict()
+  .superRefine((data, context) => {
+    const ids = [
+      ...data.waypoints.map((entity) => entity.waypointId),
+      ...data.challenges.map((entity) => entity.challengeId),
+      ...data.ideas.map((entity) => entity.ideaId),
+      ...data.activities.map((entity) => entity.activityId),
+      ...data.references.map((entity) => entity.referenceId),
+      ...data.photoReferences.map((entity) => entity.photoReferenceId),
+    ]
+    const seen = new Set<string>()
+    for (const id of ids) {
+      if (seen.has(id))
+        context.addIssue({
+          code: 'custom',
+          message: `Duplicate entity ID "${id}". IDs must be unique across all entity types in a dataset.`,
+        })
+      seen.add(id)
+    }
+  })
 export type JourneyData = z.infer<typeof JourneyDataSchema>
+
+// z.record drops "__proto__", but every entity ID must retain its ETag.
+const etagsSchema = z.custom<Record<string, string>>(
+  (value) =>
+    typeof value === 'object' &&
+    value !== null &&
+    !Array.isArray(value) &&
+    Object.entries(value).every(([id, etag]) => identifier.safeParse(id).success && identifier.safeParse(etag).success),
+  'ETags must map nonempty entity IDs to nonempty strings.',
+)
 
 export const JourneyMutationSchema = z.discriminatedUnion('operation', [
   z.object({ operation: z.literal('create'), type: EntityTypeSchema, entity: z.record(z.string(), z.unknown()) }),
@@ -207,5 +236,5 @@ export const JourneyMutationSchema = z.discriminatedUnion('operation', [
   z.object({ operation: z.literal('delete'), type: EntityTypeSchema, id: identifier, ifMatch: identifier }),
   z.object({ operation: z.literal('clear') }),
   z.object({ operation: z.literal('import'), data: JourneyDataSchema }),
-  z.object({ operation: z.literal('replace'), data: JourneyDataSchema, etags: z.record(identifier, identifier) }),
+  z.object({ operation: z.literal('replace'), data: JourneyDataSchema, etags: etagsSchema }),
 ])

@@ -1,11 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { InvocationContext } from '@azure/functions'
+import { JourneyDataSchema } from '../lib/journeySchema.js'
 
 const loadDataset = vi.fn()
 const journeyContainer = vi.fn()
 const createDocument = vi.fn()
 const deleteEntity = vi.fn()
 const replaceEntities = vi.fn()
+const replaceDataset = vi.fn()
 
 vi.mock('../lib/cosmos.js', async () => {
   const actual = await vi.importActual<typeof import('../lib/cosmos.js')>('../lib/cosmos.js')
@@ -17,10 +19,10 @@ vi.mock('../lib/cosmos.js', async () => {
     deleteEntity,
     replaceEntities,
     documentFor: actual.documentFor,
-    documentsFor: vi.fn(),
+    documentsFor: actual.documentsFor,
     emptyJourneyData: vi.fn(),
     replaceDocument: vi.fn(),
-    replaceDataset: vi.fn(),
+    replaceDataset,
     savedDocument: vi.fn(),
   }
 })
@@ -105,6 +107,7 @@ describe('journey', () => {
     createDocument.mockReset()
     deleteEntity.mockReset()
     replaceEntities.mockReset()
+    replaceDataset.mockReset()
     journeyContainer.mockReturnValue({})
     process.env.AZURE_MAPS_CLIENT_ID = 'maps-client-id'
     searchResults([{ position: { lat: 51.844, lon: -2.153 } }])
@@ -122,6 +125,98 @@ describe('journey', () => {
     })
     expect(journeyContainer).toHaveBeenCalledWith('production')
     expect(loadDataset).toHaveBeenCalledWith(container, 'production')
+  })
+
+  describe.each(['import', 'replace'])('%s dataset', (operation) => {
+    it.each(['same-type', 'cross-type'])('rejects %s duplicate IDs without changing stored data', async (kind) => {
+      const stored = { data: { ...emptyData, ideas: [idea] }, etags: { 'idea-1': 'etag' } }
+      const before = structuredClone(stored)
+      loadDataset.mockResolvedValue(stored)
+      const data = {
+        ...emptyData,
+        ideas: kind === 'same-type' ? [idea, { ...idea, title: 'Duplicate' }] : [idea],
+        references:
+          kind === 'cross-type' ? [{ referenceId: 'idea-1', title: 'Duplicate', url: 'https://example.com' }] : [],
+      }
+      const { journey } = await import('./journey.js')
+
+      expect(await journey(request('production', 'POST', { operation, data, etags: stored.etags }), context())).toEqual(
+        {
+          status: 400,
+          jsonBody: {
+            error: 'Duplicate entity ID "idea-1". IDs must be unique across all entity types in a dataset.',
+          },
+        },
+      )
+      expect(loadDataset).not.toHaveBeenCalled()
+      expect(replaceDataset).not.toHaveBeenCalled()
+      expect(stored).toEqual(before)
+    })
+
+    it.each(['idea-1', '__proto__', 'constructor', 'toString'])(
+      'writes and reads back all records with ID %s',
+      async (id) => {
+        const cosmos = await vi.importActual<typeof import('../lib/cosmos.js')>('../lib/cosmos.js')
+        const data = {
+          ...emptyData,
+          ideas: [
+            { ...idea, ideaId: id },
+            { ...idea, ideaId: 'idea-2' },
+          ],
+          references: [{ referenceId: 'reference-1', title: 'Reference', url: 'https://example.com' }],
+        }
+        const initial = operation === 'import' ? emptyData : { ...emptyData, ideas: [data.ideas[0]] }
+        let stored = cosmos.documentsFor('production', JourneyDataSchema.parse(initial))
+        const batch = vi.fn().mockImplementation(async (operations: { resourceBody: (typeof stored)[string] }[]) => {
+          stored = Object.fromEntries(operations.map(({ resourceBody }) => [resourceBody.id, resourceBody]))
+          return { code: 200, result: [] }
+        })
+        const container = { items: { batch } }
+        journeyContainer.mockReturnValue(container)
+        loadDataset.mockImplementation(async () => ({
+          data: cosmos.documentsToData(Object.values(stored)),
+          etags: Object.fromEntries(Object.keys(stored).map((id) => [id, `${id}-etag`])),
+        }))
+        replaceDataset.mockImplementation(cosmos.replaceDataset)
+        const { journey } = await import('./journey.js')
+
+        const response = await journey(
+          request('production', 'POST', { operation, data, etags: Object.fromEntries([[id, `${id}-etag`]]) }),
+          context(),
+        )
+        expect(response).toMatchObject({ status: 200, jsonBody: { data } })
+        expect(batch).toHaveBeenCalledTimes(1)
+        expect(Object.keys(stored)).toHaveLength(3)
+        expect(batch.mock.calls[0][0].map((item: { operationType: string }) => item.operationType)).toEqual(
+          operation === 'import' ? ['Create', 'Create', 'Create'] : ['Replace', 'Create', 'Create'],
+        )
+        expect(await journey(request('production'), context())).toMatchObject({ status: 200, jsonBody: { data } })
+      },
+    )
+  })
+
+  it('deletes a removed __proto__ record during dataset replacement', async () => {
+    const cosmos = await vi.importActual<typeof import('../lib/cosmos.js')>('../lib/cosmos.js')
+    const batch = vi.fn().mockResolvedValue({ code: 200, result: [] })
+    journeyContainer.mockReturnValue({ items: { batch } })
+    loadDataset.mockResolvedValue({ data: emptyData, etags: {} })
+    replaceDataset.mockImplementation(cosmos.replaceDataset)
+    const { journey } = await import('./journey.js')
+
+    expect(
+      await journey(
+        request('production', 'POST', {
+          operation: 'replace',
+          data: emptyData,
+          etags: JSON.parse('{"__proto__":"proto-etag"}'),
+        }),
+        context(),
+      ),
+    ).toMatchObject({ status: 200, jsonBody: { data: emptyData } })
+    expect(batch).toHaveBeenCalledWith(
+      [{ operationType: 'Delete', id: '__proto__', ifMatch: 'proto-etag' }],
+      'production',
+    )
   })
 
   it('allows viewers to read the shared dataset but not mutate it', async () => {
