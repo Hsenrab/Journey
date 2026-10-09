@@ -193,6 +193,25 @@ export const JourneyDataSchema = z
     photoReferences: z.array(schemas.photoReference),
   })
   .strict()
+  .superRefine((data, context) => {
+    const ids = [
+      ...data.waypoints.map((entity) => entity.waypointId),
+      ...data.challenges.map((entity) => entity.challengeId),
+      ...data.ideas.map((entity) => entity.ideaId),
+      ...data.activities.map((entity) => entity.activityId),
+      ...data.references.map((entity) => entity.referenceId),
+      ...data.photoReferences.map((entity) => entity.photoReferenceId),
+    ]
+    const seen = new Set<string>()
+    for (const id of ids) {
+      if (seen.has(id))
+        context.addIssue({
+          code: 'custom',
+          message: `Duplicate entity ID "${id}". IDs must be unique across all entity types in a dataset.`,
+        })
+      seen.add(id)
+    }
+  })
 export type JourneyData = z.infer<typeof JourneyDataSchema>
 
 export const JourneyMutationSchema = z.discriminatedUnion('operation', [

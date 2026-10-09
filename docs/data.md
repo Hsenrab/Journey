@@ -131,6 +131,13 @@ The Function validates the complete entity for its type and every referenced ID 
 writing. Missing, duplicate, or unknown referenced IDs are rejected with an explicit
 `400`; invalid IDs are never silently removed during ordinary create or update requests.
 
+Import and dataset replacement validate the full dataset before writing anything.
+Top-level entity IDs must be unique across Waypoints, Challenges, Ideas, Activities,
+References, and PhotoReferences. A duplicate within or across types returns `400`
+identifying the duplicate ID and leaves stored data unchanged. Cosmos uses the entity
+ID directly as its document `id` (no type prefix), addressed together with `datasetId`;
+ETags and replacement operations use that same ID.
+
 Each operation that changes several documents runs as a single Cosmos transactional
 batch in the dataset's `/datasetId` logical partition:
 

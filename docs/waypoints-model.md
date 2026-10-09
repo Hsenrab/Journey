@@ -149,6 +149,12 @@ They store metadata and external HTTPS links only. Image files are not stored by
 The schema in `src/domain/visit.ts` defines shared validation used by app and storage.
 
 - Stable IDs are required for all top-level records.
+- The API dataset schema requires IDs to be unique across all six entity types,
+  not just within a type. Import and replacement reject duplicates before any writes,
+  with an error identifying the duplicate ID.
+- Cosmos document `id` is the entity ID without a type prefix; documents are addressed
+  by `(id, datasetId)` in the `/datasetId` partition. The same ID may be used in a
+  different dataset.
 - Activity location is mandatory.
 - Waypoint/challenge/idea location is optional.
 - Relationship ID arrays must be distinct and must reference existing records.

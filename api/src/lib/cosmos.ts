@@ -48,7 +48,7 @@ export async function loadDataset(
   datasetId: string,
 ): Promise<{ data: JourneyData; etags: Record<string, string> }> {
   const documents: JourneyDocument[] = []
-  const etags: Record<string, string> = {}
+  const etags: Record<string, string> = Object.create(null)
   let continuation: string | undefined
   do {
     const response = await container.items
@@ -90,8 +90,8 @@ export function emptyJourneyData(): JourneyData {
 }
 
 export function documentsFor(datasetId: string, data: JourneyData): Record<string, JourneyDocument> {
-  const documents: Record<string, JourneyDocument> = {}
-  for (const [key, entities] of Object.entries(data)) {
+  const documents: Record<string, JourneyDocument> = Object.create(null)
+  for (const [key, entities] of Object.entries(JourneyDataSchema.parse(data))) {
     const type = entityTypeFor(key as keyof JourneyData)
     for (const entity of entities) {
       const document = documentFor(datasetId, type, entity)
@@ -122,12 +122,12 @@ export async function replaceDataset(
 ) {
   await runBatch(container, datasetId, [
     ...Object.entries(documents).map(([id, document]) =>
-      etags[id]
+      Object.hasOwn(etags, id)
         ? { operationType: 'Replace' as const, id, resourceBody: document, ifMatch: etags[id] }
         : { operationType: 'Create' as const, resourceBody: document },
     ),
     ...Object.entries(etags)
-      .filter(([id]) => !documents[id])
+      .filter(([id]) => !Object.hasOwn(documents, id))
       .map(([id, ifMatch]) => ({ operationType: 'Delete' as const, id, ifMatch })),
   ])
 }
