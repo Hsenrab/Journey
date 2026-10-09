@@ -6,9 +6,8 @@ import {
   Button,
   Card,
   CardContent,
-  Checkbox,
   CircularProgress,
-  FormControlLabel,
+  MenuItem,
   Stack,
   Tab,
   TextField,
@@ -27,7 +26,6 @@ import 'azure-maps-control/dist/atlas.min.css'
 import {
   activityCoordinates,
   completionStateForWaypoint,
-  filterWaypointsByStatus,
   orderNearbyActivities,
   orderNearbyWaypoints,
   waypointCoordinates,
@@ -46,11 +44,11 @@ import {
   type GpxMapLine,
 } from '../domain/gpxMap'
 import {
+  awardableStatuses,
   statusLabels,
-  statusOrder,
+  waypointCompletionProgress,
   type Activity,
   type AwardedStatus,
-  type Status,
   type Waypoint,
 } from '../domain/visit'
 import { PageHeader } from '../components/PageHeader'
@@ -424,7 +422,8 @@ export default function MapPage() {
   const lastFittedTrack = useRef<{ activityId: string; geometry: NonNullable<Activity['recordedTrack']> } | null>(null)
   const lastFittedRoute = useRef<{ id: string; segments: GpxMapLine['segments'] } | null>(null)
   const gpxSource = useRef<atlas.source.DataSource | null>(null)
-  const [statuses, setStatuses] = useState<Status[]>([...statusOrder])
+  const [progressFilter, setProgressFilter] = useState<'all' | 'started' | 'not-started'>('all')
+  const [medalFilter, setMedalFilter] = useState<'all' | AwardedStatus>('all')
   const [token, setToken] = useState<MapsToken | null>(null)
   const [mapReady, setMapReady] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -751,8 +750,18 @@ export default function MapPage() {
   }, [data.activities, data.waypoints, loaded, mapCenter.latitude, mapCenter.longitude, navigate, token, trackActivity])
 
   const visibleWaypoints = useMemo(
-    () => filterWaypointsByStatus(data.waypoints, statuses, statusFor),
-    [data.waypoints, statuses, statusFor],
+    () =>
+      data.waypoints.filter((waypoint) => {
+        const status = statusFor(waypoint.waypointId)
+        const matchesProgress =
+          progressFilter === 'all' ||
+          (progressFilter === 'started'
+            ? waypointCompletionProgress(waypoint, data.activities).count > 0
+            : waypointCompletionProgress(waypoint, data.activities).count === 0)
+        const matchesMedal = medalFilter === 'all' || status === medalFilter
+        return matchesProgress && matchesMedal
+      }),
+    [data.activities, data.waypoints, medalFilter, progressFilter, statusFor],
   )
   const nearby = useMemo(
     () => (origin ? orderNearbyWaypoints(visibleWaypoints, origin).slice(0, 10) : []),
@@ -987,29 +996,32 @@ export default function MapPage() {
                   </Button>
                 </Stack>
                 {mode === 'waypoints' && (
-                  <Stack
-                    direction="row"
-                    useFlexGap
-                    sx={{ flexWrap: 'wrap' }}
-                    role="group"
-                    aria-label="Waypoint filters"
-                  >
-                    {statusOrder.map((status) => (
-                      <FormControlLabel
-                        key={status}
-                        control={
-                          <Checkbox
-                            checked={statuses.includes(status)}
-                            onChange={(event) =>
-                              setStatuses((current) =>
-                                event.target.checked ? [...current, status] : current.filter((item) => item !== status),
-                              )
-                            }
-                          />
-                        }
-                        label={statusLabels[status]}
-                      />
-                    ))}
+                  <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} role="group" aria-label="Waypoint filters">
+                    <TextField
+                      select
+                      label="Progress status"
+                      value={progressFilter}
+                      onChange={(event) => setProgressFilter(event.target.value as typeof progressFilter)}
+                      sx={{ flex: 1, minWidth: 0 }}
+                    >
+                      <MenuItem value="all">All</MenuItem>
+                      <MenuItem value="started">Started</MenuItem>
+                      <MenuItem value="not-started">Not Started</MenuItem>
+                    </TextField>
+                    <TextField
+                      select
+                      label="Medal tier"
+                      value={medalFilter}
+                      onChange={(event) => setMedalFilter(event.target.value as typeof medalFilter)}
+                      sx={{ flex: 1, minWidth: 0 }}
+                    >
+                      <MenuItem value="all">All</MenuItem>
+                      {awardableStatuses.map((status) => (
+                        <MenuItem key={status} value={status}>
+                          {statusLabels[status]}
+                        </MenuItem>
+                      ))}
+                    </TextField>
                   </Stack>
                 )}
               </Stack>

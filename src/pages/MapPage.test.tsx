@@ -1,9 +1,10 @@
-import { act, render, screen } from '@testing-library/react'
+import { act, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createDemoModeData, save } from '../services/storage'
 import { useWaypoints, WaypointsProvider } from '../features/journey/JourneyContext'
+import type { Activity, AwardedStatus } from '../domain/visit'
 
 type MapClickHandler = (event: {
   shapes?: Array<{
@@ -81,6 +82,23 @@ function jsonResponse(body: unknown) {
     ok: true,
     headers: new Headers({ 'content-type': 'application/json' }),
     json: () => Promise.resolve(body),
+  }
+}
+
+function activity(waypointId: string, category: AwardedStatus): Activity {
+  return {
+    activityId: `${waypointId}-${category}`,
+    ideaIds: [],
+    waypointId,
+    challengeId: 'national-trust',
+    date: '2026-08-01',
+    category,
+    location: { kind: 'postcode', postcode: waypointId },
+    notes: '',
+    referenceIds: [],
+    photoReferenceIds: [],
+    createdAt: '2026-08-01T10:00:00.000Z',
+    updatedAt: '2026-08-01T10:00:00.000Z',
   }
 }
 
@@ -247,14 +265,111 @@ describe('MapPage', () => {
     expect(screen.getByLabelText('Azure Maps interactive map')).toBeInTheDocument()
     expect(screen.getByRole('tabpanel')).toHaveAttribute('aria-labelledby', 'waypoints-tab')
     expect(screen.queryByRole('group', { name: 'Marker colour legend' })).not.toBeInTheDocument()
-    const user = userEvent.setup()
     expect(screen.getByRole('group', { name: 'Waypoint filters' })).toBeInTheDocument()
-    expect(screen.getByRole('checkbox', { name: 'Gold' })).toBeChecked()
-    await user.click(screen.getByRole('checkbox', { name: 'Gold' }))
-    expect(screen.getByRole('checkbox', { name: 'Gold' })).not.toBeChecked()
+    expect(screen.getByRole('combobox', { name: 'Progress status' })).toBeInTheDocument()
+    expect(screen.getByRole('combobox', { name: 'Medal tier' })).toBeInTheDocument()
     expect(screen.getByRole('textbox', { name: /Nearby origin/ })).toHaveValue('')
     expect(screen.getByText('Choose a nearby origin to see waypoints.')).toBeInTheDocument()
     expect(await screen.findByText('Map access failed: Sign in required')).toBeInTheDocument()
+  })
+
+  it('applies progress and medal filters together and clears each with All', async () => {
+    const data = createDefaultData()
+    const [bronzeWaypoint, goldWaypoint, notStartedWaypoint] = data.waypoints
+    expect(bronzeWaypoint && goldWaypoint && notStartedWaypoint).toBeTruthy()
+    bronzeWaypoint!.location = { latitude: 51.84, longitude: -2.15 }
+    goldWaypoint!.location = { latitude: 51.85, longitude: -2.14 }
+    notStartedWaypoint!.location = { latitude: 51.86, longitude: -2.13 }
+    data.activities = [activity(bronzeWaypoint!.waypointId, 'bronze'), activity(goldWaypoint!.waypointId, 'gold')]
+    localStorage.setItem('waypoints-v1', JSON.stringify(data))
+    const user = userEvent.setup()
+    vi.stubGlobal(
+      'fetch',
+      vi
+        .fn()
+        .mockResolvedValueOnce(jsonResponse({ token: 'entra', expiresOn: '2026-01-01', clientId: 'maps-client-id' }))
+        .mockResolvedValueOnce(
+          jsonResponse({
+            results: [{ address: { freeformAddress: 'Example' }, position: { lat: 51.84, lon: -2.15 } }],
+          }),
+        ),
+    )
+    render(
+      <MemoryRouter>
+        <WaypointsProvider>
+          <MapPage />
+        </WaypointsProvider>
+      </MemoryRouter>,
+    )
+    const waypointList = screen.getByLabelText('Nearest visible waypoints')
+
+    const selectOption = async (label: string, option: string) => {
+      await user.click(screen.getByRole('combobox', { name: label }))
+      await user.click(screen.getByRole('option', { name: option }))
+    }
+
+    await user.type(screen.getByRole('textbox', { name: /Nearby origin/ }), 'Example')
+    await user.click(screen.getByRole('button', { name: 'Search' }))
+    await within(waypointList).findByText(bronzeWaypoint!.title)
+
+    await selectOption('Progress status', 'Started')
+    expect(within(waypointList).getByText(bronzeWaypoint!.title)).toBeInTheDocument()
+    expect(within(waypointList).getByText(goldWaypoint!.title)).toBeInTheDocument()
+    expect(within(waypointList).queryByText(notStartedWaypoint!.title)).not.toBeInTheDocument()
+
+    await selectOption('Medal tier', 'Bronze')
+    expect(within(waypointList).getByText(bronzeWaypoint!.title)).toBeInTheDocument()
+    expect(within(waypointList).queryByText(goldWaypoint!.title)).not.toBeInTheDocument()
+
+    await selectOption('Progress status', 'Not Started')
+    expect(within(waypointList).queryByText(bronzeWaypoint!.title)).not.toBeInTheDocument()
+    expect(within(waypointList).queryByText(notStartedWaypoint!.title)).not.toBeInTheDocument()
+
+    await selectOption('Medal tier', 'All')
+    expect(within(waypointList).getByText(notStartedWaypoint!.title)).toBeInTheDocument()
+    await selectOption('Progress status', 'All')
+    expect(within(waypointList).getByText(bronzeWaypoint!.title)).toBeInTheDocument()
+    expect(within(waypointList).getByText(goldWaypoint!.title)).toBeInTheDocument()
+    expect(within(waypointList).getByText(notStartedWaypoint!.title)).toBeInTheDocument()
+  })
+
+  it('treats an uncategorized linked activity as started progress', async () => {
+    const data = createDefaultData()
+    const waypoint = data.waypoints[0]!
+    waypoint.location = { latitude: 51.84, longitude: -2.15 }
+    const uncategorizedActivity = activity(waypoint.waypointId, 'bronze')
+    delete uncategorizedActivity.category
+    data.activities = [uncategorizedActivity]
+    localStorage.setItem('waypoints-v1', JSON.stringify(data))
+    const user = userEvent.setup()
+    vi.stubGlobal(
+      'fetch',
+      vi
+        .fn()
+        .mockResolvedValueOnce(jsonResponse({ token: 'entra', expiresOn: '2026-01-01', clientId: 'maps-client-id' }))
+        .mockResolvedValueOnce(
+          jsonResponse({
+            results: [{ address: { freeformAddress: 'Example' }, position: { lat: 51.84, lon: -2.15 } }],
+          }),
+        ),
+    )
+    render(
+      <MemoryRouter>
+        <WaypointsProvider>
+          <MapPage />
+        </WaypointsProvider>
+      </MemoryRouter>,
+    )
+    const waypointList = screen.getByLabelText('Nearest visible waypoints')
+
+    await user.type(screen.getByRole('textbox', { name: /Nearby origin/ }), 'Example')
+    await user.click(screen.getByRole('button', { name: 'Search' }))
+    await within(waypointList).findByText(waypoint.title)
+
+    await user.click(screen.getByRole('combobox', { name: 'Progress status' }))
+    await user.click(screen.getByRole('option', { name: 'Started' }))
+
+    expect(within(waypointList).getByText(waypoint.title)).toBeInTheDocument()
   })
 
   it('shows a loading notice instead of filters and an empty map while production data is in flight', async () => {
@@ -349,7 +464,7 @@ describe('MapPage', () => {
     expect(await screen.findByText(/Map access is unavailable in this environment/)).toBeInTheDocument()
   })
 
-  it('keeps layer and status filters while showing an explicit no-results origin error', async () => {
+  it('keeps layer and medal filters while showing an explicit no-results origin error', async () => {
     const user = userEvent.setup()
     vi.stubGlobal(
       'fetch',
@@ -365,12 +480,13 @@ describe('MapPage', () => {
         </WaypointsProvider>
       </MemoryRouter>,
     )
-    await user.click(screen.getByRole('checkbox', { name: 'Gold' }))
+    await user.click(screen.getByRole('combobox', { name: 'Medal tier' }))
+    await user.click(screen.getByRole('option', { name: 'Gold' }))
     await user.type(screen.getByRole('textbox', { name: /Nearby origin/ }), 'no match')
     await user.click(screen.getByRole('button', { name: 'Search' }))
     expect(await screen.findByText(/No places matched that search/)).toBeInTheDocument()
     expect(screen.getByRole('tab', { name: 'Activities' })).toHaveAttribute('aria-selected', 'false')
-    expect(screen.getByRole('checkbox', { name: 'Gold' })).not.toBeChecked()
+    expect(screen.getByRole('combobox', { name: 'Medal tier' })).toHaveTextContent('Gold')
   })
 
   it('requires an explicit selection for ambiguous nearby origins', async () => {
@@ -503,7 +619,8 @@ describe('MapPage', () => {
         </WaypointsProvider>
       </MemoryRouter>,
     )
-    await user.click(screen.getByRole('checkbox', { name: 'Gold' }))
+    await user.click(screen.getByRole('combobox', { name: 'Medal tier' }))
+    await user.click(screen.getByRole('option', { name: 'Gold' }))
     await user.type(screen.getByRole('textbox', { name: /Nearby origin/ }), 'Example')
     await user.click(screen.getByRole('button', { name: 'Search' }))
     await user.click(screen.getByRole('tab', { name: 'Activities' }))
