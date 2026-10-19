@@ -245,5 +245,7 @@ describe('LocationDetails', () => {
     expect(screen.queryByRole('button', { name: 'Add idea' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Edit waypoint' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Delete waypoint' })).not.toBeInTheDocument()
+    expect(screen.getByText(/Your Journey access is viewer only/)).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Change the data mode in Settings' })).toHaveAttribute('href', '/settings')
   })
 })

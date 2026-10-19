@@ -1,5 +1,5 @@
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
-import { render, screen, waitFor, within } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import Ideas from './Ideas'
@@ -26,7 +26,49 @@ describe('Ideas', () => {
     localStorage.clear()
     save(createDemoTestData())
   })
-  afterEach(() => vi.unstubAllGlobals())
+  afterEach(() => {
+    vi.unstubAllGlobals()
+    vi.unstubAllEnvs()
+  })
+
+  it.each(['/ideas', '/ideas?mode=add'])(
+    'keeps remote viewer ideas browsable at %s without an editor',
+    async (path) => {
+      vi.stubEnv('MODE', 'production')
+      const data = createDefaultData()
+      data.ideas = [
+        {
+          ideaId: 'viewer-idea',
+          title: 'Viewer walking plan',
+          description: '',
+          notes: '',
+          waypointIds: [],
+          planningState: 'active',
+          difficulty: 1,
+          referenceIds: [],
+          createdAt: '2026-08-01T00:00:00.000Z',
+          updatedAt: '2026-08-01T00:00:00.000Z',
+        },
+      ]
+      const fetch = vi
+        .fn()
+        .mockImplementation(() => new Response(JSON.stringify({ data, etags: {}, role: 'viewer' }), { status: 200 }))
+      vi.stubGlobal('fetch', fetch)
+      renderIdeas(path)
+
+      expect(
+        await screen.findByText(/Your Journey access is viewer only, so you can read this data but not change it\./),
+      ).toBeInTheDocument()
+      expect(screen.getByRole('link', { name: 'Viewer walking plan' })).toHaveAttribute('href', '/ideas/viewer-idea')
+      expect(screen.queryByRole('button', { name: /add idea|save idea/i })).not.toBeInTheDocument()
+      expect(screen.queryByLabelText('Title')).not.toBeInTheDocument()
+      expect(screen.getByRole('link', { name: 'Change the data mode in Settings' })).toHaveAttribute(
+        'href',
+        '/settings',
+      )
+      expect(fetch).toHaveBeenCalledTimes(1)
+    },
+  )
 
   it('creates an idea with required fields and a linked waypoint', async () => {
     const user = userEvent.setup()
@@ -185,11 +227,11 @@ describe('Ideas', () => {
     const user = userEvent.setup()
     renderIdeas('/ideas?mode=add')
 
-    await user.type(screen.getByLabelText('Title'), 'Plan route')
-    await user.type(screen.getByLabelText('Latitude'), '51.8')
+    fireEvent.change(screen.getByLabelText('Title'), { target: { value: 'Plan route' } })
+    fireEvent.change(screen.getByLabelText('Latitude'), { target: { value: '51.8' } })
     await user.click(screen.getByRole('button', { name: 'Add reference' }))
-    await user.type(screen.getByLabelText('Reference title'), 'Guide')
-    await user.type(screen.getByLabelText('Reference URL'), 'http://example.com/guide')
+    fireEvent.change(screen.getByLabelText('Reference title'), { target: { value: 'Guide' } })
+    fireEvent.change(screen.getByLabelText('Reference URL'), { target: { value: 'http://example.com/guide' } })
     await user.click(screen.getByRole('button', { name: 'Save idea' }))
 
     expect(screen.getByText('Enter both latitude and longitude.')).toBeInTheDocument()

@@ -1,5 +1,5 @@
 import type { ComponentProps } from 'react'
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -33,15 +33,14 @@ describe('WaypointEditor', () => {
     expect(screen.getByText('Waypoint description is required.')).toBeInTheDocument()
     expect(screen.getByText('Waypoint category is required.')).toBeInTheDocument()
 
-    await user.type(screen.getByLabelText('Title'), 'A viewpoint')
-    await user.type(screen.getByLabelText('Description'), 'A quiet viewpoint')
-    await user.type(screen.getByLabelText('Category'), 'Scenic')
+    fireEvent.change(screen.getByLabelText('Title'), { target: { value: 'A viewpoint' } })
+    fireEvent.change(screen.getByLabelText('Description'), { target: { value: 'A quiet viewpoint' } })
+    fireEvent.change(screen.getByLabelText('Category'), { target: { value: 'Scenic' } })
     await user.click(screen.getByRole('combobox', { name: 'Completion mode' }))
     await user.click(screen.getByRole('option', { name: 'Count' }))
-    await user.clear(screen.getByLabelText('Completion target'))
-    await user.type(screen.getByLabelText('Completion target'), '0')
-    await user.type(screen.getByLabelText('Latitude'), '91')
-    await user.type(screen.getByLabelText('Longitude'), '-1')
+    fireEvent.change(screen.getByLabelText('Completion target'), { target: { value: '0' } })
+    fireEvent.change(screen.getByLabelText('Latitude'), { target: { value: '91' } })
+    fireEvent.change(screen.getByLabelText('Longitude'), { target: { value: '-1' } })
     await user.click(screen.getByRole('button', { name: 'Add reference' }))
     await user.click(screen.getByRole('button', { name: 'Add photo reference' }))
     await user.click(screen.getByRole('button', { name: 'Save waypoint' }))
@@ -59,17 +58,16 @@ describe('WaypointEditor', () => {
     const user = userEvent.setup()
     const { onSubmit } = renderEditor()
 
-    await user.type(screen.getByLabelText('Title'), ' A viewpoint ')
-    await user.type(screen.getByLabelText('Description'), ' A quiet viewpoint ')
-    await user.type(screen.getByLabelText('Category'), ' Scenic ')
-    await user.type(screen.getByLabelText('Tags (comma-separated)'), ' sunrise,  walk ,, ')
+    fireEvent.change(screen.getByLabelText('Title'), { target: { value: ' A viewpoint ' } })
+    fireEvent.change(screen.getByLabelText('Description'), { target: { value: ' A quiet viewpoint ' } })
+    fireEvent.change(screen.getByLabelText('Category'), { target: { value: ' Scenic ' } })
+    fireEvent.change(screen.getByLabelText('Tags (comma-separated)'), { target: { value: ' sunrise,  walk ,, ' } })
     await user.click(screen.getByRole('combobox', { name: 'Completion mode' }))
     await user.click(screen.getByRole('option', { name: 'Count' }))
-    await user.clear(screen.getByLabelText('Completion target'))
-    await user.type(screen.getByLabelText('Completion target'), '2')
-    await user.type(screen.getByLabelText('Place name'), ' Brockworth ')
-    await user.type(screen.getByLabelText('Latitude'), '51.75')
-    await user.type(screen.getByLabelText('Longitude'), '-1.26')
+    fireEvent.change(screen.getByLabelText('Completion target'), { target: { value: '2' } })
+    fireEvent.change(screen.getByLabelText('Place name'), { target: { value: ' Brockworth ' } })
+    fireEvent.change(screen.getByLabelText('Latitude'), { target: { value: '51.75' } })
+    fireEvent.change(screen.getByLabelText('Longitude'), { target: { value: '-1.26' } })
     await user.click(screen.getByLabelText('Approximate location'))
     await user.click(screen.getByRole('button', { name: 'Save waypoint' }))
 

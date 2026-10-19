@@ -9,6 +9,7 @@ export default defineConfig({
     setupFiles: './src/test-setup.ts',
     exclude: ['**/node_modules/**', '**/dist/**', '**/e2e/**', 'api/**'],
     testTimeout: 10000,
+    maxWorkers: 1,
     coverage: {
       provider: 'v8',
       reporter: ['text', 'html', 'lcov'],

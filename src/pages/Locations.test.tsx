@@ -88,7 +88,29 @@ describe('Locations', () => {
     localStorage.clear()
     save(testData())
   })
-  afterEach(() => vi.unstubAllGlobals())
+  afterEach(() => {
+    vi.unstubAllGlobals()
+    vi.unstubAllEnvs()
+  })
+
+  it('keeps remote viewer waypoints browsable without add controls', async () => {
+    vi.stubEnv('MODE', 'production')
+    const fetch = vi
+      .fn()
+      .mockImplementation(
+        () => new Response(JSON.stringify({ data: testData(), etags: {}, role: 'viewer' }), { status: 200 }),
+      )
+    vi.stubGlobal('fetch', fetch)
+    renderLocations()
+
+    expect(
+      await screen.findByText(/Your Journey access is viewer only, so you can read this data but not change it\./),
+    ).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Stourhead' })).toHaveAttribute('href', '/waypoints/stourhead')
+    expect(screen.queryByRole('button', { name: /add waypoint/i })).not.toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Change the data mode in Settings' })).toHaveAttribute('href', '/settings')
+    expect(fetch).toHaveBeenCalledTimes(1)
+  })
 
   it('lists every waypoint by default', () => {
     renderLocations()

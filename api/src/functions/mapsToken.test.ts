@@ -47,31 +47,31 @@ afterEach(() => {
 })
 
 describe('mapsToken', () => {
-  it('returns 403 for an anonymous request', async () => {
+  it.each([
+    ['missing', null],
+    ['malformed', 'not-base64-json'],
+    ['incomplete', encodePrincipal({ identityProvider: 'aad' })],
+    ['incorrect field type', principalHeader({ userRoles: 'admin' })],
+    ['unsupported provider', principalHeader({ identityProvider: 'github' })],
+    ['empty user ID', principalHeader({ userId: '' })],
+    ['unauthenticated role', principalHeader({ userRoles: ['admin'] })],
+    ['unassigned', principalHeader({ userRoles: ['authenticated'] })],
+    ['both roles', principalHeader({ userRoles: ['authenticated', 'admin', 'viewer'] })],
+  ])('rejects a %s principal before acquiring a token', async (_category, header) => {
     const { mapsToken } = await import('./mapsToken.js')
-    const result = await mapsToken(requestWithPrincipal(null), fakeContext())
-    expect(result.status).toBe(403)
-  })
-
-  it('returns 403 for a principal from a different identity provider', async () => {
-    const { mapsToken } = await import('./mapsToken.js')
-    const header = principalHeader({ identityProvider: 'github' })
     const result = await mapsToken(requestWithPrincipal(header), fakeContext())
-    expect(result.status).toBe(403)
+    expect(result).toEqual({ status: 403, jsonBody: { error: 'forbidden' } })
+    expect(acquireMapsAccessToken).not.toHaveBeenCalled()
   })
 
-  it('returns 403 for a principal missing a Journey role', async () => {
-    const { mapsToken } = await import('./mapsToken.js')
-    const header = principalHeader({ userRoles: ['anonymous', 'authenticated'] })
-    const result = await mapsToken(requestWithPrincipal(header), fakeContext())
-    expect(result.status).toBe(403)
-  })
-
-  it('returns a Maps Entra token and client ID for an assigned Journey user', async () => {
+  it.each(['admin', 'viewer'])('returns a Maps Entra token and client ID for %s', async (role) => {
     acquireMapsAccessToken.mockResolvedValueOnce({ token: 'entra-token-value', expiresOn: '2024-01-01T00:15:00.000Z' })
 
     const { mapsToken } = await import('./mapsToken.js')
-    const result = await mapsToken(requestWithPrincipal(principalHeader()), fakeContext())
+    const result = await mapsToken(
+      requestWithPrincipal(principalHeader({ userRoles: ['authenticated', role] })),
+      fakeContext(),
+    )
 
     expect(result.status).toBe(200)
     expect(result.jsonBody).toEqual({
@@ -80,6 +80,7 @@ describe('mapsToken', () => {
       clientId: 'maps-client-id',
     })
     expect(acquireMapsAccessToken).toHaveBeenCalledWith(expect.anything())
+    expect(acquireMapsAccessToken).toHaveBeenCalledOnce()
   })
 
   it('fails explicitly when a required application setting is missing', async () => {

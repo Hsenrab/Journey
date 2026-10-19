@@ -1,5 +1,5 @@
 import { MemoryRouter } from 'react-router-dom'
-import { cleanup, render, screen, waitForElementToBeRemoved } from '@testing-library/react'
+import { cleanup, render, screen, waitFor, waitForElementToBeRemoved } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import Settings from './Settings'
@@ -200,6 +200,8 @@ describe('Settings', () => {
     ).toBeInTheDocument()
 
     expect(createObjectURL).not.toHaveBeenCalled()
+    expect(screen.getByText('Restore JSON').closest('label')).toHaveClass('Mui-disabled')
+    expect(screen.getByRole('button', { name: 'Clear data' })).toBeDisabled()
   })
 
   it('disables export while production data is still loading', async () => {
@@ -211,6 +213,8 @@ describe('Settings', () => {
     renderSettings()
 
     expect(await screen.findByRole('button', { name: 'Export JSON' })).toBeDisabled()
+    expect(screen.getByText('Restore JSON').closest('label')).toHaveClass('Mui-disabled')
+    expect(screen.getByRole('button', { name: 'Clear data' })).toBeDisabled()
     expect(
       screen.queryByText(
         'Export is disabled because the active dataset did not load. Reload production before creating a backup.',
@@ -243,8 +247,9 @@ describe('Settings', () => {
     expect(screen.getByRole('button', { name: 'Clear data' })).toBeDisabled()
   })
 
-  it('keeps mutations enabled for Demo Cosmos data', async () => {
-    setDataMode('demo-cosmos')
+  it.each(['production', 'demo-cosmos'] as const)('keeps mutations enabled for loaded admin %s data', async (mode) => {
+    setDataMode(mode)
+    vi.stubEnv('MODE', 'production')
     vi.stubGlobal(
       'fetch',
       vi
@@ -255,10 +260,56 @@ describe('Settings', () => {
     )
     renderSettings()
 
-    expect(await screen.findByText('Demo Cosmos data loaded')).toBeInTheDocument()
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Export JSON' })).toBeEnabled())
     expect(screen.getByText('Restore JSON').closest('label')).not.toHaveClass('Mui-disabled')
     expect(screen.getByRole('button', { name: 'Clear data' })).not.toBeDisabled()
   })
+
+  it.each(['production', 'demo-cosmos'] as const)(
+    'exports the active viewer %s dataset without enabling writes',
+    async (mode) => {
+      vi.stubEnv('MODE', 'production')
+      setDataMode(mode)
+      const data = createDemoModeData()
+      data.challenges[0] = { ...data.challenges[0]!, title: `Export fixture for ${mode}` }
+      const fetch = vi
+        .fn()
+        .mockImplementation(() => new Response(JSON.stringify({ data, etags: {}, role: 'viewer' }), { status: 200 }))
+      vi.stubGlobal('fetch', fetch)
+      const createObjectURL = vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:viewer-export')
+      const revokeObjectURL = vi.spyOn(URL, 'revokeObjectURL')
+      const click = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {})
+      const user = userEvent.setup()
+      renderSettings()
+
+      await waitFor(() => expect(screen.getByRole('button', { name: 'Export JSON' })).toBeEnabled())
+      expect(screen.getByText('Restore JSON').closest('label')).toHaveClass('Mui-disabled')
+      expect(screen.getByRole('button', { name: 'Clear data' })).toBeDisabled()
+      expect(screen.getByRole('combobox', { name: 'Data mode' })).toBeEnabled()
+      await user.click(screen.getByRole('button', { name: 'Export JSON' }))
+
+      expect(createObjectURL).toHaveBeenCalledOnce()
+      const blob = createObjectURL.mock.calls[0]![0]
+      expect(blob).toBeInstanceOf(Blob)
+      if (!(blob instanceof Blob)) throw new Error('Expected a JSON export Blob.')
+      const exported = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader()
+        reader.onload = () => resolve(String(reader.result))
+        reader.onerror = () => reject(reader.error)
+        reader.readAsText(blob)
+      })
+      expect(JSON.parse(exported)).toMatchObject({ version: backupVersion, data })
+      expect(click).toHaveBeenCalledOnce()
+      expect(revokeObjectURL).toHaveBeenCalledWith('blob:viewer-export')
+
+      await user.click(screen.getByRole('combobox', { name: 'Data mode' }))
+      await user.click(screen.getByRole('option', { name: 'Demo local data' }))
+      expect(await screen.findByText('Demo local data loaded')).toBeInTheDocument()
+      expect(screen.getByText('Restore JSON').closest('label')).toHaveClass('Mui-disabled')
+      expect(screen.getByRole('button', { name: 'Clear data' })).toBeDisabled()
+      expect(fetch).toHaveBeenCalledTimes(1)
+    },
+  )
 
   it('closes the clear data confirmation dialog when dismissed with escape', async () => {
     const user = userEvent.setup()

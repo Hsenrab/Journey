@@ -458,9 +458,11 @@ describe('ActivityEditor', () => {
     const { onSubmit } = renderEditor()
 
     await user.click(screen.getByRole('button', { name: 'Add reference' }))
-    await user.type(screen.getByLabelText('Preview image URL'), 'http://example.com/preview.jpg')
+    fireEvent.change(screen.getByLabelText('Preview image URL'), {
+      target: { value: 'http://example.com/preview.jpg' },
+    })
     await user.click(screen.getByRole('button', { name: 'Add photo reference' }))
-    await user.type(screen.getByLabelText('Photo URL'), 'http://example.com/photo.jpg')
+    fireEvent.change(screen.getByLabelText('Photo URL'), { target: { value: 'http://example.com/photo.jpg' } })
     await user.click(screen.getByRole('button', { name: 'Save' }))
 
     expect(screen.getByText('Reference title is required.')).toBeInTheDocument()

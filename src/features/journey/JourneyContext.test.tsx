@@ -305,66 +305,95 @@ describe('WaypointsContext in production mode', () => {
 
   afterEach(() => {
     vi.unstubAllEnvs()
+    vi.unstubAllGlobals()
     vi.restoreAllMocks()
   })
 
-  it('routes every mutation through the Journey API instead of localStorage', async () => {
-    const seeded = createDefaultData()
-    const activity = createActivity({
-      waypointId: lacockId,
-      ideaIds: [],
-      date: '2026-08-01',
-      location: draft.location,
-      notes: '',
-    })
-    const idea = createIdea({
-      title: 'Existing idea',
-      description: '',
-      notes: '',
-      waypointIds: [lacockId],
-      planningState: 'active',
-      difficulty: 1,
-    })
-    seeded.activities = [activity]
-    seeded.ideas = [idea]
-    const fetch = vi
-      .fn()
-      .mockImplementation(
-        () => new Response(JSON.stringify({ data: seeded, etags: {}, role: 'admin' }), { status: 200 }),
+  it.each(['production', 'demo-cosmos'] as const)(
+    'routes every admin mutation through %s instead of localStorage',
+    async (mode) => {
+      setDataMode(mode)
+      const seeded = createDefaultData()
+      const activity = createActivity({
+        waypointId: lacockId,
+        ideaIds: [],
+        date: '2026-08-01',
+        location: draft.location,
+        notes: '',
+      })
+      const idea = createIdea({
+        title: 'Existing idea',
+        description: '',
+        notes: '',
+        waypointIds: [lacockId],
+        planningState: 'active',
+        difficulty: 1,
+      })
+      seeded.activities = [activity]
+      seeded.ideas = [idea]
+      const fetch = vi.fn().mockImplementation(
+        () =>
+          new Response(JSON.stringify({ data: seeded, etags: { [lacockId]: 'waypoint-etag' }, role: 'admin' }), {
+            status: 200,
+          }),
       )
-    vi.stubGlobal('fetch', fetch)
+      vi.stubGlobal('fetch', fetch)
 
-    const { result } = renderHook(() => useWaypoints(), { wrapper: WaypointsProvider })
-    await waitFor(() => expect(result.current.data.activities).toHaveLength(1))
-    expect(fetch).toHaveBeenCalledWith('/api/journey/production', expect.anything())
+      const { result } = renderHook(() => useWaypoints(), { wrapper: WaypointsProvider })
+      await waitFor(() => expect(result.current.data.activities).toHaveLength(1))
+      const endpoint = mode === 'production' ? '/api/journey/production' : '/api/journey/demo'
+      expect(fetch).toHaveBeenCalledWith(endpoint, expect.anything())
 
-    await act(async () => {
-      await result.current.addActivity(draft)
-    })
-    await act(async () => {
-      await result.current.updateActivity(activity.activityId, draft)
-    })
-    await act(async () => {
-      await result.current.deleteActivity(activity.activityId)
-    })
-    await act(async () => {
-      await result.current.addIdea(ideaDraft)
-    })
-    await act(async () => {
-      await result.current.updateIdea(idea.ideaId, ideaDraft)
-    })
-    await act(async () => {
-      await result.current.deleteIdea(idea.ideaId)
-    })
-    await act(async () => {
-      await result.current.restore(seeded)
-    })
-    await act(async () => {
-      await result.current.clear()
-    })
+      const waypointDraft = { ...seeded.waypoints[0]!, references: [], photoReferences: [] }
+      await act(async () => {
+        await result.current.addChallenge({
+          title: 'New challenge',
+          description: 'A valid admin challenge.',
+          supportsActivityCategories: false,
+        })
+      })
+      await act(async () => {
+        await result.current.updateChallengeRoute(seeded.challenges[0]!.challengeId)
+      })
+      await act(async () => {
+        await result.current.addWaypoint(waypointDraft)
+      })
+      await act(async () => {
+        await result.current.updateWaypoint(lacockId, waypointDraft)
+      })
+      await act(async () => {
+        await result.current.deleteWaypoint(lacockId)
+      })
+      await act(async () => {
+        await result.current.addActivity(draft)
+      })
+      await act(async () => {
+        await result.current.updateActivity(activity.activityId, draft)
+      })
+      await act(async () => {
+        await result.current.deleteActivity(activity.activityId)
+      })
+      await act(async () => {
+        await result.current.addIdea(ideaDraft)
+      })
+      await act(async () => {
+        await result.current.updateIdea(idea.ideaId, ideaDraft)
+      })
+      await act(async () => {
+        await result.current.deleteIdea(idea.ideaId)
+      })
+      await act(async () => {
+        await result.current.restore(seeded)
+      })
+      await act(async () => {
+        await result.current.clear()
+      })
 
-    expect(fetch).toHaveBeenCalledTimes(9)
-  })
+      expect(fetch).toHaveBeenCalledTimes(15)
+      expect(fetch.mock.calls.every(([url]) => url === endpoint)).toBe(true)
+      expect(fetch).toHaveBeenCalledWith(endpoint, expect.objectContaining({ method: 'DELETE' }))
+    },
+  )
 
   it('persists waypoint reference edits, additions, and removals with the waypoint in remote mode', async () => {
     const seeded = createDefaultData()
@@ -440,20 +469,85 @@ describe('WaypointsContext in production mode', () => {
     expect(result.current.data.photoReferences).toEqual(requestBody.data.photoReferences)
   })
 
-  it('keeps viewer data read-only even when mutation methods are called directly', async () => {
-    const seeded = createDefaultData()
-    const fetch = vi
-      .fn()
-      .mockResolvedValue(new Response(JSON.stringify({ data: seeded, etags: {}, role: 'viewer' }), { status: 200 }))
-    vi.stubGlobal('fetch', fetch)
+  it.each(['production', 'demo-cosmos'] as const)(
+    'blocks every viewer mutation starting in %s and after mode switches',
+    async (mode) => {
+      setDataMode(mode)
+      const seeded = createDefaultData()
+      const waypointDraft = { ...seeded.waypoints[0]!, references: [], photoReferences: [] }
+      const existingIdea = createIdea(ideaDraft)
+      const existingActivity = createActivity({ ...draft, referenceIds: [], photoReferenceIds: [] })
+      seeded.ideas = [existingIdea]
+      seeded.activities = [existingActivity]
+      const fetch = vi
+        .fn()
+        .mockImplementation(
+          () => new Response(JSON.stringify({ data: seeded, etags: {}, role: 'viewer' }), { status: 200 }),
+        )
+      vi.stubGlobal('fetch', fetch)
 
-    const { result } = renderHook(() => useWaypoints(), { wrapper: WaypointsProvider })
-    await waitFor(() => expect(result.current.role).toBe('viewer'))
+      const { result } = renderHook(() => useWaypoints(), { wrapper: WaypointsProvider })
+      await waitFor(() => expect(result.current.role).toBe('viewer'))
 
-    expect(result.current.readOnly).toBe(true)
-    await expect(result.current.addActivity(draft)).rejects.toThrow('Viewer access is read-only.')
-    expect(fetch).toHaveBeenCalledTimes(1)
-  })
+      const mutations = [
+        () =>
+          result.current.addChallenge({
+            title: 'New challenge',
+            description: 'A valid viewer challenge draft.',
+            supportsActivityCategories: false,
+          }),
+        () =>
+          result.current.updateChallengeRoute(seeded.challenges[0]!.challengeId, {
+            fileName: 'planned.gpx',
+            geometry: {
+              type: 'MultiLineString',
+              coordinates: [
+                [
+                  [-2, 51],
+                  [-2.1, 51.1],
+                ],
+              ],
+            },
+          }),
+        () => result.current.updateChallengeRoute(seeded.challenges[0]!.challengeId),
+        () => result.current.addWaypoint(waypointDraft),
+        () => result.current.updateWaypoint(lacockId, waypointDraft),
+        () => result.current.deleteWaypoint(lacockId),
+        () => result.current.addActivity(draft),
+        () => result.current.updateActivity(existingActivity.activityId, draft),
+        () => result.current.deleteActivity(existingActivity.activityId),
+        () => result.current.addIdea(ideaDraft),
+        () => result.current.updateIdea(existingIdea.ideaId, ideaDraft),
+        () => result.current.deleteIdea(existingIdea.ideaId),
+        () => result.current.restore(seeded),
+        () => result.current.clear(),
+      ]
+
+      for (const sharedMode of [mode, mode === 'production' ? 'demo-cosmos' : 'production', mode] as const) {
+        await act(async () => {
+          await result.current.setDataMode(sharedMode)
+        })
+        await waitFor(() => {
+          expect(result.current.activeDataMode).toBe(sharedMode)
+          expect(result.current.loading).toBe(false)
+          expect(result.current.role).toBe('viewer')
+        })
+        expect(result.current.readOnly).toBe(true)
+        for (const mutate of mutations) await expect(mutate()).rejects.toThrow('Viewer access is read-only.')
+        expect(result.current.data).toEqual(seeded)
+      }
+      expect(fetch).toHaveBeenCalledTimes(3)
+      expect(fetch.mock.calls.every(([, init]) => init.method === undefined || init.method === 'GET')).toBe(true)
+
+      await act(async () => {
+        await result.current.setDataMode('demo-local')
+      })
+      await waitFor(() => expect(result.current.role).toBe('local'))
+      expect(result.current.readOnly).toBe(true)
+      for (const mutate of mutations) await expect(mutate()).rejects.toThrow('Demo local data is read-only.')
+      expect(fetch).toHaveBeenCalledTimes(3)
+    },
+  )
 
   it('refuses to mutate local demo data', async () => {
     setDataMode('demo-local')
@@ -530,6 +624,9 @@ describe('WaypointsContext in production mode', () => {
 
     expect(result.current.readOnly).toBe(true)
     await expect(result.current.addActivity(draft)).rejects.toThrow('Journey data is still loading')
+    await expect(result.current.restore(createDefaultData())).rejects.toThrow('Journey data is still loading')
+    await expect(result.current.clear()).rejects.toThrow('Journey data is still loading')
+    expect(fetch).toHaveBeenCalledTimes(1)
 
     await act(async () => {
       await result.current.setDataMode('demo-local')
@@ -634,5 +731,11 @@ describe('WaypointsContext in production mode', () => {
     })
     expect(result.current.data).toEqual(loaded)
     expect(result.current.data.activities).toHaveLength(1)
+    expect(result.current.role).toBe('admin')
+    expect(result.current.readOnly).toBe(true)
+    await expect(result.current.addActivity(draft)).rejects.toThrow('Production data is not loaded')
+    await expect(result.current.restore(seeded)).rejects.toThrow('Production data is not loaded')
+    await expect(result.current.clear()).rejects.toThrow('Production data is not loaded')
+    expect(fetch).toHaveBeenCalledTimes(2)
   })
 })
