@@ -4,7 +4,7 @@
 
 **Created**: 2026-10-17
 
-**Status**: Draft baseline for owner review
+**Status**: Existing-behaviour baseline documented; local checks complete; hosted acceptance partial
 
 **Input**: User description: "Start with access and roles: document existing behavior,
 using the implementation, tests, and project guidelines. Do not change application behavior."

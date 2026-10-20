@@ -1,13 +1,34 @@
 # Access and Roles: Baseline Evidence
 
-**Reviewed**: 2026-10-17
+**Reviewed**: 2026-10-20
 
 **Specification**: [Access and roles baseline](spec.md)
 
 This document records the baseline sources and implementation evidence. Reading
 or adding tests is not the same as executing them. The implementation adds
-regression tests and guidance, not runtime permission changes. Hosted checks
-remain separately authorized and have not run.
+regression tests and guidance, not runtime permission changes. Initial read-only
+hosted checks were authorized on 2026-10-19; their partial results and remaining
+blockers are recorded separately below.
+
+## Baseline Completion and Defect Tracking
+
+The owner confirmed on 2026-10-20 that discovered bugs must be logged separately,
+not allowed to turn baseline creation into a repair project. The existing access
+contract is documented and its local baseline tasks are complete. This does not
+certify hosted acceptance or remove the failed/blocked checks below.
+
+- [Issue #160](https://github.com/Hsenrab/Journey/issues/160) tracks the live API
+  404 problem. The shared-test observations were added to the existing report;
+  a common cause with Production has not been established.
+- [Issue #173](https://github.com/Hsenrab/Journey/issues/173) tracks the
+  primary-environment backend-link verifier defect. Its local correction is a
+  separately approved repair, not a prerequisite for completing this specification.
+
+On 2026-10-20 the owner approved committing that existing repair, while confirming
+that further baseline creation is documentation-only. Application code, tests,
+deployment configuration, defect repair, and hosted account administration require
+a separate explicit request. Intended requirements stay intact: known defects are
+not converted into accepted behavior, and pending acceptance is not marked passed.
 
 ## Current Validation Outcome
 
@@ -23,7 +44,7 @@ failed attempts retained below are historical, not outstanding blockers.
 | API lint, typecheck, coverage           | Passed: 10 files, 142 tests. Coverage: 84.75% statements, 76.73% branches, 89.76% functions, 87.4% lines; configured thresholds met.                                                               |
 | API build and Functions-host smoke      | Build passed; 2 built-host smoke tests passed.                                                                                                                                                     |
 | Extension hooks                         | No `.specify/extensions.yml`; no hooks registered.                                                                                                                                                 |
-| Hosted acceptance and GitHub-only steps | Not run. No push, workflow dispatch, deployment, or invitation administration performed.                                                                                                           |
+| Hosted acceptance and GitHub-only steps | Partially run against the existing test site; Cosmos-backed acceptance is blocked by an API 404. No push, workflow dispatch, deployment, or invitation administration performed.                   |
 
 ### Approved Unblocking Changes
 
@@ -53,6 +74,129 @@ failed attempts retained below are historical, not outstanding blockers.
 SC-001 and the hosted portion of SC-006 remain unverified. Local browser tests
 use test-mode storage; Functions-host smoke proves route registration and
 anonymous denial, not successful authenticated Azure operations.
+
+## Hosted Acceptance: 2026-10-19
+
+**Target**: Existing shared test site,
+`https://black-hill-086daf403.3.azurestaticapps.net`.
+All operations were read-only; no record writes, Production dataset reads,
+invitations, role changes, sign-out, push, or deployment were performed.
+
+### Observed Results
+
+- A browser navigation to `/challenges` reached Microsoft Entra sign-in, then
+  returned to `/challenges`. A sanitized `/.auth/me` check confirmed provider
+  `aad`, a nonempty user ID, and `admin` plus `authenticated`, without `viewer`.
+  No identity details, cookies, or tokens were recorded.
+- Independent signed-out HTTP GET requests to all eleven routes below returned
+  302 to `/.auth/login/aad`, with `post_login_redirect_uri` equal to the requested
+  path. This proves the hosting gate and retained return target, not completion
+  of sign-in for every route.
+- An authenticated GET to `/api/journey/demo` returned **404**, with no
+  `content-type`. The page visibly reported that Demo Cosmos could not load and
+  showed read-only bundled Demo local fallback. That is not a successful Cosmos
+  read and cannot establish loaded admin/viewer permissions.
+- [The latest successful test publishing workflow](https://github.com/Hsenrab/Journey/actions/runs/37530065205)
+  ran on 2026-10-06 from `main` at
+  `0213df1ff2ca306ad33112ce0f13bc40104c8b47`. Its application deployment succeeded,
+  but its Functions deployment was skipped.
+  [A later successful test workflow](https://github.com/Hsenrab/Journey/actions/runs/37692763316)
+  performed validation/infrastructure checks but skipped both application and
+  Functions deployments. A green validation-only workflow does not prove a
+  current working deployment; the exact backend cause of the 404 is not yet known.
+
+### Read-Only API Diagnosis
+
+The owner approved read-only diagnosis, not a repair or deployment.
+
+- Azure control-plane inspection confirmed the test Function App is `Running`.
+  Journey, Maps search, and Maps token are registered, enabled HTTP functions with
+  the expected routes and methods.
+- `az staticwebapp backends show --environment-name default` and the
+  `builds/default/linkedBackends` ARM collection both show the intended test
+  Function App linked to the primary test environment, with provisioning state
+  `Succeeded`. The link is not simply absent.
+- The legacy `userProvidedFunctionApps` ARM collection returns an empty array.
+  At the time of diagnosis, the [deployment verifier](../../.github/workflows/deploy-environment.yml)
+  read that legacy collection, rather than the current primary-environment link,
+  so it can report `Incorrect linked backend` despite the actual link existing.
+  The previously inspected production workflow failure used that assertion;
+  no Production service endpoint or dataset was accessed.
+- Authenticated same-origin GETs to `/api/journey/demo`, `/api/maps/token`, and
+  `/api/maps/search?query=Oxford` all return **404** without a content type.
+  Anonymous requests directly to all three test Function routes return **401**,
+  consistent with their platform authentication boundary, not successful
+  handler execution.
+- Explicit `authsettingsV2` inspection shows platform authentication and required
+  authentication enabled, with the Azure Static Web Apps provider enabled and
+  associated with the correct test site hostname.
+- The primary static environment is `Ready`, but reports source branch
+  `162/merge`, not `001-access-roles`. Workflow success alone cannot certify the
+  exact currently published application revision.
+- An aggregate test Application Insights request query for the preceding
+  30 minutes returned no rows. That is inconclusive: it does not establish
+  handler invocation or exclude telemetry delay/upstream authentication failure.
+
+The confirmed verifier defect is separate from the live 404: neither missing
+role assignment, absent function registration, nor an absent primary-environment
+link has been established as its cause. Do not claim that correcting the verifier
+alone repairs forwarding, or that a redeployment is guaranteed to fix it.
+
+Microsoft documents that linked Functions receive the full `/api` path and must
+retain that prefix; the local host configuration preserves the default prefix.
+The documented linked-backend resource requires the backend ID and region; the
+observed null optional routing field is not evidence of a defect by itself.
+See [linked Functions guidance](https://learn.microsoft.com/en-us/azure/static-web-apps/functions-bring-your-own)
+and [linked-backend resource reference](https://learn.microsoft.com/en-us/azure/templates/microsoft.web/2023-12-01/staticsites/builds/linkedbackends).
+
+No service setting, backend link, application code, or workflow was changed during
+the read-only diagnosis. A local verifier correction was subsequently approved
+and is recorded below. Changing or redeploying the shared test environment still
+requires separate approval. Hosted Cosmos/Maps acceptance remains blocked at the
+linked API boundary.
+
+### Local Verifier Correction: 2026-10-20
+
+The shared deployment workflow now reads
+`builds/default/linkedBackends?api-version=2023-12-01` and selects
+`value[].properties.backendResourceId`. Its existing verification helper still
+requires exactly the intended Function App, compares resource IDs
+case-insensitively, and rejects missing, incorrect, or multiple backends.
+A focused regression test checks the workflow's collection and selected property.
+No legacy-query fallback, weaker assertion, or cloud configuration change was
+introduced. This corrects the management-plane verification query, not the live
+same-origin 404; hosted API acceptance remains blocked until separately verified.
+
+Local validation passed: all 9 verifier tests, API lint and typecheck, changed-file
+formatting (including workflow YAML parsing), and editor diagnostics. The editor
+test runner could not discover these tests; the existing API Vitest npm command
+ran them successfully. No GitHub Actions OIDC step, workflow dispatch, deployment,
+or hosted API retest was performed for this local correction.
+
+### Per-Route Hosted Sign-In Evidence
+
+| Route checked                                  | Signed-out gate and return parameter | Completed sign-in/return                         |
+| ---------------------------------------------- | ------------------------------------ | ------------------------------------------------ |
+| `/`                                            | Passed: 302, return `/`              | Not run                                          |
+| `/challenges`                                  | Passed: 302, return `/challenges`    | Passed with admin; Cosmos load separately failed |
+| `/challenges/national-trust`                   | Passed: 302, same return path        | Not run                                          |
+| `/waypoints`                                   | Passed: 302, same return path        | Not run                                          |
+| `/waypoints/demo-foxglove-manor`               | Passed: 302, same return path        | Not run                                          |
+| `/ideas`                                       | Passed: 302, same return path        | Not run                                          |
+| `/ideas/demo-idea-railway-picnic`              | Passed: 302, same return path        | Not run                                          |
+| `/activities`                                  | Passed: 302, same return path        | Not run                                          |
+| `/activities/activity-demo-thistledown-autumn` | Passed: 302, same return path        | Not run                                          |
+| `/map`                                         | Passed: 302, same return path        | Not run                                          |
+| `/settings`                                    | Passed: 302, same return path        | Not run                                          |
+
+**Blocked**: Loaded Demo Cosmos admin/viewer browsing and export, authenticated
+Maps success, and loaded admin editing controls. Resolve the test API 404 before
+using fallback presentation as permission evidence.
+
+**Not run**: Viewer and unassigned-identity sessions, remaining completed sign-in
+return journeys, cross-organization invitation acceptance, role refresh, and
+per-resource isolation. No account-switch or invitation-administration action
+was performed. SC-001 and hosted SC-006 remain incomplete.
 
 ## Evidence Map
 
@@ -117,21 +261,23 @@ anonymous denial, not successful authenticated Azure operations.
 The inventory and expected outcomes are defined in
 [quickstart.md](quickstart.md#route-and-page-audit-inventory).
 Local entries below identify tests added or retained and their observed results.
-Every hosted entry is independently not-run, not implied by a local result.
+The hosted column preserves the initial local-signoff state; it is not implied
+by local results. See the current per-route hosted evidence above for the
+2026-10-19 partial checks and the API blocker.
 
-| Route                      | Local test evidence                                                                                                                                                                 | Local execution                                          | Hosted sign-in/return |
-| -------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------- | --------------------- |
-| `/`                        | [App routing](../../src/app/App.tsx) reviewed; hosting configuration assertions retained. Root redirects to `/challenges`; no new dedicated root redirect test.                     | Configuration assertions passed; redirect reviewed only. | Not run               |
-| `/challenges`              | [Dashboard](../../src/pages/Dashboard.test.tsx): retained viewer browsing/write denial; added Settings-link assertion.                                                              | Passed                                                   | Not run               |
-| `/challenges/:challengeId` | [Challenge details](../../src/pages/ChallengeDetails.test.tsx): saved/no-route viewer browsing, map, notice/link, absent route controls and file input.                             | Passed                                                   | Not run               |
-| `/waypoints`               | [Waypoints](../../src/pages/Locations.test.tsx): viewer browsing, notice/link, hidden add controls.                                                                                 | Passed                                                   | Not run               |
-| `/waypoints/:id`           | [Waypoint details](../../src/pages/LocationDetails.test.tsx): retained viewer write denial; added notice/link assertions.                                                           | Passed in the single-worker run.                         | Not run               |
-| `/ideas`                   | [Ideas](../../src/pages/Ideas.test.tsx): viewer browsing, notice/link, no editor through normal or add-query entry.                                                                 | Passed, including editor and conflict cases.             | Not run               |
-| `/ideas/:ideaId`           | [Idea details](../../src/pages/IdeaDetails.test.tsx): retained viewer write denial; added notice/link assertions.                                                                   | Passed                                                   | Not run               |
-| `/activities`              | [Activities](../../src/pages/Activities.test.tsx): retained viewer write denial; added notice/link assertions.                                                                      | Passed                                                   | Not run               |
-| `/activities/:activityId`  | [Activity details](../../src/pages/ActivityDetails.test.tsx): retained viewer write denial; added notice/link assertions.                                                           | Passed in the single-worker run.                         | Not run               |
-| `/map`                     | [Map page tests](../../src/pages/MapPage.test.tsx) retained for map browsing; explicit viewer authorization is covered at the two Maps handlers, not by a new viewer map-page test. | Map page and handler tests passed.                       | Not run               |
-| `/settings`                | [Settings](../../src/pages/Settings.test.tsx): loaded viewer exports both modes, disabled writes, usable mode selection, admin controls and load guards.                            | Passed                                                   | Not run               |
+| Route                      | Local test evidence                                                                                                                                                                 | Local execution                                          | Hosted at local signoff |
+| -------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------- | ----------------------- |
+| `/`                        | [App routing](../../src/app/App.tsx) reviewed; hosting configuration assertions retained. Root redirects to `/challenges`; no new dedicated root redirect test.                     | Configuration assertions passed; redirect reviewed only. | Not run                 |
+| `/challenges`              | [Dashboard](../../src/pages/Dashboard.test.tsx): retained viewer browsing/write denial; added Settings-link assertion.                                                              | Passed                                                   | Not run                 |
+| `/challenges/:challengeId` | [Challenge details](../../src/pages/ChallengeDetails.test.tsx): saved/no-route viewer browsing, map, notice/link, absent route controls and file input.                             | Passed                                                   | Not run                 |
+| `/waypoints`               | [Waypoints](../../src/pages/Locations.test.tsx): viewer browsing, notice/link, hidden add controls.                                                                                 | Passed                                                   | Not run                 |
+| `/waypoints/:id`           | [Waypoint details](../../src/pages/LocationDetails.test.tsx): retained viewer write denial; added notice/link assertions.                                                           | Passed in the single-worker run.                         | Not run                 |
+| `/ideas`                   | [Ideas](../../src/pages/Ideas.test.tsx): viewer browsing, notice/link, no editor through normal or add-query entry.                                                                 | Passed, including editor and conflict cases.             | Not run                 |
+| `/ideas/:ideaId`           | [Idea details](../../src/pages/IdeaDetails.test.tsx): retained viewer write denial; added notice/link assertions.                                                                   | Passed                                                   | Not run                 |
+| `/activities`              | [Activities](../../src/pages/Activities.test.tsx): retained viewer write denial; added notice/link assertions.                                                                      | Passed                                                   | Not run                 |
+| `/activities/:activityId`  | [Activity details](../../src/pages/ActivityDetails.test.tsx): retained viewer write denial; added notice/link assertions.                                                           | Passed in the single-worker run.                         | Not run                 |
+| `/map`                     | [Map page tests](../../src/pages/MapPage.test.tsx) retained for map browsing; explicit viewer authorization is covered at the two Maps handlers, not by a new viewer map-page test. | Map page and handler tests passed.                       | Not run                 |
+| `/settings`                | [Settings](../../src/pages/Settings.test.tsx): loaded viewer exports both modes, disabled writes, usable mode selection, admin controls and load guards.                            | Passed                                                   | Not run                 |
 
 ## Implementation Environment and Validation
 

@@ -56,6 +56,17 @@ You **MUST** consider the user input before proceeding (if not empty).
 
 The text the user typed after `/speckit-specify` in the triggering message **is** the feature description. Assume you always have it available in this conversation even if `$ARGUMENTS` appears literally below. Do not ask the user to repeat it unless they provided an empty command.
 
+For an existing-functionality baseline, document the current contract and record
+observed deviations separately. Log discovered defects in GitHub issues, checking
+for existing reports first, and link them from the baseline evidence. Keep baseline
+creation documentation-only: do not change application code, tests, or deployment
+configuration. Such changes require a separate explicit request and must be kept
+separate from the baseline. Do not make specification completion depend on fixing
+known bugs. Keep failed, blocked, and unexecuted checks
+explicit; baseline completion is not a claim that implementation or hosted
+acceptance has passed. Do not turn a bug into required behavior merely to make
+the baseline appear consistent.
+
 Given that feature description, do this:
 
 1. **Generate a concise short name** (2-4 words) for the feature:

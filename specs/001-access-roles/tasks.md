@@ -118,7 +118,18 @@ The owner-approved single-worker Vitest configuration preserves all timeouts,
 assertions, and coverage thresholds. The separate line-ending commit `284e613`
 contains only `.gitattributes`; Spec Kit and test/configuration changes are separate.
 See [evidence.md](evidence.md) for results and historical failures. Hosted
-acceptance remains not run; no push, workflow dispatch, or deployment occurred.
+acceptance is partially run: all eleven signed-out route gates retain their
+return targets, and admin sign-in returned to `/challenges`. Cosmos-backed
+acceptance is blocked by the test API returning 404; viewer/unassigned sessions
+and invitation/session procedures remain unverified. No push, workflow dispatch,
+or deployment occurred.
+
+**Baseline scope**: Documenting this existing contract is complete independently
+of repairing discovered defects. The hosted API failure is logged in
+[issue #160](https://github.com/Hsenrab/Journey/issues/160), and the verifier defect
+in [issue #173](https://github.com/Hsenrab/Journey/issues/173). Their repairs are
+separate follow-ups, not new baseline tasks. Hosted acceptance remains partial;
+the failed and unverified checks above are not treated as passed.
 
 ## Dependencies and Execution Order
 
