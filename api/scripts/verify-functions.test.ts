@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import { expectedFunctions, verifyLinkedBackend, verifyRegisteredFunctions } from './verify-functions.ts'
 
@@ -53,5 +54,14 @@ describe('deployment registration checks', () => {
     expect(() => verifyLinkedBackend([], '/sites/journey-api')).toThrow('Incorrect linked backend')
     expect(() => verifyLinkedBackend(['/sites/other-api'], '/sites/journey-api')).toThrow('Incorrect linked backend')
     expect(() => verifyLinkedBackend(['/sites/journey-api', '/sites/other-api'], '/sites/journey-api')).toThrow()
+  })
+
+  it('reads primary-environment backend IDs in the deployment workflow', () => {
+    const workflow = readFileSync(new URL('../../.github/workflows/deploy-environment.yml', import.meta.url), 'utf8')
+
+    expect(workflow).toContain(
+      '--url "https://management.azure.com${static_app_id}/builds/default/linkedBackends?api-version=2023-12-01"',
+    )
+    expect(workflow).toContain("--query 'value[].properties.backendResourceId'")
   })
 })

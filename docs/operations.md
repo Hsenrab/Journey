@@ -416,8 +416,11 @@ After Functions deployment, the workflow uses the existing Azure OIDC login to r
 registered function metadata with `az functionapp function list`. Deployment fails
 unless `journey`, `mapsSearch`, and `mapsToken` are enabled HTTP triggers with the
 expected routes, methods, and authorization levels. It also reads the Static Web App's
-`userProvidedFunctionApps` link through ARM and requires exactly the intended Function
-App. These checks use management-plane reads only, request no Function keys or user
+primary environment's `builds/default/linkedBackends` collection through ARM and
+selects `properties.backendResourceId`, requiring exactly the intended Function
+App. The legacy `userProvidedFunctionApps` collection can be empty even when this
+link exists, so it is not used for verification. These checks use management-plane
+reads only, request no Function keys or user
 session cookies, do not open direct Function App access, and neither write nor clear
 any Cosmos dataset.
 
