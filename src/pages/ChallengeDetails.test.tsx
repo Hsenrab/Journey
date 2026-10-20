@@ -51,6 +51,51 @@ describe('ChallengeDetails', () => {
     vi.unstubAllGlobals()
   })
 
+  it.each([false, true])(
+    'preserves viewer map browsing with saved route=%s and no route writes',
+    async (savedRoute) => {
+      vi.stubEnv('MODE', 'production')
+      const data = createDefaultData()
+      data.challenges[0] = {
+        ...data.challenges[0]!,
+        plannedRoute: savedRoute
+          ? {
+              fileName: 'saved.gpx',
+              geometry: {
+                type: 'MultiLineString',
+                coordinates: [
+                  [
+                    [-2.1, 51.1],
+                    [-2.2, 51.2],
+                  ],
+                ],
+              },
+            }
+          : undefined,
+      }
+      const fetch = vi
+        .fn()
+        .mockImplementation(() => new Response(JSON.stringify({ data, etags: {}, role: 'viewer' }), { status: 200 }))
+      vi.stubGlobal('fetch', fetch)
+      const view = renderDetails()
+
+      expect(
+        await screen.findByText(/Your Journey access is viewer only, so you can read this data but not change it\./),
+      ).toBeInTheDocument()
+      expect(screen.getByTestId('challenge-map')).toHaveTextContent(savedRoute ? 'Route attached' : 'No route')
+      expect(screen.getAllByRole('link', { name: 'View waypoint' }).length).toBeGreaterThan(0)
+      for (const name of ['Attach GPX route', 'Replace GPX route', 'Remove route', 'Save route']) {
+        expect(screen.queryByRole('button', { name })).not.toBeInTheDocument()
+      }
+      expect(view.container.querySelector('input[type="file"]')).toBeNull()
+      expect(screen.getByRole('link', { name: 'Change the data mode in Settings' })).toHaveAttribute(
+        'href',
+        '/settings',
+      )
+      expect(fetch).toHaveBeenCalledTimes(1)
+    },
+  )
+
   it('shows the Challenge Waypoints and only the attach action when no route is present', () => {
     const data = createDefaultData()
     renderDetails()

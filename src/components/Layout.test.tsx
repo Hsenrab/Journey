@@ -4,7 +4,7 @@ import { MemoryRouter } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { Layout } from './Layout'
 import { WaypointsProvider, useWaypoints } from '../features/journey/JourneyContext'
-import { createDefaultData, save } from '../services/storage'
+import { createDefaultData, save, setDataMode } from '../services/storage'
 
 function setViewport(width: number) {
   Object.defineProperty(window, 'matchMedia', {
@@ -27,7 +27,11 @@ describe('Layout', () => {
     localStorage.clear()
     setViewport(1200)
   })
-  afterEach(() => vi.restoreAllMocks())
+  afterEach(() => {
+    vi.restoreAllMocks()
+    vi.unstubAllEnvs()
+    vi.unstubAllGlobals()
+  })
 
   function ActivityCount() {
     const { data } = useWaypoints()
@@ -59,6 +63,26 @@ describe('Layout', () => {
     expect(screen.getByRole('link', { name: 'Settings' })).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Journey' })).toHaveAttribute('href', '/challenges')
     expect(screen.getByText('Page content')).toBeInTheDocument()
+  })
+
+  it.each(['production', 'demo-cosmos'] as const)('identifies loaded viewer access in the %s header', async (mode) => {
+    vi.stubEnv('MODE', 'production')
+    setDataMode(mode)
+    vi.stubGlobal(
+      'fetch',
+      vi
+        .fn()
+        .mockImplementation(
+          () => new Response(JSON.stringify({ data: createDefaultData(), etags: {}, role: 'viewer' }), { status: 200 }),
+        ),
+    )
+    renderLayout()
+
+    expect(await screen.findByText(/viewer read-only/i)).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Progress' })).toHaveAttribute('href', '/challenges')
+    expect(screen.getByRole('link', { name: 'Settings' })).toHaveAttribute('href', '/settings')
+    expect(screen.getByText('Page content')).toBeInTheDocument()
+    expect(screen.queryByRole('combobox', { name: 'Data mode' })).not.toBeInTheDocument()
   })
 
   it('shows a menu button and toggles the drawer on small screens', async () => {

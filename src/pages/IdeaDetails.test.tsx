@@ -234,6 +234,8 @@ describe('IdeaDetails', () => {
     expect(await screen.findByRole('heading', { name: 'Try the outer trail', level: 1 })).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Edit idea' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Delete idea' })).not.toBeInTheDocument()
+    expect(screen.getByText(/Your Journey access is viewer only/)).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Change the data mode in Settings' })).toHaveAttribute('href', '/settings')
   })
 
   it('links to the activity editor with the idea pre-populated when there is no linked waypoint', () => {

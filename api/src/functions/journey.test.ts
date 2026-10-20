@@ -1,11 +1,26 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
-import type { InvocationContext } from '@azure/functions'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import type { HttpRequest, InvocationContext } from '@azure/functions'
+import { journey } from './journey.js'
 
-const loadDataset = vi.fn()
-const journeyContainer = vi.fn()
-const createDocument = vi.fn()
-const deleteEntity = vi.fn()
-const replaceEntities = vi.fn()
+const {
+  loadDataset,
+  journeyContainer,
+  createDocument,
+  deleteEntity,
+  replaceEntities,
+  replaceDocument,
+  replaceDataset,
+  acquireMapsAccessToken,
+} = vi.hoisted(() => ({
+  loadDataset: vi.fn(),
+  journeyContainer: vi.fn(),
+  createDocument: vi.fn(),
+  deleteEntity: vi.fn(),
+  replaceEntities: vi.fn(),
+  replaceDocument: vi.fn(),
+  replaceDataset: vi.fn(),
+  acquireMapsAccessToken: vi.fn(),
+}))
 
 vi.mock('../lib/cosmos.js', async () => {
   const actual = await vi.importActual<typeof import('../lib/cosmos.js')>('../lib/cosmos.js')
@@ -17,32 +32,44 @@ vi.mock('../lib/cosmos.js', async () => {
     deleteEntity,
     replaceEntities,
     documentFor: actual.documentFor,
-    documentsFor: vi.fn(),
-    emptyJourneyData: vi.fn(),
-    replaceDocument: vi.fn(),
-    replaceDataset: vi.fn(),
-    savedDocument: vi.fn(),
+    documentsFor: actual.documentsFor,
+    emptyJourneyData: actual.emptyJourneyData,
+    replaceDocument,
+    replaceDataset,
+    savedDocument: actual.savedDocument,
   }
 })
 
 vi.mock('@azure/identity', () => ({ DefaultAzureCredential: vi.fn() }))
 vi.mock('../lib/mapsAuth.js', () => ({
-  acquireMapsAccessToken: vi.fn().mockResolvedValue({ token: 'entra-token', expiresOn: '2026-01-01T00:00:00.000Z' }),
+  acquireMapsAccessToken,
 }))
 
-function principal(roles = ['authenticated', 'admin']) {
+function principal(roles = ['authenticated', 'admin'], overrides: Record<string, unknown> = {}) {
   return Buffer.from(
-    JSON.stringify({ identityProvider: 'aad', userId: 'admin', userDetails: 'admin@example.com', userRoles: roles }),
+    JSON.stringify({
+      identityProvider: 'aad',
+      userId: 'admin',
+      userDetails: 'admin@example.com',
+      userRoles: roles,
+      ...overrides,
+    }),
   ).toString('base64')
 }
 
-function request(container: string, method = 'GET', body?: unknown, roles?: string[]) {
+function request(
+  container: string,
+  method = 'GET',
+  body?: unknown,
+  roles?: string[],
+  header: string | null = principal(roles),
+) {
   return {
     method,
     params: { container },
     json: async () => body,
-    headers: { get: (name: string) => (name === 'x-ms-client-principal' ? principal(roles) : null) },
-  } as never
+    headers: { get: (name: string) => (name === 'x-ms-client-principal' ? header : null) },
+  } as HttpRequest
 }
 
 const context = () => ({ error: vi.fn() }) as never
@@ -105,64 +132,129 @@ describe('journey', () => {
     createDocument.mockReset()
     deleteEntity.mockReset()
     replaceEntities.mockReset()
+    replaceDocument.mockReset()
+    replaceDataset.mockReset()
+    acquireMapsAccessToken.mockReset()
+    acquireMapsAccessToken.mockResolvedValue({ token: 'entra-token', expiresOn: '2026-01-01T00:00:00.000Z' })
     journeyContainer.mockReturnValue({})
-    process.env.AZURE_MAPS_CLIENT_ID = 'maps-client-id'
+    vi.stubEnv('AZURE_MAPS_CLIENT_ID', 'maps-client-id')
     searchResults([{ position: { lat: 51.844, lon: -2.153 } }])
   })
 
-  it('uses the route container for a production read', async () => {
-    const container = {}
-    journeyContainer.mockReturnValue(container)
-    loadDataset.mockResolvedValue({ data: { activities: [] }, etags: {} })
-    const { journey } = await import('./journey.js')
-
-    expect(await journey(request('production'), { error: vi.fn() } as unknown as InvocationContext)).toMatchObject({
-      status: 200,
-      jsonBody: { datasetId: 'production' },
-    })
-    expect(journeyContainer).toHaveBeenCalledWith('production')
-    expect(loadDataset).toHaveBeenCalledWith(container, 'production')
+  afterEach(() => {
+    vi.unstubAllGlobals()
+    vi.unstubAllEnvs()
   })
 
-  it('allows viewers to read the shared dataset but not mutate it', async () => {
-    loadDataset.mockResolvedValue({ data: emptyData, etags: {} })
-    const { journey } = await import('./journey.js')
-
-    expect(
-      await journey(request('production', 'GET', undefined, ['authenticated', 'viewer']), context()),
-    ).toMatchObject({
-      status: 200,
-      jsonBody: { role: 'viewer' },
+  describe.each(['production', 'demo'])('%s authorization', (containerName) => {
+    it.each([
+      ['missing', null],
+      ['malformed', 'not-base64-json'],
+      ['incomplete', Buffer.from(JSON.stringify({ identityProvider: 'aad' })).toString('base64')],
+      ['incorrect field type', principal(undefined, { userId: 1 })],
+      ['unsupported provider', principal(undefined, { identityProvider: 'github' })],
+      ['empty user ID', principal(undefined, { userId: '' })],
+      ['unauthenticated role', principal(['admin'])],
+      ['anonymous', principal(['anonymous'])],
+      ['unassigned', principal(['authenticated'])],
+      ['both roles', principal(['authenticated', 'admin', 'viewer'])],
+    ])('rejects a %s principal without downstream I/O', async (_category, header) => {
+      expect(await journey(request(containerName, 'GET', undefined, undefined, header), context())).toEqual({
+        status: 403,
+        jsonBody: { error: 'forbidden' },
+      })
+      expect(journeyContainer).not.toHaveBeenCalled()
+      expect(loadDataset).not.toHaveBeenCalled()
+      expect(createDocument).not.toHaveBeenCalled()
+      expect(replaceDocument).not.toHaveBeenCalled()
+      expect(replaceEntities).not.toHaveBeenCalled()
+      expect(deleteEntity).not.toHaveBeenCalled()
+      expect(replaceDataset).not.toHaveBeenCalled()
+      expect(acquireMapsAccessToken).not.toHaveBeenCalled()
+      expect(fetch).not.toHaveBeenCalled()
     })
-    for (const [method, operation] of [
-      ['POST', 'create'],
-      ['PUT', 'update'],
-      ['DELETE', 'delete'],
-      ['POST', 'import'],
-      ['POST', 'replace'],
-      ['POST', 'clear'],
-    ] as const) {
+
+    it.each(['admin', 'viewer'])('returns the same complete dataset for %s', async (role) => {
+      const loaded = { data: { ...emptyData, ideas: [idea] }, etags: { 'idea-1': 'etag' } }
+      const cosmos = {}
+      journeyContainer.mockReturnValue(cosmos)
+      loadDataset.mockResolvedValue(loaded)
+
+      expect(await journey(request(containerName, 'GET', undefined, ['authenticated', role]), context())).toEqual({
+        status: 200,
+        jsonBody: { ...loaded, datasetId: containerName, role },
+      })
+      expect(journeyContainer).toHaveBeenCalledWith(containerName)
+      expect(loadDataset).toHaveBeenCalledWith(cosmos, containerName)
+    })
+
+    it.each([
+      ['POST', { operation: 'create', type: 'idea', entity: idea }],
+      ['PUT', { operation: 'update', type: 'idea', id: 'idea-1', entity: idea, ifMatch: 'etag' }],
+      ['DELETE', { operation: 'delete', type: 'idea', id: 'idea-1', ifMatch: 'etag' }],
+      ['POST', { operation: 'import', data: { ...emptyData, ideas: [idea] } }],
+      ['POST', { operation: 'replace', data: { ...emptyData, ideas: [idea] }, etags: { 'idea-1': 'etag' } }],
+      ['POST', { operation: 'clear' }],
+    ] as const)('denies viewer %s %j before processing the body', async (method, body) => {
+      const req = request(containerName, method, body, ['authenticated', 'viewer'])
+      const json = vi.spyOn(req, 'json')
+
+      expect(await journey(req, context())).toEqual({ status: 403, jsonBody: { error: 'forbidden' } })
+      expect(journeyContainer).toHaveBeenCalledWith(containerName)
+      expect(json).not.toHaveBeenCalled()
+      expect(loadDataset).not.toHaveBeenCalled()
+      expect(createDocument).not.toHaveBeenCalled()
+      expect(replaceDocument).not.toHaveBeenCalled()
+      expect(replaceEntities).not.toHaveBeenCalled()
+      expect(deleteEntity).not.toHaveBeenCalled()
+      expect(replaceDataset).not.toHaveBeenCalled()
+      expect(acquireMapsAccessToken).not.toHaveBeenCalled()
+      expect(fetch).not.toHaveBeenCalled()
+    })
+
+    it.each(['import', 'replace', 'clear'] as const)(
+      'allows admin %s with the existing dataset envelope',
+      async (operation) => {
+        const loaded = { data: { ...emptyData, ideas: [idea] }, etags: { 'idea-1': 'etag' } }
+        const initial = operation === 'import' ? { data: emptyData, etags: {} } : loaded
+        loadDataset.mockResolvedValueOnce(initial).mockResolvedValue(loaded)
+        const body = operation === 'clear' ? { operation } : { operation, data: loaded.data, etags: initial.etags }
+
+        expect(await journey(request(containerName, 'POST', body), context())).toEqual({
+          status: 200,
+          jsonBody: operation === 'clear' ? { data: emptyData, etags: {} } : loaded,
+        })
+        expect(replaceDataset).toHaveBeenCalledWith(
+          {},
+          containerName,
+          operation === 'clear'
+            ? {}
+            : {
+                'idea-1': expect.objectContaining({
+                  id: 'idea-1',
+                  datasetId: containerName,
+                  type: 'idea',
+                  entity: idea,
+                }),
+              },
+          initial.etags,
+        )
+      },
+    )
+
+    it('rejects admin import into a nonempty dataset without writing', async () => {
+      loadDataset.mockResolvedValue({ data: { ...emptyData, ideas: [idea] }, etags: { 'idea-1': 'etag' } })
       expect(
-        await journey(request('production', method, { operation }, ['authenticated', 'viewer']), context()),
-      ).toEqual({ status: 403, jsonBody: { error: 'forbidden' } })
-    }
-  })
-
-  it('denies anonymous and authenticated but unassigned identities', async () => {
-    const { journey } = await import('./journey.js')
-
-    expect(await journey(request('production', 'GET', undefined, ['anonymous']), context())).toEqual({
-      status: 403,
-      jsonBody: { error: 'forbidden' },
-    })
-    expect(await journey(request('production', 'GET', undefined, ['authenticated']), context())).toEqual({
-      status: 403,
-      jsonBody: { error: 'forbidden' },
+        await journey(request(containerName, 'POST', { operation: 'import', data: emptyData }), context()),
+      ).toEqual({
+        status: 409,
+        jsonBody: { error: 'data_not_empty' },
+      })
+      expect(replaceDataset).not.toHaveBeenCalled()
     })
   })
 
   it('rejects unsupported route containers', async () => {
-    const { journey } = await import('./journey.js')
     await expect(journey(request('test'), { error: vi.fn() } as unknown as InvocationContext)).rejects.toThrow(
       'Unsupported Journey container "test".',
     )
@@ -173,7 +265,6 @@ describe('journey', () => {
 
   it('rejects a create that references an unknown idea', async () => {
     loadDataset.mockResolvedValue({ data: emptyData, etags: {} })
-    const { journey } = await import('./journey.js')
 
     expect(
       await journey(
@@ -186,7 +277,6 @@ describe('journey', () => {
 
   it('rejects an entity that fails complete validation', async () => {
     loadDataset.mockResolvedValue({ data: emptyData, etags: {} })
-    const { journey } = await import('./journey.js')
 
     expect(
       await journey(
@@ -202,15 +292,20 @@ describe('journey', () => {
 
   it('geocodes a postcode-only activity before it is persisted', async () => {
     loadDataset.mockResolvedValue({ data: emptyData, etags: {} })
-    createDocument.mockResolvedValue({ resource: {}, headers: {} })
-    const { journey } = await import('./journey.js')
+    createDocument.mockImplementation(async (_container, document) => ({
+      resource: document,
+      headers: { etag: 'created-etag' },
+    }))
 
     const result = await journey(
       request('production', 'POST', { operation: 'create', type: 'activity', entity: { ...activity, ideaIds: [] } }),
       context(),
     )
 
-    expect(result).toMatchObject({ status: 201 })
+    expect(result).toMatchObject({
+      status: 201,
+      jsonBody: { entity: { activityId: 'activity-1' }, etag: 'created-etag' },
+    })
     expect(createDocument).toHaveBeenCalledWith(
       {},
       expect.objectContaining({
@@ -227,15 +322,20 @@ describe('journey', () => {
 
   it('allows demo creates against the demo dataset', async () => {
     loadDataset.mockResolvedValue({ data: emptyData, etags: {} })
-    createDocument.mockResolvedValue({ resource: {}, headers: {} })
-    const { journey } = await import('./journey.js')
+    createDocument.mockImplementation(async (_container, document) => ({
+      resource: document,
+      headers: { etag: 'demo-etag' },
+    }))
 
     expect(
       await journey(
         request('demo', 'POST', { operation: 'create', type: 'activity', entity: { ...activity, ideaIds: [] } }),
         context(),
       ),
-    ).toMatchObject({ status: 201 })
+    ).toMatchObject({
+      status: 201,
+      jsonBody: { entity: { activityId: 'activity-1' }, etag: 'demo-etag' },
+    })
     expect(createDocument).toHaveBeenCalledWith(
       {},
       expect.objectContaining({
@@ -248,7 +348,6 @@ describe('journey', () => {
   it('geocodes a place-only waypoint before it is persisted', async () => {
     loadDataset.mockResolvedValue({ data: emptyData, etags: {} })
     createDocument.mockResolvedValue({ resource: {}, headers: {} })
-    const { journey } = await import('./journey.js')
 
     const result = await journey(
       request('production', 'POST', { operation: 'create', type: 'waypoint', entity: waypoint }),
@@ -274,7 +373,6 @@ describe('journey', () => {
   it('rejects a save whose location cannot be geocoded', async () => {
     loadDataset.mockResolvedValue({ data: emptyData, etags: {} })
     searchResults([])
-    const { journey } = await import('./journey.js')
 
     expect(
       await journey(
@@ -285,66 +383,70 @@ describe('journey', () => {
     expect(createDocument).not.toHaveBeenCalled()
   })
 
-  it('deletes an idea transactionally and returns ETag conflicts explicitly', async () => {
-    const loaded = { data: { ...emptyData, ideas: [idea], activities: [activity] }, etags: { 'idea-1': 'etag' } }
-    loadDataset.mockResolvedValue(loaded)
-    const { journey } = await import('./journey.js')
-    const deleteRequest = request('production', 'DELETE', {
-      operation: 'delete',
-      type: 'idea',
-      id: 'idea-1',
-      ifMatch: 'etag',
-    })
+  it.each(['production', 'demo'])(
+    'deletes an idea in %s transactionally and reports ETag conflicts',
+    async (containerName) => {
+      const loaded = { data: { ...emptyData, ideas: [idea], activities: [activity] }, etags: { 'idea-1': 'etag' } }
+      loadDataset.mockResolvedValue(loaded)
+      const deleteRequest = request(containerName, 'DELETE', {
+        operation: 'delete',
+        type: 'idea',
+        id: 'idea-1',
+        ifMatch: 'etag',
+      })
 
-    expect(await journey(deleteRequest, context())).toEqual({ status: 204 })
-    expect(deleteEntity).toHaveBeenCalledWith({}, 'production', 'idea', 'idea-1', 'etag', loaded)
+      expect(await journey(deleteRequest, context())).toEqual({ status: 204 })
+      expect(deleteEntity).toHaveBeenCalledWith({}, containerName, 'idea', 'idea-1', 'etag', loaded)
 
-    deleteEntity.mockRejectedValueOnce(Object.assign(new Error('conflict'), { code: 412 }))
-    expect(await journey(deleteRequest, context())).toEqual({ status: 409, jsonBody: { error: 'conflict' } })
-  })
+      deleteEntity.mockRejectedValueOnce(Object.assign(new Error('conflict'), { code: 412 }))
+      expect(await journey(deleteRequest, context())).toEqual({ status: 409, jsonBody: { error: 'conflict' } })
+    },
+  )
 
-  it('updates a waypoint transactionally with reverse challenge links', async () => {
-    const challenge = {
-      challengeId: 'challenge-1',
-      title: 'Heritage weekend',
-      description: 'Heritage weekend',
-      waypointIds: [],
-      supportsActivityCategories: false,
-    }
-    const loaded = {
-      data: { ...emptyData, waypoints: [waypoint], challenges: [challenge] },
-      etags: { 'waypoint-1': 'waypoint-etag', 'challenge-1': 'challenge-etag' },
-    }
-    loadDataset.mockResolvedValue(loaded)
-    const { journey } = await import('./journey.js')
-    const updated = { ...waypoint, title: 'Updated waypoint', challengeIds: ['challenge-1'] }
+  it.each(['production', 'demo'])(
+    'updates a waypoint in %s transactionally with reverse challenge links',
+    async (containerName) => {
+      const challenge = {
+        challengeId: 'challenge-1',
+        title: 'Heritage weekend',
+        description: 'Heritage weekend',
+        waypointIds: [],
+        supportsActivityCategories: false,
+      }
+      const loaded = {
+        data: { ...emptyData, waypoints: [waypoint], challenges: [challenge] },
+        etags: { 'waypoint-1': 'waypoint-etag', 'challenge-1': 'challenge-etag' },
+      }
+      loadDataset.mockResolvedValue(loaded)
+      const updated = { ...waypoint, title: 'Updated waypoint', challengeIds: ['challenge-1'] }
 
-    expect(
-      await journey(
-        request('production', 'PUT', {
-          operation: 'update',
-          type: 'waypoint',
-          id: 'waypoint-1',
-          entity: updated,
-          ifMatch: 'waypoint-etag',
-        }),
-        context(),
-      ),
-    ).toMatchObject({ status: 200 })
-    expect(replaceEntities).toHaveBeenCalledWith(
-      {},
-      'production',
-      {
-        updates: [
-          { type: 'waypoint', entity: expect.objectContaining({ title: 'Updated waypoint' }) },
-          { type: 'challenge', entity: expect.objectContaining({ waypointIds: ['waypoint-1'] }) },
-        ],
-      },
-      'waypoint-1',
-      'waypoint-etag',
-      loaded,
-    )
-  })
+      expect(
+        await journey(
+          request(containerName, 'PUT', {
+            operation: 'update',
+            type: 'waypoint',
+            id: 'waypoint-1',
+            entity: updated,
+            ifMatch: 'waypoint-etag',
+          }),
+          context(),
+        ),
+      ).toMatchObject({ status: 200 })
+      expect(replaceEntities).toHaveBeenCalledWith(
+        {},
+        containerName,
+        {
+          updates: [
+            { type: 'waypoint', entity: expect.objectContaining({ title: 'Updated waypoint' }) },
+            { type: 'challenge', entity: expect.objectContaining({ waypointIds: ['waypoint-1'] }) },
+          ],
+        },
+        'waypoint-1',
+        'waypoint-etag',
+        loaded,
+      )
+    },
+  )
 
   it('rejects a waypoint update that invalidates an activity category', async () => {
     const challenge = {
@@ -373,7 +475,6 @@ describe('journey', () => {
         'activity-1': 'activity-etag',
       },
     })
-    const { journey } = await import('./journey.js')
 
     expect(
       await journey(
@@ -397,8 +498,6 @@ describe('journey', () => {
   })
 
   it('rejects a waypoint update whose entity ID differs from the request ID', async () => {
-    const { journey } = await import('./journey.js')
-
     expect(
       await journey(
         request('production', 'PUT', {
@@ -441,7 +540,6 @@ describe('journey', () => {
       },
     }
     loadDataset.mockResolvedValue(loaded)
-    const { journey } = await import('./journey.js')
 
     expect(
       await journey(

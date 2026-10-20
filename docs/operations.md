@@ -177,10 +177,16 @@ Assigned work user
    `admin` for full read/write and administrative access, or `viewer` for read-only
    access. Open the generated link while signed in as that account. Invitations bind
    the role to the provider identity; do not use mutable email addresses as access
-   control.
+   control. Any explicitly invited Entra work identity is eligible regardless of
+   organization; Journey has no single-organization, tenant, or email allowlist.
+   External tenant or platform policies can still restrict sign-in. Record the
+   specific restriction rather than adding a custom authentication workaround.
 3. `staticwebapp.config.json` restricts all application routes and `/api/*` to
-   `admin` or `viewer` while leaving `/.auth/*` reachable for platform login. The API
-   fails closed unless the forwarded Entra principal has exactly one of those roles.
+   `admin` or `viewer` while leaving `/.auth/*` reachable for platform login. The
+   hosting gate checks membership, not exclusive assignment: both-role identities
+   can pass it. Protected Journey and Maps operations fail closed unless the
+   forwarded principal has provider `aad`, a nonempty user ID, `authenticated`,
+   and exactly one of `admin` or `viewer`.
 4. Repeat the invitation for each separately provisioned Static Web App resource,
    including the production and shared test resources. Role assignment in one
    resource does not grant access to another resource.
@@ -194,6 +200,15 @@ assign a Journey role. After accepting an invitation, sign out through `/.auth/l
 and sign in again so Static Web Apps issues a principal with the new role. Check
 `/.auth/me` on the affected application URL and confirm that
 `clientPrincipal.userRoles` contains exactly one of `admin` or `viewer`.
+After role replacement or revocation, verify access again in a fresh signed-in
+session. Do not promise immediate revocation or updated controls in an already-open
+tab; the application learns its displayed role when the dataset loads.
+
+Local principal/handler tests and configuration assertions do not prove hosted
+sign-in, invitation acceptance, cross-organization eligibility, session refresh,
+or per-resource isolation. The separately authorized, read-only acceptance
+procedures and their evidence boundaries are recorded in the
+[access and roles validation guide](../specs/001-access-roles/quickstart.md#4-hosted-acceptance-only-when-explicitly-authorized).
 
 ### Local development
 
@@ -401,8 +416,11 @@ After Functions deployment, the workflow uses the existing Azure OIDC login to r
 registered function metadata with `az functionapp function list`. Deployment fails
 unless `journey`, `mapsSearch`, and `mapsToken` are enabled HTTP triggers with the
 expected routes, methods, and authorization levels. It also reads the Static Web App's
-`userProvidedFunctionApps` link through ARM and requires exactly the intended Function
-App. These checks use management-plane reads only, request no Function keys or user
+primary environment's `builds/default/linkedBackends` collection through ARM and
+selects `properties.backendResourceId`, requiring exactly the intended Function
+App. The legacy `userProvidedFunctionApps` collection can be empty even when this
+link exists, so it is not used for verification. These checks use management-plane
+reads only, request no Function keys or user
 session cookies, do not open direct Function App access, and neither write nor clear
 any Cosmos dataset.
 

@@ -399,8 +399,8 @@ jobs:
             --query '[].{name:name, config:config, isDisabled:isDisabled}' \
             --output json > "${RUNNER_TEMP}/functions.json"
           az rest --method get \
-            --url "https://management.azure.com${static_app_id}/userProvidedFunctionApps?api-version=2023-12-01" \
-            --query 'value[].properties.functionAppResourceId' \
+            --url "https://management.azure.com${static_app_id}/builds/default/linkedBackends?api-version=2023-12-01" \
+            --query 'value[].properties.backendResourceId' \
             --output json > "${RUNNER_TEMP}/backends.json"
           node api/scripts/verify-functions.ts "${RUNNER_TEMP}/functions.json" \
             "${RUNNER_TEMP}/backends.json" "${function_app_id}"

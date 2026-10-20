@@ -129,6 +129,7 @@ describe('Dashboard', () => {
 
     await waitFor(() => expect(screen.getByText(/Your Journey access is viewer only/)).toBeInTheDocument())
     expect(screen.queryByRole('button', { name: 'Add challenge' })).not.toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Change the data mode in Settings' })).toHaveAttribute('href', '/settings')
   })
 
   it('counts waypoints linked from either side of a challenge', () => {
