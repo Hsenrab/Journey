@@ -29,15 +29,33 @@ const dataModeLabels: Record<JourneyDataMode, string> = {
 }
 
 export default function Settings() {
-  const { activeDataMode, clear, data, dataMode, loadError, loadState, readOnly, restore, setDataMode } = useWaypoints()
+  const {
+    activeDataMode,
+    clear,
+    data,
+    dataMode,
+    loadError,
+    loadState,
+    readOnly,
+    restore,
+    setDataMode,
+    mutationPending,
+    runMutation,
+  } = useWaypoints()
   const input = useRef<HTMLInputElement>(null)
   const [message, setMessage] = useState<{ text: string; error: boolean } | null>(null)
   const [confirmingClear, setConfirmingClear] = useState(false)
   const usingLocalFallback = dataMode === 'demo-cosmos' && activeDataMode === 'demo-local' && Boolean(loadError)
   const activeLabel = usingLocalFallback ? 'Demo local fallback data' : dataModeLabels[activeDataMode]
   const exportDisabled = loadState.status !== 'loaded'
-  const changeMode = (event: SelectChangeEvent) => {
-    void setDataMode(event.target.value as JourneyDataMode)
+  const changeMode = async (event: SelectChangeEvent) => {
+    try {
+      const result = await setDataMode(event.target.value as JourneyDataMode)
+      if (result === 'cancelled') return
+      setMessage(null)
+    } catch (error) {
+      setMessage({ text: error instanceof Error ? error.message : String(error), error: true })
+    }
   }
 
   const exportData = () => {
@@ -67,25 +85,25 @@ export default function Settings() {
       })
       return
     }
-    let importedData
-    try {
-      importedData = parseImport(await file.text())
-    } catch {
-      setMessage({
-        text: 'That file is not a valid Waypoints backup, so your existing data was left unchanged.',
-        error: true,
-      })
-      return
-    }
-    try {
-      await restore(importedData)
-      setMessage({ text: `${activeLabel} was restored.`, error: false })
-    } catch (error) {
-      setMessage({
-        text: error instanceof Error ? error.message : 'Failed to restore the active data.',
-        error: true,
-      })
-    }
+    await runMutation(async () => {
+      try {
+        const text = await file.text()
+        let importedData
+        try {
+          importedData = parseImport(text)
+        } catch {
+          setMessage({
+            text: 'That file is not a valid Waypoints backup, so your existing data was left unchanged.',
+            error: true,
+          })
+          return
+        }
+        await restore(importedData)
+        setMessage({ text: `${activeLabel} was restored.`, error: false })
+      } catch (error) {
+        setMessage({ text: error instanceof Error ? error.message : String(error), error: true })
+      }
+    })
   }
 
   return (
@@ -100,7 +118,13 @@ export default function Settings() {
         </Typography>
         <FormControl size="small" sx={{ maxWidth: 320 }}>
           <InputLabel id="journey-data-mode-label">Data mode</InputLabel>
-          <Select label="Data mode" labelId="journey-data-mode-label" onChange={changeMode} value={dataMode}>
+          <Select
+            disabled={mutationPending}
+            label="Data mode"
+            labelId="journey-data-mode-label"
+            onChange={changeMode}
+            value={dataMode}
+          >
             <MenuItem value="demo-local">{dataModeLabels['demo-local']}</MenuItem>
             <MenuItem value="demo-cosmos">{dataModeLabels['demo-cosmos']}</MenuItem>
             <MenuItem value="production">{dataModeLabels.production}</MenuItem>

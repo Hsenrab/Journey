@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { Alert, Button, Chip, Stack, Typography } from '@mui/material'
 import LinkIcon from '@mui/icons-material/Link'
@@ -18,6 +18,13 @@ import { useWaypoints } from '../features/journey/JourneyContext'
 import { JourneyConflictError } from '../services/journeyApi'
 
 export default function Activities() {
+  const mounted = useRef(true)
+  useEffect(() => {
+    mounted.current = true
+    return () => {
+      mounted.current = false
+    }
+  }, [])
   const { data, addActivity, loadState, readOnly, reload } = useWaypoints()
   const waypointById = new Map(data.waypoints.map((waypoint) => [waypoint.waypointId, waypoint]))
   const navigate = useNavigate()
@@ -112,6 +119,7 @@ export default function Activities() {
           onSubmit={async (draft) => {
             try {
               await addActivity(draft)
+              if (!mounted.current) return
               if (initialIdeaId && draft.ideaIds.includes(initialIdeaId)) {
                 navigate(`/ideas/${initialIdeaId}`, { replace: true })
                 return

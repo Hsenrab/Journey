@@ -55,7 +55,7 @@ export function Layout({ children }: { children: ReactNode }) {
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'))
   const [open, setOpen] = useState(false)
   const location = useLocation()
-  const { activeDataMode, dataMode, loadError, loading, readOnly, role } = useWaypoints()
+  const { activeDataMode, dataMode, loadError, loading, readOnly, role, confirmSettingsNavigation } = useWaypoints()
   const chip = dataModeStatusView[dataModeStatus({ activeDataMode, dataMode, loadError, loading, readOnly, role })]
 
   const navList = (
@@ -76,7 +76,16 @@ export function Layout({ children }: { children: ReactNode }) {
   )
 
   return (
-    <Box sx={{ display: 'flex' }}>
+    <Box
+      sx={{ display: 'flex' }}
+      onClickCapture={(event) => {
+        const anchor = (event.target as HTMLElement).closest('a')
+        if (anchor?.getAttribute('href') === '/settings' && !confirmSettingsNavigation()) {
+          event.preventDefault()
+          event.stopPropagation()
+        }
+      }}
+    >
       <AppBar position="fixed" sx={{ zIndex: (t) => t.zIndex.drawer + 1 }}>
         <Toolbar sx={{ gap: 2 }}>
           {isMobile && (

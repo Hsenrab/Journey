@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { Alert, Button, Card, CardContent, Stack, Typography } from '@mui/material'
 import { ChallengeRouteMap } from '../components/ChallengeRouteMap'
@@ -9,7 +9,7 @@ import { ReadOnlyNotice } from '../components/ReadOnlyNotice'
 import { parseGpxFile } from '../domain/gpx'
 import { challengeRecordedTracks } from '../domain/gpxMap'
 import { challengeWaypoints, type PlannedRoute } from '../domain/visit'
-import { useWaypoints } from '../features/journey/JourneyContext'
+import { useJourneyDraft, useWaypoints } from '../features/journey/JourneyContext'
 import { JourneyConflictError } from '../services/journeyApi'
 
 type Message = { severity: 'success' | 'error'; text: string; conflict?: boolean }
@@ -24,6 +24,16 @@ export default function ChallengeDetails() {
   const [parsing, setParsing] = useState(false)
   const parsingRef = useRef(false)
   const selectionGeneration = useRef(0)
+  useEffect(
+    () => () => {
+      selectionGeneration.current += 1
+    },
+    [],
+  )
+  useJourneyDraft(
+    parsing ||
+      (draftRoute !== undefined && JSON.stringify(draftRoute ?? undefined) !== JSON.stringify(challenge?.plannedRoute)),
+  )
   const waypoints = useMemo(
     () => (challenge ? challengeWaypoints(challenge, data.waypoints) : []),
     [challenge, data.waypoints],

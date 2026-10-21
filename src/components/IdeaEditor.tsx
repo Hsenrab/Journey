@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { useJourneyDraft } from '../features/journey/JourneyContext'
 import { useBeforeUnload } from 'react-router-dom'
 import {
   Alert,
@@ -105,11 +106,12 @@ export function IdeaEditor({
   const [errors, setErrors] = useState<Errors>({})
   const [mode, setMode] = useState<EditorMode>('form')
   const [jsonInput, setJsonInput] = useState('')
+  const [appliedJsonInput, setAppliedJsonInput] = useState('')
   const [jsonError, setJsonError] = useState<string | null>(null)
   const [jsonIssues, setJsonIssues] = useState<string[]>([])
   const addMode = !initialIdea
 
-  const dirty = useMemo(
+  const formDirty = useMemo(
     () =>
       JSON.stringify({
         title,
@@ -169,6 +171,9 @@ export function IdeaEditor({
       waypointIds,
     ],
   )
+
+  const dirty = formDirty || (jsonInput.trim().length > 0 && jsonInput !== appliedJsonInput)
+  useJourneyDraft(dirty)
 
   useBeforeUnload(
     (event) => {
@@ -320,6 +325,7 @@ export function IdeaEditor({
                       return
                     }
 
+                    setAppliedJsonInput(jsonInput)
                     setTitle(parsed.value.title)
                     setDescription(parsed.value.description)
                     setNotes(parsed.value.notes)
