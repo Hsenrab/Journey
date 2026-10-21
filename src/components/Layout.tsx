@@ -79,7 +79,17 @@ export function Layout({ children }: { children: ReactNode }) {
     <Box
       sx={{ display: 'flex' }}
       onClickCapture={(event) => {
+        if (
+          event.defaultPrevented ||
+          event.button !== 0 ||
+          event.metaKey ||
+          event.altKey ||
+          event.ctrlKey ||
+          event.shiftKey
+        )
+          return
         const anchor = (event.target as HTMLElement).closest('a')
+        if (anchor?.target && anchor.target !== '_self') return
         if (anchor?.getAttribute('href') === '/settings' && !confirmSettingsNavigation()) {
           event.preventDefault()
           event.stopPropagation()

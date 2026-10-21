@@ -150,6 +150,23 @@ environments, OIDC, artifact uploads, and Cosmos integration are not local check
 No deployment workflow was manually dispatched and no hosted acceptance or
 Production mutation is claimed by these local results.
 
+### Pre-merge review correction: navigation outside the current tab
+
+Review found that modified Settings clicks could confirm discard and clear draft
+registration without leaving the original tab. The Settings capture guard now
+follows same-tab navigation semantics: it ignores modified/non-primary clicks,
+already-prevented clicks, and links targeting another browsing context.
+Six regression cases cover Ctrl, Meta, Shift, Alt, middle-button, and `_blank`
+clicks, then verify that normal navigation still requires confirmation.
+The focused Layout suite passed all twelve tests; editor diagnostics were clear.
+
+Final frontend validation passed: lint (zero errors, the same three warnings),
+typecheck, formatting, **438 tests across 35 files with coverage thresholds met**,
+production build (existing bundle-size warning), and **four Chromium tests**.
+The initial typecheck caught `TS2345` in the regression table's optional `target`;
+an explicit undefined guard corrected the test without a cast. The unchanged API
+retains the successful full checks recorded in pull-request preparation above.
+
 ### Clarification Review: 2026-10-21
 
 The original baseline and source mappings below remain historical evidence.
