@@ -1,6 +1,6 @@
 # Access and Roles: Baseline Evidence
 
-**Reviewed**: 2026-10-20
+**Reviewed**: 2026-10-21
 
 **Specification**: [Access and roles baseline](spec.md)
 
@@ -9,6 +9,81 @@ or adding tests is not the same as executing them. The implementation adds
 regression tests and guidance, not runtime permission changes. Initial read-only
 hosted checks were authorized on 2026-10-19; their partial results and remaining
 blockers are recorded separately below.
+
+## Review Conclusion: 2026-10-21
+
+The feature review is complete; full hosted acceptance is not. The specification
+is coherent with the implementation and proportionate to this personal project:
+two roles, shared datasets, independent backend write authorization, and no
+in-application role administration. No new runtime access defect was established
+by this review. Existing tests cover the important permission matrices; adding
+more mocked role tests is not the next priority.
+
+The API blocker below is resolved by [PR #178](https://github.com/Hsenrab/Journey/pull/178).
+[Issue #160](https://github.com/Hsenrab/Journey/issues/160) is closed after verified
+test recovery and Production deployment. The older observations and test counts
+in subsequent sections are historical; this section supersedes their outstanding
+404 blocker and statements that no deployment or live mutation has been authorized.
+
+### Executed Hosted Checks
+
+The owner authorized one temporary Challenge in the shared test site's Demo
+Cosmos dataset and a test-tab sign-out/sign-in. Only the current admin account was
+available. No invitation or role changes were made.
+
+| Check                             | Observed result                                                                                                                                                                                                         |
+| --------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Fresh authenticated principal     | Sanitized `/.auth/me` confirmed `aad`, a nonempty user ID, `authenticated`, and `admin` without `viewer`; no identity details, cookies, or tokens recorded.                                                             |
+| Admin Demo API mutation           | Created a uniquely identified temporary Challenge (201), updated it with its ETag (200), and read back the saved title (200).                                                                                           |
+| Cleanup                           | Deleted only that Challenge with its current ETag (204), confirmed its absence, and compared the complete parsed dataset before/after: unchanged. Cleanup ran in `finally`; no clear/import/replace operation was used. |
+| Admin detail controls             | After fresh sign-in, the Demo Waypoint detail displayed `Demo writable` and Log activity, Edit waypoint, Delete waypoint, and Add idea controls.                                                                        |
+| Settings data-mode guard          | Loaded Demo Cosmos enabled export; switching to Demo local showed read-only status and disabled restore/clear while retaining export. Switched back to Demo Cosmos afterward. No restore/clear action was invoked.      |
+| Sign-out                          | `/.auth/logout?post_logout_redirect_uri=/.auth/me` completed and `clientPrincipal` was null.                                                                                                                            |
+| Sign-in return                    | Requested `/waypoints/demo-foxglove-manor` while signed out, reached Entra sign-in, and returned to that exact detail route after the owner completed sign-in. Fresh Demo API access returned admin/200.                |
+| All eleven signed-out route gates | Independent anonymous HEAD requests to the route inventory returned 302 to Entra sign-in with each exact requested return path. This is a redirect check, not eleven completed interactive sign-in journeys.            |
+| Successful protected services     | During the preceding approved repair, signed-in Demo Journey, Maps token, and Maps search returned 200 JSON with valid response shapes. Production equivalents also passed GET-only checks.                             |
+| Authentication boundary           | Following repair, anonymous API access through each site returned 302; anonymous direct Function access returned 401.                                                                                                   |
+
+Two initial attempts to click Add challenge on the existing test tab timed out
+waiting for visibility/stability. The temporary record check therefore used the
+authenticated same-origin Demo API, not the UI save form. Later Settings
+interactions succeeded. A sign-in probe also encountered a navigation-destroyed
+execution context; a subsequent check on the returned route succeeded. Neither
+automation failure is counted as a passed assertion or an established app defect.
+
+Deployment evidence:
+
+- [Test recovery](https://github.com/Hsenrab/Journey/actions/runs/39566616783).
+- [Test infrastructure redeployment with API publication skipped](https://github.com/Hsenrab/Journey/actions/runs/39586604538):
+  package settings remained identical and authenticated routes remained callable.
+- [Production deployment from merged main](https://github.com/Hsenrab/Journey/actions/runs/39589830073):
+  CI, provisioning, API publication, route/link verification, and application
+  publication passed. No Production records were mutated by acceptance checks;
+  infrastructure seeding targets Demo only.
+
+The latest completed local CI preceding the repair push passed 362 frontend tests,
+144 API tests, 3 browser smoke tests, and 2 built-host smoke tests, plus formatting,
+lint/type checks, and builds. After the Bicep module correction, focused template
+regression/static checks and ARM validation passed; subsequent remote workflows
+ran the full CI again. No application code changed for this review, so these
+successful suites were not rerun merely to update evidence.
+
+### Acceptance Still Not Certified
+
+| Criterion | Current confidence and remaining gap                                                                                                                                                                                                                         |
+| --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| SC-001    | All signed-out redirect targets checked; interactive admin return observed for Challenges historically and a Waypoint detail now. The remaining per-route interactive sign-in journeys are not run.                                                          |
+| SC-002    | Local twelve-case viewer denial matrix and direct context guards pass. Real hosted viewer mutation denials and unchanged-storage checks are not run: no viewer account available.                                                                            |
+| SC-003    | Invalid-principal categories are covered locally; anonymous hosting/direct-host boundaries are verified live. No hosted uninvited or both-role session was exercised.                                                                                        |
+| SC-004    | Hosted admin Demo create/update/read/delete and protected service success verified. Real viewer shared-data comparison/export and all hosted admin write categories are not certified. Export availability was observed, not a downloaded backup comparison. |
+| SC-005    | Eight collection/detail notice checks and Settings restrictions are covered locally. No real hosted viewer UI audit was possible.                                                                                                                            |
+| SC-006    | Cross-organization invitation acceptance, role replacement/revocation, and isolation using an account invited to only one site are not run. Fresh admin sign-in does not prove a role-change refresh.                                                        |
+
+Do not fabricate principal headers, temporarily change the admin's role, or claim
+an anonymous session substitutes for an authenticated uninvited user. Finish the
+remaining role journeys when suitable accounts are available; they need no new
+authentication infrastructure or speculative application changes. This review
+does not certify all of SC-001 through SC-006 as passed.
 
 ## Baseline Completion and Defect Tracking
 

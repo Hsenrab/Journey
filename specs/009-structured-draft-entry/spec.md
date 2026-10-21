@@ -90,6 +90,13 @@ outside Journey, without Journey calling an AI service.
   its prior error before attempting to copy.
 - **FR-007**: Prompt help MUST distinguish historical Activity grounding from
   planning/destination research without invoking an integrated AI service.
+- Non-whitespace unapplied JSON, valid or invalid, participates in the
+  [data-mode discard boundary](../002-data-modes-persistence/spec.md#functional-requirements).
+  Cancelling navigation to Settings or a direct mode switch retains the text;
+  confirmed discard clears it without transferring it to another dataset.
+  Whitespace alone is not dirty. Clearing JSON does not clear applied form edits.
+  This frontend behaviour is covered by the local mode-switch regression evidence;
+  it does not certify the other acceptance criteria in this baseline.
 
 ### Key Entities
 
@@ -122,4 +129,7 @@ outside Journey, without Journey calling an AI service.
 - [GPX](../008-gpx-import-geometry/spec.md) owns route/track import, not JSON drafts.
 - External tool output is untrusted input and must be reviewed. No external tool
   is contacted or endorsed by completing this documentation-only baseline.
-- No application code, tests, prompt text, deployment, or data changes are authorized.
+- The original baseline authorized no application changes. The separately
+  authorized safe-mode-switch implementation adds only the transient discard
+  participation described above; prompt content, deployments, and hosted data
+  remain unchanged.

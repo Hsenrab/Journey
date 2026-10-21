@@ -6,9 +6,16 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { ActivityEditor } from './ActivityEditor'
 import { createDemoModeData } from '../services/storage'
 import type { ActivityDraft } from '../features/journey/JourneyContext'
+import { WaypointsProvider, useWaypoints } from '../features/journey/JourneyContext'
+import { activityImportExample } from '../domain/draftJsonImport'
 import { createActivity, GpxGeometrySchema } from '../domain/visit'
 
 const createDefaultData = createDemoModeData
+
+function SwitchMode() {
+  const { setDataMode } = useWaypoints()
+  return <button onClick={() => void setDataMode('demo-local')}>Switch mode</button>
+}
 
 function renderEditor(overrides: Partial<ComponentProps<typeof ActivityEditor>> = {}) {
   const onSubmit = vi.fn<(draft: ActivityDraft) => void>()
@@ -44,6 +51,113 @@ const gpxXml = (longitude: string) =>
 describe('ActivityEditor', () => {
   beforeEach(() => {
     vi.restoreAllMocks()
+  })
+
+  it.each(['{invalid', JSON.stringify(activityImportExample)])(
+    'preserves unapplied JSON on cancellation and discards it on a direct switch: %s',
+    async (text) => {
+      localStorage.clear()
+      const user = userEvent.setup()
+      const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false)
+      render(
+        <MemoryRouter>
+          <WaypointsProvider>
+            <SwitchMode />
+            <ActivityEditor data={createDefaultData()} submitLabel="Save" onSubmit={vi.fn()} onCancel={vi.fn()} />
+          </WaypointsProvider>
+        </MemoryRouter>,
+      )
+      await user.click(screen.getByRole('tab', { name: 'Paste JSON' }))
+      fireEvent.change(screen.getByLabelText('Activity JSON'), { target: { value: text } })
+      await user.click(screen.getByText('Switch mode'))
+      expect(confirm).toHaveBeenCalledTimes(1)
+      expect(screen.getByLabelText('Activity JSON')).toHaveValue(text)
+      confirm.mockReturnValue(true)
+      await user.click(screen.getByText('Switch mode'))
+      expect(screen.getByLabelText('Description / notes')).toHaveValue('')
+      await user.click(screen.getByRole('tab', { name: 'Paste JSON' }))
+      expect(screen.getByLabelText('Activity JSON')).toHaveValue('')
+    },
+  )
+
+  it('ignores whitespace JSON but clearing JSON retains applied form/reference/photo dirtiness', async () => {
+    const user = userEvent.setup()
+    renderEditor()
+    await user.click(screen.getByRole('tab', { name: 'Paste JSON' }))
+    fireEvent.change(screen.getByLabelText('Activity JSON'), { target: { value: ' \n ' } })
+    const unchanged = new Event('beforeunload', { cancelable: true })
+    window.dispatchEvent(unchanged)
+    expect(unchanged.defaultPrevented).toBe(false)
+    fireEvent.change(screen.getByLabelText('Activity JSON'), {
+      target: { value: JSON.stringify(activityImportExample) },
+    })
+    await user.click(screen.getByRole('button', { name: 'Load into form' }))
+    await user.click(screen.getByRole('tab', { name: 'Paste JSON' }))
+    fireEvent.change(screen.getByLabelText('Activity JSON'), { target: { value: '' } })
+    const changed = new Event('beforeunload', { cancelable: true })
+    window.dispatchEvent(changed)
+    expect(changed.defaultPrevented).toBe(true)
+  })
+
+  it('tracks applied form edits separately from unapplied JSON', async () => {
+    const user = userEvent.setup()
+    renderEditor()
+    const text = JSON.stringify({
+      date: new Date().toISOString().slice(0, 10),
+      notes: '',
+      location: { kind: 'postcode', postcode: 'GL1 1AA' },
+      references: [],
+      photoReferences: [],
+    })
+    const isDirty = () => {
+      const event = new Event('beforeunload', { cancelable: true })
+      window.dispatchEvent(event)
+      return event.defaultPrevented
+    }
+    await user.click(screen.getByRole('tab', { name: 'Paste JSON' }))
+    fireEvent.change(screen.getByLabelText('Activity JSON'), { target: { value: text } })
+    await user.click(screen.getByRole('button', { name: 'Load into form' }))
+    expect(isDirty()).toBe(true)
+    fireEvent.change(screen.getByLabelText('Postcode'), { target: { value: '' } })
+    expect(isDirty()).toBe(false)
+    await user.click(screen.getByRole('tab', { name: 'Paste JSON' }))
+    expect(screen.getByLabelText('Activity JSON')).toHaveValue(text)
+    fireEvent.change(screen.getByLabelText('Activity JSON'), { target: { value: '{invalid' } })
+    await user.click(screen.getByRole('button', { name: 'Load into form' }))
+    expect(isDirty()).toBe(true)
+    fireEvent.change(screen.getByLabelText('Activity JSON'), { target: { value: text } })
+    expect(isDirty()).toBe(false)
+  })
+
+  it('discards an in-flight GPX selection without resurrecting its track', async () => {
+    localStorage.clear()
+    const user = userEvent.setup()
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false)
+    render(
+      <MemoryRouter>
+        <WaypointsProvider>
+          <SwitchMode />
+          <ActivityEditor data={createDefaultData()} submitLabel="Save" onSubmit={vi.fn()} onCancel={vi.fn()} />
+        </WaypointsProvider>
+      </MemoryRouter>,
+    )
+    let finish!: (xml: string) => void
+    const reading = new Promise<string>((resolve) => {
+      finish = resolve
+    })
+    const file = new File([], 'pending.gpx', { type: 'application/gpx+xml' })
+    Object.defineProperty(file, 'text', { value: () => reading })
+    fireEvent.change(screen.getByLabelText('GPX track file'), { target: { files: [file] } })
+    await user.click(screen.getByText('Switch mode'))
+    expect(confirm).toHaveBeenCalledOnce()
+    confirm.mockReturnValue(true)
+    await user.click(screen.getByText('Switch mode'))
+    await act(async () => {
+      finish(gpxXml('-2.1'))
+      await reading
+    })
+    expect(screen.queryByText('A recorded GPX track is attached.')).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Remove GPX track' })).not.toBeInTheDocument()
   })
 
   it('submits postcode activity data', async () => {

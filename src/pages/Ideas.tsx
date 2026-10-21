@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import {
   Alert,
@@ -53,6 +53,13 @@ function referenceHostname(url: string): string {
 }
 
 export default function Ideas() {
+  const mounted = useRef(true)
+  useEffect(() => {
+    mounted.current = true
+    return () => {
+      mounted.current = false
+    }
+  }, [])
   const { data, addIdea, loadState, readOnly, reload } = useWaypoints()
   const [searchParams, setSearchParams] = useSearchParams()
   const stateParam = searchParams.get('state')
@@ -265,6 +272,7 @@ export default function Ideas() {
           onSubmit={async (draft) => {
             try {
               await addIdea(draft)
+              if (!mounted.current) return
               setMessage({ severity: 'success', text: 'Idea saved.', conflict: false })
               setSearchParams((previous) => {
                 const next = new URLSearchParams(previous)

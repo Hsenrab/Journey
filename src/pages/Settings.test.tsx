@@ -1,9 +1,9 @@
 import { MemoryRouter } from 'react-router-dom'
-import { cleanup, render, screen, waitFor, waitForElementToBeRemoved } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, waitFor, waitForElementToBeRemoved } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import Settings from './Settings'
-import { WaypointsProvider } from '../features/journey/JourneyContext'
+import { WaypointsProvider, useWaypoints } from '../features/journey/JourneyContext'
 import {
   backupVersion,
   createDefaultData,
@@ -45,6 +45,94 @@ function renderSettings() {
 function backupFile(contents: string) {
   return new File([contents], 'backup.json', { type: 'application/json' })
 }
+
+describe('remote backup preparation boundary', () => {
+  afterEach(() => {
+    cleanup()
+    vi.unstubAllEnvs()
+    vi.unstubAllGlobals()
+  })
+  it.each(['success', 'read failure', 'invalid JSON', 'invalid schema', 'write failure'])(
+    'locks selection from file acceptance through %s and always releases',
+    async (outcome) => {
+      localStorage.clear()
+      vi.stubEnv('MODE', 'production')
+      const data = createDefaultData()
+      const reply = () => new Response(JSON.stringify({ data, etags: {}, role: 'admin' }))
+      let finishRead!: (text: string) => void
+      let failRead!: (error: Error) => void
+      let finishWrite!: (response: Response) => void
+      let failWrite!: (error: Error) => void
+      const reading = new Promise<string>((resolve, reject) => {
+        finishRead = resolve
+        failRead = reject
+      })
+      const writing = new Promise<Response>((resolve, reject) => {
+        finishWrite = resolve
+        failWrite = reject
+      })
+      const fetch = vi.fn().mockResolvedValueOnce(reply()).mockReturnValueOnce(writing)
+      vi.stubGlobal('fetch', fetch)
+      let context!: ReturnType<typeof useWaypoints>
+      function Probe() {
+        context = useWaypoints()
+        return <Settings />
+      }
+      render(
+        <MemoryRouter>
+          <WaypointsProvider>
+            <Probe />
+          </WaypointsProvider>
+        </MemoryRouter>,
+      )
+      await waitFor(() => expect(context.loading).toBe(false))
+      const file = backupFile('')
+      Object.defineProperty(file, 'text', { value: () => reading })
+      fireEvent.change(screen.getByLabelText('Restore JSON'), { target: { files: [file] } })
+      expect(screen.getByRole('combobox', { name: 'Data mode' })).toHaveAttribute('aria-disabled', 'true')
+      await expect(context.setDataMode('demo-local')).rejects.toThrow('mutation is pending')
+      expect(fetch).toHaveBeenCalledTimes(1)
+      expect(getDataMode()).toBe('production')
+      await act(async () => {
+        if (outcome === 'read failure') failRead(new Error('Backup read denied'))
+        else
+          finishRead(
+            outcome === 'invalid JSON'
+              ? '{'
+              : outcome === 'invalid schema'
+                ? '{}'
+                : JSON.stringify({ version: backupVersion, exportedAt: '2026-08-01T00:00:00.000Z', data }),
+          )
+      })
+      if (outcome === 'success' || outcome === 'write failure') {
+        await waitFor(() => expect(fetch).toHaveBeenCalledTimes(2))
+        expect(context.mutationPending).toBe(true)
+        await expect(context.setDataMode('demo-cosmos')).rejects.toThrow('mutation is pending')
+        expect(fetch.mock.calls[1]![0]).toBe('/api/journey/production')
+        await act(async () => {
+          if (outcome === 'write failure') failWrite(new Error('Backup write denied'))
+          else finishWrite(reply())
+        })
+      }
+      await waitFor(() => expect(context.mutationPending).toBe(false))
+      expect(screen.getByRole('combobox', { name: 'Data mode' })).not.toHaveAttribute('aria-disabled', 'true')
+      const expected =
+        outcome === 'success'
+          ? 'Production data was restored.'
+          : outcome === 'read failure'
+            ? 'Backup read denied'
+            : outcome === 'write failure'
+              ? 'Backup write denied'
+              : /not a valid Waypoints backup/
+      expect(screen.getByText(expected)).toBeInTheDocument()
+      if (outcome !== 'success') expect(screen.queryByText('Production data was restored.')).not.toBeInTheDocument()
+      await act(async () => {
+        await context.setDataMode('demo-local')
+      })
+      expect(getDataMode()).toBe('demo-local')
+    },
+  )
+})
 
 describe('Settings', () => {
   beforeEach(() => {

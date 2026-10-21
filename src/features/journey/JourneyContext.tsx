@@ -1,9 +1,11 @@
 import {
   createContext,
+  Fragment,
   useCallback,
   useContext,
   useEffect,
   useMemo,
+  useLayoutEffect,
   useReducer,
   useRef,
   useState,
@@ -117,7 +119,11 @@ type WaypointsValue = {
   role: AccessRole
   loadError?: string
   loadState: JourneyLoadState
-  setDataMode: (mode: JourneyDataMode) => Promise<void>
+  setDataMode: (mode: JourneyDataMode) => Promise<'switched' | 'cancelled'>
+  mutationPending: boolean
+  runMutation: <T>(operation: () => Promise<T>) => Promise<T>
+  registerDraft: (id: symbol, dirty: boolean) => () => void
+  confirmSettingsNavigation: () => boolean
   addChallenge: (input: Pick<Challenge, 'title' | 'description' | 'supportsActivityCategories'>) => Promise<void>
   updateChallengeRoute: (challengeId: string, plannedRoute?: PlannedRoute) => Promise<void>
   addWaypoint: (input: WaypointDraft) => Promise<void>
@@ -482,6 +488,34 @@ export function WaypointsProvider({ children }: { children: ReactNode }) {
   const [etags, setEtags] = useState<Record<string, string>>({})
   const [role, setRole] = useState<AccessRole>('local')
   const loadGeneration = useRef(0)
+  const pendingCount = useRef(0)
+  const [mutationPending, setMutationPending] = useState(false)
+  const drafts = useRef(new Set<symbol>())
+  const registerDraft = useCallback((id: symbol, dirty: boolean) => {
+    if (dirty) drafts.current.add(id)
+    else drafts.current.delete(id)
+    return () => {
+      drafts.current.delete(id)
+    }
+  }, [])
+  const confirmSettingsNavigation = useCallback(() => {
+    if (drafts.current.size === 0) return true
+    if (pendingCount.current > 0) return false
+    if (!window.confirm('You have unsaved changes. Discard them and continue to Settings or another data mode?'))
+      return false
+    drafts.current.clear()
+    return true
+  }, [])
+  const runMutation = useCallback(async <T,>(operation: () => Promise<T>): Promise<T> => {
+    pendingCount.current += 1
+    setMutationPending(true)
+    try {
+      return await operation()
+    } finally {
+      pendingCount.current -= 1
+      setMutationPending(pendingCount.current > 0)
+    }
+  }, [])
   const apply = useCallback((loaded: { data: WaypointsData; etags: Record<string, string>; role: AccessRole }) => {
     dispatch({ type: 'restore', data: loaded.data })
     setEtags(loaded.etags)
@@ -538,10 +572,17 @@ export function WaypointsProvider({ children }: { children: ReactNode }) {
     [apply, localTestMode],
   )
   const reload = useCallback(async () => loadMode(dataMode), [dataMode, loadMode])
-  const changeDataMode = useCallback(async (mode: JourneyDataMode) => {
-    saveDataMode(mode)
-    setDataModeState(mode)
-  }, [])
+  const changeDataMode = useCallback(
+    async (mode: JourneyDataMode) => {
+      if (pendingCount.current > 0) throw new Error('Cannot switch data modes while a Journey mutation is pending.')
+      if (mode === dataMode) return 'switched' as const
+      if (!confirmSettingsNavigation()) return 'cancelled' as const
+      saveDataMode(mode)
+      setDataModeState(mode)
+      return 'switched' as const
+    },
+    [confirmSettingsNavigation, dataMode],
+  )
   useEffect(() => {
     if (localTestMode && dataMode === 'production' && activeDataMode === 'production') save(data)
   }, [activeDataMode, data, dataMode, localTestMode])
@@ -574,17 +615,8 @@ export function WaypointsProvider({ children }: { children: ReactNode }) {
       else apply({ ...(await replaceJourney(container, next, etags)), role })
     }
 
-    return {
-      data,
-      dataMode,
-      activeDataMode,
-      readOnly,
-      loading,
-      role,
-      loadError,
-      loadState,
-      setDataMode: changeDataMode,
-      addChallenge: async (input) => {
+    const mutations = {
+      addChallenge: async (input: Pick<Challenge, 'title' | 'description' | 'supportsActivityCategories'>) => {
         const container = writableContainer()
         const action = {
           type: 'add-challenge' as const,
@@ -598,24 +630,24 @@ export function WaypointsProvider({ children }: { children: ReactNode }) {
         }
         await persist(container, action, reducer(data, action))
       },
-      updateChallengeRoute: async (challengeId, plannedRoute) => {
+      updateChallengeRoute: async (challengeId: string, plannedRoute?: PlannedRoute) => {
         const container = writableContainer()
         const action = { type: 'update-challenge-route' as const, challengeId, plannedRoute }
         await persist(container, action, reducer(data, action))
       },
-      addWaypoint: async (input) => {
+      addWaypoint: async (input: WaypointDraft) => {
         const container = writableContainer()
         const action = { type: 'add-waypoint' as const, input }
         const next = reducer(data, action)
         await persist(container, action, next)
       },
-      updateWaypoint: async (waypointId, input) => {
+      updateWaypoint: async (waypointId: string, input: WaypointDraft) => {
         const container = writableContainer()
         const action = { type: 'update-waypoint' as const, waypointId, input }
         const next = reducer(data, action)
         await persist(container, action, next)
       },
-      deleteWaypoint: async (waypointId) => {
+      deleteWaypoint: async (waypointId: string) => {
         const container = writableContainer()
         const action = { type: 'delete-waypoint' as const, waypointId }
         if (!data.waypoints.some((waypoint) => waypoint.waypointId === waypointId))
@@ -629,56 +661,118 @@ export function WaypointsProvider({ children }: { children: ReactNode }) {
         await deleteJourneyEntity(container, 'waypoint', waypointId, etag)
         apply({ ...(await loadJourney(container)), role })
       },
-      addActivity: async (input) => {
+      addActivity: async (input: ActivityDraft) => {
         const container = writableContainer()
         const action = { type: 'add-activity' as const, input }
         const next = reducer(data, action)
         await persist(container, action, next)
       },
-      updateActivity: async (activityId, input) => {
+      updateActivity: async (activityId: string, input: ActivityDraft) => {
         const container = writableContainer()
         const action = { type: 'update-activity' as const, activityId, input }
         const next = reducer(data, action)
         await persist(container, action, next)
       },
-      deleteActivity: async (activityId) => {
+      deleteActivity: async (activityId: string) => {
         const container = writableContainer()
         const action = { type: 'delete-activity' as const, activityId }
         const next = reducer(data, action)
         await persist(container, action, next)
       },
-      addIdea: async (input) => {
+      addIdea: async (input: IdeaDraft) => {
         const container = writableContainer()
         const action = { type: 'add-idea' as const, input }
         const next = reducer(data, action)
         await persist(container, action, next)
       },
-      updateIdea: async (ideaId, input) => {
+      updateIdea: async (ideaId: string, input: IdeaDraft) => {
         const container = writableContainer()
         const action = { type: 'update-idea' as const, ideaId, input }
         const next = reducer(data, action)
         await persist(container, action, next)
       },
-      deleteIdea: async (ideaId) => {
+      deleteIdea: async (ideaId: string) => {
         const container = writableContainer()
         const action = { type: 'delete-idea' as const, ideaId }
         const next = reducer(data, action)
         await persist(container, action, next)
       },
-      restore: async (newData) => {
+      restore: async (newData: WaypointsData) => {
+        const container = writableContainer()
         if (localTestMode && dataMode === 'production') dispatch({ type: 'restore', data: newData })
-        else apply({ ...(await importJourney(writableContainer(), newData)), role })
+        else apply({ ...(await importJourney(container, newData)), role })
       },
       clear: async () => {
+        const container = writableContainer()
         if (localTestMode && dataMode === 'production') dispatch({ type: 'restore', data: emptyData() })
-        else apply({ ...(await clearJourney(writableContainer())), role })
+        else apply({ ...(await clearJourney(container)), role })
       },
+    }
+    const track =
+      <Args extends unknown[]>(operation: (...args: Args) => Promise<void>) =>
+      (...args: Args) =>
+        runMutation(() => operation(...args))
+    return {
+      data,
+      dataMode,
+      activeDataMode,
+      readOnly,
+      loading,
+      role,
+      loadError,
+      loadState,
+      setDataMode: changeDataMode,
+      mutationPending,
+      runMutation,
+      registerDraft,
+      confirmSettingsNavigation,
+      addChallenge: track(mutations.addChallenge),
+      updateChallengeRoute: track(mutations.updateChallengeRoute),
+      addWaypoint: track(mutations.addWaypoint),
+      updateWaypoint: track(mutations.updateWaypoint),
+      deleteWaypoint: track(mutations.deleteWaypoint),
+      addActivity: track(mutations.addActivity),
+      updateActivity: track(mutations.updateActivity),
+      deleteActivity: track(mutations.deleteActivity),
+      addIdea: track(mutations.addIdea),
+      updateIdea: track(mutations.updateIdea),
+      deleteIdea: track(mutations.deleteIdea),
+      restore: track(mutations.restore),
+      clear: track(mutations.clear),
       reload,
       activitiesFor: (waypointId) => activitiesForWaypoint(data.activities, waypointId),
       statusFor: (waypointId) => statusForWaypoint(data.activities, waypointId),
     }
-  }, [activeDataMode, apply, changeDataMode, data, dataMode, etags, loadState, loading, localTestMode, reload, role])
-  return <Context.Provider value={value}>{children}</Context.Provider>
+  }, [
+    activeDataMode,
+    apply,
+    changeDataMode,
+    data,
+    dataMode,
+    etags,
+    loadState,
+    loading,
+    localTestMode,
+    reload,
+    role,
+    mutationPending,
+    runMutation,
+    registerDraft,
+    confirmSettingsNavigation,
+  ])
+  return (
+    <Context.Provider value={value}>
+      <Fragment key={dataMode}>{children}</Fragment>
+    </Context.Provider>
+  )
+}
+
+/** Presentational editors also work outside the application provider. */
+export function useJourneyDraft(dirty: boolean) {
+  const context = useContext(Context)
+  const register = context?.registerDraft
+  const id = useRef(Symbol('draft'))
+  useLayoutEffect(() => register?.(id.current, dirty), [register, dirty])
 }
 
 export function useWaypoints() {

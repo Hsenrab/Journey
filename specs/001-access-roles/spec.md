@@ -4,7 +4,7 @@
 
 **Created**: 2026-10-17
 
-**Status**: Existing-behaviour baseline documented; local checks complete; hosted acceptance partial
+**Status**: Existing-behaviour review complete (2026-10-21); local checks complete; hosted acceptance partial
 
 **Input**: User description: "Start with access and roles: document existing behavior,
 using the implementation, tests, and project guidelines. Do not change application behavior."
@@ -254,7 +254,10 @@ for the other hosted application; test role replacement using the operator proce
   revocation of already-open sessions are outside this baseline.
 - The existing hosting service performs sign-in, identity forwarding, and invitation
   management. Its operational configuration is a dependency, not recreated locally.
-- This draft is based on repository evidence. Live invitations, session-refresh
-  timing, and hosted redirect behavior have not been verified in this exercise.
+- This baseline is based on repository evidence and partial hosted acceptance.
+  Admin Demo API mutations, sign-out/fresh sign-in, a detail-route return, and
+  signed-out redirect targets have been verified. Viewer/uninvited accounts,
+  live invitations, role-change refresh, and remaining per-route interactive
+  sign-in journeys have not been verified.
   [Evidence and review notes](evidence.md) distinguish implemented behavior,
   documented operations, and remaining verification gaps.

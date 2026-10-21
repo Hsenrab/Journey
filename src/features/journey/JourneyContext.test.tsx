@@ -1,7 +1,8 @@
-import { act, renderHook, waitFor } from '@testing-library/react'
+import { act, render, renderHook, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { WaypointsProvider, useWaypoints } from './JourneyContext'
-import { createDemoModeData, load, save, setDataMode } from '../../services/storage'
+import { useState } from 'react'
+import { WaypointsProvider, useJourneyDraft, useWaypoints } from './JourneyContext'
+import { createDemoModeData, getDataMode, load, save, setDataMode } from '../../services/storage'
 import { createActivity, createIdea, GpxGeometrySchema, type WaypointsData } from '../../domain/visit'
 
 const waypointId = 'demo-foxglove-manor'
@@ -24,6 +25,255 @@ function testData(): WaypointsData {
 }
 
 const createDefaultData = testData
+
+function deferred<T>() {
+  let resolve!: (value: T) => void
+  let reject!: (error: Error) => void
+  const promise = new Promise<T>((yes, no) => {
+    resolve = yes
+    reject = no
+  })
+  return { promise, resolve, reject }
+}
+
+describe('remote mode-switch boundary', () => {
+  beforeEach(() => {
+    localStorage.clear()
+    vi.stubEnv('MODE', 'production')
+  })
+  afterEach(() => {
+    vi.unstubAllEnvs()
+    vi.unstubAllGlobals()
+    vi.restoreAllMocks()
+  })
+
+  const operations = [
+    'addChallenge',
+    'updateChallengeRoute',
+    'addWaypoint',
+    'updateWaypoint',
+    'deleteWaypoint',
+    'addActivity',
+    'updateActivity',
+    'deleteActivity',
+    'addIdea',
+    'updateIdea',
+    'deleteIdea',
+    'restore',
+    'clear',
+  ] as const
+  it.each(operations.flatMap((operation) => [false, true].map((fails) => ({ operation, fails }))))(
+    'blocks same-tick and rendered switches during $operation (failure=$fails)',
+    async ({ operation, fails }) => {
+      const data = testData()
+      const idea = createIdea({
+        title: 'Existing',
+        description: '',
+        notes: '',
+        waypointIds: [],
+        planningState: 'active',
+        difficulty: 1,
+      })
+      const activity = createActivity({ date: '2026-08-01', location: { kind: 'postcode', postcode: 'GL1 1AA' } })
+      data.ideas = [idea]
+      data.activities = [activity]
+      const reply = () => new Response(JSON.stringify({ data, etags: { [waypointId]: 'etag' }, role: 'admin' }))
+      const pending = deferred<Response>()
+      const fetch = vi
+        .fn()
+        .mockImplementation((_url: string, init: RequestInit) =>
+          init.method && init.method !== 'GET' ? pending.promise : Promise.resolve(reply()),
+        )
+      vi.stubGlobal('fetch', fetch)
+      const { result } = renderHook(() => useWaypoints(), { wrapper: WaypointsProvider })
+      await waitFor(() => expect(result.current.loading).toBe(false))
+      const waypoint = { ...data.waypoints[0]!, references: [], photoReferences: [] }
+      const ideaInput = { ...idea, references: [] }
+      const calls = {
+        addChallenge: () =>
+          result.current.addChallenge({ title: 'New', description: 'Description', supportsActivityCategories: false }),
+        updateChallengeRoute: () => result.current.updateChallengeRoute(data.challenges[0]!.challengeId),
+        addWaypoint: () => result.current.addWaypoint(waypoint),
+        updateWaypoint: () => result.current.updateWaypoint(waypointId, waypoint),
+        deleteWaypoint: () => result.current.deleteWaypoint(waypointId),
+        addActivity: () => result.current.addActivity(draft),
+        updateActivity: () => result.current.updateActivity(activity.activityId, draft),
+        deleteActivity: () => result.current.deleteActivity(activity.activityId),
+        addIdea: () => result.current.addIdea(ideaInput),
+        updateIdea: () => result.current.updateIdea(idea.ideaId, ideaInput),
+        deleteIdea: () => result.current.deleteIdea(idea.ideaId),
+        restore: () => result.current.restore(data),
+        clear: () => result.current.clear(),
+      }
+      let saving!: Promise<void>
+      await act(async () => {
+        saving = calls[operation]()
+        await expect(result.current.setDataMode('demo-local')).rejects.toThrow('mutation is pending')
+      })
+      expect(result.current.mutationPending).toBe(true)
+      expect(getDataMode()).toBe('production')
+      expect(fetch).toHaveBeenCalledTimes(2)
+      await expect(result.current.setDataMode('demo-cosmos')).rejects.toThrow('mutation is pending')
+      const failure = new Error('Specific remote write failure')
+      const outcome = saving.catch((error: unknown) => error)
+      await act(async () => {
+        if (fails) pending.reject(failure)
+        else pending.resolve(operation === 'deleteWaypoint' ? new Response(null, { status: 204 }) : reply())
+        expect(await outcome).toBe(fails ? failure : undefined)
+      })
+      expect(result.current.mutationPending).toBe(false)
+      await act(async () => {
+        expect(await result.current.setDataMode('demo-local')).toBe('switched')
+      })
+      expect(getDataMode()).toBe('demo-local')
+    },
+  )
+
+  it('keeps overlapping operations locked until the last settles, including delete reload', async () => {
+    const data = testData()
+    const reply = () => new Response(JSON.stringify({ data, etags: { [waypointId]: 'etag' }, role: 'admin' }))
+    const deleting = deferred<Response>()
+    const reloading = deferred<Response>()
+    const clearing = deferred<Response>()
+    const fetch = vi
+      .fn()
+      .mockResolvedValueOnce(reply())
+      .mockReturnValueOnce(deleting.promise)
+      .mockReturnValueOnce(clearing.promise)
+      .mockReturnValueOnce(reloading.promise)
+    vi.stubGlobal('fetch', fetch)
+    const { result } = renderHook(() => useWaypoints(), { wrapper: WaypointsProvider })
+    await waitFor(() => expect(result.current.loading).toBe(false))
+    let remove!: Promise<void>
+    let clear!: Promise<void>
+    act(() => {
+      remove = result.current.deleteWaypoint(waypointId)
+      clear = result.current.clear()
+    })
+    await act(async () => {
+      clearing.resolve(reply())
+      await clear
+    })
+    expect(result.current.mutationPending).toBe(true)
+    await act(async () => {
+      deleting.resolve(new Response(null, { status: 204 }))
+      await Promise.resolve()
+    })
+    await waitFor(() => expect(fetch).toHaveBeenCalledTimes(4))
+    await expect(result.current.setDataMode('demo-local')).rejects.toThrow('mutation is pending')
+    await act(async () => {
+      reloading.resolve(reply())
+      await remove
+    })
+    expect(result.current.mutationPending).toBe(false)
+  })
+
+  it.each([false, true])('keeps a write tracked when its originating page unmounts (failure=%s)', async (fails) => {
+    const data = testData()
+    const pending = deferred<Response>()
+    const reply = () => new Response(JSON.stringify({ data, etags: {}, role: 'admin' }))
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValueOnce(reply()).mockReturnValueOnce(pending.promise))
+    let context!: ReturnType<typeof useWaypoints>
+    function Probe() {
+      context = useWaypoints()
+      return null
+    }
+    function Page() {
+      useJourneyDraft(true)
+      return null
+    }
+    const view = render(
+      <WaypointsProvider>
+        <Probe />
+        <Page />
+      </WaypointsProvider>,
+    )
+    await waitFor(() => expect(context.loading).toBe(false))
+    let saving!: Promise<void>
+    act(() => {
+      saving = context.clear()
+    })
+    view.rerender(
+      <WaypointsProvider>
+        <Probe />
+      </WaypointsProvider>,
+    )
+    expect(context.mutationPending).toBe(true)
+    const confirm = vi.spyOn(window, 'confirm')
+    await expect(context.setDataMode('demo-local')).rejects.toThrow('mutation is pending')
+    expect(confirm).not.toHaveBeenCalled()
+    const error = new Error('Unmounted page write failed')
+    const outcome = saving.catch((cause: unknown) => cause)
+    await act(async () => {
+      if (fails) pending.reject(error)
+      else pending.resolve(reply())
+      expect(await outcome).toBe(fails ? error : undefined)
+    })
+    expect(context.mutationPending).toBe(false)
+    await act(async () => {
+      await context.setDataMode('demo-local')
+    })
+    expect(confirm).not.toHaveBeenCalled()
+    view.unmount()
+  })
+
+  it('cancels direct switches, retains dirty state on failed saves, and resets confirmed drafts', async () => {
+    const data = testData()
+    vi.stubGlobal(
+      'fetch',
+      vi
+        .fn()
+        .mockImplementation(() => Promise.resolve(new Response(JSON.stringify({ data, etags: {}, role: 'admin' })))),
+    )
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false)
+    const { result } = renderHook(
+      () => {
+        const [dirty, setDirty] = useState(false)
+        useJourneyDraft(dirty)
+        return { ...useWaypoints(), dirty, setDirty }
+      },
+      { wrapper: WaypointsProvider },
+    )
+    await waitFor(() => expect(result.current.loading).toBe(false))
+    act(() => {
+      result.current.setDirty(true)
+    })
+    await act(async () => {
+      expect(await result.current.setDataMode('demo-local')).toBe('cancelled')
+    })
+    expect(result.current.dirty).toBe(true)
+    expect(getDataMode()).toBe('production')
+    const failure = new Error('Save failed')
+    await act(async () => {
+      await expect(result.current.runMutation(() => Promise.reject(failure))).rejects.toBe(failure)
+    })
+    await act(async () => {
+      expect(await result.current.setDataMode('demo-local')).toBe('cancelled')
+    })
+    expect(confirm).toHaveBeenCalledTimes(2)
+    const pending = deferred<void>()
+    let saving!: Promise<void>
+    act(() => {
+      saving = result.current.runMutation(() => pending.promise)
+    })
+    await expect(result.current.setDataMode('demo-local')).rejects.toThrow('mutation is pending')
+    expect(confirm).toHaveBeenCalledTimes(2)
+    await act(async () => {
+      pending.resolve()
+      await saving
+    })
+    confirm.mockReturnValue(true)
+    await act(async () => {
+      expect(await result.current.setDataMode('demo-local')).toBe('switched')
+    })
+    expect(result.current.dirty).toBe(false)
+    confirm.mockClear()
+    await act(async () => {
+      await result.current.setDataMode('production')
+    })
+    expect(confirm).not.toHaveBeenCalled()
+  })
+})
 
 const draft = {
   name: 'Abbey visit',

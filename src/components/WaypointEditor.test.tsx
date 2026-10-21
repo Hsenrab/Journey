@@ -6,6 +6,13 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { WaypointEditor } from './WaypointEditor'
 import { createDefaultData } from '../services/storage'
 import type { WaypointDraft } from '../features/journey/JourneyContext'
+import { WaypointsProvider, useWaypoints } from '../features/journey/JourneyContext'
+import { waypointImportExample } from '../domain/draftJsonImport'
+
+function SwitchMode() {
+  const { setDataMode } = useWaypoints()
+  return <button onClick={() => void setDataMode('demo-local')}>Switch mode</button>
+}
 
 function renderEditor(overrides: Partial<ComponentProps<typeof WaypointEditor>> = {}) {
   const onSubmit = vi.fn<(draft: WaypointDraft) => void>()
@@ -22,6 +29,85 @@ function renderEditor(overrides: Partial<ComponentProps<typeof WaypointEditor>> 
 describe('WaypointEditor', () => {
   beforeEach(() => {
     vi.restoreAllMocks()
+  })
+
+  it.each(['{invalid', JSON.stringify(waypointImportExample)])(
+    'preserves unapplied JSON on cancellation and discards it on a direct switch: %s',
+    async (text) => {
+      localStorage.clear()
+      const user = userEvent.setup()
+      const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false)
+      render(
+        <MemoryRouter>
+          <WaypointsProvider>
+            <SwitchMode />
+            <WaypointEditor data={createDefaultData()} submitLabel="Save" onSubmit={vi.fn()} onCancel={vi.fn()} />
+          </WaypointsProvider>
+        </MemoryRouter>,
+      )
+      await user.click(screen.getByRole('tab', { name: 'Paste JSON' }))
+      fireEvent.change(screen.getByLabelText('Waypoint JSON'), { target: { value: text } })
+      await user.click(screen.getByText('Switch mode'))
+      expect(confirm).toHaveBeenCalledTimes(1)
+      expect(screen.getByLabelText('Waypoint JSON')).toHaveValue(text)
+      confirm.mockReturnValue(true)
+      await user.click(screen.getByText('Switch mode'))
+      expect(screen.getByLabelText('Title')).toHaveValue('')
+      await user.click(screen.getByRole('tab', { name: 'Paste JSON' }))
+      expect(screen.getByLabelText('Waypoint JSON')).toHaveValue('')
+    },
+  )
+
+  it('ignores whitespace JSON but clearing JSON retains applied form/reference/photo dirtiness', async () => {
+    const user = userEvent.setup()
+    renderEditor()
+    await user.click(screen.getByRole('tab', { name: 'Paste JSON' }))
+    fireEvent.change(screen.getByLabelText('Waypoint JSON'), { target: { value: ' \n ' } })
+    const unchanged = new Event('beforeunload', { cancelable: true })
+    window.dispatchEvent(unchanged)
+    expect(unchanged.defaultPrevented).toBe(false)
+    fireEvent.change(screen.getByLabelText('Waypoint JSON'), {
+      target: { value: JSON.stringify(waypointImportExample) },
+    })
+    await user.click(screen.getByRole('button', { name: 'Load into form' }))
+    await user.click(screen.getByRole('tab', { name: 'Paste JSON' }))
+    fireEvent.change(screen.getByLabelText('Waypoint JSON'), { target: { value: '' } })
+    const changed = new Event('beforeunload', { cancelable: true })
+    window.dispatchEvent(changed)
+    expect(changed.defaultPrevented).toBe(true)
+  })
+
+  it('tracks applied form edits separately from unapplied JSON', async () => {
+    const user = userEvent.setup()
+    renderEditor()
+    const text = JSON.stringify({
+      title: 'Imported',
+      description: 'Imported description',
+      category: 'Walk',
+      tags: [],
+      completion: { mode: 'once' },
+      references: [],
+      photoReferences: [],
+    })
+    const isDirty = () => {
+      const event = new Event('beforeunload', { cancelable: true })
+      window.dispatchEvent(event)
+      return event.defaultPrevented
+    }
+    await user.click(screen.getByRole('tab', { name: 'Paste JSON' }))
+    fireEvent.change(screen.getByLabelText('Waypoint JSON'), { target: { value: text } })
+    await user.click(screen.getByRole('button', { name: 'Load into form' }))
+    expect(isDirty()).toBe(true)
+    for (const label of ['Title', 'Description', 'Category'])
+      fireEvent.change(screen.getByLabelText(label), { target: { value: '' } })
+    expect(isDirty()).toBe(false)
+    await user.click(screen.getByRole('tab', { name: 'Paste JSON' }))
+    expect(screen.getByLabelText('Waypoint JSON')).toHaveValue(text)
+    fireEvent.change(screen.getByLabelText('Waypoint JSON'), { target: { value: '{invalid' } })
+    await user.click(screen.getByRole('button', { name: 'Load into form' }))
+    expect(isDirty()).toBe(true)
+    fireEvent.change(screen.getByLabelText('Waypoint JSON'), { target: { value: text } })
+    expect(isDirty()).toBe(false)
   })
 
   it('validates required fields, completion, coordinates, references and photos', async () => {

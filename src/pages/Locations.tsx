@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import {
   Accordion,
@@ -36,6 +36,13 @@ import { JourneyConflictError } from '../services/journeyApi'
 type SortKey = 'name' | 'status' | 'lastActivity'
 
 export default function Locations() {
+  const mounted = useRef(true)
+  useEffect(() => {
+    mounted.current = true
+    return () => {
+      mounted.current = false
+    }
+  }, [])
   const { addWaypoint, data, loadState, readOnly, reload, statusFor } = useWaypoints()
   const activities = data.activities
   const [searchParams, setSearchParams] = useSearchParams()
@@ -162,6 +169,7 @@ export default function Locations() {
           onSubmit={async (draft) => {
             try {
               await addWaypoint(draft)
+              if (!mounted.current) return
               setMessage({ severity: 'success', text: 'Waypoint saved.', conflict: false })
               setSearchParams((previous) => {
                 const next = new URLSearchParams(previous)

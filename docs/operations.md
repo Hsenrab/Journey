@@ -50,7 +50,7 @@ the user-controlled backup.
 
 ### Journey data modes
 
-The app exposes three explicit modes in the header:
+Settings exposes three explicit modes; the header identifies the active data/access status:
 
 - The deployment supplies the initial mode: test starts in Demo Cosmos, while production
   retains Production data. Test overrides a previously saved Production selection so it
@@ -69,6 +69,19 @@ The app exposes three explicit modes in the header:
 If Demo Cosmos cannot load, the UI falls back to Demo local for the current session and
 shows a read-only warning. Production load failures show an error and never expose demo
 data. Restore and clear operate only on the active writable dataset.
+
+Mode selection is disabled while any save, delete, route change, restore, or clear
+is pending, including after the page that started it unmounts. Backup restore
+blocks switching from file acceptance through reading, validation, and persistence.
+Both success and failure release the restriction; direct mode-switch calls reject
+while pending and do not change the saved preference.
+
+Changed Waypoint, Idea, Activity, Challenge-creation, and planned-route drafts
+require discard confirmation before entering Settings or switching modes directly.
+Cancel keeps the route, preference, and draft. Confirm discards once; the old draft
+does not transfer to another dataset. Unapplied non-whitespace JSON counts even
+when invalid; whitespace alone does not. Clearing JSON does not clear applied form
+changes. Unrelated navigation is not guarded, and drafts are never persisted.
 
 ### Test data
 

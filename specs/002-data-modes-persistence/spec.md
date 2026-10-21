@@ -4,11 +4,23 @@
 
 **Created**: 2026-10-20
 
-**Status**: Existing-behaviour baseline drafted; source review complete; acceptance not newly executed
+**Status**: Safe-switch improvements implemented locally (2026-10-21); see execution evidence; overall hosted acceptance remains partial
 
 **Input**: Document existing data modes, persistence boundaries, loading/failure
 behaviour, and export/restore/clear. Baseline creation is documentation-only.
 Log defects separately; do not repair code, tests, or deployment configuration.
+
+## Clarifications
+
+### Session 2026-10-21
+
+- Q: If a save, restore, or clear is already running, should the user be allowed to switch data modes?
+  A: No. Block mode switching until the operation finishes, whether it succeeds or fails.
+  This was approved target behaviour at clarification; see the later local implementation evidence.
+- Q: What should happen to an unsaved editor draft when the user switches data modes?
+  A: Ask before discarding unsaved changes. Cancel keeps the current mode and draft;
+  confirm discards the draft and switches without carrying it to the new dataset.
+  This was approved target behaviour at clarification; see the later local implementation evidence.
 
 ## User Scenarios & Testing _(mandatory)_
 
@@ -38,6 +50,16 @@ the selected mode, displayed dataset, access status, and startup preference.
    records are available and editing remains unavailable to every user.
 5. **Given** overlapping dataset loads, **When** an older load completes after
    a newer load has begun, **Then** the older result cannot replace the newer load.
+6. **Given** a save, restore, or clear is in progress, **When** the user attempts
+   to select another mode, **Then** switching is unavailable until the operation
+   succeeds or fails, and the operation remains bound to its original dataset.
+   This scenario is implemented with local mocked-remote regression coverage; hosted acceptance is not claimed.
+7. **Given** an editor contains unsaved changes and no operation is running,
+   **When** the user requests another mode, **Then** they must confirm discarding
+   those changes. Cancelling retains the current mode and draft; confirming
+   discards the draft and switches without transferring it to the new dataset.
+   An unchanged draft requires no discard confirmation. This scenario is implemented
+   with local regression coverage; hosted acceptance is not claimed.
 
 ---
 
@@ -149,9 +171,12 @@ to inspect export, import rejection, confirmation, and failure outcomes.
 - Existing atomic dataset changes support at most 100 record operations per change;
   greater changes fail explicitly. This is an operation count, not a file-size or
   supported dataset-size promise; chunking is outside scope.
-- Unsaved editor drafts across mode switches and simultaneous mode switches during
-  saves are not newly specified as safe. Their behaviour needs separate evidence
-  before any stronger guarantee is made.
+- Mode switching is blocked during a save, restore, or clear, including a failing
+  operation; finishing with failure releases the switching restriction without
+  presenting the operation as saved.
+- A mode switch never transfers an unsaved draft to another dataset. Confirmation
+  is required before discarding changed drafts; cancelling leaves both the selected
+  mode and draft unchanged. This rule also covers a draft retained after a failed save.
 
 ## Requirements _(mandatory)_
 
@@ -195,6 +220,28 @@ to inspect export, import rejection, confirmation, and failure outcomes.
   retry, partial-success fallback, or migration is permitted.
 - **FR-016**: Shared demonstration data MUST be reseeded on infrastructure
   redeployment; Production records MUST NOT be seeded or reset by that operation.
+- **FR-017**: Mode switching MUST be unavailable while a save, restore, or clear
+  is in progress. The operation MUST remain bound to its original dataset.
+  Restore begins when a selected backup file is accepted for processing, before
+  reading or validation, and remains in progress through the write outcome.
+  File-read or validation failure MUST also release the switching restriction.
+  Switching MUST become available after either success or failure, subject to
+  the existing access and load rules. Local implementation and verification are
+  recorded in [evidence](evidence.md); hosted acceptance remains unexecuted.
+- **FR-018**: When no operation is running, a mode switch with unsaved editor
+  changes MUST require discard confirmation. Cancellation MUST preserve the
+  current mode and draft; confirmation MUST discard the draft before switching,
+  without transferring it to the new dataset. Unchanged drafts MUST NOT prompt.
+  Because the selector is in Settings, navigation there from a changed editor MUST
+  require confirmation before unmount, even if no mode is subsequently selected.
+  Cancellation MUST preserve the route; confirmed discard MUST NOT prompt again
+  when selecting a mode afterward. This does not introduce a general navigation guard.
+  Non-whitespace JSON text not yet applied to the form MUST count as unsaved work,
+  even if invalid. Clearing that text removes only this source of dirty state;
+  changes already applied to the form remain subject to normal dirty checks.
+  Local implementation and verification are recorded in [evidence](evidence.md). Shared draft
+  entry remains defined by [the structured-entry feature](../009-structured-draft-entry/spec.md);
+  this feature owns the dataset-switch boundary.
 
 ### Key Entities _(include if feature involves data)_
 
@@ -216,9 +263,11 @@ to inspect export, import rejection, confirmation, and failure outcomes.
 - **SC-001**: Every startup case (no preference, unknown preference, each valid
   saved mode, and saved Production on test) has one documented, verifiable selected
   mode with no record transfer between datasets.
-- **SC-002**: For both shared sources, 100% of reviewed loading and failure scenarios
-  distinguish unavailable data from successful data and prevent unauthorized writes
-  and backups; demonstration fallback is visibly identified.
+- **SC-002**: For each shared source, verify loading, successful load, initial
+  failure, failure after an earlier success, and successful explicit reload.
+  Loading blocks writes/export; Production failure blocks both without substitution;
+  Demo Cosmos failure visibly activates read-only Demo local and permits export
+  only of that loaded local dataset.
 - **SC-003**: In all reviewed combinations of three modes and two invited roles,
   only a loaded administrator in a shared mode can modify records.
 - **SC-004**: Exports from each loaded mode and demonstration fallback contain only
@@ -230,6 +279,21 @@ to inspect export, import rejection, confirmation, and failure outcomes.
   reviewed, executed, failed, blocked, or not-run status. Baseline creation can
   complete with linked defects and unverified acceptance, but cannot claim those
   outcomes passed.
+- **SC-007**: For save, restore, and clear, attempts to switch modes while the
+  operation is pending leave the selected mode unchanged. Both success and failure
+  release that restriction; a failed operation produces no success notification.
+  Include a delayed backup-file read, read failure, and invalid backup validation;
+  no mode change or new dataset load is allowed during restore preparation.
+  Implemented and exercised locally with intercepted remote responses; see
+  [execution evidence](evidence.md). No hosted mutation is implied.
+- **SC-008**: For an unsaved changed draft, cancelling the discard prompt retains
+  the current mode and draft; confirming loads the requested mode with no carried
+  draft. An unchanged draft switches without a prompt. Include a draft retained
+  after a failed save. These improvements are implemented and exercised locally;
+  [execution evidence](evidence.md) distinguishes regressions from hosted acceptance.
+  Include navigation to Settings without a later switch, and valid/invalid
+  unapplied JSON text. Cancel retains route and text; confirm discards once.
+  Whitespace-only JSON text does not independently make a draft dirty.
 
 ## Assumptions
 
@@ -237,19 +301,23 @@ to inspect export, import rejection, confirmation, and failure outcomes.
   [GPX feature](../008-gpx-import-geometry/spec.md); this feature owns the dataset
   export/restore actions that carry those attachments.
 
-- This baseline documents existing behaviour and approved constraints; no application,
-  test, infrastructure, or deployment changes are authorized.
+- The original baseline/clarification authorized documentation changes only.
+  A separate implementation request authorized FR-017, FR-018, SC-007, and SC-008
+  frontend work and local tests. No commit, push, infrastructure change, deployment,
+  or hosted mutation was authorized or performed for that implementation.
 - Access/role semantics come from [the access baseline](../001-access-roles/spec.md);
   this feature specifies source, availability, and persistence boundaries.
-- Shared modes require the existing authenticated service. The known hosted API
-  failure is tracked separately and does not authorize a workaround or delay
-  documenting this baseline.
+- Shared modes require the existing authenticated service. The previously recorded
+  hosted API failure was resolved in [PR #178](https://github.com/Hsenrab/Journey/pull/178);
+  [the evidence](evidence.md) distinguishes subsequent successful checks from
+  remaining unexecuted acceptance.
 - Production starts empty but can subsequently contain real records. Infrastructure
   demonstration seeding is a lifecycle rule, not permission to redeploy.
 - The legacy browser-record path exists for automated test mode only. Results using
   that path cannot prove shared persistence, permissions, or empty-target enforcement.
-- Entity editing rules, relationship redesign, map rendering, new backup formats,
-  capacity increases, draft migration, and new offline features are outside scope.
+- Entity editing rules beyond the specified mode-switch boundary, relationship
+  redesign, map rendering, new backup formats, capacity increases, draft migration,
+  and new offline features are outside scope.
 - All acceptance scenarios describe verification targets, not tests executed by
   writing this document. Hosted mutations, role changes, and deployments need
   separate explicit authorization.
