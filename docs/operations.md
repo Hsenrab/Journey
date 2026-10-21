@@ -315,7 +315,10 @@ after the application boundary validates the caller's Entra provider and assigne
 - Functions package publication owns `WEBSITE_RUN_FROM_PACKAGE` and
   `WEBSITE_RUN_FROM_PACKAGE_BLOB_MI_RESOURCE_ID`. Bicep reads and preserves only
   these existing package settings when replacing the app-settings collection;
-  all other settings remain defined by the template. New Function Apps have no
+  all other settings remain defined by the template. The settings write uses a
+  separate Bicep module with a secure object parameter so ARM does not read and
+  replace the same resource in one deployment scope (a circular dependency).
+  New Function Apps have no
   package settings until their first API publication. An infrastructure-only run
   must not remove the package pointer from an already published app.
   If a previous run removed it, preserving settings cannot recover missing values:

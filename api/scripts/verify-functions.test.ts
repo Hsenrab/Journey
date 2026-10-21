@@ -68,24 +68,44 @@ describe('deployment registration checks', () => {
   it('preserves deployment-owned package settings when infrastructure replaces app settings', () => {
     const template: {
       variables: { functionPackageSettingNames: string[] }
-      resources: { type: string; name: string; properties: string; dependsOn?: string[] }[]
+      resources: {
+        type: string
+        name: string
+        properties: {
+          parameters?: { appSettings: { value: string } }
+          template?: {
+            parameters: { appSettings: { type: string } }
+            resources: { type: string; properties: string }[]
+          }
+        }
+        dependsOn?: string[]
+      }[]
     } = JSON.parse(readFileSync(new URL('../../infra/main.json', import.meta.url), 'utf8'))
-    const settings = template.resources.find(
-      (resource) => resource.type === 'Microsoft.Web/sites/config' && resource.name.includes("'appsettings'"),
+    const deployment = template.resources.find(
+      (resource) => resource.type === 'Microsoft.Resources/deployments' && resource.name === 'function-app-settings',
     )
+    const preservedSettings = deployment?.properties.parameters?.appSettings.value
 
     expect(template.variables.functionPackageSettingNames).toEqual([
       'WEBSITE_RUN_FROM_PACKAGE',
       'WEBSITE_RUN_FROM_PACKAGE_BLOB_MI_RESOURCE_ID',
     ])
-    expect(settings?.properties).toContain("[union(if(parameters('enableApi'), toObject(filter(items(list(")
-    expect(settings?.properties).toContain(
+    expect(preservedSettings).toContain("[union(if(parameters('enableApi'), toObject(filter(items(list(")
+    expect(preservedSettings).toContain(
       "list(format('{0}/config/appsettings', resourceId('Microsoft.Web/sites', variables('functionAppName'))), '2023-12-01').properties",
     )
-    expect(settings?.properties).toContain(
+    expect(preservedSettings).toContain(
       "contains(variables('functionPackageSettingNames'), lambdaVariables('setting').key)",
     )
-    expect(settings?.properties).toContain("lambda('setting', lambdaVariables('setting').value)), createObject())")
-    expect(settings?.dependsOn).toContain("[resourceId('Microsoft.Web/sites', variables('functionAppName'))]")
+    expect(preservedSettings).toContain("lambda('setting', lambdaVariables('setting').value)), createObject())")
+    expect(deployment?.dependsOn).toContain("[resourceId('Microsoft.Web/sites', variables('functionAppName'))]")
+    expect(deployment?.properties.template?.parameters.appSettings.type).toBe('secureObject')
+    expect(deployment?.properties.template?.resources).toContainEqual(
+      expect.objectContaining({
+        type: 'Microsoft.Web/sites/config',
+        properties: "[parameters('appSettings')]",
+      }),
+    )
+    expect(template.resources.some((resource) => resource.type === 'Microsoft.Web/sites/config')).toBe(false)
   })
 })
