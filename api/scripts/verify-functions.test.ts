@@ -64,4 +64,28 @@ describe('deployment registration checks', () => {
     )
     expect(workflow).toContain("--query 'value[].properties.backendResourceId'")
   })
+
+  it('preserves deployment-owned package settings when infrastructure replaces app settings', () => {
+    const template: {
+      variables: { functionPackageSettingNames: string[] }
+      resources: { type: string; name: string; properties: string; dependsOn?: string[] }[]
+    } = JSON.parse(readFileSync(new URL('../../infra/main.json', import.meta.url), 'utf8'))
+    const settings = template.resources.find(
+      (resource) => resource.type === 'Microsoft.Web/sites/config' && resource.name.includes("'appsettings'"),
+    )
+
+    expect(template.variables.functionPackageSettingNames).toEqual([
+      'WEBSITE_RUN_FROM_PACKAGE',
+      'WEBSITE_RUN_FROM_PACKAGE_BLOB_MI_RESOURCE_ID',
+    ])
+    expect(settings?.properties).toContain("[union(if(parameters('enableApi'), toObject(filter(items(list(")
+    expect(settings?.properties).toContain(
+      "list(format('{0}/config/appsettings', resourceId('Microsoft.Web/sites', variables('functionAppName'))), '2023-12-01').properties",
+    )
+    expect(settings?.properties).toContain(
+      "contains(variables('functionPackageSettingNames'), lambdaVariables('setting').key)",
+    )
+    expect(settings?.properties).toContain("lambda('setting', lambdaVariables('setting').value)), createObject())")
+    expect(settings?.dependsOn).toContain("[resourceId('Microsoft.Web/sites', variables('functionAppName'))]")
+  })
 })

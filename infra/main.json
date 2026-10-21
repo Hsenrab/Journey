@@ -4,8 +4,8 @@
   "metadata": {
     "_generator": {
       "name": "bicep",
-      "version": "0.46.1.21595",
-      "templateHash": "16869573342247386974"
+      "version": "0.47.16.16243",
+      "templateHash": "13961317199887534149"
     }
   },
   "parameters": {
@@ -107,7 +107,8 @@
     "storageBlobDataContributorRoleId": "ba92f5b4-2d11-453d-a403-e96b0029c9fe",
     "storageQueueDataContributorRoleId": "974c5e8b-45b9-4653-ba55-5f855dd0fb88",
     "storageTableDataContributorRoleId": "0a9a7e1f-b9d0-4cc4-a60d-0319b160aaa3",
-    "cosmosDataContributorRoleId": "00000000-0000-0000-0000-000000000002"
+    "cosmosDataContributorRoleId": "00000000-0000-0000-0000-000000000002",
+    "functionPackageSettingNames": ["WEBSITE_RUN_FROM_PACKAGE", "WEBSITE_RUN_FROM_PACKAGE_BLOB_MI_RESOURCE_ID"]
   },
   "resources": [
     {
@@ -426,18 +427,7 @@
       "type": "Microsoft.Web/sites/config",
       "apiVersion": "2023-12-01",
       "name": "[format('{0}/{1}', variables('functionAppName'), 'appsettings')]",
-      "properties": {
-        "FUNCTIONS_EXTENSION_VERSION": "~4",
-        "FUNCTIONS_WORKER_RUNTIME": "node",
-        "AzureWebJobsStorage__accountName": "[variables('storageAccountName')]",
-        "AzureWebJobsStorage__credential": "managedidentity",
-        "AZURE_MAPS_CLIENT_ID": "[reference(resourceId('Microsoft.Maps/accounts', variables('mapsAccountName')), '2023-06-01').uniqueId]",
-        "APPLICATIONINSIGHTS_CONNECTION_STRING": "[reference(resourceId('Microsoft.Insights/components', variables('appInsightsName')), '2020-02-02').ConnectionString]",
-        "COSMOS_ENDPOINT": "[reference(resourceId('Microsoft.DocumentDB/databaseAccounts', variables('cosmosAccountName')), '2024-05-15').documentEndpoint]",
-        "COSMOS_DATABASE_NAME": "[variables('cosmosDatabaseName')]",
-        "COSMOS_PRODUCTION_DATASET_ID": "production",
-        "COSMOS_DEMO_DATASET_ID": "demo"
-      },
+      "properties": "[union(if(parameters('enableApi'), toObject(filter(items(list(format('{0}/config/appsettings', resourceId('Microsoft.Web/sites', variables('functionAppName'))), '2023-12-01').properties), lambda('setting', contains(variables('functionPackageSettingNames'), lambdaVariables('setting').key))), lambda('setting', lambdaVariables('setting').key), lambda('setting', lambdaVariables('setting').value)), createObject()), createObject('FUNCTIONS_EXTENSION_VERSION', '~4', 'FUNCTIONS_WORKER_RUNTIME', 'node', 'AzureWebJobsStorage__accountName', variables('storageAccountName'), 'AzureWebJobsStorage__credential', 'managedidentity', 'AZURE_MAPS_CLIENT_ID', reference(resourceId('Microsoft.Maps/accounts', variables('mapsAccountName')), '2023-06-01').uniqueId, 'APPLICATIONINSIGHTS_CONNECTION_STRING', reference(resourceId('Microsoft.Insights/components', variables('appInsightsName')), '2020-02-02').ConnectionString, 'COSMOS_ENDPOINT', reference(resourceId('Microsoft.DocumentDB/databaseAccounts', variables('cosmosAccountName')), '2024-05-15').documentEndpoint, 'COSMOS_DATABASE_NAME', variables('cosmosDatabaseName'), 'COSMOS_PRODUCTION_DATASET_ID', 'production', 'COSMOS_DEMO_DATASET_ID', 'demo'))]",
       "dependsOn": [
         "[resourceId('Microsoft.Insights/components', variables('appInsightsName'))]",
         "[resourceId('Microsoft.DocumentDB/databaseAccounts', variables('cosmosAccountName'))]",
