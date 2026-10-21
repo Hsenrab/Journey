@@ -312,6 +312,18 @@ after the application boundary validates the caller's Entra provider and assigne
   account to `deployer().objectId`, the GitHub OIDC principal that runs the
   Bicep deployment. No extra secret or variable is needed; the object id comes
   from the deployment itself.
+- Functions package publication owns `WEBSITE_RUN_FROM_PACKAGE` and
+  `WEBSITE_RUN_FROM_PACKAGE_BLOB_MI_RESOURCE_ID`. Bicep reads and preserves only
+  these existing package settings when replacing the app-settings collection;
+  all other settings remain defined by the template. The settings write uses a
+  separate Bicep module with a secure object parameter so ARM does not read and
+  replace the same resource in one deployment scope (a circular dependency).
+  New Function Apps have no
+  package settings until their first API publication. An infrastructure-only run
+  must not remove the package pointer from an already published app.
+  If a previous run removed it, preserving settings cannot recover missing values:
+  explicitly publish the API to that environment again. Do not substitute a package
+  placeholder or change the linked-backend authentication to address missing code.
 - Test deployments publish to the test Static Web App's primary environment, where
   the linked Functions backend is supported. Pull-request runs validate the code and
   may deploy changed infrastructure, but do not deploy the API or create a Static
@@ -423,6 +435,15 @@ link exists, so it is not used for verification. These checks use management-pla
 reads only, request no Function keys or user
 session cookies, do not open direct Function App access, and neither write nor clear
 any Cosmos dataset.
+
+Registered metadata can outlive the deployed code. For authenticated API `404`
+responses, check the live host's Application Insights startup traces as well as ARM:
+`0 functions loaded` or `No job functions found` means the running host is empty
+even if `az functionapp function list` still returns the three expected functions.
+Check that the package settings exist without printing their values (package URLs
+can contain credentials). After an explicitly approved API republication, verify
+the routes through a signed-in browser, then verify that an infrastructure-only
+redeployment retains the package settings and callable routes.
 
 Actions' deployment identity is not an invited interactive Static Web Apps user.
 Its ARM access token cannot replace a Static Web Apps session. Consequently these
