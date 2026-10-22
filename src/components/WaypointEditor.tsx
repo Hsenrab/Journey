@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { useJourneyDraft } from '../features/journey/JourneyContext'
 import { useBeforeUnload } from 'react-router-dom'
 import {
   Alert,
@@ -22,6 +23,7 @@ import { parseWaypointDraftJson, waypointImportExample } from '../domain/draftJs
 import { waypointJsonAiPrompt } from '../domain/aiPrompts'
 import { AiPromptButton } from './AiPromptButton'
 import type { WaypointDraft } from '../features/journey/JourneyContext'
+import { effectiveWaypointLocation } from '../domain/waypointLocation'
 
 type Props = {
   data: WaypointsData
@@ -107,10 +109,11 @@ export function WaypointEditor({ data, submitLabel, onSubmit, onCancel, errorMes
   const [errors, setErrors] = useState<Errors>({})
   const [mode, setMode] = useState<EditorMode>('form')
   const [jsonInput, setJsonInput] = useState('')
+  const [appliedJsonInput, setAppliedJsonInput] = useState('')
   const [jsonError, setJsonError] = useState<string | null>(null)
   const [jsonIssues, setJsonIssues] = useState<string[]>([])
 
-  const dirty = useMemo(
+  const formDirty = useMemo(
     () =>
       JSON.stringify({
         title,
@@ -170,6 +173,9 @@ export function WaypointEditor({ data, submitLabel, onSubmit, onCancel, errorMes
     ],
   )
 
+  const dirty = formDirty || (jsonInput.trim().length > 0 && jsonInput !== appliedJsonInput)
+  useJourneyDraft(dirty)
+
   useBeforeUnload(
     (event) => {
       if (dirty) event.preventDefault()
@@ -209,7 +215,8 @@ export function WaypointEditor({ data, submitLabel, onSubmit, onCancel, errorMes
       Boolean(addressOrRegion.trim()) ||
       Boolean(source.trim()) ||
       Boolean(latitude.trim()) ||
-      Boolean(longitude.trim())
+      Boolean(longitude.trim()) ||
+      approximate
     if (hasLocation) {
       location = {
         placeName: placeName.trim() || undefined,
@@ -234,6 +241,12 @@ export function WaypointEditor({ data, submitLabel, onSubmit, onCancel, errorMes
             location.longitude = parsedLongitude
           }
         }
+      }
+    }
+    if (!nextErrors.coordinates) {
+      location = effectiveWaypointLocation(initialWaypoint?.location, location)
+      if (location && !location.placeName && !location.addressOrRegion && location.latitude === undefined) {
+        nextErrors.coordinates = 'Enter a place name, address, or both coordinates.'
       }
     }
 
@@ -348,6 +361,7 @@ export function WaypointEditor({ data, submitLabel, onSubmit, onCancel, errorMes
                       return
                     }
 
+                    setAppliedJsonInput(jsonInput)
                     setTitle(parsed.value.title)
                     setDescription(parsed.value.description)
                     setCategory(parsed.value.category)

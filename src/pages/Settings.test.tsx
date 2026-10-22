@@ -1,9 +1,9 @@
 import { MemoryRouter } from 'react-router-dom'
-import { cleanup, render, screen, waitForElementToBeRemoved } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, waitFor, waitForElementToBeRemoved } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import Settings from './Settings'
-import { WaypointsProvider } from '../features/journey/JourneyContext'
+import { WaypointsProvider, useWaypoints } from '../features/journey/JourneyContext'
 import {
   backupVersion,
   createDefaultData,
@@ -45,6 +45,94 @@ function renderSettings() {
 function backupFile(contents: string) {
   return new File([contents], 'backup.json', { type: 'application/json' })
 }
+
+describe('remote backup preparation boundary', () => {
+  afterEach(() => {
+    cleanup()
+    vi.unstubAllEnvs()
+    vi.unstubAllGlobals()
+  })
+  it.each(['success', 'read failure', 'invalid JSON', 'invalid schema', 'write failure'])(
+    'locks selection from file acceptance through %s and always releases',
+    async (outcome) => {
+      localStorage.clear()
+      vi.stubEnv('MODE', 'production')
+      const data = createDefaultData()
+      const reply = () => new Response(JSON.stringify({ data, etags: {}, role: 'admin' }))
+      let finishRead!: (text: string) => void
+      let failRead!: (error: Error) => void
+      let finishWrite!: (response: Response) => void
+      let failWrite!: (error: Error) => void
+      const reading = new Promise<string>((resolve, reject) => {
+        finishRead = resolve
+        failRead = reject
+      })
+      const writing = new Promise<Response>((resolve, reject) => {
+        finishWrite = resolve
+        failWrite = reject
+      })
+      const fetch = vi.fn().mockResolvedValueOnce(reply()).mockReturnValueOnce(writing)
+      vi.stubGlobal('fetch', fetch)
+      let context!: ReturnType<typeof useWaypoints>
+      function Probe() {
+        context = useWaypoints()
+        return <Settings />
+      }
+      render(
+        <MemoryRouter>
+          <WaypointsProvider>
+            <Probe />
+          </WaypointsProvider>
+        </MemoryRouter>,
+      )
+      await waitFor(() => expect(context.loading).toBe(false))
+      const file = backupFile('')
+      Object.defineProperty(file, 'text', { value: () => reading })
+      fireEvent.change(screen.getByLabelText('Restore JSON'), { target: { files: [file] } })
+      expect(screen.getByRole('combobox', { name: 'Data mode' })).toHaveAttribute('aria-disabled', 'true')
+      await expect(context.setDataMode('demo-local')).rejects.toThrow('mutation is pending')
+      expect(fetch).toHaveBeenCalledTimes(1)
+      expect(getDataMode()).toBe('production')
+      await act(async () => {
+        if (outcome === 'read failure') failRead(new Error('Backup read denied'))
+        else
+          finishRead(
+            outcome === 'invalid JSON'
+              ? '{'
+              : outcome === 'invalid schema'
+                ? '{}'
+                : JSON.stringify({ version: backupVersion, exportedAt: '2026-08-01T00:00:00.000Z', data }),
+          )
+      })
+      if (outcome === 'success' || outcome === 'write failure') {
+        await waitFor(() => expect(fetch).toHaveBeenCalledTimes(2))
+        expect(context.mutationPending).toBe(true)
+        await expect(context.setDataMode('demo-cosmos')).rejects.toThrow('mutation is pending')
+        expect(fetch.mock.calls[1]![0]).toBe('/api/journey/production')
+        await act(async () => {
+          if (outcome === 'write failure') failWrite(new Error('Backup write denied'))
+          else finishWrite(reply())
+        })
+      }
+      await waitFor(() => expect(context.mutationPending).toBe(false))
+      expect(screen.getByRole('combobox', { name: 'Data mode' })).not.toHaveAttribute('aria-disabled', 'true')
+      const expected =
+        outcome === 'success'
+          ? 'Production data was restored.'
+          : outcome === 'read failure'
+            ? 'Backup read denied'
+            : outcome === 'write failure'
+              ? 'Backup write denied'
+              : /not a valid Waypoints backup/
+      expect(screen.getByText(expected)).toBeInTheDocument()
+      if (outcome !== 'success') expect(screen.queryByText('Production data was restored.')).not.toBeInTheDocument()
+      await act(async () => {
+        await context.setDataMode('demo-local')
+      })
+      expect(getDataMode()).toBe('demo-local')
+    },
+  )
+})
 
 describe('Settings', () => {
   beforeEach(() => {
@@ -200,6 +288,8 @@ describe('Settings', () => {
     ).toBeInTheDocument()
 
     expect(createObjectURL).not.toHaveBeenCalled()
+    expect(screen.getByText('Restore JSON').closest('label')).toHaveClass('Mui-disabled')
+    expect(screen.getByRole('button', { name: 'Clear data' })).toBeDisabled()
   })
 
   it('disables export while production data is still loading', async () => {
@@ -211,6 +301,8 @@ describe('Settings', () => {
     renderSettings()
 
     expect(await screen.findByRole('button', { name: 'Export JSON' })).toBeDisabled()
+    expect(screen.getByText('Restore JSON').closest('label')).toHaveClass('Mui-disabled')
+    expect(screen.getByRole('button', { name: 'Clear data' })).toBeDisabled()
     expect(
       screen.queryByText(
         'Export is disabled because the active dataset did not load. Reload production before creating a backup.',
@@ -243,8 +335,9 @@ describe('Settings', () => {
     expect(screen.getByRole('button', { name: 'Clear data' })).toBeDisabled()
   })
 
-  it('keeps mutations enabled for Demo Cosmos data', async () => {
-    setDataMode('demo-cosmos')
+  it.each(['production', 'demo-cosmos'] as const)('keeps mutations enabled for loaded admin %s data', async (mode) => {
+    setDataMode(mode)
+    vi.stubEnv('MODE', 'production')
     vi.stubGlobal(
       'fetch',
       vi
@@ -255,10 +348,56 @@ describe('Settings', () => {
     )
     renderSettings()
 
-    expect(await screen.findByText('Demo Cosmos data loaded')).toBeInTheDocument()
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Export JSON' })).toBeEnabled())
     expect(screen.getByText('Restore JSON').closest('label')).not.toHaveClass('Mui-disabled')
     expect(screen.getByRole('button', { name: 'Clear data' })).not.toBeDisabled()
   })
+
+  it.each(['production', 'demo-cosmos'] as const)(
+    'exports the active viewer %s dataset without enabling writes',
+    async (mode) => {
+      vi.stubEnv('MODE', 'production')
+      setDataMode(mode)
+      const data = createDemoModeData()
+      data.challenges[0] = { ...data.challenges[0]!, title: `Export fixture for ${mode}` }
+      const fetch = vi
+        .fn()
+        .mockImplementation(() => new Response(JSON.stringify({ data, etags: {}, role: 'viewer' }), { status: 200 }))
+      vi.stubGlobal('fetch', fetch)
+      const createObjectURL = vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:viewer-export')
+      const revokeObjectURL = vi.spyOn(URL, 'revokeObjectURL')
+      const click = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {})
+      const user = userEvent.setup()
+      renderSettings()
+
+      await waitFor(() => expect(screen.getByRole('button', { name: 'Export JSON' })).toBeEnabled())
+      expect(screen.getByText('Restore JSON').closest('label')).toHaveClass('Mui-disabled')
+      expect(screen.getByRole('button', { name: 'Clear data' })).toBeDisabled()
+      expect(screen.getByRole('combobox', { name: 'Data mode' })).toBeEnabled()
+      await user.click(screen.getByRole('button', { name: 'Export JSON' }))
+
+      expect(createObjectURL).toHaveBeenCalledOnce()
+      const blob = createObjectURL.mock.calls[0]![0]
+      expect(blob).toBeInstanceOf(Blob)
+      if (!(blob instanceof Blob)) throw new Error('Expected a JSON export Blob.')
+      const exported = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader()
+        reader.onload = () => resolve(String(reader.result))
+        reader.onerror = () => reject(reader.error)
+        reader.readAsText(blob)
+      })
+      expect(JSON.parse(exported)).toMatchObject({ version: backupVersion, data })
+      expect(click).toHaveBeenCalledOnce()
+      expect(revokeObjectURL).toHaveBeenCalledWith('blob:viewer-export')
+
+      await user.click(screen.getByRole('combobox', { name: 'Data mode' }))
+      await user.click(screen.getByRole('option', { name: 'Demo local data' }))
+      expect(await screen.findByText('Demo local data loaded')).toBeInTheDocument()
+      expect(screen.getByText('Restore JSON').closest('label')).toHaveClass('Mui-disabled')
+      expect(screen.getByRole('button', { name: 'Clear data' })).toBeDisabled()
+      expect(fetch).toHaveBeenCalledTimes(1)
+    },
+  )
 
   it('closes the clear data confirmation dialog when dismissed with escape', async () => {
     const user = userEvent.setup()

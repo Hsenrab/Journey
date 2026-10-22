@@ -111,6 +111,9 @@ invitations, deployment verification, and sign-in troubleshooting.
 | `npm run format:check`  | Verify Prettier formatting          |
 | `npm run build`         | Type-check and build for production |
 
+Frontend Vitest runs one worker to avoid contention between jsdom form tests.
+Test timeouts and coverage thresholds are unchanged.
+
 ## Documentation
 
 - [Waypoints model and relationships](docs/waypoints-model.md)

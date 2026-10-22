@@ -104,7 +104,70 @@ describe('journey API client', () => {
         .mockResolvedValueOnce(new Response(null, { status: 500, statusText: 'Internal Server Error' })),
     )
 
-    await expect(clearJourney('production')).rejects.toThrow('409: Conflict')
+    await expect(clearJourney('production')).rejects.toThrow('409: Conflict: unknown_conflict')
     await expect(clearJourney('production')).rejects.toThrow('500: Internal Server Error')
+  })
+
+  it.each([
+    [400, undefined],
+    [400, 'text/html'],
+    [400, 'application/json'],
+    [500, 'Application/JSON; charset=utf-8'],
+    [502, 'application/problem+json; charset=UTF-8'],
+    [409, undefined],
+  ])('surfaces validated JSON messages for %s with %s', async (status, contentType) => {
+    const headers = contentType ? { 'content-type': contentType } : undefined
+    const response = new Response(JSON.stringify({ error: '  No position found for New place  ', detail: 'extra' }), {
+      status,
+      statusText: 'Failure',
+      headers,
+    })
+    if (!contentType) response.headers.delete('content-type')
+    expect(response.headers.get('content-type')).toBe(contentType ?? null)
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(response))
+    await expect(replaceJourney('demo', createDefaultData(), {})).rejects.toThrow(
+      `${status}: Failure: No position found for New place`,
+    )
+  })
+
+  it.each(['conflict', 'data_not_empty'])('does not type %s outside HTTP 409', async (error) => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify({ error }), { status: 400 })))
+    const failure = await clearJourney('demo').catch((reason: unknown) => reason)
+    expect(failure).toBeInstanceOf(Error)
+    expect(failure).not.toBeInstanceOf(JourneyConflictError)
+    expect(failure).not.toBeInstanceOf(JourneyImportNotEmptyError)
+  })
+
+  it.each([400, 409, 500])('preserves required JSON parsing errors for %s', async (status) => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        new Response('{invalid', {
+          status,
+          headers: { 'content-type': 'application/json' },
+        }),
+      ),
+    )
+    await expect(clearJourney('demo')).rejects.toBeInstanceOf(SyntaxError)
+  })
+
+  it.each([{}, { error: 4 }, { error: '' }, { error: '  ' }, null, []])(
+    'rejects malformed error envelopes: %j',
+    async (body) => {
+      vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify(body), { status: 400 })))
+      await expect(clearJourney('demo')).rejects.toHaveProperty('name', 'ZodError')
+    },
+  )
+
+  it.each([undefined, 'text/html'])('does not parse non-JSON 502 bodies: %s', async (contentType) => {
+    const response = new Response('<html>Gateway failed</html>', {
+      status: 502,
+      statusText: 'Bad Gateway',
+      headers: contentType ? { 'content-type': contentType } : undefined,
+    })
+    const parse = vi.spyOn(response, 'json')
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(response))
+    await expect(clearJourney('demo')).rejects.toThrow('502: Bad Gateway')
+    expect(parse).not.toHaveBeenCalled()
   })
 })

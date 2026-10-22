@@ -1,11 +1,18 @@
 import type { ComponentProps } from 'react'
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { WaypointEditor } from './WaypointEditor'
 import { createDefaultData } from '../services/storage'
 import type { WaypointDraft } from '../features/journey/JourneyContext'
+import { WaypointsProvider, useWaypoints } from '../features/journey/JourneyContext'
+import { waypointImportExample } from '../domain/draftJsonImport'
+
+function SwitchMode() {
+  const { setDataMode } = useWaypoints()
+  return <button onClick={() => void setDataMode('demo-local')}>Switch mode</button>
+}
 
 function renderEditor(overrides: Partial<ComponentProps<typeof WaypointEditor>> = {}) {
   const onSubmit = vi.fn<(draft: WaypointDraft) => void>()
@@ -24,6 +31,222 @@ describe('WaypointEditor', () => {
     vi.restoreAllMocks()
   })
 
+  it.each([
+    {
+      name: 'changed name',
+      changes: { 'Place name': 'New place' },
+      expected: { placeName: 'New place', addressOrRegion: 'Old address', source: 'Survey' },
+    },
+    {
+      name: 'changed address',
+      changes: { 'Address or region': 'New address' },
+      expected: { placeName: 'Old place', addressOrRegion: 'New address', source: 'Survey' },
+    },
+    { name: 'cleared named location', changes: { 'Place name': '', 'Address or region': '' }, expected: undefined },
+    {
+      name: 'manual pair with cleared text',
+      changes: { 'Place name': '', 'Address or region': '', Latitude: '52' },
+      expected: { latitude: 52, longitude: -2, source: 'Survey' },
+    },
+    {
+      name: 'equivalent input',
+      changes: { 'Place name': ' Old place ', Latitude: '51.0' },
+      expected: {
+        placeName: 'Old place',
+        addressOrRegion: 'Old address',
+        latitude: 51,
+        longitude: -2,
+        source: 'Survey',
+      },
+    },
+    {
+      name: 'metadata change',
+      changes: { Source: 'Manual' },
+      expected: {
+        placeName: 'Old place',
+        addressOrRegion: 'Old address',
+        latitude: 51,
+        longitude: -2,
+        source: 'Manual',
+      },
+    },
+    {
+      name: 'cleared pair',
+      changes: { Latitude: '', Longitude: '' },
+      expected: { placeName: 'Old place', addressOrRegion: 'Old address', source: 'Survey' },
+    },
+  ])('submits effective location for $name without changing visible fields', async ({ changes, expected }) => {
+    const initialWaypoint = {
+      waypointId: 'one',
+      title: 'Existing',
+      description: 'Description',
+      category: 'Walk',
+      tags: [],
+      challengeIds: [],
+      completion: { mode: 'once' as const },
+      referenceIds: [],
+      photoReferenceIds: [],
+      location: {
+        placeName: 'Old place',
+        addressOrRegion: 'Old address',
+        latitude: 51,
+        longitude: -2,
+        source: 'Survey',
+      },
+    }
+    const { onSubmit } = renderEditor({ initialWaypoint, errorMessage: 'Resolution failed' })
+    for (const [label, value] of Object.entries(changes)) {
+      fireEvent.change(screen.getByLabelText(label), { target: { value } })
+    }
+    fireEvent.click(screen.getByRole('button', { name: 'Save waypoint' }))
+    expect(onSubmit).toHaveBeenCalledOnce()
+    if (expected)
+      expect(onSubmit.mock.calls[0][0].location).toEqual({
+        approximate: undefined,
+        placeName: undefined,
+        addressOrRegion: undefined,
+        ...expected,
+      })
+    else expect(onSubmit.mock.calls[0][0].location).toBeUndefined()
+    for (const [label, value] of Object.entries(changes)) expect(screen.getByLabelText(label)).toHaveValue(value)
+    expect(screen.getByText('Resolution failed')).toBeInTheDocument()
+  })
+
+  it.each([
+    { latitude: '51', longitude: '', source: '', message: 'Enter both latitude and longitude.' },
+    { latitude: '91', longitude: '-2', source: '', message: 'Latitude must be between -90 and 90.' },
+    { latitude: '', longitude: '', source: 'Metadata', message: 'Enter a place name, address, or both coordinates.' },
+  ])('rejects invalid location input: $message', ({ latitude, longitude, source, message }) => {
+    const { onSubmit } = renderEditor()
+    for (const [label, value] of Object.entries({
+      Title: 'Title',
+      Description: 'Description',
+      Category: 'Walk',
+      Latitude: latitude,
+      Longitude: longitude,
+      Source: source,
+    })) {
+      fireEvent.change(screen.getByLabelText(label), { target: { value } })
+    }
+    fireEvent.click(screen.getByRole('button', { name: 'Save waypoint' }))
+    expect(screen.getByText(message)).toBeInTheDocument()
+    expect(onSubmit).not.toHaveBeenCalled()
+  })
+
+  it('preserves an unchanged coordinate-only location', () => {
+    const initialWaypoint = {
+      waypointId: 'coordinates',
+      title: 'Existing',
+      description: 'Description',
+      category: 'Walk',
+      tags: [],
+      challengeIds: [],
+      completion: { mode: 'once' as const },
+      referenceIds: [],
+      photoReferenceIds: [],
+      location: { latitude: 51, longitude: -2 },
+    }
+    const { onSubmit } = renderEditor({ initialWaypoint })
+    fireEvent.click(screen.getByRole('button', { name: 'Save waypoint' }))
+    expect(onSubmit.mock.calls[0][0].location).toEqual({ latitude: 51, longitude: -2 })
+  })
+
+  it('submits a JSON-loaded searchable add location through the same validation path', async () => {
+    const user = userEvent.setup()
+    const { onSubmit } = renderEditor()
+    await user.click(screen.getByRole('tab', { name: 'Paste JSON' }))
+    fireEvent.change(screen.getByLabelText('Waypoint JSON'), {
+      target: {
+        value: JSON.stringify({
+          ...waypointImportExample,
+          location: { placeName: 'New place' },
+        }),
+      },
+    })
+    await user.click(screen.getByRole('button', { name: 'Load into form' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Save waypoint' }))
+    expect(onSubmit.mock.calls[0][0].location).toEqual({ placeName: 'New place' })
+  })
+
+  it.each(['{invalid', JSON.stringify(waypointImportExample)])(
+    'preserves unapplied JSON on cancellation and discards it on a direct switch: %s',
+    async (text) => {
+      localStorage.clear()
+      const user = userEvent.setup()
+      const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false)
+      render(
+        <MemoryRouter>
+          <WaypointsProvider>
+            <SwitchMode />
+            <WaypointEditor data={createDefaultData()} submitLabel="Save" onSubmit={vi.fn()} onCancel={vi.fn()} />
+          </WaypointsProvider>
+        </MemoryRouter>,
+      )
+      await user.click(screen.getByRole('tab', { name: 'Paste JSON' }))
+      fireEvent.change(screen.getByLabelText('Waypoint JSON'), { target: { value: text } })
+      await user.click(screen.getByText('Switch mode'))
+      expect(confirm).toHaveBeenCalledTimes(1)
+      expect(screen.getByLabelText('Waypoint JSON')).toHaveValue(text)
+      confirm.mockReturnValue(true)
+      await user.click(screen.getByText('Switch mode'))
+      expect(screen.getByLabelText('Title')).toHaveValue('')
+      await user.click(screen.getByRole('tab', { name: 'Paste JSON' }))
+      expect(screen.getByLabelText('Waypoint JSON')).toHaveValue('')
+    },
+  )
+
+  it('ignores whitespace JSON but clearing JSON retains applied form/reference/photo dirtiness', async () => {
+    const user = userEvent.setup()
+    renderEditor()
+    await user.click(screen.getByRole('tab', { name: 'Paste JSON' }))
+    fireEvent.change(screen.getByLabelText('Waypoint JSON'), { target: { value: ' \n ' } })
+    const unchanged = new Event('beforeunload', { cancelable: true })
+    window.dispatchEvent(unchanged)
+    expect(unchanged.defaultPrevented).toBe(false)
+    fireEvent.change(screen.getByLabelText('Waypoint JSON'), {
+      target: { value: JSON.stringify(waypointImportExample) },
+    })
+    await user.click(screen.getByRole('button', { name: 'Load into form' }))
+    await user.click(screen.getByRole('tab', { name: 'Paste JSON' }))
+    fireEvent.change(screen.getByLabelText('Waypoint JSON'), { target: { value: '' } })
+    const changed = new Event('beforeunload', { cancelable: true })
+    window.dispatchEvent(changed)
+    expect(changed.defaultPrevented).toBe(true)
+  })
+
+  it('tracks applied form edits separately from unapplied JSON', async () => {
+    const user = userEvent.setup()
+    renderEditor()
+    const text = JSON.stringify({
+      title: 'Imported',
+      description: 'Imported description',
+      category: 'Walk',
+      tags: [],
+      completion: { mode: 'once' },
+      references: [],
+      photoReferences: [],
+    })
+    const isDirty = () => {
+      const event = new Event('beforeunload', { cancelable: true })
+      window.dispatchEvent(event)
+      return event.defaultPrevented
+    }
+    await user.click(screen.getByRole('tab', { name: 'Paste JSON' }))
+    fireEvent.change(screen.getByLabelText('Waypoint JSON'), { target: { value: text } })
+    await user.click(screen.getByRole('button', { name: 'Load into form' }))
+    expect(isDirty()).toBe(true)
+    for (const label of ['Title', 'Description', 'Category'])
+      fireEvent.change(screen.getByLabelText(label), { target: { value: '' } })
+    expect(isDirty()).toBe(false)
+    await user.click(screen.getByRole('tab', { name: 'Paste JSON' }))
+    expect(screen.getByLabelText('Waypoint JSON')).toHaveValue(text)
+    fireEvent.change(screen.getByLabelText('Waypoint JSON'), { target: { value: '{invalid' } })
+    await user.click(screen.getByRole('button', { name: 'Load into form' }))
+    expect(isDirty()).toBe(true)
+    fireEvent.change(screen.getByLabelText('Waypoint JSON'), { target: { value: text } })
+    expect(isDirty()).toBe(false)
+  })
+
   it('validates required fields, completion, coordinates, references and photos', async () => {
     const user = userEvent.setup()
     const { onSubmit } = renderEditor()
@@ -33,15 +256,14 @@ describe('WaypointEditor', () => {
     expect(screen.getByText('Waypoint description is required.')).toBeInTheDocument()
     expect(screen.getByText('Waypoint category is required.')).toBeInTheDocument()
 
-    await user.type(screen.getByLabelText('Title'), 'A viewpoint')
-    await user.type(screen.getByLabelText('Description'), 'A quiet viewpoint')
-    await user.type(screen.getByLabelText('Category'), 'Scenic')
+    fireEvent.change(screen.getByLabelText('Title'), { target: { value: 'A viewpoint' } })
+    fireEvent.change(screen.getByLabelText('Description'), { target: { value: 'A quiet viewpoint' } })
+    fireEvent.change(screen.getByLabelText('Category'), { target: { value: 'Scenic' } })
     await user.click(screen.getByRole('combobox', { name: 'Completion mode' }))
     await user.click(screen.getByRole('option', { name: 'Count' }))
-    await user.clear(screen.getByLabelText('Completion target'))
-    await user.type(screen.getByLabelText('Completion target'), '0')
-    await user.type(screen.getByLabelText('Latitude'), '91')
-    await user.type(screen.getByLabelText('Longitude'), '-1')
+    fireEvent.change(screen.getByLabelText('Completion target'), { target: { value: '0' } })
+    fireEvent.change(screen.getByLabelText('Latitude'), { target: { value: '91' } })
+    fireEvent.change(screen.getByLabelText('Longitude'), { target: { value: '-1' } })
     await user.click(screen.getByRole('button', { name: 'Add reference' }))
     await user.click(screen.getByRole('button', { name: 'Add photo reference' }))
     await user.click(screen.getByRole('button', { name: 'Save waypoint' }))
@@ -59,17 +281,16 @@ describe('WaypointEditor', () => {
     const user = userEvent.setup()
     const { onSubmit } = renderEditor()
 
-    await user.type(screen.getByLabelText('Title'), ' A viewpoint ')
-    await user.type(screen.getByLabelText('Description'), ' A quiet viewpoint ')
-    await user.type(screen.getByLabelText('Category'), ' Scenic ')
-    await user.type(screen.getByLabelText('Tags (comma-separated)'), ' sunrise,  walk ,, ')
+    fireEvent.change(screen.getByLabelText('Title'), { target: { value: ' A viewpoint ' } })
+    fireEvent.change(screen.getByLabelText('Description'), { target: { value: ' A quiet viewpoint ' } })
+    fireEvent.change(screen.getByLabelText('Category'), { target: { value: ' Scenic ' } })
+    fireEvent.change(screen.getByLabelText('Tags (comma-separated)'), { target: { value: ' sunrise,  walk ,, ' } })
     await user.click(screen.getByRole('combobox', { name: 'Completion mode' }))
     await user.click(screen.getByRole('option', { name: 'Count' }))
-    await user.clear(screen.getByLabelText('Completion target'))
-    await user.type(screen.getByLabelText('Completion target'), '2')
-    await user.type(screen.getByLabelText('Place name'), ' Brockworth ')
-    await user.type(screen.getByLabelText('Latitude'), '51.75')
-    await user.type(screen.getByLabelText('Longitude'), '-1.26')
+    fireEvent.change(screen.getByLabelText('Completion target'), { target: { value: '2' } })
+    fireEvent.change(screen.getByLabelText('Place name'), { target: { value: ' Brockworth ' } })
+    fireEvent.change(screen.getByLabelText('Latitude'), { target: { value: '51.75' } })
+    fireEvent.change(screen.getByLabelText('Longitude'), { target: { value: '-1.26' } })
     await user.click(screen.getByLabelText('Approximate location'))
     await user.click(screen.getByRole('button', { name: 'Save waypoint' }))
 

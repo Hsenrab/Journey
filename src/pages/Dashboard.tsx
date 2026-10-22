@@ -28,7 +28,7 @@ import {
   statusForWaypoint,
   statusLabels,
 } from '../domain/visit'
-import { useWaypoints } from '../features/journey/JourneyContext'
+import { useJourneyDraft, useWaypoints } from '../features/journey/JourneyContext'
 import { JourneyConflictError } from '../services/journeyApi'
 
 export default function Dashboard() {
@@ -38,6 +38,7 @@ export default function Dashboard() {
   const [description, setDescription] = useState('')
   const [errors, setErrors] = useState<{ title?: string; description?: string }>({})
   const [supportsActivityCategories, setSupportsActivityCategories] = useState(false)
+  useJourneyDraft(showEditor && Boolean(title || description || supportsActivityCategories))
   const [message, setMessage] = useState<{ text: string; severity: 'success' | 'error'; conflict: boolean } | null>(
     null,
   )

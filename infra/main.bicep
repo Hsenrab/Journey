@@ -348,20 +348,36 @@ resource functionApp 'Microsoft.Web/sites@2023-12-01' = if (enableApi) {
   }
 }
 
-resource functionAppSettings 'Microsoft.Web/sites/config@2023-12-01' = if (enableApi) {
-  parent: functionApp
-  name: 'appsettings'
-  properties: {
-    FUNCTIONS_EXTENSION_VERSION: '~4'
-    FUNCTIONS_WORKER_RUNTIME: 'node'
-    AzureWebJobsStorage__accountName: storageAccount.name
-    AzureWebJobsStorage__credential: 'managedidentity'
-    AZURE_MAPS_CLIENT_ID: mapsAccount!.properties.uniqueId
-    APPLICATIONINSIGHTS_CONNECTION_STRING: appInsights!.properties.ConnectionString
-    COSMOS_ENDPOINT: cosmosAccount!.properties.documentEndpoint
-    COSMOS_DATABASE_NAME: cosmosDatabaseName
-    COSMOS_PRODUCTION_DATASET_ID: 'production'
-    COSMOS_DEMO_DATASET_ID: 'demo'
+// Package publication owns these settings; replacing appsettings must not unmount its code.
+var functionPackageSettingNames = [
+  'WEBSITE_RUN_FROM_PACKAGE'
+  'WEBSITE_RUN_FROM_PACKAGE_BLOB_MI_RESOURCE_ID'
+]
+var functionPackageSettings = enableApi ? toObject(
+  filter(
+    items(list('${functionApp.id}/config/appsettings', '2023-12-01').properties),
+    setting => contains(functionPackageSettingNames, setting.key)
+  ),
+  setting => setting.key,
+  setting => setting.value
+) : {}
+
+module functionAppSettings './function-app-settings.bicep' = if (enableApi) {
+  name: 'function-app-settings'
+  params: {
+    functionAppName: functionApp.name
+    appSettings: union(functionPackageSettings, {
+      FUNCTIONS_EXTENSION_VERSION: '~4'
+      FUNCTIONS_WORKER_RUNTIME: 'node'
+      AzureWebJobsStorage__accountName: storageAccount.name
+      AzureWebJobsStorage__credential: 'managedidentity'
+      AZURE_MAPS_CLIENT_ID: mapsAccount!.properties.uniqueId
+      APPLICATIONINSIGHTS_CONNECTION_STRING: appInsights!.properties.ConnectionString
+      COSMOS_ENDPOINT: cosmosAccount!.properties.documentEndpoint
+      COSMOS_DATABASE_NAME: cosmosDatabaseName
+      COSMOS_PRODUCTION_DATASET_ID: 'production'
+      COSMOS_DEMO_DATASET_ID: 'demo'
+    })
   }
 }
 

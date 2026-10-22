@@ -16,6 +16,8 @@ vi.mock('../features/journey/JourneyContext', () => ({
     activeDataMode: 'production',
     loadState: { status: 'loaded' },
     readOnly: false,
+    mutationPending: false,
+    runMutation: <T,>(operation: () => Promise<T>) => operation(),
     restore,
   }),
 }))

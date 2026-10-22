@@ -29,9 +29,11 @@ and easy to change, not for enterprise resilience, extensibility, or compatibili
 - Catch an error only at a boundary that can fully handle an expected condition, such
   as reporting invalid user input next to the action that caused it. Do not turn an
   unexpected failure into an apparently successful or empty state.
-- Do not add fallbacks, degraded modes, retries, polyfills, or workarounds. If the
-  requested behavior is not supported by the chosen stack or project constraints,
-  state that limitation clearly in the relevant documentation or error message.
+- Do not add fallbacks, degraded modes, retries, polyfills, or workarounds. The
+  existing Demo Cosmos load fallback to visibly labelled, read-only Demo local
+  data is an explicit exception; preserve its warning and never apply it to
+  Production data. If requested behavior is not supported by the chosen stack or
+  project constraints, state that limitation clearly in documentation or an error.
 - Do not preserve backward compatibility unless the task explicitly requires it.
   Replace obsolete schemas, APIs, and behavior directly; remove their old paths and
   update affected tests and documentation in the same change.
@@ -135,15 +137,22 @@ Tests live alongside the file they cover (`*.test.ts`/`*.test.tsx`).
 - Do not add Next.js, Redux, arbitrary map UI, or photo upload storage. Azure Cosmos DB for NoSQL is approved only for Journey persistence through the protected boundary below; no other database is approved. Azure Maps is approved only for the waypoint and activity map through the protected boundary below. Microsoft
   Entra authentication through Azure Static Web Apps and a minimal linked Azure
   Functions API are permitted for explicitly approved features. Browser access to
-  `/api/*` must be restricted to the explicitly assigned work identity; Function
-  access to Azure services must use managed identity and least-privilege,
+  application and `/api/*` routes must require Microsoft Entra ID authentication
+  and membership in an invited Journey role. Hosting accepts either role;
+  protected backend operations additionally require an authenticated `aad`
+  principal with a nonempty user ID and exactly one of `admin` or `viewer`:
+  `admin` can read and modify Production and Demo Cosmos datasets; `viewer` can
+  read both but cannot modify either. The Functions API must validate the
+  principal and enforce admin-only writes; the UI must be read-only for viewers.
+  Function access to Azure services must use managed identity and least-privilege,
   resource-scoped RBAC. Do not expose shared keys, Function keys, database
   credentials, or long-lived service tokens to browser code.
 - Every newly approved Azure service integration requires its own purpose-specific
   endpoint(s), infrastructure-as-code in `infra/main.bicep`, focused tests, and
-  `docs/operations.md` updates. This exception does not approve Cosmos DB,
-  multi-user roles, personal-account access, generic backend/data-access
-  infrastructure, or arbitrary map UI; each requires its own issue and convention update.
+  `docs/operations.md` updates. The approved Cosmos persistence boundary and
+  `admin`/`viewer` roles do not approve other database uses, additional roles,
+  personal-account access, generic backend/data-access infrastructure, or arbitrary
+  map UI; each requires its own issue and convention update.
 - The Azure Maps account must keep `disableLocalAuth: true` to satisfy policy. Shared
   keys and SAS tokens are local authentication and are prohibited. Browser rendering
   must use a Microsoft Entra access token acquired by the linked Function App's
@@ -163,10 +172,24 @@ Tests live alongside the file they cover (`*.test.ts`/`*.test.tsx`).
   document per entity with `id`, `datasetId`, `type`, and `schemaVersion`, partitioned
   by `/datasetId`.
 - The `production`, `test`, and `demo` containers are separate. Production starts
-  empty and is the only mutable real-data container. Test runs use a unique
-  `datasetId`, clean it unconditionally, verify it is empty, and never access
-  production. Demo records are deterministic and read-only. Production exports
-  exclude test and demo records; import is allowed only into empty production.
+  empty and is the only persistent real-data container. Isolated Cosmos integration
+  tests use a unique `datasetId` in `test`, clean it unconditionally, verify it is
+  empty, and never access production.
+- The header exposes three data modes. Demo local uses the bundled fixture and is
+  always read-only. Demo Cosmos uses the `demo` container, allows admin writes, and
+  is reseeded from `src/data/demo.json` when infrastructure is redeployed. Production
+  data uses the persistent `production` container and allows admin writes. Viewers
+  cannot modify either Cosmos dataset. Test deployments start in Demo Cosmos and
+  override a saved Production selection on startup; production deployments start
+  in Production data by default.
+- Demo Cosmos load failures show read-only Demo local data with an explicit warning.
+  Production load failures show an error and block writes; they never substitute
+  demo or stale data. Pages that hide write actions must render `ReadOnlyNotice`
+  with the reason and a link to Settings.
+- Export uses the active loaded dataset; Production exports exclude test and demo
+  records. Import requires an empty writable active dataset, either Production or
+  Demo Cosmos, and complete validation before writing. Clear affects only the active
+  writable dataset.
 - Ideas are planning records and never become Activities. Ideas link to Waypoints
   through `Idea.waypointIds`; Activities link to at most one Waypoint through
   `Activity.waypointId` and to Ideas through `Activity.ideaIds`. Waypoints store no
@@ -175,8 +198,10 @@ Tests live alongside the file they cover (`*.test.ts`/`*.test.tsx`).
 - The API validates the complete entity and every referenced ID before writing, and
   performs each multi-document change (Waypoint, Idea, and Activity deletion with
   detachment and orphan pruning) in one ETag-checked Cosmos transactional batch.
-- Do not commit secrets or personal data. Visit data lives only in the browser's
-  local storage.
+- Do not commit secrets or personal data. Real Journey records live in Cosmos, not
+  browser storage. Local storage retains the selected data mode; the legacy
+  record load/save path is used only in test mode. Do not migrate or delete legacy
+  browser records unless explicitly requested.
 - Tests should assert explicit success or explicit failure. Do not encode silent
   recovery or compatibility behavior unless a requirement specifically calls for it.
 - Follow the complete validation requirements in "Agent execution" before committing

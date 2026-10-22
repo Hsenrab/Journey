@@ -1,11 +1,18 @@
 import type { ComponentProps } from 'react'
 import { MemoryRouter } from 'react-router-dom'
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { IdeaEditor } from './IdeaEditor'
 import { createDefaultData } from '../services/storage'
 import type { IdeaDraft } from '../features/journey/JourneyContext'
+import { WaypointsProvider, useWaypoints } from '../features/journey/JourneyContext'
+import { ideaImportExample } from '../domain/draftJsonImport'
+
+function SwitchMode() {
+  const { setDataMode } = useWaypoints()
+  return <button onClick={() => void setDataMode('demo-local')}>Switch mode</button>
+}
 
 function renderEditor(overrides: Partial<ComponentProps<typeof IdeaEditor>> = {}) {
   const onSubmit = vi.fn<(draft: IdeaDraft) => void>()
@@ -32,6 +39,81 @@ function renderEditor(overrides: Partial<ComponentProps<typeof IdeaEditor>> = {}
 describe('IdeaEditor', () => {
   beforeEach(() => {
     vi.restoreAllMocks()
+  })
+
+  it.each(['{invalid', JSON.stringify(ideaImportExample)])(
+    'preserves unapplied JSON on cancellation and discards it on a direct switch: %s',
+    async (text) => {
+      localStorage.clear()
+      const user = userEvent.setup()
+      const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false)
+      render(
+        <MemoryRouter>
+          <WaypointsProvider>
+            <SwitchMode />
+            <IdeaEditor data={createDefaultData()} submitLabel="Save" onSubmit={vi.fn()} onCancel={vi.fn()} />
+          </WaypointsProvider>
+        </MemoryRouter>,
+      )
+      await user.click(screen.getByRole('tab', { name: 'Paste JSON' }))
+      fireEvent.change(screen.getByLabelText('Idea JSON'), { target: { value: text } })
+      await user.click(screen.getByText('Switch mode'))
+      expect(confirm).toHaveBeenCalledTimes(1)
+      expect(screen.getByLabelText('Idea JSON')).toHaveValue(text)
+      confirm.mockReturnValue(true)
+      await user.click(screen.getByText('Switch mode'))
+      expect(screen.getByLabelText('Title')).toHaveValue('')
+      await user.click(screen.getByRole('tab', { name: 'Paste JSON' }))
+      expect(screen.getByLabelText('Idea JSON')).toHaveValue('')
+    },
+  )
+
+  it('ignores whitespace JSON but clearing JSON retains applied form/reference dirtiness', async () => {
+    const user = userEvent.setup()
+    renderEditor()
+    await user.click(screen.getByRole('tab', { name: 'Paste JSON' }))
+    fireEvent.change(screen.getByLabelText('Idea JSON'), { target: { value: ' \n ' } })
+    const unchanged = new Event('beforeunload', { cancelable: true })
+    window.dispatchEvent(unchanged)
+    expect(unchanged.defaultPrevented).toBe(false)
+    fireEvent.change(screen.getByLabelText('Idea JSON'), { target: { value: JSON.stringify(ideaImportExample) } })
+    await user.click(screen.getByRole('button', { name: 'Load into form' }))
+    await user.click(screen.getByRole('tab', { name: 'Paste JSON' }))
+    fireEvent.change(screen.getByLabelText('Idea JSON'), { target: { value: '' } })
+    const changed = new Event('beforeunload', { cancelable: true })
+    window.dispatchEvent(changed)
+    expect(changed.defaultPrevented).toBe(true)
+  })
+
+  it('tracks applied form edits separately from unapplied JSON', async () => {
+    const user = userEvent.setup()
+    renderEditor()
+    const text = JSON.stringify({
+      title: 'Imported',
+      description: '',
+      notes: '',
+      planningState: 'active',
+      difficulty: 1,
+      references: [],
+    })
+    const isDirty = () => {
+      const event = new Event('beforeunload', { cancelable: true })
+      window.dispatchEvent(event)
+      return event.defaultPrevented
+    }
+    await user.click(screen.getByRole('tab', { name: 'Paste JSON' }))
+    fireEvent.change(screen.getByLabelText('Idea JSON'), { target: { value: text } })
+    await user.click(screen.getByRole('button', { name: 'Load into form' }))
+    expect(isDirty()).toBe(true)
+    fireEvent.change(screen.getByLabelText('Title'), { target: { value: '' } })
+    expect(isDirty()).toBe(false)
+    await user.click(screen.getByRole('tab', { name: 'Paste JSON' }))
+    expect(screen.getByLabelText('Idea JSON')).toHaveValue(text)
+    fireEvent.change(screen.getByLabelText('Idea JSON'), { target: { value: '{invalid' } })
+    await user.click(screen.getByRole('button', { name: 'Load into form' }))
+    expect(isDirty()).toBe(true)
+    fireEvent.change(screen.getByLabelText('Idea JSON'), { target: { value: text } })
+    expect(isDirty()).toBe(false)
   })
 
   it('submits a minimal valid idea', async () => {

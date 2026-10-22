@@ -19,7 +19,7 @@ import {
   replaceEntities,
   savedDocument,
 } from '../lib/cosmos.js'
-import { JourneyMutationSchema, type EntityType } from '../lib/journeySchema.js'
+import { JourneyDataSchema, JourneyMutationSchema, type EntityType } from '../lib/journeySchema.js'
 import { GeocodeError, resolveEntityCoordinates } from '../lib/geocode.js'
 import { DefaultAzureCredential } from '@azure/identity'
 import { applyPlan, deletionPlan, referenceIntegrityError, updatePlan, upsertEntity } from '../lib/journeyGraph.js'
@@ -104,7 +104,30 @@ export async function journey(request: HttpRequest, context: InvocationContext):
     if (parsed.data.operation === 'replace') {
       const invalid = referenceIntegrityError(parsed.data.data)
       if (invalid) return { status: 400, jsonBody: { error: invalid } }
-      await replaceDataset(cosmos, datasetId, documentsFor(datasetId, parsed.data.data), parsed.data.etags)
+
+      const resolvedWaypoints: unknown[] = []
+      for (const waypoint of parsed.data.data.waypoints) {
+        const location = waypoint.location
+        if (
+          location === undefined ||
+          ('latitude' in location &&
+            'longitude' in location &&
+            typeof location.latitude === 'number' &&
+            typeof location.longitude === 'number')
+        ) {
+          resolvedWaypoints.push(waypoint)
+        } else {
+          resolvedWaypoints.push(await geocodedEntity('waypoint', waypoint))
+        }
+      }
+
+      const finalData = JourneyDataSchema.safeParse({ ...parsed.data.data, waypoints: resolvedWaypoints })
+      if (!finalData.success)
+        return { status: 400, jsonBody: { error: finalData.error.issues[0]?.message ?? 'Invalid request.' } }
+      const finalGraphError = referenceIntegrityError(finalData.data)
+      if (finalGraphError) return { status: 400, jsonBody: { error: finalGraphError } }
+
+      await replaceDataset(cosmos, datasetId, documentsFor(datasetId, finalData.data), parsed.data.etags)
       return { status: 200, jsonBody: await loadDataset(cosmos, datasetId) }
     }
     if (parsed.data.operation === 'create' || parsed.data.operation === 'update') {

@@ -288,6 +288,8 @@ describe('ActivityDetails', () => {
     ).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Edit activity' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Delete activity' })).not.toBeInTheDocument()
+    expect(screen.getByText(/Your Journey access is viewer only/)).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Change the data mode in Settings' })).toHaveAttribute('href', '/settings')
   })
 
   it('deletes an activity after confirmation', async () => {
@@ -463,8 +465,7 @@ describe('ActivityDetails', () => {
     expect(screen.getByRole('button', { name: 'Show photo 1: View one, failed to load' })).toHaveTextContent('Failed')
 
     await user.click(screen.getByRole('button', { name: 'Edit activity' }))
-    await user.clear(screen.getByLabelText('Description / notes'))
-    await user.type(screen.getByLabelText('Description / notes'), 'Updated notes')
+    fireEvent.change(screen.getByLabelText('Description / notes'), { target: { value: 'Updated notes' } })
     await user.click(screen.getByRole('button', { name: 'Save changes' }))
 
     expect(load().activities[0]?.notes).toBe('Updated notes')

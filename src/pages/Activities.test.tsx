@@ -140,5 +140,7 @@ describe('Activities', () => {
 
     expect(await screen.findByText('No activities logged yet.')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Add activity' })).not.toBeInTheDocument()
+    expect(screen.getByText(/Your Journey access is viewer only/)).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Change the data mode in Settings' })).toHaveAttribute('href', '/settings')
   })
 })

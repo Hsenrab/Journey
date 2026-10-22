@@ -1,4 +1,4 @@
-import { render, screen, waitFor, within } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -88,7 +88,65 @@ describe('Locations', () => {
     localStorage.clear()
     save(testData())
   })
-  afterEach(() => vi.unstubAllGlobals())
+  afterEach(() => {
+    vi.unstubAllGlobals()
+    vi.unstubAllEnvs()
+  })
+
+  it('creates a remote text-only waypoint through replacement and adopts resolved coordinates', async () => {
+    vi.stubEnv('MODE', 'production')
+    const data = {
+      ...createDefaultData(),
+      waypoints: [],
+      challenges: [],
+      activities: [],
+      ideas: [],
+      references: [],
+      photoReferences: [],
+    }
+    const fetch = vi.fn().mockImplementation((_url: string, init?: RequestInit) => {
+      if (!init?.body) return new Response(JSON.stringify({ data, etags: {}, role: 'admin' }))
+      const body = JSON.parse(String(init.body))
+      expect(body.operation).toBe('replace')
+      expect(body.data.waypoints[0].location).toEqual({ placeName: 'New place' })
+      body.data.waypoints[0].location = { placeName: 'New place', latitude: 51, longitude: -2 }
+      return new Response(JSON.stringify({ data: body.data, etags: { [body.data.waypoints[0].waypointId]: 'saved' } }))
+    })
+    vi.stubGlobal('fetch', fetch)
+    renderLocations(['/waypoints?mode=add'])
+    await screen.findByLabelText('Title')
+    for (const [label, value] of Object.entries({
+      Title: 'Remote place',
+      Description: 'Description',
+      Category: 'Walk',
+      'Place name': 'New place',
+    })) {
+      fireEvent.change(screen.getByRole('textbox', { name: label }), { target: { value } })
+    }
+    fireEvent.click(screen.getByRole('button', { name: 'Save waypoint' }))
+    expect(await screen.findByText('Waypoint saved.')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Remote place' })).toBeInTheDocument()
+    expect(fetch).toHaveBeenCalledTimes(2)
+  })
+
+  it('keeps remote viewer waypoints browsable without add controls', async () => {
+    vi.stubEnv('MODE', 'production')
+    const fetch = vi
+      .fn()
+      .mockImplementation(
+        () => new Response(JSON.stringify({ data: testData(), etags: {}, role: 'viewer' }), { status: 200 }),
+      )
+    vi.stubGlobal('fetch', fetch)
+    renderLocations()
+
+    expect(
+      await screen.findByText(/Your Journey access is viewer only, so you can read this data but not change it\./),
+    ).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Stourhead' })).toHaveAttribute('href', '/waypoints/stourhead')
+    expect(screen.queryByRole('button', { name: /add waypoint/i })).not.toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Change the data mode in Settings' })).toHaveAttribute('href', '/settings')
+    expect(fetch).toHaveBeenCalledTimes(1)
+  })
 
   it('lists every waypoint by default', () => {
     renderLocations()

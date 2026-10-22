@@ -1,9 +1,9 @@
-import { render, screen, waitFor, within } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import Dashboard from './Dashboard'
-import { WaypointsProvider } from '../features/journey/JourneyContext'
+import { WaypointsProvider, useWaypoints } from '../features/journey/JourneyContext'
 import { createDemoModeData, save, setDataMode } from '../services/storage'
 import type { Activity } from '../domain/visit'
 
@@ -38,10 +38,16 @@ function activity(waypointId: string, category: 'bronze' | 'silver' | 'gold'): A
   }
 }
 
-function renderDashboard() {
+function SwitchMode() {
+  const { setDataMode } = useWaypoints()
+  return <button onClick={() => void setDataMode('demo-cosmos')}>Switch mode</button>
+}
+
+function renderDashboard(controls = false) {
   return render(
     <MemoryRouter>
       <WaypointsProvider>
+        {controls && <SwitchMode />}
         <Dashboard />
       </WaypointsProvider>
     </MemoryRouter>,
@@ -54,8 +60,33 @@ describe('Dashboard', () => {
     save(testData())
   })
   afterEach(() => {
+    vi.restoreAllMocks()
     vi.unstubAllEnvs()
     vi.unstubAllGlobals()
+  })
+
+  it('confirms direct switching for a changed Challenge draft and resets it after discard', async () => {
+    const user = userEvent.setup()
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false)
+    vi.stubGlobal(
+      'fetch',
+      vi
+        .fn()
+        .mockImplementation(() =>
+          Promise.resolve(new Response(JSON.stringify({ data: testData(), etags: {}, role: 'admin' }))),
+        ),
+    )
+    renderDashboard(true)
+    await user.click(screen.getByRole('button', { name: 'Add challenge' }))
+    fireEvent.change(screen.getByLabelText('Title'), { target: { value: 'My draft' } })
+    await user.click(screen.getByText('Switch mode'))
+    expect(confirm).toHaveBeenCalledOnce()
+    expect(screen.getByLabelText('Title')).toHaveValue('My draft')
+    confirm.mockReturnValue(true)
+    await user.click(screen.getByText('Switch mode'))
+    await user.click(await screen.findByRole('button', { name: 'Add challenge' }))
+    expect(screen.getByLabelText('Title')).toHaveValue('')
+    expect(confirm).toHaveBeenCalledTimes(2)
   })
 
   it('shows a generic empty state when there are no challenges', () => {
@@ -129,6 +160,7 @@ describe('Dashboard', () => {
 
     await waitFor(() => expect(screen.getByText(/Your Journey access is viewer only/)).toBeInTheDocument())
     expect(screen.queryByRole('button', { name: 'Add challenge' })).not.toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Change the data mode in Settings' })).toHaveAttribute('href', '/settings')
   })
 
   it('counts waypoints linked from either side of a challenge', () => {

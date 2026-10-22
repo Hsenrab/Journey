@@ -21,6 +21,13 @@ const place = z
   })
   .strict()
 const resolvedPlace = place.required({ latitude: true, longitude: true })
+const unresolvedPlace = place.omit({ latitude: true, longitude: true }).superRefine((location, context) => {
+  if (![location.placeName, location.addressOrRegion].some((value) => value?.trim()))
+    context.addIssue({
+      code: 'custom',
+      message: 'An unresolved waypoint location needs a place name or address.',
+    })
+})
 const activityLocation = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('postcode'), postcode: identifier, latitude, longitude }).strict(),
   z.object({ kind: z.literal('coordinates'), latitude, longitude }).strict(),
@@ -137,6 +144,10 @@ const schemas = {
     .strict(),
 } as const
 
+const replacementWaypoint = schemas.waypoint
+  .omit({ location: true })
+  .extend({ location: z.union([resolvedPlace, unresolvedPlace]).optional() })
+
 export const schemaVersions = {
   waypoint: 2,
   challenge: 2,
@@ -183,35 +194,45 @@ export const JourneyDocumentSchema = z
   })
 export type JourneyDocument = z.infer<typeof JourneyDocumentSchema>
 
-export const JourneyDataSchema = z
-  .object({
-    waypoints: z.array(schemas.waypoint),
-    challenges: z.array(schemas.challenge),
-    ideas: z.array(schemas.idea),
-    activities: z.array(schemas.activity),
-    references: z.array(schemas.reference),
-    photoReferences: z.array(schemas.photoReference),
-  })
-  .strict()
-  .superRefine((data, context) => {
-    const ids = [
-      ...data.waypoints.map((entity) => entity.waypointId),
-      ...data.challenges.map((entity) => entity.challengeId),
-      ...data.ideas.map((entity) => entity.ideaId),
-      ...data.activities.map((entity) => entity.activityId),
-      ...data.references.map((entity) => entity.referenceId),
-      ...data.photoReferences.map((entity) => entity.photoReferenceId),
-    ]
-    const seen = new Set<string>()
-    for (const id of ids) {
-      if (seen.has(id))
-        context.addIssue({
-          code: 'custom',
-          message: `Duplicate entity ID "${id}". IDs must be unique across all entity types in a dataset.`,
-        })
-      seen.add(id)
-    }
-  })
+const journeyDataShape = {
+  waypoints: z.array(schemas.waypoint),
+  challenges: z.array(schemas.challenge),
+  ideas: z.array(schemas.idea),
+  activities: z.array(schemas.activity),
+  references: z.array(schemas.reference),
+  photoReferences: z.array(schemas.photoReference),
+}
+
+type JourneyDataIds = {
+  waypoints: { waypointId: string }[]
+  challenges: { challengeId: string }[]
+  ideas: { ideaId: string }[]
+  activities: { activityId: string }[]
+  references: { referenceId: string }[]
+  photoReferences: { photoReferenceId: string }[]
+}
+
+const withUniqueEntityIds = <T extends JourneyDataIds>(data: T, context: z.RefinementCtx) => {
+  const ids = [
+    ...data.waypoints.map((entity) => entity.waypointId),
+    ...data.challenges.map((entity) => entity.challengeId),
+    ...data.ideas.map((entity) => entity.ideaId),
+    ...data.activities.map((entity) => entity.activityId),
+    ...data.references.map((entity) => entity.referenceId),
+    ...data.photoReferences.map((entity) => entity.photoReferenceId),
+  ]
+  const seen = new Set<string>()
+  for (const id of ids) {
+    if (seen.has(id))
+      context.addIssue({
+        code: 'custom',
+        message: `Duplicate entity ID "${id}". IDs must be unique across all entity types in a dataset.`,
+      })
+    seen.add(id)
+  }
+}
+
+export const JourneyDataSchema = z.object(journeyDataShape).strict().superRefine(withUniqueEntityIds)
 export type JourneyData = z.infer<typeof JourneyDataSchema>
 
 // z.record drops "__proto__", but every entity ID must retain its ETag.
@@ -223,6 +244,15 @@ const etagsSchema = z.custom<Record<string, string>>(
     Object.entries(value).every(([id, etag]) => identifier.safeParse(id).success && identifier.safeParse(etag).success),
   'ETags must map nonempty entity IDs to nonempty strings.',
 )
+
+export const ReplacementJourneyDataSchema = z
+  .object({
+    ...journeyDataShape,
+    waypoints: z.array(replacementWaypoint),
+  })
+  .strict()
+  .superRefine(withUniqueEntityIds)
+export type ReplacementJourneyData = z.infer<typeof ReplacementJourneyDataSchema>
 
 export const JourneyMutationSchema = z.discriminatedUnion('operation', [
   z.object({ operation: z.literal('create'), type: EntityTypeSchema, entity: z.record(z.string(), z.unknown()) }),
@@ -236,5 +266,9 @@ export const JourneyMutationSchema = z.discriminatedUnion('operation', [
   z.object({ operation: z.literal('delete'), type: EntityTypeSchema, id: identifier, ifMatch: identifier }),
   z.object({ operation: z.literal('clear') }),
   z.object({ operation: z.literal('import'), data: JourneyDataSchema }),
-  z.object({ operation: z.literal('replace'), data: JourneyDataSchema, etags: etagsSchema }),
+  z.object({
+    operation: z.literal('replace'),
+    data: ReplacementJourneyDataSchema,
+    etags: etagsSchema,
+  }),
 ])

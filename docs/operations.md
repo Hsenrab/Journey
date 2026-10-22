@@ -50,7 +50,7 @@ the user-controlled backup.
 
 ### Journey data modes
 
-The app exposes three explicit modes in the header:
+Settings exposes three explicit modes; the header identifies the active data/access status:
 
 - The deployment supplies the initial mode: test starts in Demo Cosmos, while production
   retains Production data. Test overrides a previously saved Production selection so it
@@ -69,6 +69,19 @@ The app exposes three explicit modes in the header:
 If Demo Cosmos cannot load, the UI falls back to Demo local for the current session and
 shows a read-only warning. Production load failures show an error and never expose demo
 data. Restore and clear operate only on the active writable dataset.
+
+Mode selection is disabled while any save, delete, route change, restore, or clear
+is pending, including after the page that started it unmounts. Backup restore
+blocks switching from file acceptance through reading, validation, and persistence.
+Both success and failure release the restriction; direct mode-switch calls reject
+while pending and do not change the saved preference.
+
+Changed Waypoint, Idea, Activity, Challenge-creation, and planned-route drafts
+require discard confirmation before entering Settings or switching modes directly.
+Cancel keeps the route, preference, and draft. Confirm discards once; the old draft
+does not transfer to another dataset. Unapplied non-whitespace JSON counts even
+when invalid; whitespace alone does not. Clearing JSON does not clear applied form
+changes. Unrelated navigation is not guarded, and drafts are never persisted.
 
 ### Test data
 
@@ -98,12 +111,27 @@ local-authentication path has been introduced, not as an Azure configuration pro
 Do not add another provider or retry layer, and do not add live bulk geocoding of
 stored records at runtime.
 
-Waypoints and Activities are geocoded at save time. The `/api/journey` write path
-resolves a postcode-only or place-only location through Azure Maps Search with the
-Function managed identity before the entity is validated and written, so no Waypoint
-or Activity is persisted without coordinates. A location that Azure Maps cannot
-resolve fails the write with a 400 response, and an Azure Maps search failure fails
-the request outright; the record is never saved without coordinates.
+The `/api/journey` entity create/update path resolves postcode-only or place-only
+locations through Azure Maps Search with the Function managed identity. The browser
+Waypoint form uses dataset replacement instead: after authorization and input/graph
+validation, replacement resolves only unresolved searchable Waypoints, then strictly
+validates the entire saved dataset before the existing ETag-checked batch. Supplied
+valid coordinate pairs and absent locations require no lookup. Any resolution or
+validation failure causes zero writes, and stale ETags retain conflict behaviour.
+The existing 100-operation batch limit is unchanged.
+
+A location that Azure Maps cannot resolve fails with a specific 400 response;
+unexpected downstream failures propagate without retries or stale-coordinate
+fallbacks. The browser preserves valid JSON API error details with HTTP context,
+keeps the failed draft, and requires an explicit resave. It retains typed 409
+conflict/import errors and does not parse or display HTML gateway responses.
+Malformed required JSON error envelopes fail explicitly.
+
+Imports remain strict, and Activity postcode-only replacement is still unsupported
+([#174](https://github.com/Hsenrab/Journey/issues/174)); this change repairs only its
+Waypoint portion. No schema-version change, migration, service, endpoint, or
+deployment setting is introduced. Local mocked tests are not hosted Maps/Cosmos
+acceptance.
 
 Application Insights should be used to review token, search, error, and throttling
 counts without recording search strings or precise locations.
@@ -177,10 +205,16 @@ Assigned work user
    `admin` for full read/write and administrative access, or `viewer` for read-only
    access. Open the generated link while signed in as that account. Invitations bind
    the role to the provider identity; do not use mutable email addresses as access
-   control.
+   control. Any explicitly invited Entra work identity is eligible regardless of
+   organization; Journey has no single-organization, tenant, or email allowlist.
+   External tenant or platform policies can still restrict sign-in. Record the
+   specific restriction rather than adding a custom authentication workaround.
 3. `staticwebapp.config.json` restricts all application routes and `/api/*` to
-   `admin` or `viewer` while leaving `/.auth/*` reachable for platform login. The API
-   fails closed unless the forwarded Entra principal has exactly one of those roles.
+   `admin` or `viewer` while leaving `/.auth/*` reachable for platform login. The
+   hosting gate checks membership, not exclusive assignment: both-role identities
+   can pass it. Protected Journey and Maps operations fail closed unless the
+   forwarded principal has provider `aad`, a nonempty user ID, `authenticated`,
+   and exactly one of `admin` or `viewer`.
 4. Repeat the invitation for each separately provisioned Static Web App resource,
    including the production and shared test resources. Role assignment in one
    resource does not grant access to another resource.
@@ -194,6 +228,15 @@ assign a Journey role. After accepting an invitation, sign out through `/.auth/l
 and sign in again so Static Web Apps issues a principal with the new role. Check
 `/.auth/me` on the affected application URL and confirm that
 `clientPrincipal.userRoles` contains exactly one of `admin` or `viewer`.
+After role replacement or revocation, verify access again in a fresh signed-in
+session. Do not promise immediate revocation or updated controls in an already-open
+tab; the application learns its displayed role when the dataset loads.
+
+Local principal/handler tests and configuration assertions do not prove hosted
+sign-in, invitation acceptance, cross-organization eligibility, session refresh,
+or per-resource isolation. The separately authorized, read-only acceptance
+procedures and their evidence boundaries are recorded in the
+[access and roles validation guide](../specs/001-access-roles/quickstart.md#4-hosted-acceptance-only-when-explicitly-authorized).
 
 ### Local development
 
@@ -297,6 +340,18 @@ after the application boundary validates the caller's Entra provider and assigne
   account to `deployer().objectId`, the GitHub OIDC principal that runs the
   Bicep deployment. No extra secret or variable is needed; the object id comes
   from the deployment itself.
+- Functions package publication owns `WEBSITE_RUN_FROM_PACKAGE` and
+  `WEBSITE_RUN_FROM_PACKAGE_BLOB_MI_RESOURCE_ID`. Bicep reads and preserves only
+  these existing package settings when replacing the app-settings collection;
+  all other settings remain defined by the template. The settings write uses a
+  separate Bicep module with a secure object parameter so ARM does not read and
+  replace the same resource in one deployment scope (a circular dependency).
+  New Function Apps have no
+  package settings until their first API publication. An infrastructure-only run
+  must not remove the package pointer from an already published app.
+  If a previous run removed it, preserving settings cannot recover missing values:
+  explicitly publish the API to that environment again. Do not substitute a package
+  placeholder or change the linked-backend authentication to address missing code.
 - Test deployments publish to the test Static Web App's primary environment, where
   the linked Functions backend is supported. Pull-request runs validate the code and
   may deploy changed infrastructure, but do not deploy the API or create a Static
@@ -401,10 +456,22 @@ After Functions deployment, the workflow uses the existing Azure OIDC login to r
 registered function metadata with `az functionapp function list`. Deployment fails
 unless `journey`, `mapsSearch`, and `mapsToken` are enabled HTTP triggers with the
 expected routes, methods, and authorization levels. It also reads the Static Web App's
-`userProvidedFunctionApps` link through ARM and requires exactly the intended Function
-App. These checks use management-plane reads only, request no Function keys or user
+primary environment's `builds/default/linkedBackends` collection through ARM and
+selects `properties.backendResourceId`, requiring exactly the intended Function
+App. The legacy `userProvidedFunctionApps` collection can be empty even when this
+link exists, so it is not used for verification. These checks use management-plane
+reads only, request no Function keys or user
 session cookies, do not open direct Function App access, and neither write nor clear
 any Cosmos dataset.
+
+Registered metadata can outlive the deployed code. For authenticated API `404`
+responses, check the live host's Application Insights startup traces as well as ARM:
+`0 functions loaded` or `No job functions found` means the running host is empty
+even if `az functionapp function list` still returns the three expected functions.
+Check that the package settings exist without printing their values (package URLs
+can contain credentials). After an explicitly approved API republication, verify
+the routes through a signed-in browser, then verify that an infrastructure-only
+redeployment retains the package settings and callable routes.
 
 Actions' deployment identity is not an invited interactive Static Web Apps user.
 Its ARM access token cannot replace a Static Web Apps session. Consequently these

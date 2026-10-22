@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react'
+import { useJourneyDraft } from '../features/journey/JourneyContext'
 import { useBeforeUnload } from 'react-router-dom'
 import {
   Alert,
@@ -139,6 +140,7 @@ export function ActivityEditor({
   const [message, setMessage] = useState<string | null>(null)
   const [mode, setMode] = useState<EditorMode>('form')
   const [jsonInput, setJsonInput] = useState('')
+  const [appliedJsonInput, setAppliedJsonInput] = useState('')
   const [jsonError, setJsonError] = useState<string | null>(null)
   const [jsonIssues, setJsonIssues] = useState<string[]>([])
   const addMode = !initialActivity
@@ -168,7 +170,7 @@ export function ActivityEditor({
     }
   }, [category, supportsCategories])
 
-  const dirty = useMemo(() => {
+  const formDirty = useMemo(() => {
     const initial = {
       name: initialActivity?.name ?? '',
       date: initialActivity?.date ?? new Date().toISOString().slice(0, 10),
@@ -233,6 +235,15 @@ export function ActivityEditor({
     ideaIds,
     waypointId,
   ])
+
+  const dirty = formDirty || (jsonInput.trim().length > 0 && jsonInput !== appliedJsonInput) || trackParsing
+  useJourneyDraft(dirty)
+  useEffect(
+    () => () => {
+      trackSelectionGeneration.current += 1
+    },
+    [],
+  )
 
   useBeforeUnload(
     (event) => {
@@ -387,6 +398,7 @@ export function ActivityEditor({
                       return
                     }
 
+                    setAppliedJsonInput(jsonInput)
                     setDate(parsed.value.date)
                     setName(parsed.value.name ?? '')
                     setNotes(parsed.value.notes)

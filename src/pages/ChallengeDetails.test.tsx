@@ -2,10 +2,12 @@ import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { WaypointsProvider } from '../features/journey/JourneyContext'
+import { WaypointsProvider, useWaypoints } from '../features/journey/JourneyContext'
 import { createDemoModeData, load, save, setDataMode } from '../services/storage'
 import ChallengeDetails from './ChallengeDetails'
 import type { GpxMapLine } from '../domain/gpxMap'
+import { Layout } from '../components/Layout'
+import Settings from './Settings'
 
 vi.mock('../components/ChallengeRouteMap', () => ({
   ChallengeRouteMap: ({
@@ -26,13 +28,28 @@ vi.mock('../components/ChallengeRouteMap', () => ({
   ),
 }))
 
-function renderDetails(challengeId = 'national-trust') {
+function SwitchMode() {
+  const { setDataMode } = useWaypoints()
+  return <button onClick={() => void setDataMode('demo-local')}>Switch mode</button>
+}
+
+function renderDetails(challengeId = 'national-trust', controls = false) {
   return render(
     <MemoryRouter initialEntries={[`/challenges/${challengeId}`]}>
       <WaypointsProvider>
-        <Routes>
-          <Route path="/challenges/:challengeId" element={<ChallengeDetails />} />
-        </Routes>
+        {controls ? (
+          <Layout>
+            <SwitchMode />
+            <Routes>
+              <Route path="/challenges/:challengeId" element={<ChallengeDetails />} />
+              <Route path="/settings" element={<Settings />} />
+            </Routes>
+          </Layout>
+        ) : (
+          <Routes>
+            <Route path="/challenges/:challengeId" element={<ChallengeDetails />} />
+          </Routes>
+        )}
       </WaypointsProvider>
     </MemoryRouter>,
   )
@@ -47,9 +64,153 @@ describe('ChallengeDetails', () => {
     save(createDemoModeData())
   })
   afterEach(() => {
+    vi.restoreAllMocks()
     vi.unstubAllEnvs()
     vi.unstubAllGlobals()
   })
+
+  it('protects removal drafts on the Settings path, confirms once, and unregisters after saving', async () => {
+    const data = createDefaultData()
+    data.challenges[0]!.plannedRoute = {
+      fileName: 'saved.gpx',
+      geometry: {
+        type: 'MultiLineString',
+        coordinates: [
+          [
+            [-2, 51],
+            [-2.1, 51.1],
+          ],
+        ],
+      },
+    }
+    save(data)
+    const user = userEvent.setup()
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false)
+    renderDetails('national-trust', true)
+    await user.click(screen.getByRole('button', { name: 'Remove route' }))
+    await user.click(screen.getByRole('link', { name: 'Settings' }))
+    expect(screen.getByRole('button', { name: 'Save route' })).toBeInTheDocument()
+    expect(confirm).toHaveBeenCalledOnce()
+    await user.click(screen.getByRole('button', { name: 'Save route' }))
+    await screen.findByText('Planned route removed.')
+    await user.click(screen.getByRole('link', { name: 'Settings' }))
+    expect(screen.getByRole('heading', { name: 'Settings' })).toBeInTheDocument()
+    expect(confirm).toHaveBeenCalledOnce()
+  })
+
+  it('ignores unchanged route selections and retains failed route drafts until confirmed discard', async () => {
+    vi.stubEnv('MODE', 'production')
+    const data = createDefaultData()
+    const route = {
+      fileName: 'same.gpx',
+      geometry: {
+        type: 'MultiLineString' as const,
+        coordinates: [
+          [
+            [-2.1, 51.1],
+            [-2.2, 51.2],
+          ],
+        ] as [number, number][][],
+      },
+    }
+    data.challenges[0]!.plannedRoute = route
+    const fetch = vi
+      .fn()
+      .mockImplementation(() => Promise.resolve(new Response(JSON.stringify({ data, etags: {}, role: 'admin' }))))
+    vi.stubGlobal('fetch', fetch)
+    const user = userEvent.setup()
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false)
+    const view = renderDetails('national-trust', true)
+    await screen.findByRole('button', { name: 'Replace GPX route' })
+    const file = new File([validGpx], 'same.gpx', { type: 'application/gpx+xml' })
+    Object.defineProperty(file, 'text', { value: () => Promise.resolve(validGpx) })
+    fireEvent.change(view.container.querySelector('input[type="file"]')!, { target: { files: [file] } })
+    await screen.findByRole('button', { name: 'Save route' })
+    await user.click(screen.getByRole('link', { name: 'Settings' }))
+    expect(confirm).not.toHaveBeenCalled()
+    view.unmount()
+    const second = renderDetails('national-trust', true)
+    await user.click(await screen.findByRole('button', { name: 'Remove route' }))
+    fetch.mockRejectedValueOnce(new Error('Route write denied'))
+    await user.click(screen.getByRole('button', { name: 'Save route' }))
+    expect(await screen.findByText('Route write denied')).toBeInTheDocument()
+    await user.click(screen.getByText('Switch mode'))
+    expect(screen.getByRole('button', { name: 'Save route' })).toBeInTheDocument()
+    expect(confirm).toHaveBeenCalledOnce()
+    confirm.mockReturnValue(true)
+    await user.click(screen.getByText('Switch mode'))
+    await waitFor(() => expect(screen.queryByRole('button', { name: 'Save route' })).not.toBeInTheDocument())
+    second.unmount()
+  })
+
+  it('discards a pending GPX read without allowing its result to resurrect the route draft', async () => {
+    const user = userEvent.setup()
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false)
+    const view = renderDetails('national-trust', true)
+    let finish!: (text: string) => void
+    const reading = new Promise<string>((resolve) => {
+      finish = resolve
+    })
+    const file = new File([], 'pending.gpx', { type: 'application/gpx+xml' })
+    Object.defineProperty(file, 'text', { value: () => reading })
+    fireEvent.change(view.container.querySelector('input[type="file"]')!, { target: { files: [file] } })
+    await user.click(screen.getByText('Switch mode'))
+    expect(confirm).toHaveBeenCalledOnce()
+    confirm.mockReturnValue(true)
+    await user.click(screen.getByText('Switch mode'))
+    await act(async () => {
+      finish(validGpx)
+      await reading
+    })
+    expect(screen.queryByRole('button', { name: 'Save route' })).not.toBeInTheDocument()
+    expect(screen.queryByText('Planned route saved.')).not.toBeInTheDocument()
+    expect(confirm).toHaveBeenCalledTimes(2)
+  })
+
+  it.each([false, true])(
+    'preserves viewer map browsing with saved route=%s and no route writes',
+    async (savedRoute) => {
+      vi.stubEnv('MODE', 'production')
+      const data = createDefaultData()
+      data.challenges[0] = {
+        ...data.challenges[0]!,
+        plannedRoute: savedRoute
+          ? {
+              fileName: 'saved.gpx',
+              geometry: {
+                type: 'MultiLineString',
+                coordinates: [
+                  [
+                    [-2.1, 51.1],
+                    [-2.2, 51.2],
+                  ],
+                ],
+              },
+            }
+          : undefined,
+      }
+      const fetch = vi
+        .fn()
+        .mockImplementation(() => new Response(JSON.stringify({ data, etags: {}, role: 'viewer' }), { status: 200 }))
+      vi.stubGlobal('fetch', fetch)
+      const view = renderDetails()
+
+      expect(
+        await screen.findByText(/Your Journey access is viewer only, so you can read this data but not change it\./),
+      ).toBeInTheDocument()
+      expect(screen.getByTestId('challenge-map')).toHaveTextContent(savedRoute ? 'Route attached' : 'No route')
+      expect(screen.getAllByRole('link', { name: 'View waypoint' }).length).toBeGreaterThan(0)
+      for (const name of ['Attach GPX route', 'Replace GPX route', 'Remove route', 'Save route']) {
+        expect(screen.queryByRole('button', { name })).not.toBeInTheDocument()
+      }
+      expect(view.container.querySelector('input[type="file"]')).toBeNull()
+      expect(screen.getByRole('link', { name: 'Change the data mode in Settings' })).toHaveAttribute(
+        'href',
+        '/settings',
+      )
+      expect(fetch).toHaveBeenCalledTimes(1)
+    },
+  )
 
   it('shows the Challenge Waypoints and only the attach action when no route is present', () => {
     const data = createDefaultData()
