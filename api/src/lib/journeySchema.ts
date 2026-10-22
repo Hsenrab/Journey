@@ -194,21 +194,64 @@ export const JourneyDocumentSchema = z
   })
 export type JourneyDocument = z.infer<typeof JourneyDocumentSchema>
 
-export const JourneyDataSchema = z
-  .object({
-    waypoints: z.array(schemas.waypoint),
-    challenges: z.array(schemas.challenge),
-    ideas: z.array(schemas.idea),
-    activities: z.array(schemas.activity),
-    references: z.array(schemas.reference),
-    photoReferences: z.array(schemas.photoReference),
-  })
-  .strict()
+const journeyDataShape = {
+  waypoints: z.array(schemas.waypoint),
+  challenges: z.array(schemas.challenge),
+  ideas: z.array(schemas.idea),
+  activities: z.array(schemas.activity),
+  references: z.array(schemas.reference),
+  photoReferences: z.array(schemas.photoReference),
+}
+
+type JourneyDataIds = {
+  waypoints: { waypointId: string }[]
+  challenges: { challengeId: string }[]
+  ideas: { ideaId: string }[]
+  activities: { activityId: string }[]
+  references: { referenceId: string }[]
+  photoReferences: { photoReferenceId: string }[]
+}
+
+const withUniqueEntityIds = <T extends JourneyDataIds>(data: T, context: z.RefinementCtx) => {
+  const ids = [
+    ...data.waypoints.map((entity) => entity.waypointId),
+    ...data.challenges.map((entity) => entity.challengeId),
+    ...data.ideas.map((entity) => entity.ideaId),
+    ...data.activities.map((entity) => entity.activityId),
+    ...data.references.map((entity) => entity.referenceId),
+    ...data.photoReferences.map((entity) => entity.photoReferenceId),
+  ]
+  const seen = new Set<string>()
+  for (const id of ids) {
+    if (seen.has(id))
+      context.addIssue({
+        code: 'custom',
+        message: `Duplicate entity ID "${id}". IDs must be unique across all entity types in a dataset.`,
+      })
+    seen.add(id)
+  }
+}
+
+export const JourneyDataSchema = z.object(journeyDataShape).strict().superRefine(withUniqueEntityIds)
 export type JourneyData = z.infer<typeof JourneyDataSchema>
 
-export const ReplacementJourneyDataSchema = JourneyDataSchema.extend({
-  waypoints: z.array(replacementWaypoint),
-})
+// z.record drops "__proto__", but every entity ID must retain its ETag.
+const etagsSchema = z.custom<Record<string, string>>(
+  (value) =>
+    typeof value === 'object' &&
+    value !== null &&
+    !Array.isArray(value) &&
+    Object.entries(value).every(([id, etag]) => identifier.safeParse(id).success && identifier.safeParse(etag).success),
+  'ETags must map nonempty entity IDs to nonempty strings.',
+)
+
+export const ReplacementJourneyDataSchema = z
+  .object({
+    ...journeyDataShape,
+    waypoints: z.array(replacementWaypoint),
+  })
+  .strict()
+  .superRefine(withUniqueEntityIds)
 export type ReplacementJourneyData = z.infer<typeof ReplacementJourneyDataSchema>
 
 export const JourneyMutationSchema = z.discriminatedUnion('operation', [
@@ -226,6 +269,6 @@ export const JourneyMutationSchema = z.discriminatedUnion('operation', [
   z.object({
     operation: z.literal('replace'),
     data: ReplacementJourneyDataSchema,
-    etags: z.record(identifier, identifier),
+    etags: etagsSchema,
   }),
 ])
