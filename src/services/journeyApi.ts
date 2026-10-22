@@ -19,12 +19,18 @@ export class JourneyImportNotEmptyError extends Error {
 }
 
 async function responseError(response: Response): Promise<Error> {
-  if (response.status === 409) {
-    const body = (await response.json().catch(() => undefined)) as { error?: unknown } | undefined
-    if (body?.error === 'conflict') return new JourneyConflictError()
-    if (body?.error === 'data_not_empty') return new JourneyImportNotEmptyError()
+  const context = `Journey API request failed with ${response.status}: ${response.statusText}`
+  const contentType = response.headers.get('content-type')?.split(';')[0].trim()
+  const json = contentType !== undefined && /^application\/(?:json|[^;\s/]+\+json)$/i.test(contentType)
+  if (response.status === 400 || response.status === 409 || json) {
+    const body = z.object({ error: z.string().trim().min(1) }).parse(await response.json())
+    if (response.status === 409) {
+      if (body.error === 'conflict') return new JourneyConflictError()
+      if (body.error === 'data_not_empty') return new JourneyImportNotEmptyError()
+    }
+    return new Error(`${context}: ${body.error}`)
   }
-  return new Error(`Journey API request failed with ${response.status}: ${response.statusText}`)
+  return new Error(context)
 }
 
 async function request<T>(container: JourneyContainer, init?: RequestInit): Promise<T> {

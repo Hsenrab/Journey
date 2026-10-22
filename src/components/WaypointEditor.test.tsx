@@ -31,6 +31,143 @@ describe('WaypointEditor', () => {
     vi.restoreAllMocks()
   })
 
+  it.each([
+    {
+      name: 'changed name',
+      changes: { 'Place name': 'New place' },
+      expected: { placeName: 'New place', addressOrRegion: 'Old address', source: 'Survey' },
+    },
+    {
+      name: 'changed address',
+      changes: { 'Address or region': 'New address' },
+      expected: { placeName: 'Old place', addressOrRegion: 'New address', source: 'Survey' },
+    },
+    { name: 'cleared named location', changes: { 'Place name': '', 'Address or region': '' }, expected: undefined },
+    {
+      name: 'manual pair with cleared text',
+      changes: { 'Place name': '', 'Address or region': '', Latitude: '52' },
+      expected: { latitude: 52, longitude: -2, source: 'Survey' },
+    },
+    {
+      name: 'equivalent input',
+      changes: { 'Place name': ' Old place ', Latitude: '51.0' },
+      expected: {
+        placeName: 'Old place',
+        addressOrRegion: 'Old address',
+        latitude: 51,
+        longitude: -2,
+        source: 'Survey',
+      },
+    },
+    {
+      name: 'metadata change',
+      changes: { Source: 'Manual' },
+      expected: {
+        placeName: 'Old place',
+        addressOrRegion: 'Old address',
+        latitude: 51,
+        longitude: -2,
+        source: 'Manual',
+      },
+    },
+    {
+      name: 'cleared pair',
+      changes: { Latitude: '', Longitude: '' },
+      expected: { placeName: 'Old place', addressOrRegion: 'Old address', source: 'Survey' },
+    },
+  ])('submits effective location for $name without changing visible fields', async ({ changes, expected }) => {
+    const initialWaypoint = {
+      waypointId: 'one',
+      title: 'Existing',
+      description: 'Description',
+      category: 'Walk',
+      tags: [],
+      challengeIds: [],
+      completion: { mode: 'once' as const },
+      referenceIds: [],
+      photoReferenceIds: [],
+      location: {
+        placeName: 'Old place',
+        addressOrRegion: 'Old address',
+        latitude: 51,
+        longitude: -2,
+        source: 'Survey',
+      },
+    }
+    const { onSubmit } = renderEditor({ initialWaypoint, errorMessage: 'Resolution failed' })
+    for (const [label, value] of Object.entries(changes)) {
+      fireEvent.change(screen.getByLabelText(label), { target: { value } })
+    }
+    fireEvent.click(screen.getByRole('button', { name: 'Save waypoint' }))
+    expect(onSubmit).toHaveBeenCalledOnce()
+    if (expected)
+      expect(onSubmit.mock.calls[0][0].location).toEqual({
+        approximate: undefined,
+        placeName: undefined,
+        addressOrRegion: undefined,
+        ...expected,
+      })
+    else expect(onSubmit.mock.calls[0][0].location).toBeUndefined()
+    for (const [label, value] of Object.entries(changes)) expect(screen.getByLabelText(label)).toHaveValue(value)
+    expect(screen.getByText('Resolution failed')).toBeInTheDocument()
+  })
+
+  it.each([
+    { latitude: '51', longitude: '', source: '', message: 'Enter both latitude and longitude.' },
+    { latitude: '91', longitude: '-2', source: '', message: 'Latitude must be between -90 and 90.' },
+    { latitude: '', longitude: '', source: 'Metadata', message: 'Enter a place name, address, or both coordinates.' },
+  ])('rejects invalid location input: $message', ({ latitude, longitude, source, message }) => {
+    const { onSubmit } = renderEditor()
+    for (const [label, value] of Object.entries({
+      Title: 'Title',
+      Description: 'Description',
+      Category: 'Walk',
+      Latitude: latitude,
+      Longitude: longitude,
+      Source: source,
+    })) {
+      fireEvent.change(screen.getByLabelText(label), { target: { value } })
+    }
+    fireEvent.click(screen.getByRole('button', { name: 'Save waypoint' }))
+    expect(screen.getByText(message)).toBeInTheDocument()
+    expect(onSubmit).not.toHaveBeenCalled()
+  })
+
+  it('preserves an unchanged coordinate-only location', () => {
+    const initialWaypoint = {
+      waypointId: 'coordinates',
+      title: 'Existing',
+      description: 'Description',
+      category: 'Walk',
+      tags: [],
+      challengeIds: [],
+      completion: { mode: 'once' as const },
+      referenceIds: [],
+      photoReferenceIds: [],
+      location: { latitude: 51, longitude: -2 },
+    }
+    const { onSubmit } = renderEditor({ initialWaypoint })
+    fireEvent.click(screen.getByRole('button', { name: 'Save waypoint' }))
+    expect(onSubmit.mock.calls[0][0].location).toEqual({ latitude: 51, longitude: -2 })
+  })
+
+  it('submits a JSON-loaded searchable add location through the same validation path', async () => {
+    const user = userEvent.setup()
+    const { onSubmit } = renderEditor()
+    await user.click(screen.getByRole('tab', { name: 'Paste JSON' }))
+    fireEvent.change(screen.getByLabelText('Waypoint JSON'), {
+      target: {
+        value: JSON.stringify({
+          ...waypointImportExample,
+          location: { placeName: 'New place' },
+        }),
+      },
+    })
+    await user.click(screen.getByRole('button', { name: 'Load into form' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Save waypoint' }))
+    expect(onSubmit.mock.calls[0][0].location).toEqual({ placeName: 'New place' })
+  })
+
   it.each(['{invalid', JSON.stringify(waypointImportExample)])(
     'preserves unapplied JSON on cancellation and discards it on a direct switch: %s',
     async (text) => {

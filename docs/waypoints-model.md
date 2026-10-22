@@ -76,11 +76,26 @@ coordinate pair).
 
 ## Saved locations always carry coordinates
 
-A Waypoint or Activity location that reaches the API is resolved to `latitude` and
-`longitude` before it is persisted. Postcode-only and place-only input is geocoded
-once with Azure Maps Search at save time, and a location that cannot be resolved
-rejects the write instead of being saved without coordinates. Waypoint and Idea locations remain optional; once a location is supplied for a
-Waypoint or an Activity it must resolve to coordinates.
+Supplied Waypoint and Activity locations require `latitude` and `longitude` before
+persistence. Waypoint form saves use atomic dataset replacement: searchable
+place/address-only Waypoints are resolved once with Azure Maps Search before the
+strict saved dataset is validated and written. One failed resolution rejects the
+entire change, including supporting records. Imports still require resolved
+coordinates.
+
+When editing a Waypoint, changing place/address text with the saved coordinate
+pair untouched submits the new text without that stale pair. Clearing both
+identifying fields with the pair untouched removes the entire location, including
+source and approximate metadata. A valid pair whose numeric values changed is
+authoritative; unchanged coordinate-only locations and metadata-only edits retain
+their coordinates. Whitespace-equivalent text and numerically equivalent coordinate
+formatting are not location changes. Partial/invalid coordinates and metadata without
+searchable text or coordinates are rejected. Failed saves retain the visible draft.
+
+Entity create/update can resolve Activity postcode input, but Activity
+postcode-only dataset replacement remains unsupported and tracked in
+[#174](https://github.com/Hsenrab/Journey/issues/174). This Waypoint repair does not
+change that boundary. Waypoint and Idea locations remain optional.
 
 ## Relationships
 
