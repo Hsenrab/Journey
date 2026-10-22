@@ -21,6 +21,13 @@ const place = z
   })
   .strict()
 const resolvedPlace = place.required({ latitude: true, longitude: true })
+const unresolvedPlace = place.omit({ latitude: true, longitude: true }).superRefine((location, context) => {
+  if (![location.placeName, location.addressOrRegion].some((value) => value?.trim()))
+    context.addIssue({
+      code: 'custom',
+      message: 'An unresolved waypoint location needs a place name or address.',
+    })
+})
 const activityLocation = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('postcode'), postcode: identifier, latitude, longitude }).strict(),
   z.object({ kind: z.literal('coordinates'), latitude, longitude }).strict(),
@@ -137,6 +144,10 @@ const schemas = {
     .strict(),
 } as const
 
+const replacementWaypoint = schemas.waypoint
+  .omit({ location: true })
+  .extend({ location: z.union([resolvedPlace, unresolvedPlace]).optional() })
+
 export const schemaVersions = {
   waypoint: 2,
   challenge: 2,
@@ -195,6 +206,11 @@ export const JourneyDataSchema = z
   .strict()
 export type JourneyData = z.infer<typeof JourneyDataSchema>
 
+export const ReplacementJourneyDataSchema = JourneyDataSchema.extend({
+  waypoints: z.array(replacementWaypoint),
+})
+export type ReplacementJourneyData = z.infer<typeof ReplacementJourneyDataSchema>
+
 export const JourneyMutationSchema = z.discriminatedUnion('operation', [
   z.object({ operation: z.literal('create'), type: EntityTypeSchema, entity: z.record(z.string(), z.unknown()) }),
   z.object({
@@ -207,5 +223,9 @@ export const JourneyMutationSchema = z.discriminatedUnion('operation', [
   z.object({ operation: z.literal('delete'), type: EntityTypeSchema, id: identifier, ifMatch: identifier }),
   z.object({ operation: z.literal('clear') }),
   z.object({ operation: z.literal('import'), data: JourneyDataSchema }),
-  z.object({ operation: z.literal('replace'), data: JourneyDataSchema, etags: z.record(identifier, identifier) }),
+  z.object({
+    operation: z.literal('replace'),
+    data: ReplacementJourneyDataSchema,
+    etags: z.record(identifier, identifier),
+  }),
 ])

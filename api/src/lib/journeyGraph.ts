@@ -2,6 +2,32 @@ import type { EntityType, JourneyData } from './journeySchema.js'
 
 type Entity = Record<string, unknown>
 
+export type JourneyGraphData = {
+  waypoints: readonly {
+    waypointId: string
+    challengeIds: readonly string[]
+    referenceIds: readonly string[]
+    photoReferenceIds: readonly string[]
+  }[]
+  challenges: readonly {
+    challengeId: string
+    waypointIds: readonly string[]
+    supportsActivityCategories: boolean
+  }[]
+  ideas: readonly { ideaId: string; waypointIds: readonly string[]; referenceIds: readonly string[] }[]
+  activities: readonly {
+    activityId: string
+    ideaIds: readonly string[]
+    waypointId?: string
+    challengeId?: string
+    category?: string
+    referenceIds: readonly string[]
+    photoReferenceIds: readonly string[]
+  }[]
+  references: readonly { referenceId: string }[]
+  photoReferences: readonly { photoReferenceId: string }[]
+}
+
 const entityKeys = {
   waypoint: 'waypoints',
   challenge: 'challenges',
@@ -41,7 +67,7 @@ function linkError(owner: string, ownerId: string, label: string, ids: readonly 
   return missing ? `${owner} "${ownerId}" references unknown ${label} "${missing}".` : undefined
 }
 
-export function referenceIntegrityError(data: JourneyData): string | undefined {
+export function referenceIntegrityError(data: JourneyGraphData): string | undefined {
   const waypointIds = new Set(data.waypoints.map((waypoint) => waypoint.waypointId))
   const challengeIds = new Set(data.challenges.map((challenge) => challenge.challengeId))
   const ideaIds = new Set(data.ideas.map((idea) => idea.ideaId))

@@ -111,12 +111,27 @@ local-authentication path has been introduced, not as an Azure configuration pro
 Do not add another provider or retry layer, and do not add live bulk geocoding of
 stored records at runtime.
 
-Waypoints and Activities are geocoded at save time. The `/api/journey` write path
-resolves a postcode-only or place-only location through Azure Maps Search with the
-Function managed identity before the entity is validated and written, so no Waypoint
-or Activity is persisted without coordinates. A location that Azure Maps cannot
-resolve fails the write with a 400 response, and an Azure Maps search failure fails
-the request outright; the record is never saved without coordinates.
+The `/api/journey` entity create/update path resolves postcode-only or place-only
+locations through Azure Maps Search with the Function managed identity. The browser
+Waypoint form uses dataset replacement instead: after authorization and input/graph
+validation, replacement resolves only unresolved searchable Waypoints, then strictly
+validates the entire saved dataset before the existing ETag-checked batch. Supplied
+valid coordinate pairs and absent locations require no lookup. Any resolution or
+validation failure causes zero writes, and stale ETags retain conflict behaviour.
+The existing 100-operation batch limit is unchanged.
+
+A location that Azure Maps cannot resolve fails with a specific 400 response;
+unexpected downstream failures propagate without retries or stale-coordinate
+fallbacks. The browser preserves valid JSON API error details with HTTP context,
+keeps the failed draft, and requires an explicit resave. It retains typed 409
+conflict/import errors and does not parse or display HTML gateway responses.
+Malformed required JSON error envelopes fail explicitly.
+
+Imports remain strict, and Activity postcode-only replacement is still unsupported
+([#174](https://github.com/Hsenrab/Journey/issues/174)); this change repairs only its
+Waypoint portion. No schema-version change, migration, service, endpoint, or
+deployment setting is introduced. Local mocked tests are not hosted Maps/Cosmos
+acceptance.
 
 Application Insights should be used to review token, search, error, and throttling
 counts without recording search strings or precise locations.

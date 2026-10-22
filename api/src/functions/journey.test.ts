@@ -193,7 +193,7 @@ describe('journey', () => {
       ['PUT', { operation: 'update', type: 'idea', id: 'idea-1', entity: idea, ifMatch: 'etag' }],
       ['DELETE', { operation: 'delete', type: 'idea', id: 'idea-1', ifMatch: 'etag' }],
       ['POST', { operation: 'import', data: { ...emptyData, ideas: [idea] } }],
-      ['POST', { operation: 'replace', data: { ...emptyData, ideas: [idea] }, etags: { 'idea-1': 'etag' } }],
+      ['POST', { operation: 'replace', data: { ...emptyData, waypoints: [waypoint] }, etags: {} }],
       ['POST', { operation: 'clear' }],
     ] as const)('denies viewer %s %j before processing the body', async (method, body) => {
       const req = request(containerName, method, body, ['authenticated', 'viewer'])
@@ -251,6 +251,158 @@ describe('journey', () => {
         jsonBody: { error: 'data_not_empty' },
       })
       expect(replaceDataset).not.toHaveBeenCalled()
+    })
+
+    it('resolves replacement Waypoints before the unchanged ETag-checked dataset batch', async () => {
+      const challenge = {
+        challengeId: 'challenge-1',
+        title: 'Heritage weekend',
+        description: 'A heritage challenge.',
+        waypointIds: ['waypoint-1'],
+        supportsActivityCategories: false,
+      }
+      const reference = { referenceId: 'reference-1', title: 'Source', url: 'https://example.test/source' }
+      const candidate = {
+        ...waypoint,
+        challengeIds: ['challenge-1'],
+        referenceIds: ['reference-1'],
+      }
+      const data = { ...emptyData, waypoints: [candidate], challenges: [challenge], references: [reference] }
+      const etags = { 'waypoint-1': 'waypoint-etag', 'challenge-1': 'challenge-etag', 'reference-1': 'reference-etag' }
+      const resolvedWaypoint = {
+        ...candidate,
+        location: { placeName: 'Lacock Abbey', addressOrRegion: 'Wiltshire', latitude: 51.844, longitude: -2.153 },
+      }
+      const loaded = {
+        data: { ...data, waypoints: [resolvedWaypoint] },
+        etags,
+      }
+      loadDataset.mockResolvedValue(loaded)
+
+      expect(await journey(request('production', 'POST', { operation: 'replace', data, etags }), context())).toEqual({
+        status: 200,
+        jsonBody: loaded,
+      })
+      expect(fetch).toHaveBeenCalledTimes(1)
+      expect(replaceDataset).toHaveBeenCalledWith(
+        {},
+        'production',
+        expect.objectContaining({
+          'waypoint-1': expect.objectContaining({
+            datasetId: 'production',
+            entity: resolvedWaypoint,
+          }),
+          'challenge-1': expect.objectContaining({ entity: challenge }),
+          'reference-1': expect.objectContaining({ entity: reference }),
+        }),
+        etags,
+      )
+      expect(replaceDataset.mock.invocationCallOrder[0]).toBeGreaterThan(fetch.mock.invocationCallOrder[0] ?? 0)
+    })
+
+    it('does not geocode resolved or absent Waypoints, or locations on other entity types', async () => {
+      const data = {
+        ...emptyData,
+        waypoints: [
+          { ...waypoint, waypointId: 'resolved', location: { latitude: 51.4, longitude: -2.1 } },
+          { ...waypoint, waypointId: 'absent', location: undefined },
+        ],
+        challenges: [
+          {
+            challengeId: 'challenge-1',
+            title: 'Challenge',
+            description: 'A challenge.',
+            waypointIds: [],
+            supportsActivityCategories: false,
+            location: { placeName: 'A place' },
+          },
+        ],
+        ideas: [{ ...idea, location: { placeName: 'An idea' } }],
+        activities: [
+          {
+            ...activity,
+            ideaIds: [],
+            location: { kind: 'postcode', postcode: 'GL3 4AQ', latitude: 51.844, longitude: -2.153 },
+          },
+        ],
+      }
+      loadDataset.mockResolvedValue({ data, etags: {} })
+
+      expect(
+        await journey(request('production', 'POST', { operation: 'replace', data, etags: {} }), context()),
+      ).toMatchObject({ status: 200 })
+      expect(fetch).not.toHaveBeenCalled()
+      expect(replaceDataset).toHaveBeenCalledTimes(1)
+    })
+
+    it('rejects an invalid replacement graph before resolving or writing', async () => {
+      const data = {
+        ...emptyData,
+        waypoints: [{ ...waypoint, challengeIds: ['missing-challenge'] }],
+      }
+
+      expect(
+        await journey(request('production', 'POST', { operation: 'replace', data, etags: {} }), context()),
+      ).toEqual({
+        status: 400,
+        jsonBody: { error: 'Waypoint "waypoint-1" references unknown challenge "missing-challenge".' },
+      })
+      expect(fetch).not.toHaveBeenCalled()
+      expect(replaceDataset).not.toHaveBeenCalled()
+    })
+
+    it('does not batch when a later Waypoint resolution returns no result', async () => {
+      vi.stubGlobal(
+        'fetch',
+        vi
+          .fn()
+          .mockResolvedValueOnce({ ok: true, json: () => ({ results: [{ position: { lat: 51.4, lon: -2.1 } }] }) })
+          .mockResolvedValueOnce({ ok: true, json: () => ({ results: [] }) }),
+      )
+      const data = {
+        ...emptyData,
+        waypoints: [waypoint, { ...waypoint, waypointId: 'waypoint-2', location: { placeName: 'Second place' } }],
+      }
+
+      expect(
+        await journey(request('production', 'POST', { operation: 'replace', data, etags: {} }), context()),
+      ).toEqual({ status: 400, jsonBody: { error: 'Azure Maps found no coordinates for "Second place".' } })
+      expect(fetch).toHaveBeenCalledTimes(2)
+      expect(replaceDataset).not.toHaveBeenCalled()
+    })
+
+    it('rejects invalid final Maps coordinates before creating a batch', async () => {
+      searchResults([{ position: { lat: 91, lon: -2.1 } }])
+      const data = { ...emptyData, waypoints: [waypoint] }
+
+      expect(
+        await journey(request('production', 'POST', { operation: 'replace', data, etags: {} }), context()),
+      ).toEqual({ status: 400, jsonBody: { error: 'Too big: expected number to be <=90' } })
+      expect(replaceDataset).not.toHaveBeenCalled()
+    })
+
+    it('preserves unexpected Maps failures and never writes', async () => {
+      const mapsFailure = new Error('Maps credentials are unavailable.')
+      vi.stubGlobal('fetch', vi.fn().mockRejectedValue(mapsFailure))
+      const data = { ...emptyData, waypoints: [waypoint] }
+
+      await expect(
+        journey(request('production', 'POST', { operation: 'replace', data, etags: {} }), context()),
+      ).rejects.toBe(mapsFailure)
+      expect(replaceDataset).not.toHaveBeenCalled()
+    })
+
+    it('preserves stale ETag conflicts after resolution', async () => {
+      const data = { ...emptyData, waypoints: [waypoint] }
+      const etags = { 'waypoint-1': 'stale-etag' }
+      replaceDataset.mockRejectedValue(Object.assign(new Error('stale'), { code: 412 }))
+
+      expect(await journey(request('production', 'POST', { operation: 'replace', data, etags }), context())).toEqual({
+        status: 409,
+        jsonBody: { error: 'conflict' },
+      })
+      expect(fetch).toHaveBeenCalledTimes(1)
+      expect(replaceDataset).toHaveBeenCalledWith({}, 'production', expect.any(Object), etags)
     })
   })
 

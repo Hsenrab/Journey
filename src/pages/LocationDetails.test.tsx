@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -30,6 +30,46 @@ describe('LocationDetails', () => {
     vi.restoreAllMocks()
     vi.unstubAllGlobals()
     vi.unstubAllEnvs()
+  })
+
+  it('keeps a failed remote location edit and its coordinates visible until an explicit successful resave', async () => {
+    vi.stubEnv('MODE', 'production')
+    const data = createDemoModeData()
+    const original = data.waypoints.find((item) => item.waypointId === demoWaypointId)!
+    original.location = { placeName: 'Old place', latitude: 51, longitude: -2 }
+    let writes = 0
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockImplementation((_url: string, init?: RequestInit) => {
+        if (!init?.body) return new Response(JSON.stringify({ data, etags: {}, role: 'admin' }))
+        const body = JSON.parse(String(init.body))
+        const edited = body.data.waypoints.find((item: { waypointId: string }) => item.waypointId === demoWaypointId)
+        expect(edited.location).toEqual({ placeName: 'New place' })
+        writes += 1
+        if (writes === 1)
+          return new Response(JSON.stringify({ error: 'No position found for New place' }), {
+            status: 400,
+            statusText: 'Bad Request',
+          })
+        edited.location = { placeName: 'New place', latitude: 52, longitude: -3 }
+        return new Response(JSON.stringify({ data: body.data, etags: { [demoWaypointId]: 'resolved' } }))
+      }),
+    )
+    renderDetails(demoWaypointId)
+    fireEvent.click(await screen.findByRole('button', { name: 'Edit waypoint' }))
+    fireEvent.change(screen.getByLabelText('Place name'), { target: { value: 'New place' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Save waypoint' }))
+    expect(await screen.findByText(/400: Bad Request: No position found for New place/)).toBeInTheDocument()
+    expect(screen.getByLabelText('Place name')).toHaveValue('New place')
+    expect(screen.getByLabelText('Latitude')).toHaveValue('51')
+    expect(screen.queryByText('Waypoint saved.')).not.toBeInTheDocument()
+    expect(writes).toBe(1)
+    fireEvent.click(screen.getByRole('button', { name: 'Save waypoint' }))
+    expect(await screen.findByText('Waypoint saved.')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Edit waypoint' }))
+    expect(screen.getByLabelText('Latitude')).toHaveValue('52')
+    expect(screen.getByLabelText('Longitude')).toHaveValue('-3')
+    expect(writes).toBe(2)
   })
 
   it('shows an error when the waypoint is not found', () => {

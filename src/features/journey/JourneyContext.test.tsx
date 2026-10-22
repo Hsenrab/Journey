@@ -47,6 +47,49 @@ describe('remote mode-switch boundary', () => {
     vi.restoreAllMocks()
   })
 
+  it('adopts resolved replacement coordinates and uses returned ETags on the next save', async () => {
+    const seeded = testData()
+    const original = seeded.waypoints[0]!
+    const requests: { operation: string; data: WaypointsData; etags: Record<string, string> }[] = []
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockImplementation((_url: string, init?: RequestInit) => {
+        if (!init?.body)
+          return new Response(JSON.stringify({ data: seeded, etags: { [original.waypointId]: 'old' }, role: 'admin' }))
+        const body = JSON.parse(String(init.body))
+        requests.push(body)
+        const data: WaypointsData = {
+          ...body.data,
+          waypoints: body.data.waypoints.map((waypoint: WaypointsData['waypoints'][number]) =>
+            waypoint.waypointId === original.waypointId
+              ? { ...waypoint, location: { ...waypoint.location, latitude: 52, longitude: -3 } }
+              : waypoint,
+          ),
+        }
+        return new Response(JSON.stringify({ data, etags: { [original.waypointId]: 'resolved' } }))
+      }),
+    )
+    const { result } = renderHook(() => useWaypoints(), { wrapper: WaypointsProvider })
+    await waitFor(() => expect(result.current.loading).toBe(false))
+    const draft = { ...original, location: { placeName: 'New place' }, references: [], photoReferences: [] }
+    await act(async () => {
+      await result.current.updateWaypoint(original.waypointId, draft)
+    })
+    expect(result.current.data.waypoints.find((item) => item.waypointId === original.waypointId)?.location).toEqual({
+      placeName: 'New place',
+      latitude: 52,
+      longitude: -3,
+    })
+    expect(requests[0].operation).toBe('replace')
+    expect(requests[0].etags).toEqual({ [original.waypointId]: 'old' })
+    expect(requests[0].data.challenges).toEqual(seeded.challenges)
+    expect(requests[0].data.activities).toEqual(seeded.activities)
+    await act(async () => {
+      await result.current.updateWaypoint(original.waypointId, draft)
+    })
+    expect(requests[1].etags).toEqual({ [original.waypointId]: 'resolved' })
+  })
+
   const operations = [
     'addChallenge',
     'updateChallengeRoute',

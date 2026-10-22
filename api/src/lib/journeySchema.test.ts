@@ -16,6 +16,25 @@ function idea() {
   }
 }
 
+function waypoint(location?: Record<string, unknown>) {
+  return {
+    waypointId: 'waypoint-1',
+    title: 'Waypoint',
+    description: 'Description',
+    category: 'Historic site',
+    tags: [],
+    challengeIds: [],
+    completion: { mode: 'once' },
+    ...(location === undefined ? {} : { location }),
+    referenceIds: [],
+    photoReferenceIds: [],
+  }
+}
+
+function emptyData() {
+  return { waypoints: [], challenges: [], ideas: [], activities: [], references: [], photoReferences: [] }
+}
+
 function document(entity: Record<string, unknown>) {
   return JourneyDocumentSchema.safeParse({
     id: 'idea-1',
@@ -27,6 +46,77 @@ function document(entity: Record<string, unknown>) {
 }
 
 describe('Journey document validation', () => {
+  it('allows replacement Waypoints with absent, resolved, or searchable unresolved locations only', () => {
+    const replacement = (entity: Record<string, unknown>) =>
+      JourneyMutationSchema.safeParse({
+        operation: 'replace',
+        data: { ...emptyData(), waypoints: [entity] },
+        etags: {},
+      })
+
+    expect(replacement(waypoint()).success).toBe(true)
+    expect(replacement(waypoint({ latitude: 51.4, longitude: -2.1 })).success).toBe(true)
+    expect(replacement(waypoint({ placeName: 'Lacock Abbey' })).success).toBe(true)
+    expect(replacement(waypoint({ addressOrRegion: 'Wiltshire', source: 'manual', approximate: true })).success).toBe(
+      true,
+    )
+
+    for (const location of [
+      { latitude: 51.4 },
+      { longitude: -2.1 },
+      { latitude: 91, longitude: -2.1 },
+      { latitude: 51.4, longitude: -181 },
+      { source: 'manual' },
+      { approximate: true },
+      { placeName: '   ' },
+      { placeName: 'Lacock Abbey', unknown: true },
+    ]) {
+      expect(replacement(waypoint(location)).success).toBe(false)
+    }
+    expect(replacement({ ...waypoint(), unexpected: true }).success).toBe(false)
+  })
+
+  it('keeps imports, persisted Waypoints, and Activity replacements strict', () => {
+    const unresolved = waypoint({ placeName: 'Lacock Abbey' })
+    expect(
+      JourneyMutationSchema.safeParse({
+        operation: 'import',
+        data: { ...emptyData(), waypoints: [unresolved] },
+      }).success,
+    ).toBe(false)
+    expect(
+      JourneyDocumentSchema.safeParse({
+        id: 'waypoint-1',
+        datasetId: 'production',
+        type: 'waypoint',
+        schemaVersion: 2,
+        entity: unresolved,
+      }).success,
+    ).toBe(false)
+    expect(
+      JourneyMutationSchema.safeParse({
+        operation: 'replace',
+        data: {
+          ...emptyData(),
+          activities: [
+            {
+              activityId: 'activity-1',
+              ideaIds: [],
+              date: '2026-09-04',
+              location: { kind: 'postcode', postcode: 'SN15 2LG' },
+              notes: '',
+              referenceIds: [],
+              photoReferenceIds: [],
+              createdAt: '2026-09-04T00:00:00.000Z',
+              updatedAt: '2026-09-04T00:00:00.000Z',
+            },
+          ],
+        },
+        etags: {},
+      }).success,
+    ).toBe(false)
+  })
+
   it('requires the partition and entity discriminator', () => {
     expect(
       JourneyDocumentSchema.parse({

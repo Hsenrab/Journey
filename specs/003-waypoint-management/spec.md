@@ -2,9 +2,23 @@
 
 **Feature Branch**: `003-waypoint-management`
 **Created**: 2026-10-20
-**Status**: Current-state baseline; source-reviewed, not newly runtime-verified
+**Status**: Baseline with implemented location-save improvement; validation in [evidence](evidence.md)
 **Input**: Document existing Waypoint browsing, editing, relationships, and progress.
-This is documentation, not authorization to implement or repair functionality.
+The location-save slice was subsequently authorized for implementation; this does
+not authorize deployment or hosted mutation. A commit and feature-branch push were
+authorized on 2026-10-22 solely to run GitHub Actions CI.
+
+## Clarifications
+
+### Session 2026-10-21
+
+- Q: When a Waypoint's place name or address changes but its existing coordinates
+  remain untouched, should saving keep those coordinates or find the location again?
+  A: Clear unchanged coordinates and resolve the changed place/address on save.
+  Implementation and executed acceptance are recorded separately in evidence.
+- Q: If both the place name and address are removed without changing existing
+  coordinates, should the Waypoint keep its position or have no location?
+  A: Remove the entire location, including coordinates and location metadata.
 
 ## User Scenarios & Testing _(mandatory)_
 
@@ -53,9 +67,15 @@ without duplicating its related records.
    is blocked until it is a positive whole number.
 3. **Given** optional location input, **When** coordinates are supplied, **Then**
    both latitude and longitude are required and must be within valid ranges.
-   Searchable place-only locations are intended to resolve before persistence;
-   the current form-save gap is recorded separately in evidence, not accepted as
-   a new restriction.
+   Searchable place-only Waypoint locations resolve before persistence through
+   the form's atomic replacement path.
+   If a place name or address changes while its previously saved coordinate pair
+   is untouched, clear that pair and resolve the changed location on save.
+   An explicitly edited valid coordinate pair remains authoritative. Failed
+   resolution blocks the save and retains the draft, without changing stored data.
+   Clearing both identifying text fields from a previously named location while
+   leaving coordinates untouched removes the entire location and its metadata.
+   Local verification and remaining hosted acceptance are recorded in evidence.
 4. **Given** Waypoint add/edit, **When** I use
    [structured draft entry](../009-structured-draft-entry/spec.md), **Then** its
    shared load/review rules apply to Waypoint fields; Challenge links remain
@@ -98,7 +118,12 @@ As an administrator, I can remove a Waypoint while preserving its Ideas and Acti
   matching filters are not load failures.
 - Editing references can affect another record using the same reference identity;
   unreferenced supporting records are pruned, not independent Ideas or Activities.
-- No blanket guarantee is made for editor drafts across data-mode switches.
+- Waypoint drafts follow the confirmed-discard and pending-write rules in the
+  [data-mode contract](../002-data-modes-persistence/spec.md). This does not add
+  protection for unrelated navigation.
+- A pre-existing coordinate-only location is not removed simply because its text
+  fields remain empty; the removal rule applies when previously supplied identifying
+  text is cleared and its coordinates are left untouched.
 
 ## Requirements _(mandatory)_
 
@@ -112,8 +137,16 @@ As an administrator, I can remove a Waypoint while preserving its Ideas and Acti
   once/count rules and highest award tier MUST remain separate measures.
 - **FR-004**: Create/edit MUST require title, description, category, and a valid
   completion rule, while allowing tags, optional location, and Challenge membership.
-- **FR-005**: Supplied coordinates MUST be a valid pair. The approved place-only
-  save contract MUST remain distinguished from the unresolved form-save defect.
+- **FR-005**: Supplied coordinates MUST be a valid pair. Searchable place-only
+  Waypoint locations MUST resolve before atomic replacement persistence.
+  Changing a place name or address while leaving the saved coordinates untouched
+  MUST clear those coordinates and resolve the new location before persistence.
+  Explicitly edited valid coordinates MUST take precedence over text resolution.
+  Resolution failure MUST block the save, retain the draft, and leave stored data
+  unchanged.
+  Clearing both place name and address from a previously named location with
+  untouched coordinates MUST remove the entire location, including source and
+  approximate-location metadata. Existing coordinate-only locations remain valid.
 - **FR-006**: Waypoint add/edit MUST use the
   [shared draft-entry contract](../009-structured-draft-entry/spec.md) for its
   supported fields, while retaining form-managed Challenge membership.
@@ -149,6 +182,12 @@ As an administrator, I can remove a Waypoint while preserving its Ideas and Acti
   removing the deleted Waypoint's links and dependent awards.
 - **SC-004**: Every requirement maps to reviewed evidence, and unresolved defects
   are linked without claiming that runtime or hosted acceptance passed.
+- **SC-005**: Verify that changing place/address text with untouched saved
+  coordinates resolves a new position, explicitly edited coordinates are retained,
+  and failed resolution preserves both the unsaved draft and the stored record.
+  Clearing both identifying text fields with untouched coordinates removes the
+  location; an unchanged coordinate-only location remains unchanged.
+  Local execution and hosted acceptance MUST remain distinguished in evidence.
 
 ## Assumptions
 
@@ -158,5 +197,6 @@ As an administrator, I can remove a Waypoint while preserving its Ideas and Acti
   separate baselines. Detail-page shortcuts do not merge those feature scopes.
 - [Structured draft entry](../009-structured-draft-entry/spec.md) owns JSON
   load/review, examples, and external prompt help; this feature owns Waypoint fields/save.
-- This documents the current feature, including evidence gaps; no code changes,
-  new tests, deployment, bulk data changes, or migrations are authorized.
+- The authorized implementation is limited to the planned Waypoint location-save
+  slice. No deployment, hosted data changes, migrations, or unrelated defect repairs
+  are authorized.

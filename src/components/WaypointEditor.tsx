@@ -23,6 +23,7 @@ import { parseWaypointDraftJson, waypointImportExample } from '../domain/draftJs
 import { waypointJsonAiPrompt } from '../domain/aiPrompts'
 import { AiPromptButton } from './AiPromptButton'
 import type { WaypointDraft } from '../features/journey/JourneyContext'
+import { effectiveWaypointLocation } from '../domain/waypointLocation'
 
 type Props = {
   data: WaypointsData
@@ -214,7 +215,8 @@ export function WaypointEditor({ data, submitLabel, onSubmit, onCancel, errorMes
       Boolean(addressOrRegion.trim()) ||
       Boolean(source.trim()) ||
       Boolean(latitude.trim()) ||
-      Boolean(longitude.trim())
+      Boolean(longitude.trim()) ||
+      approximate
     if (hasLocation) {
       location = {
         placeName: placeName.trim() || undefined,
@@ -239,6 +241,12 @@ export function WaypointEditor({ data, submitLabel, onSubmit, onCancel, errorMes
             location.longitude = parsedLongitude
           }
         }
+      }
+    }
+    if (!nextErrors.coordinates) {
+      location = effectiveWaypointLocation(initialWaypoint?.location, location)
+      if (location && !location.placeName && !location.addressOrRegion && location.latitude === undefined) {
+        nextErrors.coordinates = 'Enter a place name, address, or both coordinates.'
       }
     }
 

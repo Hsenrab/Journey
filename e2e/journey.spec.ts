@@ -1,6 +1,87 @@
 import { expect, test } from '@playwright/test'
 import type { WaypointsData } from '../src/domain/visit'
 
+test('remote Waypoint locations resolve, retain failed drafts, clear and honor manual coordinates', async ({
+  page,
+}) => {
+  await page.addInitScript(() => {
+    localStorage.clear()
+    localStorage.setItem('journey-data-mode-v1', 'demo-cosmos')
+  })
+  let data: WaypointsData = {
+    waypoints: [],
+    challenges: [],
+    ideas: [],
+    activities: [],
+    references: [],
+    photoReferences: [],
+  }
+  const writes: WaypointsData[] = []
+  await page.route('**/api/journey/**', async (route) => {
+    expect(route.request().url()).toContain('/api/journey/demo')
+    if (route.request().method() === 'POST') {
+      const body = route.request().postDataJSON()
+      expect(body.operation).toBe('replace')
+      writes.push(structuredClone(body.data))
+      if (writes.length === 2) {
+        await route.fulfill({ status: 400, json: { error: 'No position found for Changed place' } })
+        return
+      }
+      data = body.data
+      const location = data.waypoints[0].location
+      if (location && location.latitude === undefined) {
+        location.latitude = writes.length === 1 ? 51 : 52
+        location.longitude = -2
+      }
+    }
+    await route.fulfill({
+      json: { data, etags: { [data.waypoints[0]?.waypointId ?? 'empty']: 'saved' }, role: 'admin' },
+    })
+  })
+  await page.goto('/waypoints')
+  await page.getByRole('button', { name: 'Add waypoint', exact: true }).click()
+  await page.getByLabel('Title', { exact: true }).fill('Remote Waypoint')
+  await page.getByLabel('Description', { exact: true }).fill('Synthetic browser test')
+  await page.getByRole('textbox', { name: 'Category', exact: true }).fill('Walk')
+  await page.getByLabel('Place name', { exact: true }).fill('Original place')
+  await page.getByRole('button', { name: 'Save waypoint', exact: true }).click()
+  await expect(page.getByText('Waypoint saved.', { exact: true })).toBeVisible()
+  expect(writes[0].waypoints[0].location).toEqual({ placeName: 'Original place' })
+  await page.getByRole('link', { name: 'Remote Waypoint', exact: true }).click()
+  await page.getByRole('button', { name: 'Edit waypoint', exact: true }).click()
+  await expect(page.getByLabel('Latitude')).toHaveValue('51')
+  await page.getByLabel('Place name').fill('Changed place')
+  await page.getByRole('button', { name: 'Save waypoint', exact: true }).click()
+  await expect(page.getByText(/No position found for Changed place/)).toBeVisible()
+  expect(writes[1].waypoints[0].location).toEqual({ placeName: 'Changed place' })
+  await expect(page.getByLabel('Place name')).toHaveValue('Changed place')
+  await expect(page.getByLabel('Latitude')).toHaveValue('51')
+  await expect(page.getByText('Waypoint saved.', { exact: true })).toHaveCount(0)
+  expect(writes).toHaveLength(2)
+  await page.getByRole('button', { name: 'Save waypoint', exact: true }).click()
+  await expect(page.getByText('Waypoint saved.', { exact: true })).toBeVisible()
+  expect(writes).toHaveLength(3)
+  await page.getByRole('button', { name: 'Edit waypoint', exact: true }).click()
+  await expect(page.getByLabel('Latitude')).toHaveValue('52')
+  await page.getByLabel('Place name').fill('')
+  await page.getByRole('button', { name: 'Save waypoint', exact: true }).click()
+  await expect(page.getByText('Waypoint saved.', { exact: true })).toBeVisible()
+  expect(writes[3].waypoints[0].location).toBeUndefined()
+  await page.getByRole('button', { name: 'Edit waypoint', exact: true }).click()
+  await page.getByLabel('Place name').fill('Manual place')
+  await page.getByLabel('Latitude').fill('53')
+  await page.getByLabel('Longitude').fill('-3')
+  await page.getByRole('button', { name: 'Save waypoint', exact: true }).click()
+  await expect(page.getByText('Waypoint saved.', { exact: true })).toBeVisible()
+  await page.getByRole('button', { name: 'Edit waypoint', exact: true }).click()
+  await page.getByLabel('Place name').fill('Another manual place')
+  await page.getByLabel('Latitude').fill('54')
+  await page.getByRole('button', { name: 'Save waypoint', exact: true }).click()
+  await expect(page.getByText('Waypoint saved.', { exact: true })).toBeVisible()
+  expect(writes[5].waypoints[0].location).toEqual({ placeName: 'Another manual place', latitude: 54, longitude: -3 })
+  expect(await page.evaluate(() => localStorage.getItem('waypoints-v1'))).toBeNull()
+})
+
 test.describe('remote data-mode switching', () => {
   test('guards editor drafts and keeps a remote save locked across page unmount', async ({ page }) => {
     await page.addInitScript(() => {
