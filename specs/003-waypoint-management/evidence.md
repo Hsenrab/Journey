@@ -45,12 +45,15 @@ persistence.
 - The synthetic Demo Cosmos browser journey mocks the remote HTTP boundary. It
   does not execute real Maps searches or Cosmos transactions.
 
-## Local Validation
+## Validation
 
 Commands run through Ubuntu WSL with installed dependencies, Chromium, and
 Functions Core Tools. No dependencies, configuration, or check thresholds changed.
-The local frontend coverage run was stopped due to runtime; full validation is
-being moved to the authorized GitHub Actions workflow.
+The complete CI sequence passed on GitHub Actions run
+[39784337451](https://github.com/Hsenrab/Journey/actions/runs/39784337451) for
+`implement-waypoint-location-save`. The local frontend coverage attempts described
+below were stopped because they were too slow or unstable in this WSL/OneDrive
+workspace.
 
 - Initial API track: 88 targeted schema/handler/geocode tests passed.
 - Initial frontend target command:
@@ -86,8 +89,21 @@ being moved to the authorized GitHub Actions workflow.
 - After tightening the client error-envelope fixtures, `npx vitest run
 src/services/journeyApi.test.ts --maxWorkers=1` passed **25 tests**. Focused
   Prettier validation for that file passed.
-
-Frontend coverage/build and the Chromium suite remain pending GitHub Actions CI.
+- GitHub Actions frontend lint, typecheck, and formatting passed. Lint reported the
+  same three existing warnings: the `defaultChallengeIds` memo dependency and two
+  JourneyContext fast-refresh export warnings.
+- GitHub Actions frontend coverage passed: **483 tests in 36 files**. Coverage was
+  90.83% statements, 86.22% branches, 87.53% functions, and 91.70% lines, exceeding
+  the configured 80% thresholds.
+- GitHub Actions frontend production build passed. All **5 Chromium E2E tests**
+  passed, including the synthetic remote Waypoint location-save journey.
+- GitHub Actions API lint, typecheck, coverage (**160 tests in 10 files**), build,
+  and built-host smoke tests (**2 tests**) all passed. API coverage was 85.77%
+  statements, 78.46% branches, 89.92% functions, and 88.41% lines; the API project
+  has no numeric coverage thresholds.
+- GitHub Actions reported existing runner/action advisories: `ubuntu-latest` is
+  scheduled to migrate to Ubuntu 26, and `actions/upload-artifact@v5` targets
+  Node.js 20 while the runner forces Node.js 24. These were warnings, not failures.
 
 ## Known Deviations and Gaps
 
@@ -125,5 +141,5 @@ The bounded Waypoint location-save improvement is implemented with focused
 regressions and unchanged persistence/authorization infrastructure. Remaining
 defects and hosted acceptance stay separate. Specification quality review is in
 the [requirements checklist](checklists/requirements.md). A feature-branch commit
-and push are authorized solely to run CI; no deployment, hosted mutation, or
-migration is authorized or performed.
+and push were made solely to run CI; no deployment, hosted mutation, or migration
+was performed.
