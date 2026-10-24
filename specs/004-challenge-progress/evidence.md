@@ -1,6 +1,10 @@
 # Challenges and Progress Evidence
 
 **Reviewed**: 2026-10-20
+
+**Supersession**: [Feature013](../013-challenge-waypoint-relationships/spec.md)
+replaces the historical membership-union behavior described below. This evidence
+retains its original review date and is not new runtime acceptance.
 **Specification**: [Challenge baseline](spec.md)
 
 | Requirements          | Implementation reviewed                                                                                                                  | Existing tests reviewed                                                                                                                                                    |

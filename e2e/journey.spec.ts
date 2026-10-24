@@ -1,6 +1,77 @@
 import { expect, test } from '@playwright/test'
 import type { WaypointsData } from '../src/domain/visit'
 
+test('Challenge assignments are single-source and obsolete backups fail without writes', async ({ page }) => {
+  await page.addInitScript(() => {
+    localStorage.clear()
+    localStorage.setItem('journey-data-mode-v1', 'demo-cosmos')
+  })
+  let data: WaypointsData = {
+    waypoints: [
+      {
+        waypointId: 'assigned',
+        title: 'Assigned waypoint',
+        description: 'Synthetic membership test',
+        category: 'Walk',
+        tags: [],
+        challengeIds: ['first', 'second'],
+        completion: { mode: 'once' },
+        referenceIds: [],
+        photoReferenceIds: [],
+      },
+    ],
+    challenges: ['first', 'second'].map((challengeId) => ({
+      challengeId,
+      title: `${challengeId} challenge`,
+      description: 'Synthetic challenge',
+      supportsActivityCategories: false,
+    })),
+    activities: [],
+    ideas: [],
+    references: [],
+    photoReferences: [],
+  }
+  let writes = 0
+  await page.route('**/api/journey/**', async (route) => {
+    if (route.request().method() === 'POST') {
+      writes += 1
+      data = route.request().postDataJSON().data
+      expect(data.challenges.every((challenge) => !('waypointIds' in challenge))).toBe(true)
+    }
+    await route.fulfill({ json: { data, etags: { assigned: 'etag' }, role: 'admin' } })
+  })
+  await page.goto('/waypoints/assigned')
+  await page.getByRole('button', { name: 'Edit waypoint', exact: true }).click()
+  await page.getByRole('button', { name: 'first challenge', exact: true }).press('Backspace')
+  await page.getByRole('button', { name: 'Cancel', exact: true }).click()
+  expect(writes).toBe(0)
+  await page.getByRole('button', { name: 'Edit waypoint', exact: true }).click()
+  await page.getByRole('button', { name: 'first challenge', exact: true }).press('Backspace')
+  await page.getByRole('button', { name: 'Save waypoint', exact: true }).click()
+  await expect(page.getByText('Waypoint saved.', { exact: true })).toBeVisible()
+  expect(data.waypoints[0].challengeIds).toEqual(['second'])
+  await page.goto('/challenges/first')
+  await expect(page.getByText('No waypoints linked to this challenge.')).toBeVisible()
+  await page.goto('/challenges/second')
+  await expect(page.getByRole('link', { name: 'View waypoint', exact: true })).toBeVisible()
+  await page.goto('/waypoints/assigned')
+  await page.getByRole('button', { name: 'Edit waypoint', exact: true }).click()
+  await page.getByRole('combobox', { name: 'Challenges', exact: true }).fill('first')
+  await page.getByRole('option', { name: 'first challenge', exact: true }).click()
+  await page.getByRole('button', { name: 'Save waypoint', exact: true }).click()
+  await expect(page.getByText('Waypoint saved.', { exact: true })).toBeVisible()
+  expect(data.waypoints[0].challengeIds).toEqual(['second', 'first'])
+  data = { ...data, waypoints: [] }
+  await page.goto('/settings')
+  await page.locator('input[type=file]').setInputFiles({
+    name: 'obsolete.json',
+    mimeType: 'application/json',
+    buffer: Buffer.from(JSON.stringify({ version: 1, exportedAt: '', data })),
+  })
+  await expect(page.getByText(/Backup version 2 is required/)).toBeVisible()
+  expect(writes).toBe(2)
+})
+
 test('remote Waypoint locations resolve, retain failed drafts, clear and honor manual coordinates', async ({
   page,
 }) => {
@@ -195,7 +266,6 @@ test.describe('activity management flow', () => {
               challengeId: 'e2e-challenge',
               title: 'Example Challenge',
               description: 'A challenge created for the end-to-end test.',
-              waypointIds: ['e2e-waypoint'],
               supportsActivityCategories: true,
             },
           ],

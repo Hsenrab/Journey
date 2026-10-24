@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { HttpRequest, InvocationContext } from '@azure/functions'
 import { journey } from './journey.js'
 import { JourneyDataSchema } from '../lib/journeySchema.js'
+import { StoredJourneyRelationshipError } from '../lib/cosmos.js'
 
 const {
   loadDataset,
@@ -35,6 +36,7 @@ vi.mock('../lib/cosmos.js', async () => {
     documentFor: actual.documentFor,
     documentsFor: actual.documentsFor,
     emptyJourneyData: actual.emptyJourneyData,
+    StoredJourneyRelationshipError: actual.StoredJourneyRelationshipError,
     replaceDocument,
     replaceDataset,
     savedDocument: actual.savedDocument,
@@ -351,7 +353,6 @@ describe('journey', () => {
         challengeId: 'challenge-1',
         title: 'Heritage weekend',
         description: 'A heritage challenge.',
-        waypointIds: ['waypoint-1'],
         supportsActivityCategories: false,
       }
       const reference = { referenceId: 'reference-1', title: 'Source', url: 'https://example.test/source' }
@@ -405,7 +406,6 @@ describe('journey', () => {
             challengeId: 'challenge-1',
             title: 'Challenge',
             description: 'A challenge.',
-            waypointIds: [],
             supportsActivityCategories: false,
             location: { placeName: 'A place' },
           },
@@ -499,6 +499,28 @@ describe('journey', () => {
     })
   })
 
+  it('returns expected stored relationship incompatibility as 422 without treating it as unexpected', async () => {
+    const error = new StoredJourneyRelationshipError('Stored Challenge data needs correction.')
+    loadDataset.mockRejectedValue(error)
+    const invocation = { error: vi.fn() } as unknown as InvocationContext
+
+    expect(await journey(request('production'), invocation)).toEqual({
+      status: 422,
+      jsonBody: { error: error.message },
+    })
+    expect(invocation.error).not.toHaveBeenCalled()
+    expect(replaceDataset).not.toHaveBeenCalled()
+  })
+
+  it('propagates unexpected dataset load failures', async () => {
+    const error = new Error('Cosmos query failed unexpectedly.')
+    loadDataset.mockRejectedValue(error)
+    const invocation = { error: vi.fn() } as unknown as InvocationContext
+
+    await expect(journey(request('production'), invocation)).rejects.toBe(error)
+    expect(invocation.error).toHaveBeenCalledWith(`Journey API failed: ${error.message}`)
+  })
+
   it('rejects unsupported route containers', async () => {
     await expect(journey(request('test'), { error: vi.fn() } as unknown as InvocationContext)).rejects.toThrow(
       'Unsupported Journey container "test".',
@@ -534,6 +556,58 @@ describe('journey', () => {
       ),
     ).toMatchObject({ status: 400, jsonBody: { error: 'A rejected idea requires a rejection reason' } })
   })
+
+  it('rejects obsolete Challenge membership in client writes with HTTP 400', async () => {
+    const challenge = {
+      challengeId: 'challenge-1',
+      title: 'Challenge',
+      description: 'A challenge',
+      waypointIds: [],
+      supportsActivityCategories: false,
+    }
+
+    expect(
+      await journey(
+        request('production', 'POST', { operation: 'create', type: 'challenge', entity: challenge }),
+        context(),
+      ),
+    ).toEqual({
+      status: 400,
+      jsonBody: {
+        error:
+          'Challenge "challenge-1" contains obsolete field "waypointIds"; review its links and correct them separately before use.',
+      },
+    })
+    expect(loadDataset).not.toHaveBeenCalled()
+    expect(createDocument).not.toHaveBeenCalled()
+  })
+
+  it.each(['import', 'replace'] as const)(
+    'rejects obsolete Challenge membership in %s before loading',
+    async (operation) => {
+      const challenge = {
+        challengeId: 'challenge-1',
+        title: 'Challenge',
+        description: 'A challenge',
+        waypointIds: [],
+        supportsActivityCategories: false,
+      }
+      const body =
+        operation === 'import'
+          ? { operation, data: { ...emptyData, challenges: [challenge] } }
+          : { operation, data: { ...emptyData, challenges: [challenge] }, etags: {} }
+
+      expect(await journey(request('production', 'POST', body), context())).toMatchObject({
+        status: 400,
+        jsonBody: {
+          error:
+            'Challenge "challenge-1" contains obsolete field "waypointIds"; review its links and correct them separately before use.',
+        },
+      })
+      expect(loadDataset).not.toHaveBeenCalled()
+      expect(replaceDataset).not.toHaveBeenCalled()
+    },
+  )
 
   it('geocodes a postcode-only activity before it is persisted', async () => {
     loadDataset.mockResolvedValue({ data: emptyData, etags: {} })
@@ -648,57 +722,49 @@ describe('journey', () => {
     },
   )
 
-  it.each(['production', 'demo'])(
-    'updates a waypoint in %s transactionally with reverse challenge links',
-    async (containerName) => {
-      const challenge = {
-        challengeId: 'challenge-1',
-        title: 'Heritage weekend',
-        description: 'Heritage weekend',
-        waypointIds: [],
-        supportsActivityCategories: false,
-      }
-      const loaded = {
-        data: { ...emptyData, waypoints: [waypoint], challenges: [challenge] },
-        etags: { 'waypoint-1': 'waypoint-etag', 'challenge-1': 'challenge-etag' },
-      }
-      loadDataset.mockResolvedValue(loaded)
-      const updated = { ...waypoint, title: 'Updated waypoint', challengeIds: ['challenge-1'] }
+  it.each(['production', 'demo'])('updates only the waypoint document in %s transactionally', async (containerName) => {
+    const challenge = {
+      challengeId: 'challenge-1',
+      title: 'Heritage weekend',
+      description: 'Heritage weekend',
+      supportsActivityCategories: false,
+    }
+    const loaded = {
+      data: { ...emptyData, waypoints: [waypoint], challenges: [challenge] },
+      etags: { 'waypoint-1': 'waypoint-etag', 'challenge-1': 'challenge-etag' },
+    }
+    loadDataset.mockResolvedValue(loaded)
+    const updated = { ...waypoint, title: 'Updated waypoint', challengeIds: ['challenge-1'] }
 
-      expect(
-        await journey(
-          request(containerName, 'PUT', {
-            operation: 'update',
-            type: 'waypoint',
-            id: 'waypoint-1',
-            entity: updated,
-            ifMatch: 'waypoint-etag',
-          }),
-          context(),
-        ),
-      ).toMatchObject({ status: 200 })
-      expect(replaceEntities).toHaveBeenCalledWith(
-        {},
-        containerName,
-        {
-          updates: [
-            { type: 'waypoint', entity: expect.objectContaining({ title: 'Updated waypoint' }) },
-            { type: 'challenge', entity: expect.objectContaining({ waypointIds: ['waypoint-1'] }) },
-          ],
-        },
-        'waypoint-1',
-        'waypoint-etag',
-        loaded,
-      )
-    },
-  )
+    expect(
+      await journey(
+        request(containerName, 'PUT', {
+          operation: 'update',
+          type: 'waypoint',
+          id: 'waypoint-1',
+          entity: updated,
+          ifMatch: 'waypoint-etag',
+        }),
+        context(),
+      ),
+    ).toMatchObject({ status: 200 })
+    expect(replaceEntities).toHaveBeenCalledWith(
+      {},
+      containerName,
+      {
+        updates: [{ type: 'waypoint', entity: expect.objectContaining({ title: 'Updated waypoint' }) }],
+      },
+      'waypoint-1',
+      'waypoint-etag',
+      loaded,
+    )
+  })
 
   it('rejects a waypoint update that invalidates an activity category', async () => {
     const challenge = {
       challengeId: 'challenge-1',
       title: 'Heritage weekend',
       description: 'Heritage weekend',
-      waypointIds: ['waypoint-1'],
       supportsActivityCategories: true,
     }
     const categorizedActivity = {
@@ -764,7 +830,6 @@ describe('journey', () => {
       challengeId: 'challenge-1',
       title: 'Heritage weekend',
       description: 'Heritage weekend',
-      waypointIds: ['waypoint-1'],
       supportsActivityCategories: false,
     }
     const linkedIdea = { ...idea, waypointIds: ['waypoint-1'] }
@@ -798,5 +863,37 @@ describe('journey', () => {
       ),
     ).toEqual({ status: 204 })
     expect(deleteEntity).toHaveBeenCalledWith({}, 'production', 'waypoint', 'waypoint-1', 'waypoint-etag', loaded)
+  })
+
+  it('rejects duplicate and dangling Challenge assignments before persistence', async () => {
+    loadDataset.mockResolvedValue({
+      data: {
+        ...emptyData,
+        challenges: [
+          {
+            challengeId: 'challenge-1',
+            title: 'Challenge',
+            description: 'A challenge',
+            supportsActivityCategories: false,
+          },
+        ],
+      },
+      etags: {},
+    })
+    for (const [challengeIds, expected] of [
+      [['challenge-1', 'challenge-1'], 'Waypoint Challenge assignments must be distinct'],
+      [['missing'], 'Waypoint "waypoint-1" references unknown challenge "missing".'],
+    ] as const) {
+      const response = await journey(
+        request('production', 'POST', {
+          operation: 'create',
+          type: 'waypoint',
+          entity: { ...waypoint, challengeIds },
+        }),
+        context(),
+      )
+      expect(response).toMatchObject({ status: 400, jsonBody: { error: expected } })
+    }
+    expect(createDocument).not.toHaveBeenCalled()
   })
 })

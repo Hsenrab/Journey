@@ -13,6 +13,21 @@ import {
 } from './journeyApi'
 
 describe('journey API client', () => {
+  it('preserves stored relationship incompatibility messages', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi
+        .fn()
+        .mockResolvedValue(
+          new Response(
+            JSON.stringify({ error: 'Challenge schema version 3 is required; correct existing data separately.' }),
+            { status: 422, headers: { 'content-type': 'application/json' } },
+          ),
+        ),
+    )
+    await expect(loadJourney('production')).rejects.toThrow('correct existing data separately')
+  })
+
   beforeEach(() => {
     vi.restoreAllMocks()
   })

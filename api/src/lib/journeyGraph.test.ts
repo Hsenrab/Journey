@@ -11,7 +11,7 @@ function data(): JourneyData {
         description: 'Manor',
         category: 'Historic building',
         tags: [],
-        challengeIds: [],
+        challengeIds: ['challenge-1'],
         completion: { mode: 'once' },
         referenceIds: ['reference-3'],
         photoReferenceIds: [],
@@ -22,7 +22,6 @@ function data(): JourneyData {
         challengeId: 'challenge-1',
         title: 'Heritage weekend',
         description: 'Heritage weekend',
-        waypointIds: ['waypoint-1'],
         supportsActivityCategories: false,
       },
     ],
@@ -118,16 +117,15 @@ describe('deletionPlan', () => {
 
     expect(plan.deletes).toEqual(['waypoint-1', 'reference-3'])
     expect(plan.updates).toEqual([
-      { type: 'challenge', entity: expect.objectContaining({ challengeId: 'challenge-1', waypointIds: [] }) },
       { type: 'idea', entity: expect.objectContaining({ ideaId: 'idea-1', waypointIds: [] }) },
       { type: 'activity', entity: expect.objectContaining({ activityId: 'activity-1', ideaIds: ['idea-1'] }) },
     ])
-    expect(plan.updates[2]!.entity).not.toHaveProperty('waypointId')
-    expect(plan.updates[2]!.entity).not.toHaveProperty('category')
+    expect(plan.updates[1]!.entity).not.toHaveProperty('waypointId')
+    expect(plan.updates[1]!.entity).not.toHaveProperty('category')
     expect(referenceIntegrityError(applyPlan(withCategory, plan))).toBeUndefined()
   })
 
-  it('updates challenge reverse links when a waypoint challenge list changes', () => {
+  it('updates only the waypoint when its challenge assignments change', () => {
     const plan = updatePlan(data(), 'waypoint', {
       ...data().waypoints[0]!,
       challengeIds: [],
@@ -136,9 +134,20 @@ describe('deletionPlan', () => {
 
     expect(plan.updates).toEqual([
       { type: 'waypoint', entity: expect.objectContaining({ waypointId: 'waypoint-1', challengeIds: [] }) },
-      { type: 'challenge', entity: expect.objectContaining({ challengeId: 'challenge-1', waypointIds: [] }) },
     ])
     expect(referenceIntegrityError(applyPlan(data(), plan))).toBeUndefined()
+  })
+
+  it('rejects duplicate and dangling waypoint challenge assignments', () => {
+    const duplicate = data()
+    duplicate.waypoints[0]!.challengeIds = ['challenge-1', 'challenge-1']
+    expect(referenceIntegrityError(duplicate)).toBe('Waypoint "waypoint-1" repeats a challenge link.')
+
+    const dangling = data()
+    dangling.waypoints[0]!.challengeIds = ['challenge-missing']
+    expect(referenceIntegrityError(dangling)).toBe(
+      'Waypoint "waypoint-1" references unknown challenge "challenge-missing".',
+    )
   })
 
   it('rejects waypoint challenge updates that invalidate an activity category', () => {

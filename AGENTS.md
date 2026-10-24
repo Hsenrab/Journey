@@ -190,6 +190,10 @@ Tests live alongside the file they cover (`*.test.ts`/`*.test.tsx`).
   records. Import requires an empty writable active dataset, either Production or
   Demo Cosmos, and complete validation before writing. Clear affects only the active
   writable dataset.
+- Challenge membership is stored only in `Waypoint.challengeIds`; Challenge member
+  lists are derived and `Challenge.waypointIds` is prohibited. Assignment IDs must
+  be distinct and reference existing Challenges. Reject edits that invalidate
+  awarded Activity history rather than clearing awards.
 - Ideas are planning records and never become Activities. Ideas link to Waypoints
   through `Idea.waypointIds`; Activities link to at most one Waypoint through
   `Activity.waypointId` and to Ideas through `Activity.ideaIds`. Waypoints store no

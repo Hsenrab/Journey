@@ -99,8 +99,11 @@ change that boundary. Waypoint and Idea locations remain optional.
 
 ## Relationships
 
-- A challenge references many waypoints.
-- A waypoint may belong to many challenges.
+- A waypoint may belong to many challenges, stored only in `Waypoint.challengeIds`.
+- Challenge members are derived from those assignments; Challenges store no
+  duplicate `waypointIds` list. IDs must be distinct and refer to existing Challenges.
+- Removing the last category-enabled assignment is rejected if it would invalidate
+  existing awarded Activities. Drafts and saved history are retained, not cleared.
 - A waypoint may have many activities.
 - Waypoints never store Idea or Activity child-ID arrays; Ideas link to Waypoints
   through `Idea.waypointIds` and Activities through `Activity.waypointId`.

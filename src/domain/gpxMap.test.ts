@@ -13,7 +13,11 @@ describe('challengeRecordedTracks', () => {
     expect(challenge.description).toContain('fabricated')
     expect(challenge.plannedRoute?.fileName).toBe('fictional-cotswold-way-demo.gpx')
     expect(challenge.plannedRoute?.geometry.coordinates[0]!.length).toBeGreaterThan(2)
-    expect(waypoints.map((waypoint) => waypoint.waypointId)).toEqual(challenge.waypointIds)
+    expect(waypoints.map((waypoint) => waypoint.waypointId)).toEqual([
+      'demo-cotswold-north-beacon',
+      'demo-cotswold-midway-gate',
+      'demo-cotswold-south-view',
+    ])
     expect(waypoints.every((waypoint) => waypoint.challengeIds.includes(challenge.challengeId))).toBe(true)
     expect(waypoints.every((waypoint) => waypoint.title.includes('(Demo)'))).toBe(true)
     expect(tracks.map(({ id }) => id)).toEqual(['activity-demo-cotswold-north', 'activity-demo-cotswold-midway'])
@@ -21,13 +25,13 @@ describe('challengeRecordedTracks', () => {
     expect(
       data.activities
         .filter((activity) => activity.challengeId === challenge.challengeId)
-        .every((activity) => challenge.waypointIds.includes(activity.waypointId!)),
+        .every((activity) => waypoints.some((waypoint) => waypoint.waypointId === activity.waypointId)),
     ).toBe(true)
   })
 
-  it('selects tracks through either Waypoint membership direction, not direct Activity Challenge links', () => {
+  it('selects tracks through Waypoint assignments, not direct Activity Challenge links', () => {
     const data = createDemoData()
-    const challenge = { ...data.challenges[0]!, waypointIds: ['forward'] }
+    const challenge = data.challenges[0]!
     const waypoints = [
       { ...data.waypoints[0]!, waypointId: 'forward', challengeIds: [] },
       { ...data.waypoints[0]!, waypointId: 'reverse', challengeIds: [challenge.challengeId] },
@@ -52,7 +56,6 @@ describe('challengeRecordedTracks', () => {
     ]
 
     expect(challengeRecordedTracks(challenge, waypoints, activities)).toEqual([
-      { id: 'a', label: 'Forward walk', segments: recordedTrack.coordinates },
       { id: 'b', label: 'Reverse walk', segments: recordedTrack.coordinates },
     ])
     expect(challengeRecordedTracks(challenge, waypoints, [])).toEqual([])

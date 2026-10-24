@@ -3,6 +3,10 @@
 **Feature Branch**: `004-challenge-progress`
 **Created**: 2026-10-20
 **Status**: Current-state baseline; source-reviewed, not newly runtime-verified
+
+**Supersession**: [Feature013](../013-challenge-waypoint-relationships/spec.md)
+replaces this historical baseline's two-direction membership rule with
+Waypoint-only assignments. The original review status remains historical.
 **Input**: Document existing Challenge creation, membership, progress overview,
 detail pages, and planned-route handling without adding functionality.
 

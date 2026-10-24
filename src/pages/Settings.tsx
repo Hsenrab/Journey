@@ -1,4 +1,5 @@
 import { useRef, useState } from 'react'
+import { ZodError } from 'zod'
 import {
   Alert,
   Button,
@@ -91,9 +92,10 @@ export default function Settings() {
         let importedData
         try {
           importedData = parseImport(text)
-        } catch {
+        } catch (error) {
+          if (!(error instanceof SyntaxError) && !(error instanceof ZodError)) throw error
           setMessage({
-            text: 'That file is not a valid Waypoints backup, so your existing data was left unchanged.',
+            text: `That file is not a valid Waypoints backup, so your existing data was left unchanged. ${error instanceof ZodError ? error.issues.map((issue) => issue.message).join(' ') : error.message}`,
             error: true,
           })
           return

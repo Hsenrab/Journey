@@ -1,7 +1,14 @@
 import { CosmosClient, type Container, type Database, type ItemResponse } from '@azure/cosmos'
 import { DefaultAzureCredential } from '@azure/identity'
 import { readFile } from 'node:fs/promises'
-import { deletionPlan, entityId, entityKey, entityTypeFor, type UpdatePlan } from './journeyGraph.js'
+import {
+  deletionPlan,
+  entityId,
+  entityKey,
+  entityTypeFor,
+  referenceIntegrityError,
+  type UpdatePlan,
+} from './journeyGraph.js'
 import {
   JourneyDataSchema,
   JourneyDocumentSchema,
@@ -13,6 +20,46 @@ import {
 
 let client: CosmosClient | undefined
 let database: Database | undefined
+
+export class StoredJourneyRelationshipError extends Error {
+  constructor(message: string) {
+    super(message)
+    this.name = 'StoredJourneyRelationshipError'
+  }
+}
+
+function storedRelationshipError(document: Record<string, unknown>): string | undefined {
+  if (document.type === 'challenge') {
+    if (document.schemaVersion === 1 || document.schemaVersion === 2)
+      return `Challenge document "${String(document.id)}" uses unsupported schema version ${document.schemaVersion}; stored Challenge data must be corrected separately before loading.`
+    const entity = document.entity
+    if (typeof entity === 'object' && entity !== null && 'waypointIds' in entity) {
+      const challengeId =
+        'challengeId' in entity && typeof entity.challengeId === 'string' ? entity.challengeId : String(document.id)
+      return `Challenge "${challengeId}" contains obsolete field "waypointIds"; review its links and correct them separately before loading.`
+    }
+  }
+  if (document.type === 'waypoint') {
+    const entity = document.entity
+    if (typeof entity !== 'object' || entity === null) return
+    const waypointId =
+      'waypointId' in entity && typeof entity.waypointId === 'string' ? entity.waypointId : String(document.id)
+    const challengeIds = 'challengeIds' in entity ? entity.challengeIds : undefined
+    if (!Array.isArray(challengeIds) || challengeIds.some((id) => typeof id !== 'string' || id.length === 0))
+      return `Waypoint "${waypointId}" has invalid Challenge assignments; stored relationship data must be corrected separately before loading.`
+    if (new Set(challengeIds).size !== challengeIds.length)
+      return `Waypoint "${waypointId}" repeats a Challenge assignment; stored relationship data must be corrected separately before loading.`
+  }
+  return undefined
+}
+
+function isChallengeRelationshipError(message: string): boolean {
+  return (
+    message.includes(' repeats a challenge link.') ||
+    message.includes(' references unknown challenge "') ||
+    message.includes(' has a category but its waypoint does not support Bronze, Silver or Gold categories.')
+  )
+}
 
 function required(name: string): string {
   const value = process.env[name]
@@ -65,13 +112,24 @@ export async function loadDataset(
       const etag = raw._etag
       for (const key of ['_etag', '_rid', '_self', '_attachments', '_ts']) delete raw[key]
       const domainDocument = raw
+      const relationshipError = storedRelationshipError(domainDocument)
+      if (relationshipError) throw new StoredJourneyRelationshipError(relationshipError)
       const document = JourneyDocumentSchema.parse(domainDocument)
       documents.push(document)
       if (typeof etag === 'string') etags[document.id] = etag
     }
     continuation = response.continuationToken
   } while (continuation)
-  return { data: documentsToData(documents), etags }
+  const data = JourneyDataSchema.parse(documentsToData(documents))
+  const graphError = referenceIntegrityError(data)
+  if (graphError) {
+    if (isChallengeRelationshipError(graphError))
+      throw new StoredJourneyRelationshipError(
+        `${graphError} Stored relationship data must be corrected separately before loading.`,
+      )
+    throw new Error(graphError)
+  }
+  return { data, etags }
 }
 
 export function documentFor(datasetId: string, type: EntityType, entity: Record<string, unknown>): JourneyDocument {
@@ -91,7 +149,10 @@ export function emptyJourneyData(): JourneyData {
 
 export function documentsFor(datasetId: string, data: JourneyData): Record<string, JourneyDocument> {
   const documents: Record<string, JourneyDocument> = Object.create(null)
-  for (const [key, entities] of Object.entries(JourneyDataSchema.parse(data))) {
+  const validatedData = JourneyDataSchema.parse(data)
+  const graphError = referenceIntegrityError(validatedData)
+  if (graphError) throw new Error(graphError)
+  for (const [key, entities] of Object.entries(validatedData)) {
     const type = entityTypeFor(key as keyof JourneyData)
     for (const entity of entities) {
       const document = documentFor(datasetId, type, entity)

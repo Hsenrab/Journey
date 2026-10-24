@@ -174,7 +174,6 @@ function saveTestData() {
         challengeId: 'custom-challenge',
         title: 'Personal goals',
         description: 'A custom challenge for these tests.',
-        waypointIds: ['test-path', 'test-garden'],
         supportsActivityCategories: true,
       },
     ],

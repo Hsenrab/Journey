@@ -1,5 +1,12 @@
 import { describe, expect, it, vi } from 'vitest'
-import { deleteEntity, documentsFor, documentsToData, loadDataset, replaceDataset } from './cosmos.js'
+import {
+  deleteEntity,
+  documentsFor,
+  documentsToData,
+  loadDataset,
+  replaceDataset,
+  StoredJourneyRelationshipError,
+} from './cosmos.js'
 import type { JourneyData, JourneyDocument } from './journeySchema.js'
 import { entityId, entityTypeFor } from './journeyGraph.js'
 
@@ -49,7 +56,7 @@ const data: JourneyData = {
       description: 'A waypoint',
       category: 'Walk',
       tags: [],
-      challengeIds: [],
+      challengeIds: ['challenge-1'],
       completion: { mode: 'once' },
       referenceIds: [],
       photoReferenceIds: [],
@@ -60,7 +67,6 @@ const data: JourneyData = {
       challengeId: 'challenge-1',
       title: 'Route challenge',
       description: 'A planned GPX route',
-      waypointIds: [],
       supportsActivityCategories: false,
       plannedRoute: {
         fileName: 'planned.gpx',
@@ -87,7 +93,7 @@ describe('Cosmos Journey persistence', () => {
     const documents = documentsFor('dataset', data)
     expect(Object.keys(documents)).toHaveLength(6)
     expect(documents['activity-1']).toMatchObject({ type: 'activity', schemaVersion: 4 })
-    expect(documents['challenge-1']).toMatchObject({ type: 'challenge', schemaVersion: 2 })
+    expect(documents['challenge-1']).toMatchObject({ type: 'challenge', schemaVersion: 3 })
     expect(documents['idea-1']).toMatchObject({ type: 'idea', schemaVersion: 2 })
     expect(documentsToData(Object.values(documents))).toEqual(data)
   })
@@ -167,6 +173,85 @@ describe('Cosmos Journey persistence', () => {
     const loaded = await loadDataset({ items: { query: () => ({ fetchNext }) } } as never, 'dataset')
     expect(loaded.data).toEqual(data)
     expect(Object.keys(loaded.etags)).toHaveLength(6)
+  })
+
+  it('rejects obsolete Challenge fields and versions as stored relationship errors', async () => {
+    const challengeEntity = {
+      challengeId: 'challenge-1',
+      title: 'Challenge',
+      description: 'A challenge',
+      supportsActivityCategories: false,
+    }
+    const challenge = {
+      id: 'challenge-1',
+      datasetId: 'dataset',
+      type: 'challenge',
+      schemaVersion: 3,
+      entity: { ...challengeEntity, waypointIds: [] },
+    }
+    for (const document of [challenge, { ...challenge, schemaVersion: 2, entity: challengeEntity }]) {
+      const fetchNext = vi.fn().mockResolvedValue({ resources: [document] })
+      await expect(loadDataset({ items: { query: () => ({ fetchNext }) } } as never, 'dataset')).rejects.toBeInstanceOf(
+        StoredJourneyRelationshipError,
+      )
+    }
+  })
+
+  it('rejects duplicate or dangling Challenge assignments before returning a loaded dataset', async () => {
+    const makeWaypoint = (challengeIds: string[]) => ({
+      id: 'waypoint-1',
+      datasetId: 'dataset',
+      type: 'waypoint',
+      schemaVersion: 2,
+      entity: {
+        waypointId: 'waypoint-1',
+        title: 'Waypoint',
+        description: 'A waypoint',
+        category: 'Walk',
+        tags: [],
+        challengeIds,
+        completion: { mode: 'once' },
+        referenceIds: [],
+        photoReferenceIds: [],
+      },
+    })
+    const challenge = documentsFor('dataset', { ...data, waypoints: [] })['challenge-1']
+    for (const [waypoint, message] of [
+      [makeWaypoint(['challenge-1', 'challenge-1']), 'repeats a Challenge assignment'],
+      [makeWaypoint(['challenge-missing']), 'references unknown challenge "challenge-missing"'],
+    ] as const) {
+      const fetchNext = vi.fn().mockResolvedValue({ resources: [waypoint, challenge] })
+      await expect(loadDataset({ items: { query: () => ({ fetchNext }) } } as never, 'dataset')).rejects.toThrow(
+        message,
+      )
+    }
+  })
+
+  it('deletes a waypoint without replacing its Challenges', async () => {
+    const batch = vi.fn().mockResolvedValue({ code: 200, result: [] })
+    const linkedData: JourneyData = {
+      ...data,
+      ideas: [{ ...idea, waypointIds: ['waypoint-1'] }],
+      activities: [{ ...activity, waypointId: 'waypoint-1' }],
+    }
+    await deleteEntity({ items: { batch } } as never, 'dataset', 'waypoint', 'waypoint-1', 'waypoint-etag', {
+      data: linkedData,
+      etags: {
+        'waypoint-1': 'waypoint-etag',
+        'idea-1': 'idea-etag',
+        'activity-1': 'activity-etag',
+      },
+    })
+
+    const operations = batch.mock.calls[0][0]
+    expect(operations.some((operation: { id: string }) => operation.id === 'challenge-1')).toBe(false)
+    expect(operations).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ operationType: 'Delete', id: 'waypoint-1' }),
+        expect.objectContaining({ operationType: 'Replace', id: 'idea-1' }),
+        expect.objectContaining({ operationType: 'Replace', id: 'activity-1' }),
+      ]),
+    )
   })
 
   it('deletes an idea, its activity links and orphaned references in one batch', async () => {

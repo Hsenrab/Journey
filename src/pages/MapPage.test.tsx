@@ -839,7 +839,6 @@ describe('MapPage', () => {
         ...challenge,
         challengeId: 'second-route',
         title: 'Second route',
-        waypointIds: [],
         plannedRoute: {
           fileName: 'second-route.gpx',
           geometry: {
@@ -853,6 +852,7 @@ describe('MapPage', () => {
           },
         },
       },
+      ...data.challenges.slice(1).map((challenge) => ({ ...challenge, plannedRoute: undefined })),
     ]
     localStorage.setItem('waypoints-v1', JSON.stringify(data))
     const user = userEvent.setup()
@@ -939,6 +939,7 @@ describe('MapPage', () => {
           },
         },
       },
+      ...data.challenges.slice(1).map((challenge) => ({ ...challenge, plannedRoute: undefined })),
     ]
     localStorage.setItem('waypoints-v1', JSON.stringify(data))
     const user = userEvent.setup()
@@ -981,6 +982,7 @@ describe('MapPage', () => {
           },
         },
       },
+      ...data.challenges.slice(1).map((challenge) => ({ ...challenge, plannedRoute: undefined })),
     ]
     localStorage.setItem('waypoints-v1', JSON.stringify(data))
     const user = userEvent.setup()

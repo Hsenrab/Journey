@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import {
   ActivitySchema,
+  ChallengeSchema,
+  DataSchema,
+  challengeWaypoints,
   IdeaSchema,
   PlannedRouteSchema,
   activitiesForWaypoint,
@@ -25,6 +28,44 @@ import {
   type WaypointsData,
 } from './visit'
 import { completionStateForWaypoint } from './map'
+
+describe('canonical Challenge assignments', () => {
+  it.each([{ waypointIds: [] }, { waypointIds: ['demo-foxglove-manor'] }])(
+    'rejects obsolete Challenge member lists: $waypointIds',
+    ({ waypointIds }) => {
+      const challenge = createDemoData().challenges[0]!
+      expect(() => ChallengeSchema.parse({ ...challenge, waypointIds })).toThrow('Challenge.waypointIds is obsolete')
+    },
+  )
+
+  it('rejects duplicate and missing Challenge assignments without repairing them', () => {
+    const data = createDemoData()
+    const waypoint = data.waypoints[0]!
+    waypoint.challengeIds = ['national-trust', 'national-trust']
+    expect(() => DataSchema.parse(data)).toThrow('Waypoint challenge links must be distinct')
+    waypoint.challengeIds = ['missing']
+    const invalid = DataSchema.safeParse(data)
+    expect(invalid.success).toBe(false)
+    if (!invalid.success)
+      expect(invalid.error.issues).toContainEqual(
+        expect.objectContaining({
+          message: 'Waypoint "demo-foxglove-manor" references unknown challenge "missing".',
+        }),
+      )
+    expect(waypoint.challengeIds).toEqual(['missing'])
+  })
+
+  it('derives overlapping and empty member sets solely from Waypoints', () => {
+    const data = createDemoData()
+    const first = data.challenges[0]!
+    const second = data.challenges[1]!
+    const shared = { ...data.waypoints[0]!, challengeIds: [first.challengeId, second.challengeId] }
+    const outside = { ...data.waypoints[1]!, challengeIds: [] }
+    expect(challengeWaypoints(first, [shared, outside])).toEqual([shared])
+    expect(challengeWaypoints(second, [shared, outside])).toEqual([shared])
+    expect(challengeWaypoints(first, [outside])).toEqual([])
+  })
+})
 
 function waypoint(waypointId: string): Waypoint {
   return {
@@ -146,7 +187,6 @@ describe('activity rules', () => {
           challengeId: 'challenge-1',
           title: 'Test challenge',
           description: 'A challenge for this test.',
-          waypointIds: [waypointId],
           supportsActivityCategories: true,
         },
       ],
@@ -317,24 +357,17 @@ describe('demo data', () => {
 
   it('shows partial progress for every challenge that has waypoints', () => {
     const data = createDemoData()
-    const waypointsById = new Map(data.waypoints.map((waypoint) => [waypoint.waypointId, waypoint]))
-
     for (const challenge of data.challenges) {
-      const challengeWaypoints = challenge.waypointIds.map((waypointId) => {
-        const waypoint = waypointsById.get(waypointId)
-        if (!waypoint)
-          throw new Error(`Challenge "${challenge.challengeId}" references missing waypoint "${waypointId}"`)
-        return waypoint
-      })
-      const completed = completedWaypointCount(challengeWaypoints, data.activities)
-      if (challenge.waypointIds.length === 0) {
+      const members = challengeWaypoints(challenge, data.waypoints)
+      const completed = completedWaypointCount(members, data.activities)
+      if (members.length === 0) {
         expect(completed).toBe(0)
         continue
       }
       expect(completed).toBeGreaterThan(0)
-      expect(completed).toBeLessThan(challenge.waypointIds.length)
+      expect(completed).toBeLessThan(members.length)
     }
-    expect(data.challenges.filter((challenge) => challenge.waypointIds.length === 0)).toEqual([
+    expect(data.challenges.filter((challenge) => challengeWaypoints(challenge, data.waypoints).length === 0)).toEqual([
       expect.objectContaining({ challengeId: 'future-shortlist' }),
     ])
   })

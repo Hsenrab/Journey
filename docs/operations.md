@@ -611,3 +611,20 @@ no server-side database to back up.
 - Open the application URL and check the dashboard loads.
 - Review Azure resource tags and cost monthly.
 - Keep dependencies current and re-run CI after upgrades.
+
+## Challenge relationship contract change
+
+Feature013 makes `Waypoint.challengeIds` the sole membership source. Challenge
+documents require schema version 3 and no `waypointIds` field, including an empty
+list. Backups require version 2; version-1 backups are rejected. No records are
+automatically converted, merged, or silently discarded.
+
+Old hosted records require separately authorized correction before use. Ordinary
+load, import, and clear are not repair tools: clear also loads and validates the
+stored dataset. Do not deploy the breaking contract to a dataset containing old
+records without separately arranging that correction. This feature does not
+authorize hosted data changes or deployment.
+
+The existing infrastructure deployment Demo reseed uses the updated bundled fixture.
+Demo Cosmos load failures retain the explicit read-only Demo local warning;
+Production failures block writes and never substitute Demo or stale records.

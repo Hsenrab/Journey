@@ -15,7 +15,7 @@ function testData(): WaypointsData {
     ...data,
     challenges: [challenge],
     waypoints: data.waypoints
-      .filter((waypoint) => challenge.waypointIds.includes(waypoint.waypointId))
+      .filter((waypoint) => waypoint.challengeIds.includes(challenge.challengeId))
       .map((waypoint) => ({ ...waypoint, challengeIds: [challenge.challengeId] })),
     ideas: [],
     activities: [],
@@ -45,6 +45,32 @@ describe('remote mode-switch boundary', () => {
     vi.unstubAllEnvs()
     vi.unstubAllGlobals()
     vi.restoreAllMocks()
+  })
+
+  it.each(['production', 'demo-cosmos'] as const)('reports incompatible %s data without accepting it', async (mode) => {
+    setDataMode(mode)
+    vi.stubGlobal(
+      'fetch',
+      vi
+        .fn()
+        .mockResolvedValue(
+          new Response(
+            JSON.stringify({ error: 'Challenge schema version 3 is required; correct existing data separately.' }),
+            { status: 422, headers: { 'content-type': 'application/json' } },
+          ),
+        ),
+    )
+    const { result } = renderHook(() => useWaypoints(), { wrapper: WaypointsProvider })
+    await waitFor(() => expect(result.current.loading).toBe(false))
+    expect(result.current.readOnly).toBe(true)
+    expect(result.current.loadError).toContain('correct existing data separately')
+    if (mode === 'production') {
+      expect(result.current.loadState.status).toBe('failed')
+      expect(result.current.data.waypoints).toEqual([])
+    } else {
+      expect(result.current.activeDataMode).toBe('demo-local')
+      expect(result.current.loadError).toContain('read-only local demo')
+    }
   })
 
   it('adopts resolved replacement coordinates and uses returned ETags on the next save', async () => {
@@ -375,9 +401,8 @@ describe('WaypointsContext', () => {
         photoReferenceIds: [expect.any(String)],
       }),
     )
-    expect(
-      result.current.data.challenges.find((challenge) => challenge.challengeId === 'national-trust')?.waypointIds,
-    ).toContain(waypoint?.waypointId)
+    expect(result.current.data.challenges).toEqual(testData().challenges)
+    expect(result.current.data.challenges[0]).not.toHaveProperty('waypointIds')
   })
 
   it('updates and deletes a waypoint while detaching linked records', () => {
@@ -418,9 +443,7 @@ describe('WaypointsContext', () => {
         completion: { mode: 'count', target: 2 },
       }),
     )
-    expect(
-      result.current.data.challenges.find((challenge) => challenge.challengeId === 'national-trust')?.waypointIds,
-    ).toContain(lacockId)
+    expect(result.current.data.challenges).toEqual(testData().challenges)
 
     act(() => {
       result.current.deleteWaypoint(lacockId)
@@ -430,7 +453,7 @@ describe('WaypointsContext', () => {
     expect(result.current.data.activities[0]?.waypointId).toBeUndefined()
     expect(result.current.data.activities[0]?.category).toBeUndefined()
     expect(result.current.data.ideas[0]?.waypointIds).toEqual([])
-    expect(result.current.data.challenges.some((challenge) => challenge.waypointIds.includes(lacockId))).toBe(false)
+    expect(result.current.data.challenges).toEqual(testData().challenges)
   })
 
   it('rejects waypoint updates that invalidate an activity category', async () => {
@@ -692,7 +715,6 @@ describe('WaypointsContext in production mode', () => {
     const seeded = createDefaultData()
     const waypoint = seeded.waypoints.find((item) => item.waypointId === lacockId)!
     seeded.waypoints = [waypoint]
-    seeded.challenges = seeded.challenges.map((challenge) => ({ ...challenge, waypointIds: [lacockId] }))
     waypoint.referenceIds = ['ref-keep', 'ref-remove']
     waypoint.photoReferenceIds = ['photo-keep', 'photo-remove']
     seeded.references = [

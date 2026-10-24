@@ -96,22 +96,38 @@ export const WaypointSchema = z.object({
   description: z.string().min(1),
   category: z.string().min(1),
   tags: z.array(z.string().min(1)),
-  challengeIds: z.array(z.string().min(1)),
+  challengeIds: z
+    .array(z.string().min(1))
+    .refine((ids) => new Set(ids).size === ids.length, 'Waypoint challenge links must be distinct'),
   completion: CompletionSchema,
   location: WaypointLocationSchema.optional(),
   referenceIds: z.array(z.string().min(1)),
   photoReferenceIds: z.array(z.string().min(1)),
 })
 
-export const ChallengeSchema = z.object({
-  challengeId: z.string().min(1),
-  title: z.string().min(1),
-  description: z.string().min(1),
-  waypointIds: z.array(z.string().min(1)),
-  supportsActivityCategories: z.boolean(),
-  location: WaypointLocationSchema.optional(),
-  plannedRoute: PlannedRouteSchema.optional(),
-})
+export const ChallengeSchema = z.preprocess(
+  (value, context) => {
+    if (typeof value === 'object' && value !== null && 'waypointIds' in value) {
+      context.addIssue({
+        code: 'custom',
+        path: ['waypointIds'],
+        message:
+          'Challenge.waypointIds is obsolete. Assign Challenges through Waypoint.challengeIds; existing data must be corrected separately.',
+      })
+    }
+    return value
+  },
+  z
+    .object({
+      challengeId: z.string().min(1),
+      title: z.string().min(1),
+      description: z.string().min(1),
+      supportsActivityCategories: z.boolean(),
+      location: WaypointLocationSchema.optional(),
+      plannedRoute: PlannedRouteSchema.optional(),
+    })
+    .strict(),
+)
 
 export const planningStates = ['active', 'someday', 'rejected'] as const
 export const PlanningStateSchema = z.enum(planningStates)
@@ -212,14 +228,28 @@ export const ActivitySchema = z
   })
   .strict()
 
-export const DataSchema = z.object({
-  waypoints: z.array(WaypointSchema),
-  challenges: z.array(ChallengeSchema),
-  ideas: z.array(IdeaSchema),
-  activities: z.array(ActivitySchema),
-  references: z.array(ReferenceSchema),
-  photoReferences: z.array(ExternalPhotoReferenceSchema),
-})
+export const DataSchema = z
+  .object({
+    waypoints: z.array(WaypointSchema),
+    challenges: z.array(ChallengeSchema),
+    ideas: z.array(IdeaSchema),
+    activities: z.array(ActivitySchema),
+    references: z.array(ReferenceSchema),
+    photoReferences: z.array(ExternalPhotoReferenceSchema),
+  })
+  .superRefine((data, context) => {
+    const challengeIds = new Set(data.challenges.map((challenge) => challenge.challengeId))
+    data.waypoints.forEach((waypoint, index) => {
+      waypoint.challengeIds.forEach((challengeId, linkIndex) => {
+        if (!challengeIds.has(challengeId))
+          context.addIssue({
+            code: 'custom',
+            path: ['waypoints', index, 'challengeIds', linkIndex],
+            message: `Waypoint "${waypoint.waypointId}" references unknown challenge "${challengeId}".`,
+          })
+      })
+    })
+  })
 
 export type Waypoint = z.infer<typeof WaypointSchema>
 export type Challenge = z.infer<typeof ChallengeSchema>
@@ -259,10 +289,7 @@ export function createDemoData(): WaypointsData {
 }
 
 export function challengeWaypoints(challenge: Challenge, waypoints: readonly Waypoint[]): Waypoint[] {
-  return waypoints.filter(
-    (waypoint) =>
-      challenge.waypointIds.includes(waypoint.waypointId) || waypoint.challengeIds.includes(challenge.challengeId),
-  )
+  return waypoints.filter((waypoint) => waypoint.challengeIds.includes(challenge.challengeId))
 }
 
 export function waypointSupportsActivityCategory(data: WaypointsData, waypointId: string | undefined): boolean {

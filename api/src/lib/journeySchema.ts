@@ -61,7 +61,7 @@ const schemas = {
       description: identifier,
       category: identifier,
       tags: z.array(identifier),
-      challengeIds: z.array(identifier),
+      challengeIds: distinctIds('Waypoint Challenge assignments must be distinct'),
       completion: z.discriminatedUnion('mode', [
         z.object({ mode: z.literal('once') }).strict(),
         z.object({ mode: z.literal('count'), target: z.number().int().positive() }).strict(),
@@ -71,17 +71,29 @@ const schemas = {
       photoReferenceIds: z.array(identifier),
     })
     .strict(),
-  challenge: z
-    .object({
-      challengeId: identifier,
-      title: identifier,
-      description: identifier,
-      waypointIds: z.array(identifier),
-      supportsActivityCategories: z.boolean(),
-      location: place.optional(),
-      plannedRoute: plannedRoute.optional(),
-    })
-    .strict(),
+  challenge: z.preprocess(
+    (value, context) => {
+      if (typeof value === 'object' && value !== null && 'waypointIds' in value) {
+        const challengeId =
+          'challengeId' in value && typeof value.challengeId === 'string' ? value.challengeId : 'unknown'
+        context.addIssue({
+          code: 'custom',
+          message: `Challenge "${challengeId}" contains obsolete field "waypointIds"; review its links and correct them separately before use.`,
+        })
+      }
+      return value
+    },
+    z
+      .object({
+        challengeId: identifier,
+        title: identifier,
+        description: identifier,
+        supportsActivityCategories: z.boolean(),
+        location: place.optional(),
+        plannedRoute: plannedRoute.optional(),
+      })
+      .strict(),
+  ),
   idea: z
     .object({
       ideaId: identifier,
@@ -150,7 +162,7 @@ const replacementWaypoint = schemas.waypoint
 
 export const schemaVersions = {
   waypoint: 2,
-  challenge: 2,
+  challenge: 3,
   idea: 2,
   activity: 4,
   reference: 1,
@@ -168,19 +180,12 @@ export const JourneyDocumentSchema = z
   .strict()
   .superRefine((document, context) => {
     const expected = schemaVersions[document.type]
-    const isLegacyChallenge = document.type === 'challenge' && document.schemaVersion === 1
     const isLegacyActivity = document.type === 'activity' && document.schemaVersion === 3
-    if (document.schemaVersion !== expected && !isLegacyChallenge && !isLegacyActivity)
+    if (document.schemaVersion !== expected && !isLegacyActivity)
       context.addIssue({
         code: 'custom',
         path: ['schemaVersion'],
         message: `Document type "${document.type}" requires schema version ${expected}, received ${document.schemaVersion}.`,
-      })
-    if (isLegacyChallenge && 'plannedRoute' in document.entity)
-      context.addIssue({
-        code: 'custom',
-        path: ['entity', 'plannedRoute'],
-        message: 'Challenge schema version 1 cannot contain plannedRoute.',
       })
     if (isLegacyActivity && 'recordedTrack' in document.entity)
       context.addIssue({
