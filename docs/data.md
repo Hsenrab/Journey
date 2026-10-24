@@ -13,12 +13,11 @@ Cosmos stores one document per entity. Every document contains `id`, `datasetId`
 validated `WaypointsData` response. Cosmos ETags are kept in application memory and
 are not included in JSON exports.
 
-Each document type declares its own schema version (`activity` is version 4, `challenge`,
-`idea`, and `waypoint` are version 2, and the other types are version 1). A document whose
+Each document type declares its own schema version (`activity` is version 4,
+`challenge` is version 3, `idea` and `waypoint` are version 2, and the other types are version 1). A document whose
 version or entity shape does not match the current schema fails validation with its
-specific error. GPX-free Challenge version 1 and Activity version 3 documents remain
-readable; Challenge version 1 cannot contain `plannedRoute`, and Activity version 3
-cannot contain `recordedTrack`. Reading legacy documents does not migrate them, but a
+specific error. Challenge versions 1/2 are rejected without conversion. Activity version 3
+remains readable but cannot contain `recordedTrack`. Reading legacy documents does not migrate them, but a
 full-dataset replacement rewrites all supplied documents at their current versions.
 
 `src/data/demo.json` is the canonical demo fixture. Demo local loads it directly in the
@@ -101,9 +100,17 @@ Validation is shared in `src/domain/visit.ts` and enforced by storage import/loa
 
 ## Backup format
 
+Backups use version 2. Version-1 backups are rejected, not converted. Challenge
+membership is stored only in `Waypoint.challengeIds`: distinct IDs of existing
+Challenges. Challenge `waypointIds` is obsolete and rejected even when empty.
+Changing a backup's envelope version alone does not make obsolete data valid.
+
+Stored relationship incompatibility is reported by the API with HTTP 422 and its
+specific validation message. No records are automatically repaired or dropped.
+
 ```json
 {
-  "version": 1,
+  "version": 2,
   "exportedAt": "2026-08-01T00:00:00.000Z",
   "data": {
     "waypoints": [],
@@ -141,8 +148,8 @@ ETags and replacement operations use that same ID.
 Each operation that changes several documents runs as a single Cosmos transactional
 batch in the dataset's `/datasetId` logical partition:
 
-- **Delete a Waypoint** — delete the Waypoint, remove its ID from every Challenge
-  `waypointIds` and Idea `waypointIds` array, and clear `waypointId` on Activities
+- **Delete a Waypoint** — delete the Waypoint, remove its ID from every
+  Idea `waypointIds` array, and clear `waypointId` on Activities
   recorded under it. All Challenges, Ideas, Activities, references, and photos are
   preserved.
 - **Delete an Idea** — delete the Idea and remove its ID from every Activity `ideaIds`

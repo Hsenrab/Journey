@@ -301,62 +301,42 @@
       "challengeId": "national-trust",
       "title": "National Trust Demo Collection (Fictional)",
       "description": "Six wholly fabricated heritage places used to demonstrate Bronze, Silver and Gold progress.",
-      "waypointIds": [
-        "demo-foxglove-manor",
-        "demo-bramblewick-gardens",
-        "demo-cindercombe-mill",
-        "demo-lantern-hill-fort",
-        "demo-thistledown-priory",
-        "demo-marlpit-water-garden"
-      ],
       "supportsActivityCategories": true
     },
     {
       "challengeId": "heritage-weekend",
       "title": "Heritage Weekend (Demo)",
       "description": "Visit the fictional manor, garden, mill, hillfort and priory without category scoring.",
-      "waypointIds": [
-        "demo-foxglove-manor",
-        "demo-bramblewick-gardens",
-        "demo-cindercombe-mill",
-        "demo-lantern-hill-fort",
-        "demo-thistledown-priory"
-      ],
       "supportsActivityCategories": false
     },
     {
       "challengeId": "local-adventures",
       "title": "Local Adventures (Demo)",
       "description": "A fictional mix of walking, paddling and food stops around Gloucestershire.",
-      "waypointIds": ["demo-wychwood-night-walk", "demo-puddlebrook-paddle", "demo-copper-kettle-trail"],
       "supportsActivityCategories": false
     },
     {
       "challengeId": "family-days",
       "title": "Family Days (Demo)",
       "description": "A small fictional family activity collection.",
-      "waypointIds": ["demo-wychwood-night-walk", "demo-puddlebrook-paddle", "demo-copper-kettle-trail"],
       "supportsActivityCategories": false
     },
     {
       "challengeId": "food-and-craft",
       "title": "Food and Craft (Demo)",
       "description": "Three fictional creative day trips with no medal categories.",
-      "waypointIds": ["demo-copper-kettle-trail", "demo-glasshouse-workshop", "demo-tannery-lane-pottery"],
       "supportsActivityCategories": false
     },
     {
       "challengeId": "future-shortlist",
       "title": "Future Shortlist (Demo)",
       "description": "An empty challenge for previewing the no-waypoints state.",
-      "waypointIds": [],
       "supportsActivityCategories": false
     },
     {
       "challengeId": "cotswold-way-demo",
       "title": "Cotswold Way Explorer (Fictional Demo)",
       "description": "A wholly fabricated GPX challenge inspired by the Cotswold Way. Its simplified route, places and visit tracks are demo data, not a navigational route.",
-      "waypointIds": ["demo-cotswold-north-beacon", "demo-cotswold-midway-gate", "demo-cotswold-south-view"],
       "supportsActivityCategories": false,
       "plannedRoute": {
         "fileName": "fictional-cotswold-way-demo.gpx",

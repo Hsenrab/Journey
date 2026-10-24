@@ -32,6 +32,22 @@ describe('LocationDetails', () => {
     vi.unstubAllEnvs()
   })
 
+  it('retains the assignment draft when removing category support would invalidate awards', async () => {
+    const user = userEvent.setup()
+    const before = load()
+    renderDetails(demoWaypointId)
+    await user.click(screen.getByRole('button', { name: 'Edit waypoint' }))
+    const challenge = before.challenges.find((item) => item.challengeId === 'national-trust')!
+    const chip = screen.getByText(challenge.title).closest('.MuiChip-root')!
+    fireEvent.click(chip.querySelector('[data-testid="CancelIcon"]')!)
+    await user.click(screen.getByRole('button', { name: 'Save waypoint' }))
+    expect(
+      await screen.findByText('Selected waypoint does not support Bronze, Silver or Gold categories.'),
+    ).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Save waypoint' })).toBeInTheDocument()
+    expect(load()).toEqual(before)
+  })
+
   it('keeps a failed remote location edit and its coordinates visible until an explicit successful resave', async () => {
     vi.stubEnv('MODE', 'production')
     const data = createDemoModeData()

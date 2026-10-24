@@ -46,6 +46,41 @@ function backupFile(contents: string) {
   return new File([contents], 'backup.json', { type: 'application/json' })
 }
 
+describe('obsolete backup rejection', () => {
+  it.each([
+    { version: 1, expected: /Backup version 2 is required/ },
+    { version: backupVersion, expected: /Challenge.waypointIds is obsolete/ },
+  ])('shows the specific version-$version rejection without changing stored records', async ({ version, expected }) => {
+    localStorage.clear()
+    save(createDefaultData())
+    const before = localStorage.getItem('waypoints-v1')
+    renderSettings()
+    await userEvent.upload(
+      screen.getByLabelText('Restore JSON'),
+      backupFile(
+        JSON.stringify({
+          version,
+          exportedAt: '2026-08-01T00:00:00.000Z',
+          data: {
+            ...createDefaultData(),
+            challenges: [
+              {
+                challengeId: 'obsolete',
+                title: 'Obsolete challenge',
+                description: 'Synthetic invalid backup',
+                supportsActivityCategories: false,
+                waypointIds: [],
+              },
+            ],
+          },
+        }),
+      ),
+    )
+    expect(await screen.findByText(expected)).toBeInTheDocument()
+    expect(localStorage.getItem('waypoints-v1')).toBe(before)
+  })
+})
+
 describe('remote backup preparation boundary', () => {
   afterEach(() => {
     cleanup()

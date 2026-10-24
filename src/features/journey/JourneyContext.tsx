@@ -259,20 +259,9 @@ function reducer(data: WaypointsData, action: Action): WaypointsData {
         referenceIds: refs.referenceIds,
         photoReferenceIds: photos.photoReferenceIds,
       })
-      const challenges = data.challenges.map((challenge) =>
-        waypoint.challengeIds.includes(challenge.challengeId)
-          ? {
-              ...challenge,
-              waypointIds: challenge.waypointIds.includes(waypoint.waypointId)
-                ? challenge.waypointIds
-                : [...challenge.waypointIds, waypoint.waypointId],
-            }
-          : challenge,
-      )
       return pruneUnreferenced({
         ...data,
         waypoints: [...data.waypoints, waypoint],
-        challenges,
         references: refs.references,
         photoReferences: photos.photoReferences,
       })
@@ -300,21 +289,9 @@ function reducer(data: WaypointsData, action: Action): WaypointsData {
         referenceIds: refs.referenceIds,
         photoReferenceIds: photos.photoReferenceIds,
       })
-      const challenges = data.challenges.map((challenge) => {
-        const linked = waypoint.challengeIds.includes(challenge.challengeId)
-        return {
-          ...challenge,
-          waypointIds: linked
-            ? challenge.waypointIds.includes(waypoint.waypointId)
-              ? challenge.waypointIds
-              : [...challenge.waypointIds, waypoint.waypointId]
-            : challenge.waypointIds.filter((waypointId) => waypointId !== waypoint.waypointId),
-        }
-      })
       const next = pruneUnreferenced({
         ...data,
         waypoints: data.waypoints.map((item) => (item.waypointId === action.waypointId ? waypoint : item)),
-        challenges,
         references: refs.references,
         photoReferences: photos.photoReferences,
       })
@@ -327,10 +304,6 @@ function reducer(data: WaypointsData, action: Action): WaypointsData {
       return pruneUnreferenced({
         ...data,
         waypoints: data.waypoints.filter((waypoint) => waypoint.waypointId !== action.waypointId),
-        challenges: data.challenges.map((challenge) => ({
-          ...challenge,
-          waypointIds: challenge.waypointIds.filter((waypointId) => waypointId !== action.waypointId),
-        })),
         ideas: data.ideas.map((idea) => ({
           ...idea,
           waypointIds: idea.waypointIds.filter((waypointId) => waypointId !== action.waypointId),
@@ -624,7 +597,6 @@ export function WaypointsProvider({ children }: { children: ReactNode }) {
             challengeId: crypto.randomUUID(),
             title: input.title.trim(),
             description: input.description.trim(),
-            waypointIds: [],
             supportsActivityCategories: input.supportsActivityCategories,
           }),
         }

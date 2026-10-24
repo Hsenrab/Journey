@@ -4,11 +4,11 @@ import { createDemoData, DataSchema, type WaypointsData } from '../domain/visit'
 export type Backup = { version: number; exportedAt: string; data: WaypointsData }
 export type JourneyDataMode = 'demo-local' | 'demo-cosmos' | 'production'
 
-export const backupVersion = 1
+export const backupVersion = 2
 
 const ImportSchema = z
   .object({
-    version: z.literal(backupVersion),
+    version: z.literal(backupVersion, 'Backup version 2 is required. Older backups must be corrected separately.'),
     exportedAt: z.string(),
     data: DataSchema,
   })
@@ -62,7 +62,7 @@ export function save(data: WaypointsData) {
 }
 
 export function createBackup(data: WaypointsData): Backup {
-  return { version: backupVersion, exportedAt: new Date().toISOString(), data }
+  return { version: backupVersion, exportedAt: new Date().toISOString(), data: DataSchema.parse(data) }
 }
 
 export function parseImport(value: string): WaypointsData {

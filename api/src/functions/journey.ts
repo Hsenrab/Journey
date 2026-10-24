@@ -18,6 +18,7 @@ import {
   replaceDataset,
   replaceEntities,
   savedDocument,
+  StoredJourneyRelationshipError,
 } from '../lib/cosmos.js'
 import { JourneyDataSchema, JourneyMutationSchema, type EntityType } from '../lib/journeySchema.js'
 import { GeocodeError, resolveEntityCoordinates } from '../lib/geocode.js'
@@ -165,6 +166,7 @@ export async function journey(request: HttpRequest, context: InvocationContext):
     return { status: 204 }
   } catch (error) {
     if (error instanceof ResponseError) return { status: error.status, jsonBody: { error: error.code } }
+    if (error instanceof StoredJourneyRelationshipError) return { status: 422, jsonBody: { error: error.message } }
     if (typeof error === 'object' && error !== null && 'code' in error && error.code === 412) {
       return { status: 409, jsonBody: { error: 'conflict' } }
     }

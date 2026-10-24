@@ -220,7 +220,9 @@ describe('ChallengeDetails', () => {
     expect(screen.queryByText('No planned GPX route attached.')).not.toBeInTheDocument()
     expect(screen.queryByRole('heading', { name: 'Planned route' })).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Attach GPX route' })).toBeInTheDocument()
-    expect(screen.getByTestId('challenge-map')).toHaveTextContent(`${data.challenges[0]!.waypointIds.length} waypoints`)
+    expect(screen.getByTestId('challenge-map')).toHaveTextContent(
+      `${data.waypoints.filter((waypoint) => waypoint.challengeIds.includes(data.challenges[0]!.challengeId)).length} waypoints`,
+    )
     expect(screen.getAllByRole('link', { name: 'View waypoint' })[0]).toHaveAttribute(
       'href',
       `/waypoints/${data.waypoints[0]?.waypointId}`,

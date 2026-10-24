@@ -13,8 +13,8 @@ function testData() {
   const challenge = data.challenges[0]!
   return {
     ...data,
-    challenges: [challenge],
-    waypoints: data.waypoints.filter((waypoint) => challenge.waypointIds.includes(waypoint.waypointId)),
+    challenges: data.challenges,
+    waypoints: data.waypoints.filter((waypoint) => waypoint.challengeIds.includes(challenge.challengeId)),
     activities: [],
   }
 }
@@ -99,8 +99,9 @@ describe('Dashboard', () => {
 
   it('shows a single challenge with its own name and progress', () => {
     const data = createDemoModeData()
-    data.challenges = [data.challenges[0]!]
-    data.waypoints = data.waypoints.filter((waypoint) => data.challenges[0]!.waypointIds.includes(waypoint.waypointId))
+    data.waypoints = data.waypoints.filter((waypoint) =>
+      waypoint.challengeIds.includes(data.challenges[0]!.challengeId),
+    )
     data.activities = []
     save(data)
     renderDashboard()
@@ -116,8 +117,7 @@ describe('Dashboard', () => {
   it('shows zero progress when no activities are recorded', () => {
     const seed = createDefaultData()
     const challenge = seed.challenges[0]!
-    seed.challenges = [challenge]
-    seed.waypoints = seed.waypoints.filter((waypoint) => challenge.waypointIds.includes(waypoint.waypointId))
+    seed.waypoints = seed.waypoints.filter((waypoint) => waypoint.challengeIds.includes(challenge.challengeId))
     seed.activities = []
     save(seed)
     renderDashboard()
@@ -138,9 +138,12 @@ describe('Dashboard', () => {
       const card = screen.getByRole('heading', { name: challenge.title }).closest('.MuiCard-root')
       expect(card).not.toBeNull()
       expect(
-        within(card as HTMLElement).getByText(`of ${challenge.waypointIds.length} waypoints completed`, {
-          exact: false,
-        }),
+        within(card as HTMLElement).getByText(
+          `of ${demo.waypoints.filter((waypoint) => waypoint.challengeIds.includes(challenge.challengeId)).length} waypoints completed`,
+          {
+            exact: false,
+          },
+        ),
       ).toBeInTheDocument()
     }
     expect(screen.queryByRole('button', { name: 'Add challenge' })).not.toBeInTheDocument()
@@ -163,7 +166,7 @@ describe('Dashboard', () => {
     expect(screen.getByRole('link', { name: 'Change the data mode in Settings' })).toHaveAttribute('href', '/settings')
   })
 
-  it('counts waypoints linked from either side of a challenge', () => {
+  it('counts waypoints assigned to a challenge', () => {
     const seed = createDefaultData()
     save({
       ...seed,
@@ -173,7 +176,6 @@ describe('Dashboard', () => {
           challengeId: 'walking',
           title: 'Walking',
           description: 'Explore on foot',
-          waypointIds: [],
           supportsActivityCategories: false,
         },
       ],
@@ -304,8 +306,7 @@ describe('Dashboard', () => {
   it('counts completed waypoints when any activity exists (including bronze)', () => {
     const seed = createDefaultData()
     const challenge = seed.challenges[0]!
-    seed.challenges = [challenge]
-    seed.waypoints = seed.waypoints.filter((waypoint) => challenge.waypointIds.includes(waypoint.waypointId))
+    seed.waypoints = seed.waypoints.filter((waypoint) => waypoint.challengeIds.includes(challenge.challengeId))
     save({
       ...seed,
       activities: [
@@ -324,7 +325,6 @@ describe('Dashboard', () => {
     const data = createDefaultData()
     const waypoint = data.waypoints.find((item) => item.waypointId === lacockId)!
     data.waypoints = [waypoint]
-    data.challenges = [{ ...data.challenges[0]!, waypointIds: [lacockId] }]
     save({ ...data, activities: [activity(lacockId, 'silver')] })
 
     const { getByRole } = renderDashboard()
@@ -341,7 +341,6 @@ describe('Dashboard', () => {
     const data = createDefaultData()
     const waypoint = data.waypoints.find((item) => item.waypointId === lacockId)!
     data.waypoints = [waypoint]
-    data.challenges = [{ ...data.challenges[0]!, waypointIds: [lacockId] }]
     save({ ...data, activities: [activity(lacockId, 'silver')] })
 
     renderDashboard()
@@ -353,7 +352,6 @@ describe('Dashboard', () => {
     const data = createDefaultData()
     const waypoint = data.waypoints.find((item) => item.waypointId === lacockId)!
     data.waypoints = [waypoint]
-    data.challenges = [{ ...data.challenges[0]!, waypointIds: [lacockId] }]
     save({ ...data, activities: [activity(lacockId, 'silver')] })
 
     const { getByRole } = renderDashboard()

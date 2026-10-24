@@ -144,6 +144,27 @@ describe('save', () => {
 })
 
 describe('createBackup/parseImport', () => {
+  it('rejects version-1 backups explicitly', () => {
+    expect(() => parseImport(backup({ version: 1 }))).toThrow('Backup version 2 is required')
+  })
+
+  it('rejects obsolete fields in current backups and local records without rewriting them', () => {
+    const data = createDemoModeData()
+    const obsolete = {
+      ...data,
+      challenges: data.challenges.map((challenge) => ({ ...challenge, waypointIds: [] })),
+    }
+    expect(() => createBackup(obsolete)).toThrow('Challenge.waypointIds is obsolete')
+    expect(() => parseImport(JSON.stringify({ version: 2, exportedAt: '', data: obsolete }))).toThrow(
+      'Challenge.waypointIds is obsolete',
+    )
+    localStorage.clear()
+    const raw = JSON.stringify(obsolete)
+    localStorage.setItem('waypoints-v1', raw)
+    expect(() => load()).toThrow('Challenge.waypointIds is obsolete')
+    expect(localStorage.getItem('waypoints-v1')).toBe(raw)
+  })
+
   it('round-trips a valid backup', () => {
     const exported = createBackup({ ...createDefaultData(), activities: [activity] })
     expect(parseImport(JSON.stringify(exported))).toMatchObject({ activities: [activity] })
@@ -168,7 +189,6 @@ describe('createBackup/parseImport', () => {
       challengeId: 'challenge-1',
       title: 'Test challenge',
       description: 'A challenge used to test route backup.',
-      waypointIds: [],
       supportsActivityCategories: false,
       plannedRoute: { fileName: 'planned.gpx', geometry },
     }

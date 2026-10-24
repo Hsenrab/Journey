@@ -216,12 +216,11 @@ describe('Journey document validation', () => {
     ).toBe(false)
   })
 
-  it('accepts persisted Challenge GPX geometry and GPX-free legacy Challenges', () => {
+  it('accepts persisted Challenge GPX geometry', () => {
     const entity = {
       challengeId: 'challenge-1',
       title: 'Challenge',
       description: 'A route challenge',
-      waypointIds: [],
       supportsActivityCategories: false,
       plannedRoute: {
         fileName: 'route.gpx',
@@ -241,7 +240,7 @@ describe('Journey document validation', () => {
         id: 'challenge-1',
         datasetId: 'production',
         type: 'challenge',
-        schemaVersion: 2,
+        schemaVersion: 3,
         entity,
       }).success,
     ).toBe(true)
@@ -250,7 +249,7 @@ describe('Journey document validation', () => {
         id: 'challenge-1',
         datasetId: 'production',
         type: 'challenge',
-        schemaVersion: 2,
+        schemaVersion: 3,
         entity: { ...entity, plannedRoute: { ...entity.plannedRoute, fileName } },
       })
     expect(routeWithFileName('a'.repeat(255)).success).toBe(true)
@@ -264,17 +263,15 @@ describe('Journey document validation', () => {
         entity,
       }).success,
     ).toBe(false)
-    const legacyEntity = { ...entity }
-    delete (legacyEntity as { plannedRoute?: unknown }).plannedRoute
     expect(
       JourneyDocumentSchema.safeParse({
         id: 'challenge-1',
         datasetId: 'production',
         type: 'challenge',
-        schemaVersion: 1,
-        entity: legacyEntity,
+        schemaVersion: 2,
+        entity,
       }).success,
-    ).toBe(true)
+    ).toBe(false)
   })
 
   it('rejects Challenge routes exceeding the segment and total-point limits', () => {
@@ -283,12 +280,11 @@ describe('Journey document validation', () => {
         id: 'challenge-1',
         datasetId: 'production',
         type: 'challenge',
-        schemaVersion: 2,
+        schemaVersion: 3,
         entity: {
           challengeId: 'challenge-1',
           title: 'Challenge',
           description: 'A route challenge',
-          waypointIds: [],
           supportsActivityCategories: false,
           plannedRoute: {
             fileName: 'route.gpx',
@@ -301,6 +297,58 @@ describe('Journey document validation', () => {
 
     expect(routeDocument(Array.from({ length: 101 }, () => [point, point])).success).toBe(false)
     expect(routeDocument([Array.from({ length: 10_001 }, () => point)]).success).toBe(false)
+  })
+
+  it.each([1, 2])('rejects Challenge document schema version %s', (schemaVersion) => {
+    expect(
+      JourneyDocumentSchema.safeParse({
+        id: 'challenge-1',
+        datasetId: 'production',
+        type: 'challenge',
+        schemaVersion,
+        entity: {
+          challengeId: 'challenge-1',
+          title: 'Challenge',
+          description: 'A challenge',
+          supportsActivityCategories: false,
+        },
+      }).success,
+    ).toBe(false)
+  })
+
+  it('rejects obsolete Challenge membership even when its list is empty', () => {
+    const result = JourneyDocumentSchema.safeParse({
+      id: 'challenge-1',
+      datasetId: 'production',
+      type: 'challenge',
+      schemaVersion: 3,
+      entity: {
+        challengeId: 'challenge-1',
+        title: 'Challenge',
+        description: 'A challenge',
+        waypointIds: [],
+        supportsActivityCategories: false,
+      },
+    })
+
+    expect(result.success).toBe(false)
+    expect(result.error?.issues.map(({ message }) => message)).toContain(
+      'Challenge "challenge-1" contains obsolete field "waypointIds"; review its links and correct them separately before use.',
+    )
+  })
+
+  it('requires distinct nonempty Waypoint Challenge assignments', () => {
+    for (const challengeIds of [['challenge-1', 'challenge-1'], ['']]) {
+      expect(
+        JourneyDocumentSchema.safeParse({
+          id: 'waypoint-1',
+          datasetId: 'production',
+          type: 'waypoint',
+          schemaVersion: 2,
+          entity: { ...waypoint(), challengeIds },
+        }).success,
+      ).toBe(false)
+    }
   })
 
   it('validates Activity tracks and accepts only matching document versions', () => {
