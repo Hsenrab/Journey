@@ -184,6 +184,15 @@ saved-Activity link to its confirmation, and awaited completed client navigation
 and history-marker consumption before testing Back. No production timing hooks
 or weakened assertions were introduced.
 
+The first pushed-branch CI run passed API validation and frontend static checks,
+coverage and build, but failed both Idea-origin Back-navigation cases. The test
+returned immediately after the URL changed, before the Activity detail view had
+rendered, so Back could cancel that transition without unmounting the original
+Idea view. The test now also requires the saved Activity's level-one heading to be
+visible before going Back. Both viewport cases passed three consecutive runs with
+two browser workers (`npx playwright test e2e/activity-recording.spec.ts --grep
+'idea saves' --workers=2 --repeat-each=3`). No application behavior was changed.
+
 API checks used checksum-identical source and consumed root fixtures; its
 task-owned native copy was removed after validation. SHA-256 parity was confirmed
 for 100 frontend source, browser, manifest and configuration files between the

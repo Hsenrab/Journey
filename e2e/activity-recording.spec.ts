@@ -168,6 +168,7 @@ for (const width of [360, 1280]) {
         await expect.poll(() => page.evaluate(() => window.history.state.usr)).toBeNull()
         await savedLink.click()
         await expect(page).toHaveURL(new RegExp(`/activities/${saved.activityId}$`))
+        await expect(page.getByRole('heading', { name: recordedTitle, exact: true, level: 1 })).toBeVisible()
         await page.goBack()
         await expect(page).toHaveURL(/\/ideas\/picnic$/)
         await expect(page.getByText('Activity saved.', { exact: false })).toHaveCount(0)
