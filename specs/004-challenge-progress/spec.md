@@ -7,6 +7,12 @@
 **Supersession**: [Feature013](../013-challenge-waypoint-relationships/spec.md)
 replaces this historical baseline's two-direction membership rule with
 Waypoint-only assignments. The original review status remains historical.
+
+**Extension**: [Feature014](../014-challenge-waypoint-progress/spec.md) adds
+per-member once/count completion to Challenge details. Its acceptance evidence is
+maintained separately in [Feature014 quickstart](../014-challenge-waypoint-progress/quickstart.md);
+it does not retroactively runtime-verify this baseline.
+
 **Input**: Document existing Challenge creation, membership, progress overview,
 detail pages, and planned-route handling without adding functionality.
 

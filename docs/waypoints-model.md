@@ -24,7 +24,8 @@ Examples:
 - A seasonal walk collection
 - Historic buildings challenge
 
-Challenges reference waypoint IDs instead of duplicating waypoint records.
+Challenge members are derived from `Waypoint.challengeIds` instead of duplicating
+waypoint records or storing a second membership list.
 Location data is optional.
 
 ### Idea
@@ -156,6 +157,15 @@ waypoint's completion state. The waypoint detail page and list cards show it as 
 "Completion" chip (`Done`/`Not done` for `once`, `N of target activities` for
 `count`), alongside a separate "Award tier" chip for the highest Bronze/Silver/Gold
 category. The Dashboard percentage and Map completion icons use the same helper.
+
+Challenge details show completion inside each member card, between its description
+and View waypoint link. Once-mode members show `Completion: Done` or
+`Completion: Not done`. Count-mode members show `Completion: N of target activities`
+(singular `activity` for target one) and explicit `Done`/`Not done` text.
+The actual count is never capped: seven linked Activities with target five show
+`7 of 5 activities` and `Done`. This is completion evidence, not an award-tier display.
+These labels use the active loaded dataset and the same helper as Waypoint details;
+displaying them does not fetch, persist, or change any records.
 
 ## External references
 
