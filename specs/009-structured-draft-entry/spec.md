@@ -1,5 +1,10 @@
 # Feature Specification: Structured Draft Entry and Prompt Help Baseline
 
+**Activity contract update**: [Feature 015](../015-activity-recording-experience/spec.md)
+requires Activity title (`name`) and a real non-future date using UK time on
+structured drafts as well as other ingestion paths. Historical optional-name
+behavior below is replaced; no migration or fallback is authorized.
+
 **Feature Branch**: `009-structured-draft-entry`
 **Created**: 2026-10-20
 **Status**: Current-state baseline; source-reviewed, not newly runtime-verified

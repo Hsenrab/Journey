@@ -31,7 +31,7 @@ import {
   type Activity,
 } from '../domain/visit'
 import { useWaypoints } from '../features/journey/JourneyContext'
-import { JourneyConflictError } from '../services/journeyApi'
+import { JourneyConflictError, JourneyInputError } from '../services/journeyApi'
 
 export default function ActivityDetails() {
   const { activityId = '' } = useParams()
@@ -358,15 +358,20 @@ export default function ActivityDetails() {
           onSubmit={async (draft) => {
             try {
               await updateActivity(activity.activityId, draft)
-              setEditing(false)
-              setMessage({ severity: 'success', text: 'Activity updated.' })
+              return true
             } catch (error) {
+              if (!(error instanceof JourneyInputError || error instanceof JourneyConflictError)) throw error
               setMessage({
                 severity: 'error',
                 text: error instanceof Error ? error.message : 'Failed to update activity.',
                 conflict: error instanceof JourneyConflictError,
               })
+              return false
             }
+          }}
+          onSaved={() => {
+            setEditing(false)
+            setMessage({ severity: 'success', text: 'Activity saved.' })
           }}
           onCancel={() => setEditing(false)}
           onDelete={() => setShowDeleteDialog(true)}

@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { Link, useNavigate, useParams } from 'react-router-dom'
+import { useEffect, useState } from 'react'
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
 import {
   Alert,
   Button,
@@ -34,6 +34,16 @@ import { useWaypoints } from '../features/journey/JourneyContext'
 
 export default function IdeaDetails() {
   const navigate = useNavigate()
+  const location = useLocation()
+  const [savedActivityId] = useState<string | null>(() => {
+    const state: unknown = location.state
+    return state && typeof state === 'object' && 'activitySaved' in state && typeof state.activitySaved === 'string'
+      ? state.activitySaved
+      : null
+  })
+  useEffect(() => {
+    if (savedActivityId) navigate(`${location.pathname}${location.search}`, { replace: true, state: null })
+  }, [savedActivityId, navigate, location.pathname, location.search])
   const { ideaId = '' } = useParams()
   const { data, loadState, readOnly, updateIdea, deleteIdea } = useWaypoints()
   const [editing, setEditing] = useState(false)
@@ -94,6 +104,11 @@ export default function IdeaDetails() {
         )}
       </DetailPageHeader>
       <ReadOnlyNotice />
+      {savedActivityId && activities.some((activity) => activity.activityId === savedActivityId) && (
+        <Alert severity="success">
+          Activity saved. <Link to={`/activities/${savedActivityId}`}>View activity</Link>
+        </Alert>
+      )}
       {!editing && error && <Alert severity="error">{error}</Alert>}
       <Typography color="text.secondary">{idea.description || 'No description'}</Typography>
       <Typography sx={{ whiteSpace: 'pre-wrap' }}>{idea.notes || 'No notes'}</Typography>

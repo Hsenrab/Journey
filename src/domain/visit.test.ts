@@ -83,8 +83,24 @@ function waypoint(waypointId: string): Waypoint {
 }
 
 describe('activity rules', () => {
+  it('requires trimmed titles and real non-future dates on persisted and draft records', () => {
+    const activity = createActivity({
+      name: '  Evening walk  ',
+      date: '2024-02-29',
+      location: { kind: 'coordinates', latitude: 51, longitude: -2 },
+    })
+    expect(activity.name).toBe('Evening walk')
+    for (const name of [undefined, '', ' \t '])
+      expect(ActivitySchema.safeParse({ ...activity, name }).success).toBe(false)
+    for (const date of ['', '2026-02-29', '9999-01-01'])
+      expect(ActivitySchema.safeParse({ ...activity, date }).success).toBe(false)
+    expect(() =>
+      DataSchema.parse({ ...createDemoData(), activities: [activity, { ...activity, activityId: 'other' }] }),
+    ).not.toThrow()
+  })
   it('creates an activity with stable id/timestamps', () => {
     const activity = createActivity({
+      name: 'Recorded activity',
       waypointId: 'lacock-abbey',
       date: '2026-08-01',
       category: 'bronze',
@@ -98,6 +114,7 @@ describe('activity rules', () => {
   it('rejects invalid postcode/coordinate payloads', () => {
     expect(() =>
       createActivity({
+        name: 'Recorded activity',
         date: '2026-08-01',
         location: { kind: 'postcode', postcode: '   ' },
       }),
@@ -105,6 +122,7 @@ describe('activity rules', () => {
 
     expect(() =>
       createActivity({
+        name: 'Recorded activity',
         date: '2026-08-01',
         location: { kind: 'coordinates', latitude: 120, longitude: 0 },
       }),
@@ -126,6 +144,7 @@ describe('activity rules', () => {
       ],
     })
     const activity = createActivity({
+      name: 'Recorded activity',
       date: '2026-09-04',
       location: { kind: 'coordinates', latitude: 51.415, longitude: -2.123 },
       recordedTrack,
@@ -151,11 +170,13 @@ describe('activity rules', () => {
 
   it('keeps recorded tracks optional and independent of activity completion', () => {
     const activity = createActivity({
+      name: 'Recorded activity',
       waypointId: 'no-track',
       date: '2026-09-04',
       location: { kind: 'coordinates', latitude: 51.415, longitude: -2.123 },
     })
     const trackedActivity = createActivity({
+      name: 'Recorded activity',
       waypointId: 'no-track',
       date: '2026-09-05',
       location: { kind: 'coordinates', latitude: 51.415, longitude: -2.123 },
@@ -198,6 +219,7 @@ describe('activity rules', () => {
     expect(waypointSupportsActivityCategory(data, waypointId)).toBe(true)
 
     const activity = createActivity({
+      name: 'Recorded activity',
       waypointId,
       date: '2026-08-01',
       category: 'gold',
@@ -217,6 +239,7 @@ describe('activity rules', () => {
   it('counts completion independently from category summaries', () => {
     const waypoints = [waypoint('a')]
     const uncategorized = createActivity({
+      name: 'Recorded activity',
       waypointId: 'a',
       date: '2026-08-01',
       location: { kind: 'postcode', postcode: 'GL3 4AQ' },
@@ -229,6 +252,7 @@ describe('activity rules', () => {
   it('derives completion progress for once waypoints', () => {
     const once = waypoint('a')
     const visit = createActivity({
+      name: 'Recorded activity',
       waypointId: 'a',
       date: '2026-08-01',
       location: { kind: 'postcode', postcode: 'GL3' },
@@ -247,6 +271,7 @@ describe('activity rules', () => {
   it('derives completion progress toward a count target consistently with completion totals', () => {
     const counted: Waypoint = { ...waypoint('a'), completion: { mode: 'count', target: 5 } }
     const visit = createActivity({
+      name: 'Recorded activity',
       waypointId: 'a',
       date: '2026-08-01',
       location: { kind: 'postcode', postcode: 'GL3' },
@@ -464,6 +489,7 @@ describe('idea schema', () => {
 describe('idea and activity relationships', () => {
   const activity = (activityId: string, ideaIds: string[], waypointId?: string, date = '2026-08-02') =>
     createActivity({
+      name: 'Recorded activity',
       activityId,
       waypointId,
       ideaIds,
@@ -498,6 +524,7 @@ describe('idea and activity relationships', () => {
     expect(() => activity('a1', ['idea-1', 'idea-1'])).toThrow('Activity idea links must be distinct')
     expect(
       ActivitySchema.safeParse({
+        name: 'Recorded activity',
         activityId: 'a1',
         ideaId: 'idea-1',
         date: '2026-08-02',

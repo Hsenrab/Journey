@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import rawDemoData from '../data/demo.json'
+import { activityDateError } from './activityDate'
 
 export const statusOrder = ['not-started', 'bronze', 'silver', 'gold'] as const
 export type Status = (typeof statusOrder)[number]
@@ -22,13 +23,10 @@ export const awardableStatuses = ['bronze', 'silver', 'gold'] as const satisfies
 export const AwardedStatusSchema = z.enum(awardableStatuses)
 export type AwardedStatus = z.infer<typeof AwardedStatusSchema>
 
-const isoDate = z
-  .string()
-  .regex(/^\d{4}-\d{2}-\d{2}$/, 'Activity date must use YYYY-MM-DD format')
-  .refine((value) => {
-    const date = new Date(`${value}T00:00:00Z`)
-    return !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === value
-  }, 'Activity date must be a real calendar date')
+const isoDate = z.string().superRefine((value, context) => {
+  const message = activityDateError(value)
+  if (message) context.addIssue({ code: 'custom', message })
+})
 
 const PostcodeLocationSchema = z.object({
   kind: z.literal('postcode'),
@@ -212,7 +210,7 @@ export const ExternalPhotoReferenceSchema = z
 export const ActivitySchema = z
   .object({
     activityId: z.string().min(1),
-    name: z.string().trim().min(1, 'Activity name is required').optional(),
+    name: z.string().trim().min(1, 'Activity title is required'),
     waypointId: z.string().min(1).optional(),
     challengeId: z.string().min(1).optional(),
     ideaIds: distinctIds('Activity idea links must be distinct'),
@@ -267,11 +265,11 @@ export function formatActivityDate(date: string) {
 }
 
 export function activityTitle(activity: Activity) {
-  return activity.name ?? formatActivityDate(activity.date)
+  return activity.name
 }
 
 export function activitySubtitle(activity: Activity) {
-  return activity.name ? formatActivityDate(activity.date) : undefined
+  return formatActivityDate(activity.date)
 }
 
 export function countLabel(count: number, singular: string) {
@@ -309,7 +307,7 @@ export function validateActivityCategory(data: WaypointsData, activity: Activity
 
 export function createActivity(input: {
   activityId?: string
-  name?: string
+  name: string
   waypointId?: string
   challengeId?: string
   ideaIds?: string[]
@@ -326,7 +324,7 @@ export function createActivity(input: {
   const now = new Date().toISOString()
   return ActivitySchema.parse({
     activityId: input.activityId ?? crypto.randomUUID(),
-    name: input.name?.trim() || undefined,
+    name: input.name,
     waypointId: input.waypointId,
     challengeId: input.challengeId,
     ideaIds: input.ideaIds ?? [],

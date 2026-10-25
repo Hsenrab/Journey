@@ -1,5 +1,10 @@
 # Feature Specification: Activity Recording Baseline
 
+**Superseded portions**: [Feature 015](../015-activity-recording-experience/spec.md)
+replaces optional Activity names/date-title fallback, date validation, and the
+recording editor's save/optional-detail interaction contract. This document retains
+the historical baseline; it is not authorization for obsolete behavior.
+
 **Feature Branch**: `006-activity-recording`
 **Created**: 2026-10-20
 **Status**: Current-state baseline; source-reviewed, not newly runtime-verified

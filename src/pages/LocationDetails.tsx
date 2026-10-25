@@ -39,7 +39,7 @@ import {
   waypointCompletionProgress,
 } from '../domain/visit'
 import { useWaypoints } from '../features/journey/JourneyContext'
-import { JourneyConflictError } from '../services/journeyApi'
+import { JourneyConflictError, JourneyInputError } from '../services/journeyApi'
 
 export default function LocationDetails() {
   const { id = '' } = useParams()
@@ -191,15 +191,20 @@ export default function LocationDetails() {
           onSubmit={async (draft) => {
             try {
               await addActivity(draft)
-              setShowEditor(false)
-              setMessage({ severity: 'success', text: 'Activity saved.', conflict: false })
+              return true
             } catch (error) {
+              if (!(error instanceof JourneyInputError || error instanceof JourneyConflictError)) throw error
               setMessage({
                 severity: 'error',
                 text: error instanceof Error ? error.message : 'Failed to save activity.',
                 conflict: error instanceof JourneyConflictError,
               })
+              return false
             }
+          }}
+          onSaved={() => {
+            setShowEditor(false)
+            setMessage({ severity: 'success', text: 'Activity saved.', conflict: false })
           }}
           onCancel={() => {
             setMessage(null)

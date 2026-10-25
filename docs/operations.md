@@ -50,6 +50,20 @@ the user-controlled backup.
 
 ### Journey data modes
 
+Activity documents now require schema version **5**, a trimmed nonempty `name`
+(Activity title), and a real non-future `date` using the current UK calendar date
+including BST. Versions 3/4 and incompatible title/date data fail explicitly;
+there is no automatic migration, title backfill, filtering, or hosted correction.
+This is a deliberate breaking change: existing datasets containing older Activity
+documents cannot load until separately authorized correction is performed.
+Do not deploy expecting the old records to be accepted. Frontend backup imports
+also reject incompatible records before writing any data.
+
+Production load failures block writes and never substitute demo data. Preserve
+only the existing explicitly warned, read-only Demo Cosmos fallback. Bundled
+fictional fixtures are validated against the new contract; reseeding remains part
+of the existing infrastructure deployment, not an action to run during this change.
+
 Settings exposes three explicit modes; the header identifies the active data/access status:
 
 - The deployment supplies the initial mode: test starts in Demo Cosmos, while production

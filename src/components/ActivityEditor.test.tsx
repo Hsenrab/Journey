@@ -1,5 +1,6 @@
+import { submitActivity, openActivityEvidence } from '../test/activityActions'
 import type { ComponentProps } from 'react'
-import { MemoryRouter } from 'react-router-dom'
+import { MemoryRouter } from '../test/DataMemoryRouter'
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -18,7 +19,7 @@ function SwitchMode() {
 }
 
 function renderEditor(overrides: Partial<ComponentProps<typeof ActivityEditor>> = {}) {
-  const onSubmit = vi.fn<(draft: ActivityDraft) => void>()
+  const onSubmit = vi.fn<(draft: ActivityDraft) => Promise<boolean>>().mockResolvedValue(true)
   const onCancel = vi.fn()
   const onDelete = vi.fn()
   const data = createDefaultData()
@@ -103,6 +104,7 @@ describe('ActivityEditor', () => {
     const user = userEvent.setup()
     renderEditor()
     const text = JSON.stringify({
+      name: 'Recorded activity',
       date: new Date().toISOString().slice(0, 10),
       notes: '',
       location: { kind: 'postcode', postcode: 'GL1 1AA' },
@@ -119,6 +121,7 @@ describe('ActivityEditor', () => {
     await user.click(screen.getByRole('button', { name: 'Load into form' }))
     expect(isDirty()).toBe(true)
     fireEvent.change(screen.getByLabelText('Postcode'), { target: { value: '' } })
+    fireEvent.change(screen.getByLabelText('Activity title'), { target: { value: '' } })
     expect(isDirty()).toBe(false)
     await user.click(screen.getByRole('tab', { name: 'Paste JSON' }))
     expect(screen.getByLabelText('Activity JSON')).toHaveValue(text)
@@ -147,6 +150,7 @@ describe('ActivityEditor', () => {
     })
     const file = new File([], 'pending.gpx', { type: 'application/gpx+xml' })
     Object.defineProperty(file, 'text', { value: () => reading })
+    await openActivityEvidence(user, 'Recorded GPX track')
     fireEvent.change(screen.getByLabelText('GPX track file'), { target: { files: [file] } })
     await user.click(screen.getByText('Switch mode'))
     expect(confirm).toHaveBeenCalledOnce()
@@ -166,7 +170,7 @@ describe('ActivityEditor', () => {
 
     await user.type(screen.getByLabelText('Postcode'), 'GL1 1AA')
     await user.type(screen.getByLabelText('Description / notes'), 'Nice day')
-    await user.click(screen.getByRole('button', { name: 'Save' }))
+    await submitActivity(user, 'Save')
 
     expect(onSubmit).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -180,6 +184,7 @@ describe('ActivityEditor', () => {
   it('attaches and replaces a GPX track in the shared activity form', async () => {
     const user = userEvent.setup()
     const { onSubmit } = renderEditor()
+    await openActivityEvidence(user, 'Recorded GPX track')
     const input = screen.getByLabelText('GPX track file')
     const replacementTrack = GpxGeometrySchema.parse({
       type: 'MultiLineString',
@@ -196,7 +201,7 @@ describe('ActivityEditor', () => {
     expect(screen.getByRole('button', { name: 'Replace GPX track' })).toBeInTheDocument()
     await user.upload(input, gpxFile(gpxXml('-3.1'), 'replacement.gpx'))
     await user.type(screen.getByLabelText('Postcode'), 'GL1 1AA')
-    await user.click(screen.getByRole('button', { name: 'Save' }))
+    await submitActivity(user, 'Save')
     expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ recordedTrack: replacementTrack }))
     expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ recordedTrack: replacementTrack }))
   })
@@ -204,6 +209,7 @@ describe('ActivityEditor', () => {
   it('disables track actions while parsing and ignores stale GPX results', async () => {
     const user = userEvent.setup()
     const initialActivity = createActivity({
+      name: 'Recorded activity',
       activityId: 'activity-with-track',
       date: '2026-09-04',
       location: { kind: 'postcode', postcode: 'GL1 1AA' },
@@ -218,6 +224,7 @@ describe('ActivityEditor', () => {
       },
     })
     const { onSubmit } = renderEditor({ initialActivity })
+    await openActivityEvidence(user, 'Recorded GPX track')
     const input = screen.getByLabelText('GPX track file')
     const pendingReads: Array<(xml: string) => void> = []
     const pendingFile = (name: string) => {
@@ -243,7 +250,7 @@ describe('ActivityEditor', () => {
     await waitFor(() => expect(screen.getByRole('button', { name: 'Save' })).toBeEnabled())
     await act(async () => pendingReads[0]!(gpxXml('-2.1')))
 
-    await user.click(screen.getByRole('button', { name: 'Save' }))
+    await submitActivity(user, 'Save')
     expect(onSubmit).toHaveBeenCalledWith(
       expect.objectContaining({
         recordedTrack: {
@@ -262,6 +269,7 @@ describe('ActivityEditor', () => {
   it('removes an existing GPX track', async () => {
     const user = userEvent.setup()
     const initialActivity = createActivity({
+      name: 'Recorded activity',
       activityId: 'activity-with-track',
       date: '2026-09-04',
       location: { kind: 'postcode', postcode: 'GL1 1AA' },
@@ -278,7 +286,7 @@ describe('ActivityEditor', () => {
     const { onSubmit } = renderEditor({ initialActivity })
 
     await user.click(screen.getByRole('button', { name: 'Remove GPX track' }))
-    await user.click(screen.getByRole('button', { name: 'Save' }))
+    await submitActivity(user, 'Save')
 
     expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ recordedTrack: undefined }))
   })
@@ -295,6 +303,7 @@ describe('ActivityEditor', () => {
       ],
     })
     const initialActivity = createActivity({
+      name: 'Recorded activity',
       activityId: 'activity-with-track',
       date: '2026-09-04',
       location: { kind: 'postcode', postcode: 'GL1 1AA' },
@@ -304,10 +313,11 @@ describe('ActivityEditor', () => {
 
     await user.clear(screen.getByLabelText('Description / notes'))
     await user.type(screen.getByLabelText('Description / notes'), 'Other edits remain')
+    await openActivityEvidence(user, 'Recorded GPX track')
     await user.upload(screen.getByLabelText('GPX track file'), gpxFile('<not-gpx />'))
 
     expect(await screen.findByText('The selected file is not a GPX document.')).toBeInTheDocument()
-    await user.click(screen.getByRole('button', { name: 'Save' }))
+    await submitActivity(user, 'Save')
     await waitFor(() =>
       expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ notes: 'Other edits remain', recordedTrack })),
     )
@@ -317,7 +327,7 @@ describe('ActivityEditor', () => {
     const user = userEvent.setup()
     renderEditor()
 
-    await user.click(screen.getByRole('button', { name: 'Save' }))
+    await submitActivity(user, 'Save')
 
     expect(screen.getByText('Postcode is required.')).toBeInTheDocument()
   })
@@ -330,7 +340,7 @@ describe('ActivityEditor', () => {
     await user.click(screen.getByRole('option', { name: 'Latitude and longitude' }))
     await user.type(screen.getByLabelText('Latitude'), '91')
     await user.type(screen.getByLabelText('Longitude'), '-1')
-    await user.click(screen.getByRole('button', { name: 'Save' }))
+    await submitActivity(user, 'Save')
 
     expect(screen.getByText('Latitude must be between -90 and 90.')).toBeInTheDocument()
   })
@@ -342,11 +352,11 @@ describe('ActivityEditor', () => {
     await user.click(screen.getByRole('combobox', { name: 'Location type' }))
     await user.click(screen.getByRole('option', { name: 'Latitude and longitude' }))
     await user.type(screen.getByLabelText('Latitude'), '51.75')
-    await user.click(screen.getByRole('button', { name: 'Save' }))
+    await submitActivity(user, 'Save')
     expect(screen.getByText('Enter both latitude and longitude.')).toBeInTheDocument()
 
     await user.type(screen.getByLabelText('Longitude'), '181')
-    await user.click(screen.getByRole('button', { name: 'Save' }))
+    await submitActivity(user, 'Save')
     expect(screen.getByText('Longitude must be between -180 and 180.')).toBeInTheDocument()
   })
 
@@ -354,7 +364,7 @@ describe('ActivityEditor', () => {
     const user = userEvent.setup()
     const { data } = renderEditor({ initialWaypointId: dataWaypointId(createDefaultData()) })
 
-    await user.click(screen.getByRole('combobox', { name: 'Activity category' }))
+    await user.click(screen.getByRole('combobox', { name: 'Award tier' }))
     await user.click(screen.getByRole('option', { name: 'Gold' }))
 
     await user.click(screen.getByRole('combobox', { name: 'Linked waypoint' }))
@@ -363,7 +373,7 @@ describe('ActivityEditor', () => {
     expect(
       screen.getByText('Category cleared because the selected waypoint does not support Bronze, Silver or Gold.'),
     ).toBeInTheDocument()
-    expect(screen.queryByRole('combobox', { name: 'Activity category' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('combobox', { name: 'Award tier' })).not.toBeInTheDocument()
 
     expect(
       data.challenges.find((challenge) => challenge.challengeId === 'national-trust')?.supportsActivityCategories,
@@ -382,9 +392,9 @@ describe('ActivityEditor', () => {
     await user.click(screen.getByRole('combobox', { name: 'Location type' }))
     await user.click(screen.getByRole('option', { name: 'Postcode' }))
     await user.type(screen.getByLabelText('Postcode'), 'GL1 1AA')
-    await user.click(screen.getByRole('combobox', { name: 'Activity category' }))
+    await user.click(screen.getByRole('combobox', { name: 'Award tier' }))
     await user.click(screen.getByRole('option', { name: 'Gold' }))
-    await user.click(screen.getByRole('button', { name: 'Save' }))
+    await submitActivity(user, 'Save')
 
     expect(onSubmit).toHaveBeenCalledWith(
       expect.objectContaining({ location: { kind: 'postcode', postcode: 'GL1 1AA' } }),
@@ -405,9 +415,9 @@ describe('ActivityEditor', () => {
     expect(screen.getByLabelText('Latitude')).toHaveValue(String(waypoint.location!.latitude))
     expect(screen.getByLabelText('Longitude')).toHaveValue(String(waypoint.location!.longitude))
 
-    await user.click(screen.getByRole('combobox', { name: 'Activity category' }))
+    await user.click(screen.getByRole('combobox', { name: 'Award tier' }))
     await user.click(screen.getByRole('option', { name: 'Gold' }))
-    await user.click(screen.getByRole('button', { name: 'Save' }))
+    await submitActivity(user, 'Save')
     expect(onSubmit).toHaveBeenCalledWith(
       expect.objectContaining({
         location: {
@@ -487,7 +497,7 @@ describe('ActivityEditor', () => {
     const user = userEvent.setup()
     renderEditor({ initialWaypointId: dataWaypointId(createDefaultData()) })
 
-    await user.click(screen.getByRole('button', { name: 'Save' }))
+    await submitActivity(user, 'Save')
 
     expect(screen.getByText('Select Bronze, Silver or Gold.')).toBeInTheDocument()
   })
@@ -496,12 +506,16 @@ describe('ActivityEditor', () => {
     const user = userEvent.setup()
     renderEditor()
 
+    await openActivityEvidence(user, 'References')
     await user.click(screen.getByRole('button', { name: 'Add reference' }))
+    await openActivityEvidence(user, 'References')
     await user.click(screen.getByRole('button', { name: 'Add reference' }))
     await user.click(screen.getByRole('button', { name: 'Move reference 2 up' }))
     await user.click(screen.getByRole('button', { name: 'Remove reference 2' }))
 
+    await openActivityEvidence(user, 'Photos')
     await user.click(screen.getByRole('button', { name: 'Add photo reference' }))
+    await openActivityEvidence(user, 'Photos')
     await user.click(screen.getByRole('button', { name: 'Add photo reference' }))
     await user.click(screen.getByRole('button', { name: 'Move photo 2 up' }))
     await user.click(screen.getByRole('button', { name: 'Remove photo 2' }))
@@ -514,10 +528,13 @@ describe('ActivityEditor', () => {
     const user = userEvent.setup()
     renderEditor()
 
+    await openActivityEvidence(user, 'References')
     await user.click(screen.getByRole('button', { name: 'Add reference' }))
     await user.click(screen.getByRole('button', { name: 'Move reference 1 up' }))
     await user.click(screen.getByRole('button', { name: 'Move reference 1 down' }))
+    await openActivityEvidence(user, 'Photos')
     await user.click(screen.getByRole('button', { name: 'Add photo reference' }))
+    await openActivityEvidence(user, 'Photos')
     await user.click(screen.getByRole('button', { name: 'Add photo reference' }))
     await user.click(screen.getByRole('button', { name: 'Move photo 1 up' }))
     await user.click(screen.getByRole('button', { name: 'Move photo 1 down' }))
@@ -544,7 +561,7 @@ describe('ActivityEditor', () => {
     })
 
     await user.type(screen.getByLabelText('Postcode'), 'GL1 1AA')
-    await user.click(screen.getByRole('button', { name: 'Save' }))
+    await submitActivity(user, 'Save')
 
     expect(onSubmit).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -571,13 +588,15 @@ describe('ActivityEditor', () => {
     const user = userEvent.setup()
     const { onSubmit } = renderEditor()
 
+    await openActivityEvidence(user, 'References')
     await user.click(screen.getByRole('button', { name: 'Add reference' }))
     fireEvent.change(screen.getByLabelText('Preview image URL'), {
       target: { value: 'http://example.com/preview.jpg' },
     })
+    await openActivityEvidence(user, 'Photos')
     await user.click(screen.getByRole('button', { name: 'Add photo reference' }))
     fireEvent.change(screen.getByLabelText('Photo URL'), { target: { value: 'http://example.com/photo.jpg' } })
-    await user.click(screen.getByRole('button', { name: 'Save' }))
+    await submitActivity(user, 'Save')
 
     expect(screen.getByText('Reference title is required.')).toBeInTheDocument()
     expect(screen.getByText('Reference URL must start with https://.')).toBeInTheDocument()
@@ -595,7 +614,7 @@ describe('ActivityEditor', () => {
     await user.click(screen.getByRole('option', { name: 'Latitude and longitude' }))
     await user.type(screen.getByLabelText('Latitude'), '51.75')
     await user.type(screen.getByLabelText('Longitude'), '-1.26')
-    await user.click(screen.getByRole('button', { name: 'Save' }))
+    await submitActivity(user, 'Save')
 
     expect(onSubmit).toHaveBeenCalledWith(
       expect.objectContaining({ location: { kind: 'coordinates', latitude: 51.75, longitude: -1.26 } }),
@@ -625,7 +644,7 @@ describe('ActivityEditor', () => {
     await user.click(screen.getByRole('option', { name: 'Route option (linked to selected waypoint)' }))
     await user.click(screen.getByRole('combobox', { name: 'Linked waypoint' }))
     await user.click(screen.getByRole('option', { name: 'No linked waypoint' }))
-    await user.click(screen.getByRole('button', { name: 'Save' }))
+    await submitActivity(user, 'Save')
 
     expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ waypointId: undefined, ideaIds: ['idea-1'] }))
   })
@@ -717,7 +736,7 @@ describe('ActivityEditor', () => {
     await user.click(screen.getByLabelText('Activity JSON'))
     await user.paste(JSON.stringify(payload))
     await user.click(screen.getByRole('button', { name: 'Load into form' }))
-    await user.click(screen.getByRole('button', { name: 'Save' }))
+    await submitActivity(user, 'Save')
 
     expect(onSubmit).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -751,6 +770,7 @@ describe('ActivityEditor', () => {
     await user.click(input)
     await user.paste(
       JSON.stringify({
+        name: 'Recorded activity',
         date: '2026-09-01',
         notes: 123,
         location: { kind: 'postcode', postcode: 'GL1 1AA' },
@@ -779,6 +799,7 @@ describe('ActivityEditor', () => {
     await user.click(input)
     await user.paste(
       JSON.stringify({
+        name: 'Recorded activity',
         activityId: 'activity-1',
         date: '2026-09-01',
         notes: '',
@@ -805,6 +826,7 @@ describe('ActivityEditor', () => {
       await user.click(screen.getByLabelText('Activity JSON'))
       await user.paste(
         JSON.stringify({
+          name: 'Recorded activity',
           date: '2026-09-01',
           notes: 123,
           location: { kind: 'postcode', postcode: 'GL1 1AA' },

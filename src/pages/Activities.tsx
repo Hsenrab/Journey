@@ -15,10 +15,11 @@ import { PageHeader } from '../components/PageHeader'
 import { ReadOnlyNotice } from '../components/ReadOnlyNotice'
 import { activitySubtitle, activityTitle, countLabel, locationSummary, statusLabels } from '../domain/visit'
 import { useWaypoints } from '../features/journey/JourneyContext'
-import { JourneyConflictError } from '../services/journeyApi'
+import { JourneyConflictError, JourneyInputError } from '../services/journeyApi'
 
 export default function Activities() {
   const mounted = useRef(true)
+  const savedActivityId = useRef<string | null>(null)
   useEffect(() => {
     mounted.current = true
     return () => {
@@ -118,21 +119,29 @@ export default function Activities() {
           submitLabel="Save activity"
           onSubmit={async (draft) => {
             try {
-              await addActivity(draft)
-              if (!mounted.current) return
-              if (initialIdeaId && draft.ideaIds.includes(initialIdeaId)) {
-                navigate(`/ideas/${initialIdeaId}`, { replace: true })
-                return
-              }
-              clearEditorParams()
-              setMessage({ severity: 'success', text: 'Activity saved.', conflict: false })
+              savedActivityId.current = await addActivity(draft)
+              return true
             } catch (error) {
+              if (!(error instanceof JourneyInputError || error instanceof JourneyConflictError)) throw error
               setMessage({
                 severity: 'error',
                 text: error instanceof Error ? error.message : 'Failed to save activity.',
                 conflict: error instanceof JourneyConflictError,
               })
+              return false
             }
+          }}
+          onSaved={(draft) => {
+            if (!mounted.current) return
+            if (initialIdeaId && draft.ideaIds.includes(initialIdeaId)) {
+              navigate(`/ideas/${initialIdeaId}`, {
+                replace: true,
+                state: { activitySaved: savedActivityId.current },
+              })
+              return
+            }
+            clearEditorParams()
+            setMessage({ severity: 'success', text: 'Activity saved.', conflict: false })
           }}
           onCancel={() => {
             setMessage(null)

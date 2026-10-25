@@ -75,6 +75,25 @@ attached to other Waypoints or to no Waypoint, and be unattached itself. Activit
 **must** include structured location data before they are saved (`postcode` or
 coordinate pair).
 
+Every Activity requires a nonempty title (the serialized `name` field) and a real
+calendar `date` in `YYYY-MM-DD` format, no later than today in UK time
+(`Europe/London`, including British Summer Time). New drafts prefill the UK date;
+stored dates are not shifted by time zones. Duplicate titles/dates are allowed.
+Missing titles and invalid/future dates are rejected on forms, imports, loaded
+data and protected writes, not generated or silently corrected.
+
+The editor shows saving feedback and blocks duplicate submission, conflicting
+changes and discarding in-app navigation until saving settles. Expected input
+errors/conflicts retain the draft for deliberate retry; unexpected failures keep
+their original message at the application root. Hard unload retains the browser's
+warning, not a guarantee that closing can be prevented.
+
+GPX, References and Photos are optional collapsible sections; populated sections
+open and validation reveals fields needing correction. Conditional awards are
+labelled Award tier and are separate from completion. Successful Idea-origin
+recording returns to the retained Idea with one-shot confirmation and updated
+usage; removing that Idea link keeps the Activities destination.
+
 ## Saved locations always carry coordinates
 
 Supplied Waypoint and Activity locations require `latitude` and `longitude` before

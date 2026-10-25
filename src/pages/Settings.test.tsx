@@ -17,6 +17,7 @@ import type { Activity } from '../domain/visit'
 
 function activity(category: 'bronze' | 'silver' | 'gold' = 'gold'): Activity {
   return {
+    name: 'Recorded activity',
     activityId: `dyrham-park-${category}`,
     ideaIds: [],
     waypointId: 'dyrham-park',

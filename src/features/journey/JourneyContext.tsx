@@ -60,7 +60,7 @@ export type JourneyLoadState =
   { status: 'loading' } | { status: 'loaded'; warning?: string } | { status: 'failed'; message: string }
 
 export type ActivityDraft = {
-  name?: string
+  name: string
   waypointId?: string
   ideaIds: string[]
   date: string
@@ -102,7 +102,7 @@ type Action =
   | { type: 'add-waypoint'; input: WaypointDraft }
   | { type: 'update-waypoint'; waypointId: string; input: WaypointDraft }
   | { type: 'delete-waypoint'; waypointId: string }
-  | { type: 'add-activity'; input: ActivityDraft }
+  | { type: 'add-activity'; activityId: string; input: ActivityDraft }
   | { type: 'update-activity'; activityId: string; input: ActivityDraft }
   | { type: 'delete-activity'; activityId: string }
   | { type: 'add-idea'; input: IdeaDraft }
@@ -129,7 +129,7 @@ type WaypointsValue = {
   addWaypoint: (input: WaypointDraft) => Promise<void>
   updateWaypoint: (waypointId: string, input: WaypointDraft) => Promise<void>
   deleteWaypoint: (waypointId: string) => Promise<void>
-  addActivity: (input: ActivityDraft) => Promise<void>
+  addActivity: (input: ActivityDraft) => Promise<string>
   updateActivity: (activityId: string, input: ActivityDraft) => Promise<void>
   deleteActivity: (activityId: string) => Promise<void>
   addIdea: (input: IdeaDraft) => Promise<void>
@@ -321,6 +321,7 @@ function reducer(data: WaypointsData, action: Action): WaypointsData {
       const activity = ensureCategoryEligibility(
         data,
         createActivity({
+          activityId: action.activityId,
           name: action.input.name,
           waypointId: action.input.waypointId,
           ideaIds: action.input.ideaIds,
@@ -635,9 +636,11 @@ export function WaypointsProvider({ children }: { children: ReactNode }) {
       },
       addActivity: async (input: ActivityDraft) => {
         const container = writableContainer()
-        const action = { type: 'add-activity' as const, input }
+        const activityId = crypto.randomUUID()
+        const action = { type: 'add-activity' as const, activityId, input }
         const next = reducer(data, action)
         await persist(container, action, next)
+        return activityId
       },
       updateActivity: async (activityId: string, input: ActivityDraft) => {
         const container = writableContainer()
@@ -681,7 +684,7 @@ export function WaypointsProvider({ children }: { children: ReactNode }) {
       },
     }
     const track =
-      <Args extends unknown[]>(operation: (...args: Args) => Promise<void>) =>
+      <Args extends unknown[], Result>(operation: (...args: Args) => Promise<Result>) =>
       (...args: Args) =>
         runMutation(() => operation(...args))
     return {

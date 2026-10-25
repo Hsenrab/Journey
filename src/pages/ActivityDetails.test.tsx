@@ -1,7 +1,9 @@
+import { submitActivity } from '../test/activityActions'
 import { render, screen, waitFor } from '@testing-library/react'
 import { fireEvent } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { MemoryRouter, Route, Routes } from 'react-router-dom'
+import { Route, Routes } from 'react-router-dom'
+import { MemoryRouter } from '../test/DataMemoryRouter'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import ActivityDetails from './ActivityDetails'
 import { WaypointsProvider } from '../features/journey/JourneyContext'
@@ -46,6 +48,7 @@ describe('ActivityDetails', () => {
       ...seed,
       activities: [
         {
+          name: 'Recorded activity',
           activityId: 'a1',
           ideaIds: [],
           date: '2026-08-01',
@@ -73,6 +76,7 @@ describe('ActivityDetails', () => {
       ...seed,
       activities: [
         {
+          name: 'Recorded activity',
           activityId: 'a1',
           ideaIds: [],
           waypointId: 'demo-foxglove-manor',
@@ -116,6 +120,7 @@ describe('ActivityDetails', () => {
       photoReferences: [{ photoReferenceId: 'p1', title: 'View', url: 'https://example.com/view.jpg' }],
       activities: [
         {
+          name: 'Recorded activity',
           activityId: 'a1',
           ideaIds: ['idea-1'],
           waypointId: 'demo-foxglove-manor',
@@ -133,9 +138,7 @@ describe('ActivityDetails', () => {
 
     renderDetails()
 
-    expect(
-      screen.getByRole('heading', { name: new Date('2026-08-01T00:00:00').toLocaleDateString(), level: 1 }),
-    ).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Recorded activity', level: 1 })).toBeInTheDocument()
     expect(screen.getAllByText('Foxglove Manor (Demo)').length).toBeGreaterThan(0)
     expect(screen.getByText('Guide')).toBeInTheDocument()
     expect(screen.getByRole('img', { name: 'View' })).toBeInTheDocument()
@@ -148,6 +151,7 @@ describe('ActivityDetails', () => {
       ...seed,
       activities: [
         {
+          name: 'Recorded activity',
           activityId: 'a1',
           ideaIds: [],
           date: '2026-08-01',
@@ -185,6 +189,7 @@ describe('ActivityDetails', () => {
       ...seed,
       activities: [
         {
+          name: 'Recorded activity',
           activityId: 'a1',
           ideaIds: [],
           date: '2026-08-01',
@@ -210,7 +215,7 @@ describe('ActivityDetails', () => {
       ),
     )
     expect(await screen.findByText('A recorded GPX track is attached.')).toBeInTheDocument()
-    await user.click(screen.getByRole('button', { name: 'Save changes' }))
+    await submitActivity(user, 'Save changes')
     expect(await screen.findByRole('link', { name: 'View recorded track on map' })).toHaveAttribute(
       'href',
       '/map?activityId=a1',
@@ -218,7 +223,7 @@ describe('ActivityDetails', () => {
 
     await user.click(screen.getByRole('button', { name: 'Edit activity' }))
     await user.click(screen.getByRole('button', { name: 'Remove GPX track' }))
-    await user.click(screen.getByRole('button', { name: 'Save changes' }))
+    await submitActivity(user, 'Save changes')
     await waitFor(() =>
       expect(screen.queryByRole('link', { name: 'View recorded track on map' })).not.toBeInTheDocument(),
     )
@@ -231,6 +236,7 @@ describe('ActivityDetails', () => {
       references: [{ referenceId: 'r1', title: 'Link', url: 'https://example.com' }],
       activities: [
         {
+          name: 'Recorded activity',
           activityId: 'a1',
           ideaIds: [],
           date: '2026-08-01',
@@ -262,6 +268,7 @@ describe('ActivityDetails', () => {
               ...seed,
               activities: [
                 {
+                  name: 'Recorded activity',
                   activityId: 'a1',
                   ideaIds: [],
                   date: '2026-08-01',
@@ -283,9 +290,7 @@ describe('ActivityDetails', () => {
 
     renderDetails()
 
-    expect(
-      await screen.findByRole('heading', { name: new Date('2026-08-01T00:00:00').toLocaleDateString(), level: 1 }),
-    ).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'Recorded activity', level: 1 })).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Edit activity' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Delete activity' })).not.toBeInTheDocument()
     expect(screen.getByText(/Your Journey access is viewer only/)).toBeInTheDocument()
@@ -300,6 +305,7 @@ describe('ActivityDetails', () => {
       references: [...seed.references, { referenceId: 'r1', title: 'Guide', url: 'https://example.com/guide' }],
       activities: [
         {
+          name: 'Recorded activity',
           activityId: 'a1',
           ideaIds: [],
           waypointId: 'demo-foxglove-manor',
@@ -329,6 +335,7 @@ describe('ActivityDetails', () => {
     const user = userEvent.setup()
     const seed = createDefaultData()
     const activity = {
+      name: 'Recorded activity',
       activityId: 'a1',
       ideaIds: [],
       waypointId: 'demo-foxglove-manor',
@@ -356,9 +363,7 @@ describe('ActivityDetails', () => {
 
     renderDetails()
 
-    expect(
-      await screen.findByRole('heading', { name: new Date('2026-08-01T00:00:00').toLocaleDateString(), level: 1 }),
-    ).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'Recorded activity', level: 1 })).toBeInTheDocument()
 
     await user.click(screen.getByRole('button', { name: 'Delete activity' }))
     await user.click(screen.getByRole('button', { name: 'Delete' }))
@@ -376,6 +381,7 @@ describe('ActivityDetails', () => {
       ...seed,
       activities: [
         {
+          name: 'Recorded activity',
           activityId: 'a1',
           ideaIds: [],
           waypointId: 'demo-foxglove-manor',
@@ -416,6 +422,7 @@ describe('ActivityDetails', () => {
       ],
       activities: [
         {
+          name: 'Recorded activity',
           activityId: 'a1',
           ideaIds: [],
           waypointId: 'demo-foxglove-manor',
@@ -466,9 +473,9 @@ describe('ActivityDetails', () => {
 
     await user.click(screen.getByRole('button', { name: 'Edit activity' }))
     fireEvent.change(screen.getByLabelText('Description / notes'), { target: { value: 'Updated notes' } })
-    await user.click(screen.getByRole('button', { name: 'Save changes' }))
+    await submitActivity(user, 'Save changes')
 
     expect(load().activities[0]?.notes).toBe('Updated notes')
-    expect(screen.getByText('Activity updated.')).toBeInTheDocument()
+    expect(screen.getByText('Activity saved.')).toBeInTheDocument()
   })
 })

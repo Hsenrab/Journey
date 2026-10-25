@@ -1,6 +1,7 @@
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { MemoryRouter, Route, Routes, useNavigate } from 'react-router-dom'
+import { Route, Routes, useNavigate } from 'react-router-dom'
+import { MemoryRouter } from '../test/DataMemoryRouter'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { WaypointsProvider, useWaypoints } from '../features/journey/JourneyContext'
 import { createDefaultData as emptyData, createDemoModeData, load, save, setDataMode } from '../services/storage'
@@ -36,6 +37,7 @@ function progressData(): WaypointsData {
 
 function progressActivity(activityId: string, waypointId?: string): Activity {
   return {
+    name: 'Recorded activity',
     activityId,
     waypointId,
     challengeId: 'second',

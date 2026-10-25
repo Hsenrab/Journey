@@ -25,6 +25,7 @@ const waypoint = (waypointId: string, title: string, latitude?: number): Waypoin
 describe('map domain helpers', () => {
   it('reads the coordinates saved with a postcode activity location', () => {
     const activity = (location: Activity['location']): Activity => ({
+      name: 'Recorded activity',
       activityId: 'activity-1',
       ideaIds: [],
       date: '2026-08-01',
@@ -61,6 +62,7 @@ describe('map domain helpers', () => {
 
   it('orders nearby activities in miles, omitting records without coordinates', () => {
     const activity = (activityId: string, date: string, latitude?: number): Activity => ({
+      name: 'Recorded activity',
       activityId,
       ideaIds: [],
       date,
@@ -85,6 +87,7 @@ describe('map domain helpers', () => {
     const once = waypoint('once', 'Once')
     const count = { ...waypoint('count', 'Count'), completion: { mode: 'count' as const, target: 2 } }
     const activity = (waypointId: string, category?: Activity['category']): Activity => ({
+      name: 'Recorded activity',
       activityId: `${waypointId}-${category ?? 'uncategorised'}`,
       ideaIds: [],
       waypointId,

@@ -87,6 +87,7 @@ function jsonResponse(body: unknown) {
 
 function activity(waypointId: string, category: AwardedStatus): Activity {
   return {
+    name: 'Recorded activity',
     activityId: `${waypointId}-${category}`,
     ideaIds: [],
     waypointId,
@@ -585,6 +586,7 @@ describe('MapPage', () => {
       updatedAt: '2026-08-10T00:00:00.000Z',
     })
     data.activities.push({
+      name: 'Recorded activity',
       activityId: 'postcode-activity',
       ideaIds: [],
       waypointId: 'missing-waypoint',
@@ -757,14 +759,15 @@ describe('MapPage', () => {
     expect(mapEvents.activityTrackSourceAdd).toHaveBeenLastCalledWith([])
   })
 
-  it('uses fallback names without promoting dates to primary map list labels', async () => {
+  it('uses required Activity titles and waypoint fallback names without promoting dates to primary labels', async () => {
     const data = createDefaultData()
     const waypoint = data.waypoints[0]!
     waypoint.title = '   '
     waypoint.location = { ...waypoint.location, latitude: 51.84, longitude: -2.15 }
     data.activities = [
       {
-        activityId: 'unnamed-activity',
+        name: 'Recorded activity',
+        activityId: 'named-activity',
         ideaIds: [],
         waypointId: waypoint.waypointId,
         date: '2026-08-10',
@@ -807,9 +810,9 @@ describe('MapPage', () => {
 
     await user.click(screen.getByRole('tab', { name: 'Activities' }))
 
-    const activityLink = screen.getByRole('link', { name: /Unnamed activity.*\d+\.\d miles.*2026-08-10/ })
-    expect(activityLink).toHaveAttribute('title', 'Unnamed activity')
-    expect(activityLink).toHaveTextContent(/^Unnamed activity/)
+    const activityLink = screen.getByRole('link', { name: /Recorded activity.*\d+\.\d miles.*2026-08-10/ })
+    expect(activityLink).toHaveAttribute('title', 'Recorded activity')
+    expect(activityLink).toHaveTextContent(/^Recorded activity/)
   })
 
   it('renders persisted challenge routes and fits the route selected from the map controls', async () => {
@@ -1278,7 +1281,7 @@ describe('MapPage', () => {
     const unlinked = {
       ...activity,
       activityId: 'unlinked',
-      name: undefined,
+      name: 'Independent garden visit',
       waypointId: undefined,
       category: undefined,
     }
@@ -1304,7 +1307,7 @@ describe('MapPage', () => {
     expect(mapEvents.popupContent).toHaveTextContent('ActivityLinked garden visitBronze')
     expect(mapEvents.popupContent).not.toHaveTextContent('Activity2026-08-10Bronze')
     mapEvents.activityClick!({ shapes: [{ properties: { activityId: unlinked.activityId } }] })
-    expect(mapEvents.popupContent).toHaveTextContent('ActivityUnnamed activityUncategorisedNo linked waypoint')
+    expect(mapEvents.popupContent).toHaveTextContent('ActivityIndependent garden visitUncategorisedNo linked waypoint')
     expect(mapEvents.popupContent?.querySelector('a')).toHaveAttribute('href', '/activities/unlinked')
   })
 

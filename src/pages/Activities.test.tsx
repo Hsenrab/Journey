@@ -1,4 +1,5 @@
-import { MemoryRouter } from 'react-router-dom'
+import { submitActivity } from '../test/activityActions'
+import { MemoryRouter } from '../test/DataMemoryRouter'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -40,7 +41,7 @@ describe('Activities', () => {
     await user.click(screen.getByRole('option', { name: 'Latitude and longitude' }))
     await user.type(screen.getByLabelText('Latitude'), 'not-a-number')
     await user.type(screen.getByLabelText('Longitude'), '-1.26')
-    await user.click(screen.getByRole('button', { name: 'Save activity' }))
+    await submitActivity(user, 'Save activity')
 
     expect(screen.getByText('Latitude and longitude must be numeric.')).toBeInTheDocument()
     expect(screen.getByLabelText('Latitude')).toHaveValue('not-a-number')
@@ -65,7 +66,7 @@ describe('Activities', () => {
     await user.click(screen.getByRole('button', { name: 'Add activity' }))
     await user.type(screen.getByLabelText('Postcode'), 'GL1 1AA')
     await user.type(screen.getByLabelText('Description / notes'), 'Evening walk')
-    await user.click(screen.getByRole('button', { name: 'Save activity' }))
+    await submitActivity(user, 'Save activity')
 
     expect(screen.getByText('Activity saved.')).toBeInTheDocument()
     expect(load().activities[0]).toMatchObject({
@@ -74,7 +75,7 @@ describe('Activities', () => {
     })
   })
 
-  it('shows activity names, formatted fallback dates, waypoint labels and detail counts', () => {
+  it('shows required activity titles, supporting dates, waypoint labels and detail counts', () => {
     const seed = createDemoTestData()
     const namedActivity: Activity = {
       activityId: 'a1',
@@ -91,7 +92,8 @@ describe('Activities', () => {
       createdAt: '2026-08-01T10:00:00.000Z',
       updatedAt: '2026-08-01T10:00:00.000Z',
     }
-    const unnamedActivity: Activity = {
+    const independentActivity: Activity = {
+      name: 'Independent walk',
       activityId: 'a2',
       ideaIds: [],
       date: '2026-08-02',
@@ -102,12 +104,13 @@ describe('Activities', () => {
       createdAt: '2026-08-02T10:00:00.000Z',
       updatedAt: '2026-08-02T10:00:00.000Z',
     }
-    save({ ...seed, activities: [namedActivity, unnamedActivity] })
+    save({ ...seed, activities: [namedActivity, independentActivity] })
 
     renderActivities()
 
     expect(screen.getByRole('link', { name: 'Summer visit' })).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: new Date('2026-08-02T00:00:00').toLocaleDateString() })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Independent walk' })).toBeInTheDocument()
+    expect(screen.getByText(new Date('2026-08-02T00:00:00').toLocaleDateString())).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'View Foxglove Manor (Demo) waypoint' })).toHaveAttribute(
       'href',
       '/waypoints/demo-foxglove-manor',
