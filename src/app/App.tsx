@@ -1,6 +1,7 @@
-import { ThemeProvider } from '@mui/material'
+import { useState } from 'react'
+import { Alert, ThemeProvider } from '@mui/material'
 import CssBaseline from '@mui/material/CssBaseline'
-import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
+import { createBrowserRouter, Navigate, Outlet, RouterProvider, useRouteError } from 'react-router-dom'
 import { theme } from './theme'
 import { Layout } from '../components/Layout'
 import { WaypointsProvider } from '../features/journey/JourneyContext'
@@ -15,29 +16,43 @@ import ActivityDetails from '../pages/ActivityDetails'
 import MapPage from '../pages/MapPage'
 import ChallengeDetails from '../pages/ChallengeDetails'
 
+export function ApplicationError() {
+  const error = useRouteError()
+  return <Alert severity="error">{error instanceof Error ? error.message : String(error)}</Alert>
+}
+
+function Shell() {
+  return (
+    <WaypointsProvider>
+      <Layout>
+        <Outlet />
+      </Layout>
+    </WaypointsProvider>
+  )
+}
+
+const routes = [
+  { path: '/', element: <Navigate to="/challenges" replace /> },
+  { path: '/waypoints', element: <Locations /> },
+  { path: '/waypoints/:id', element: <LocationDetails /> },
+  { path: '/challenges', element: <Dashboard /> },
+  { path: '/challenges/:challengeId', element: <ChallengeDetails /> },
+  { path: '/ideas', element: <Ideas /> },
+  { path: '/ideas/:ideaId', element: <IdeaDetails /> },
+  { path: '/activities', element: <Activities /> },
+  { path: '/activities/:activityId', element: <ActivityDetails /> },
+  { path: '/map', element: <MapPage /> },
+  { path: '/settings', element: <Settings /> },
+]
+
 export default function App() {
+  const [router] = useState(() =>
+    createBrowserRouter([{ element: <Shell />, errorElement: <ApplicationError />, children: routes }]),
+  )
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
-      <BrowserRouter>
-        <WaypointsProvider>
-          <Layout>
-            <Routes>
-              <Route path="/" element={<Navigate to="/challenges" replace />} />
-              <Route path="/waypoints" element={<Locations />} />
-              <Route path="/waypoints/:id" element={<LocationDetails />} />
-              <Route path="/challenges" element={<Dashboard />} />
-              <Route path="/challenges/:challengeId" element={<ChallengeDetails />} />
-              <Route path="/ideas" element={<Ideas />} />
-              <Route path="/ideas/:ideaId" element={<IdeaDetails />} />
-              <Route path="/activities" element={<Activities />} />
-              <Route path="/activities/:activityId" element={<ActivityDetails />} />
-              <Route path="/map" element={<MapPage />} />
-              <Route path="/settings" element={<Settings />} />
-            </Routes>
-          </Layout>
-        </WaypointsProvider>
-      </BrowserRouter>
+      <RouterProvider router={router} />
     </ThemeProvider>
   )
 }

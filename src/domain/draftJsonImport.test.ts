@@ -1,7 +1,19 @@
 import { describe, expect, it } from 'vitest'
-import { parseActivityDraftJson, parseIdeaDraftJson, parseWaypointDraftJson } from './draftJsonImport'
+import {
+  activityImportExample,
+  parseActivityDraftJson,
+  parseIdeaDraftJson,
+  parseWaypointDraftJson,
+} from './draftJsonImport'
 
 describe('draftJsonImport', () => {
+  it('rejects missing titles and future dates before applying and returns trimmed titles', () => {
+    for (const name of [undefined, '', '   '])
+      expect(parseActivityDraftJson(JSON.stringify({ ...activityImportExample, name })).ok).toBe(false)
+    expect(parseActivityDraftJson(JSON.stringify({ ...activityImportExample, date: '9999-01-01' })).ok).toBe(false)
+    const result = parseActivityDraftJson(JSON.stringify({ ...activityImportExample, name: '  Walk  ' }))
+    expect(result.ok && result.value.name).toBe('Walk')
+  })
   it('parses a valid activity draft payload', () => {
     const result = parseActivityDraftJson(
       JSON.stringify({
@@ -45,6 +57,7 @@ describe('draftJsonImport', () => {
 
     const withId = parseActivityDraftJson(
       JSON.stringify({
+        name: 'Recorded activity',
         activityId: 'activity-1',
         date: '2026-09-01',
         notes: '',
@@ -62,6 +75,7 @@ describe('draftJsonImport', () => {
   it('rejects unknown activity location fields', () => {
     const result = parseActivityDraftJson(
       JSON.stringify({
+        name: 'Recorded activity',
         date: '2026-09-01',
         notes: '',
         location: { kind: 'postcode', postcode: 'GL1 1AA', placename: 'Typo field' },
@@ -80,6 +94,7 @@ describe('draftJsonImport', () => {
   it('rejects activity locations with invalid kind values', () => {
     const result = parseActivityDraftJson(
       JSON.stringify({
+        name: 'Recorded activity',
         date: '2026-09-01',
         notes: '',
         location: { kind: 'post-code', postcode: 'GL1 1AA' },
@@ -240,6 +255,7 @@ describe('draftJsonImport', () => {
 
     const nestedLinks = parseActivityDraftJson(
       JSON.stringify({
+        name: 'Recorded activity',
         date: '2026-09-01',
         notes: '',
         location: { kind: 'postcode', postcode: 'GL1 1AA' },

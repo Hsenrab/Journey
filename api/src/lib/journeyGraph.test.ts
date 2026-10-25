@@ -42,6 +42,7 @@ function data(): JourneyData {
     activities: [
       {
         activityId: 'activity-1',
+        name: 'Orangery tour',
         waypointId: 'waypoint-1',
         ideaIds: ['idea-1'],
         date: '2026-08-02',

@@ -23,6 +23,7 @@ const createDefaultData = testData
 
 function activity(waypointId: string, category: 'bronze' | 'silver' | 'gold'): Activity {
   return {
+    name: 'Recorded activity',
     activityId: `${waypointId}-${category}`,
     ideaIds: [],
     waypointId,

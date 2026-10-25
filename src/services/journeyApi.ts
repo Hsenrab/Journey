@@ -12,6 +12,8 @@ export class JourneyConflictError extends Error {
   }
 }
 
+export class JourneyInputError extends Error {}
+
 export class JourneyImportNotEmptyError extends Error {
   constructor() {
     super('The active dataset must be empty before restoring a backup.')
@@ -28,7 +30,9 @@ async function responseError(response: Response): Promise<Error> {
       if (body.error === 'conflict') return new JourneyConflictError()
       if (body.error === 'data_not_empty') return new JourneyImportNotEmptyError()
     }
-    return new Error(`${context}: ${body.error}`)
+    return response.status === 400
+      ? new JourneyInputError(`${context}: ${body.error}`)
+      : new Error(`${context}: ${body.error}`)
   }
   return new Error(context)
 }

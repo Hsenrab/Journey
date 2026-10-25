@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   deleteEntity,
   documentsFor,
@@ -12,6 +12,7 @@ import { entityId, entityTypeFor } from './journeyGraph.js'
 
 const activity = {
   activityId: 'activity-1',
+  name: 'Orangery tour',
   ideaIds: ['idea-1'],
   date: '2026-08-02',
   location: { kind: 'postcode', postcode: 'GL3 4AQ', latitude: 51.844, longitude: -2.153 },
@@ -34,6 +35,8 @@ const activity = {
   createdAt: '2026-08-02T00:00:00.000Z',
   updatedAt: '2026-08-02T00:00:00.000Z',
 } as const
+
+afterEach(() => vi.useRealTimers())
 
 const idea = {
   ideaId: 'idea-1',
@@ -92,7 +95,7 @@ describe('Cosmos Journey persistence', () => {
   it('converts a complete dataset to typed documents and back', () => {
     const documents = documentsFor('dataset', data)
     expect(Object.keys(documents)).toHaveLength(6)
-    expect(documents['activity-1']).toMatchObject({ type: 'activity', schemaVersion: 4 })
+    expect(documents['activity-1']).toMatchObject({ type: 'activity', schemaVersion: 5 })
     expect(documents['challenge-1']).toMatchObject({ type: 'challenge', schemaVersion: 3 })
     expect(documents['idea-1']).toMatchObject({ type: 'idea', schemaVersion: 2 })
     expect(documentsToData(Object.values(documents))).toEqual(data)
@@ -173,6 +176,67 @@ describe('Cosmos Journey persistence', () => {
     const loaded = await loadDataset({ items: { query: () => ({ fetchNext }) } } as never, 'dataset')
     expect(loaded.data).toEqual(data)
     expect(Object.keys(loaded.etags)).toHaveLength(6)
+  })
+
+  it.each([
+    { name: undefined },
+    { name: '' },
+    { name: ' \t ' },
+    { date: undefined },
+    { date: '' },
+    { date: '2026-02-29' },
+    { date: '2026-07-17' },
+  ])('rejects invalid loaded Activities instead of returning empty data: %j', async (fields) => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-07-15T23:30:00Z'))
+    const fetchNext = vi.fn().mockResolvedValue({
+      resources: [
+        {
+          id: activity.activityId,
+          datasetId: 'dataset',
+          type: 'activity',
+          schemaVersion: 5,
+          entity: { ...activity, ideaIds: [], date: '2026-01-01', ...fields },
+        },
+      ],
+    })
+    await expect(loadDataset({ items: { query: () => ({ fetchNext }) } } as never, 'dataset')).rejects.toMatchObject({
+      name: 'ZodError',
+    })
+  })
+
+  it.each([3, 4])('rejects stored Activity version %s without migration', async (schemaVersion) => {
+    const fetchNext = vi.fn().mockResolvedValue({
+      resources: [
+        {
+          id: activity.activityId,
+          datasetId: 'dataset',
+          type: 'activity',
+          schemaVersion,
+          entity: { ...activity, ideaIds: [] },
+        },
+      ],
+    })
+    await expect(loadDataset({ items: { query: () => ({ fetchNext }) } } as never, 'dataset')).rejects.toThrow(
+      `Document type \\"activity\\" requires schema version 5, received ${schemaVersion}.`,
+    )
+  })
+
+  it('trims Activity titles while reading and constructing documents', async () => {
+    const namedData = {
+      ...data,
+      activities: [{ ...activity, name: '  Orangery tour  ' }],
+    }
+    const documents = documentsFor('dataset', namedData)
+    expect(documents['activity-1']?.entity.name).toBe('Orangery tour')
+    const fetchNext = vi.fn().mockResolvedValue({
+      resources: Object.values(documents).map((document) => ({
+        ...document,
+        entity: document.type === 'activity' ? { ...document.entity, name: '  Orangery tour  ' } : document.entity,
+      })),
+    })
+    const loaded = await loadDataset({ items: { query: () => ({ fetchNext }) } } as never, 'dataset')
+    expect(loaded.data.activities[0]?.name).toBe('Orangery tour')
   })
 
   it('rejects obsolete Challenge fields and versions as stored relationship errors', async () => {

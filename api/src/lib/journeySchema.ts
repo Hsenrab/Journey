@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { isValidActivityDate } from './activityDate.js'
 
 const entityTypes = ['waypoint', 'challenge', 'idea', 'activity', 'reference', 'photoReference'] as const
 export const EntityTypeSchema = z.enum(entityTypes)
@@ -127,11 +128,16 @@ const schemas = {
   activity: z
     .object({
       activityId: identifier,
-      name: text.optional(),
+      name: z.string({ error: 'Activity title is required.' }).trim().min(1, 'Activity title is required.'),
       waypointId: identifier.optional(),
       challengeId: identifier.optional(),
       ideaIds: distinctIds('Activity idea links must be distinct'),
-      date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+      date: z
+        .string({ error: 'Activity date is required.' })
+        .refine(
+          (value) => isValidActivityDate(value),
+          'Activity date must be a real YYYY-MM-DD date no later than today in UK time.',
+        ),
       category: z.enum(['bronze', 'silver', 'gold']).optional(),
       location: activityLocation,
       recordedTrack: gpxGeometry.optional(),
@@ -164,7 +170,7 @@ export const schemaVersions = {
   waypoint: 2,
   challenge: 3,
   idea: 2,
-  activity: 4,
+  activity: 5,
   reference: 1,
   photoReference: 1,
 } as const satisfies Record<EntityType, number>
@@ -178,24 +184,20 @@ export const JourneyDocumentSchema = z
     entity: z.record(z.string(), z.unknown()),
   })
   .strict()
-  .superRefine((document, context) => {
+  .transform((document, context) => {
     const expected = schemaVersions[document.type]
-    const isLegacyActivity = document.type === 'activity' && document.schemaVersion === 3
-    if (document.schemaVersion !== expected && !isLegacyActivity)
+    if (document.schemaVersion !== expected)
       context.addIssue({
         code: 'custom',
         path: ['schemaVersion'],
         message: `Document type "${document.type}" requires schema version ${expected}, received ${document.schemaVersion}.`,
       })
-    if (isLegacyActivity && 'recordedTrack' in document.entity)
-      context.addIssue({
-        code: 'custom',
-        path: ['entity', 'recordedTrack'],
-        message: 'Activity schema version 3 cannot contain recordedTrack.',
-      })
     const parsed = schemas[document.type].safeParse(document.entity)
-    if (!parsed.success)
+    if (!parsed.success) {
       for (const issue of parsed.error.issues) context.addIssue({ ...issue, path: ['entity', ...issue.path] })
+      return z.NEVER
+    }
+    return { ...document, entity: parsed.data }
   })
 export type JourneyDocument = z.infer<typeof JourneyDocumentSchema>
 

@@ -26,6 +26,40 @@ function testData(): WaypointsData {
 
 const createDefaultData = testData
 
+describe('Activity identity contract', () => {
+  it('returns the identity persisted by the test-mode reducer even for duplicate titles and dates', async () => {
+    localStorage.clear()
+    vi.stubEnv('MODE', 'test')
+    try {
+      const { result } = renderHook(() => useWaypoints(), { wrapper: WaypointsProvider })
+      await waitFor(() => expect(result.current.loading).toBe(false))
+      const draft = {
+        name: 'Same title',
+        date: '2026-01-01',
+        ideaIds: [],
+        location: { kind: 'coordinates' as const, latitude: 51, longitude: -2 },
+        notes: '',
+        references: [],
+        photoReferences: [],
+      }
+      let first = ''
+      let second = ''
+      await act(async () => {
+        first = await result.current.addActivity(draft)
+      })
+      await act(async () => {
+        second = await result.current.addActivity(draft)
+      })
+      expect(first).not.toBe(second)
+      expect(result.current.data.activities.map((item) => item.activityId)).toEqual([first, second])
+      expect(load().activities.map((item) => item.activityId)).toEqual([first, second])
+    } finally {
+      vi.unstubAllEnvs()
+      localStorage.clear()
+    }
+  })
+})
+
 function deferred<T>() {
   let resolve!: (value: T) => void
   let reject!: (error: Error) => void
@@ -143,7 +177,11 @@ describe('remote mode-switch boundary', () => {
         planningState: 'active',
         difficulty: 1,
       })
-      const activity = createActivity({ date: '2026-08-01', location: { kind: 'postcode', postcode: 'GL1 1AA' } })
+      const activity = createActivity({
+        name: 'Recorded activity',
+        date: '2026-08-01',
+        location: { kind: 'postcode', postcode: 'GL1 1AA' },
+      })
       data.ideas = [idea]
       data.activities = [activity]
       const reply = () => new Response(JSON.stringify({ data, etags: { [waypointId]: 'etag' }, role: 'admin' }))
@@ -174,7 +212,7 @@ describe('remote mode-switch boundary', () => {
         restore: () => result.current.restore(data),
         clear: () => result.current.clear(),
       }
-      let saving!: Promise<void>
+      let saving!: Promise<unknown>
       await act(async () => {
         saving = calls[operation]()
         await expect(result.current.setDataMode('demo-local')).rejects.toThrow('mutation is pending')
@@ -188,7 +226,10 @@ describe('remote mode-switch boundary', () => {
       await act(async () => {
         if (fails) pending.reject(failure)
         else pending.resolve(operation === 'deleteWaypoint' ? new Response(null, { status: 204 }) : reply())
-        expect(await outcome).toBe(fails ? failure : undefined)
+        const result = await outcome
+        if (fails) expect(result).toBe(failure)
+        else if (operation === 'addActivity') expect(result).toEqual(expect.any(String))
+        else expect(result).toBeUndefined()
       })
       expect(result.current.mutationPending).toBe(false)
       await act(async () => {
@@ -507,7 +548,10 @@ describe('WaypointsContext', () => {
     expect(load().activities[0]?.recordedTrack).toEqual(firstTrack)
 
     await act(async () => {
-      await result.current.updateActivity(activityId, { ...draft, recordedTrack: replacementTrack })
+      await result.current.updateActivity(activityId, {
+        ...draft,
+        recordedTrack: replacementTrack,
+      })
     })
     expect(result.current.data.activities[0]?.recordedTrack).toEqual(replacementTrack)
 
@@ -556,10 +600,7 @@ describe('WaypointsContext', () => {
     if (!idea) throw new Error('Idea should exist')
 
     act(() => {
-      result.current.addActivity({
-        ...draft,
-        ideaIds: [idea.ideaId],
-      })
+      result.current.addActivity({ ...draft, ideaIds: [idea.ideaId] })
     })
 
     act(() => {
@@ -631,6 +672,7 @@ describe('WaypointsContext in production mode', () => {
       setDataMode(mode)
       const seeded = createDefaultData()
       const activity = createActivity({
+        name: 'Recorded activity',
         waypointId: lacockId,
         ideaIds: [],
         date: '2026-08-01',
@@ -791,7 +833,11 @@ describe('WaypointsContext in production mode', () => {
       const seeded = createDefaultData()
       const waypointDraft = { ...seeded.waypoints[0]!, references: [], photoReferences: [] }
       const existingIdea = createIdea(ideaDraft)
-      const existingActivity = createActivity({ ...draft, referenceIds: [], photoReferenceIds: [] })
+      const existingActivity = createActivity({
+        ...draft,
+        referenceIds: [],
+        photoReferenceIds: [],
+      })
       seeded.ideas = [existingIdea]
       seeded.activities = [existingActivity]
       const fetch = vi
@@ -1016,6 +1062,7 @@ describe('WaypointsContext in production mode', () => {
     const seeded = createDefaultData()
     seeded.activities = [
       createActivity({
+        name: 'Recorded activity',
         waypointId: lacockId,
         ideaIds: [],
         date: '2026-08-01',

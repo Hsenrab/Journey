@@ -10,9 +10,40 @@ import {
   updateJourneyEntity,
   JourneyConflictError,
   JourneyImportNotEmptyError,
+  JourneyInputError,
 } from './journeyApi'
 
 describe('journey API client', () => {
+  it('classifies only input rejections as handled input errors and preserves exact messages', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockImplementation(() =>
+        Promise.resolve(
+          new Response(JSON.stringify({ error: 'Specific input failure' }), {
+            status: 400,
+            headers: { 'content-type': 'application/json' },
+          }),
+        ),
+      ),
+    )
+    await expect(createJourneyEntity('demo', 'activity', {})).rejects.toBeInstanceOf(JourneyInputError)
+    await expect(createJourneyEntity('demo', 'activity', {})).rejects.toThrow('Specific input failure')
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockImplementation(() =>
+        Promise.resolve(
+          new Response(JSON.stringify({ error: 'Specific server failure' }), {
+            status: 500,
+            headers: { 'content-type': 'application/json' },
+          }),
+        ),
+      ),
+    )
+    await expect(createJourneyEntity('demo', 'activity', {})).rejects.not.toBeInstanceOf(JourneyInputError)
+    const original = new Error('Network disconnected')
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(original))
+    await expect(createJourneyEntity('demo', 'activity', {})).rejects.toBe(original)
+  })
   it('preserves stored relationship incompatibility messages', async () => {
     vi.stubGlobal(
       'fetch',

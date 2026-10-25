@@ -1,3 +1,4 @@
+import { submitActivity } from '../test/activityActions'
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -20,7 +21,7 @@ describe('editor to Settings discard journey', () => {
   const editors = [
     { path: '/waypoints', add: 'Add waypoint', field: 'Title', save: 'Save waypoint' },
     { path: '/ideas', add: 'Add idea', field: 'Title', save: 'Save idea' },
-    { path: '/activities', add: 'Add activity', field: 'Description / notes', save: 'Save activity' },
+    { path: '/activities', add: 'Add activity', field: 'Activity title', save: 'Save activity' },
     { path: '/challenges', add: 'Add challenge', field: 'Title', save: 'Save challenge' },
   ]
   function remote() {
@@ -92,9 +93,11 @@ describe('editor to Settings discard journey', () => {
       fireEvent.change(screen.getByLabelText('Category', { selector: 'input' }), { target: { value: 'Walk' } })
     if (editor.path === '/activities')
       fireEvent.change(screen.getByLabelText('Postcode'), { target: { value: 'GL1 1AA' } })
-    fetch.mockRejectedValueOnce(new Error('Specific save failure'))
+    if (editor.path === '/activities')
+      fetch.mockResolvedValueOnce(new Response(JSON.stringify({ error: 'Specific save failure' }), { status: 400 }))
+    else fetch.mockRejectedValueOnce(new Error('Specific save failure'))
     await user.click(screen.getByRole('button', { name: editor.save }))
-    expect(await screen.findByText('Specific save failure')).toBeInTheDocument()
+    expect(await screen.findByText(/Specific save failure/)).toBeInTheDocument()
     await user.click(screen.getByRole('link', { name: 'Settings' }))
     expect(window.location.pathname).toBe(editor.path)
     expect(screen.getByLabelText(editor.field)).toHaveValue('New record')
@@ -106,9 +109,48 @@ describe('editor to Settings discard journey', () => {
     expect(confirm).toHaveBeenCalledTimes(1)
   })
 
+  it.each([false, true])('keeps a pending Activity mounted and protects Settings (failure=%s)', async (fails) => {
+    const fetch = remote()
+    window.history.pushState({}, '', '/activities')
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(true)
+    const user = userEvent.setup()
+    render(<App />)
+    await user.click(await screen.findByRole('button', { name: 'Add activity' }))
+    fireEvent.change(screen.getByLabelText('Activity title'), { target: { value: 'Pending activity' } })
+    fireEvent.change(screen.getByLabelText('Postcode'), { target: { value: 'GL1 1AA' } })
+    let finish!: (reply: Response) => void
+    fetch.mockReturnValueOnce(
+      new Promise<Response>((resolve) => {
+        finish = resolve
+      }),
+    )
+    await user.click(screen.getByRole('button', { name: 'Save activity' }))
+    await user.click(screen.getByRole('link', { name: 'Settings' }))
+    await user.click(screen.getByRole('link', { name: 'Ideas' }))
+    expect(window.location.pathname).toBe('/activities')
+    expect(screen.getByLabelText('Activity title')).toBeDisabled()
+    expect(confirm).not.toHaveBeenCalled()
+    const request = JSON.parse(fetch.mock.calls.at(-1)![1].body as string)
+    await act(async () => {
+      finish(
+        fails
+          ? new Response(JSON.stringify({ error: 'Pending activity rejected' }), { status: 400 })
+          : new Response(JSON.stringify({ data: request.data, etags: {} })),
+      )
+    })
+    if (fails) {
+      expect(await screen.findByText(/Pending activity rejected/)).toBeInTheDocument()
+      expect(screen.getByLabelText('Activity title')).toHaveValue('Pending activity')
+    } else expect(await screen.findByText('Activity saved.')).toBeInTheDocument()
+    await user.click(screen.getByRole('link', { name: 'Settings' }))
+    expect(window.location.pathname).toBe('/settings')
+    expect(screen.getByRole('combobox', { name: 'Data mode' })).not.toHaveAttribute('aria-disabled', 'true')
+    expect(confirm).toHaveBeenCalledTimes(fails ? 1 : 0)
+  })
+
   it.each(
     editors
-      .filter((editor) => editor.path !== '/challenges')
+      .filter((editor) => editor.path !== '/challenges' && editor.path !== '/activities')
       .flatMap((editor) => [false, true].map((fails) => ({ ...editor, fails }))),
   )('keeps Settings locked across an unmounted $path save without late navigation (failure=$fails)', async (editor) => {
     const fetch = remote()
@@ -122,8 +164,6 @@ describe('editor to Settings discard journey', () => {
       fireEvent.change(screen.getByLabelText('Description'), { target: { value: 'Description' } })
       fireEvent.change(screen.getByLabelText('Category', { selector: 'input' }), { target: { value: 'Walk' } })
     }
-    if (editor.path === '/activities')
-      fireEvent.change(screen.getByLabelText('Postcode'), { target: { value: 'GL1 1AA' } })
     let finish!: (reply: Response) => void
     let fail!: (error: Error) => void
     const writing = new Promise<Response>((resolve, reject) => {
@@ -240,10 +280,10 @@ describe('activity logging', () => {
 
   const logActivity = async (user: ReturnType<typeof userEvent.setup>, level: string, date: string) => {
     await user.click(screen.getByRole('button', { name: 'Log activity' }))
-    await user.click(screen.getByRole('combobox', { name: 'Activity category' }))
+    await user.click(screen.getByRole('combobox', { name: 'Award tier' }))
     await user.click(screen.getByRole('option', { name: level }))
     fireEvent.change(screen.getByLabelText('Activity date'), { target: { value: date } })
-    await user.click(screen.getByRole('button', { name: 'Save activity' }))
+    await submitActivity(user, 'Save activity')
   }
 
   // This test performs two full activity-logging flows plus a re-render, which is

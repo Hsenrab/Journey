@@ -31,6 +31,7 @@ for (const role of ['admin', 'viewer'] as const) {
           photoReferenceIds: [],
         })),
         activities: Array.from({ length: 8 }, (_, index) => ({
+          name: 'Recorded activity',
           activityId: `activity-${index}`,
           waypointId: index === 0 ? 'once' : 'counted',
           ideaIds: [],
@@ -388,8 +389,9 @@ test.describe('activity management flow', () => {
     await page.getByRole('link', { name: 'Example Waypoint' }).click()
 
     await page.getByRole('button', { name: 'Log activity' }).click()
+    await page.getByLabel('Activity title', { exact: true }).fill('Excellent day out')
     await expect(page.getByLabel('Latitude')).toHaveValue('51.783')
-    await page.getByRole('combobox', { name: 'Activity category' }).click()
+    await page.getByRole('combobox', { name: 'Award tier' }).click()
     await page.getByRole('option', { name: 'Gold' }).click()
     await page.getByLabel('Description / notes').fill('Excellent day')
     await page.getByRole('button', { name: 'Save activity' }).click()
@@ -397,31 +399,33 @@ test.describe('activity management flow', () => {
     await expect(page.getByText('Activity saved.')).toBeVisible()
     await expect(page.getByText('Award tier: Gold')).toBeVisible()
 
-    await page.getByRole('link', { name: '2026' }).first().click()
-    await expect(page.getByRole('heading', { name: /\d{1,4}[/-]\d{1,2}[/-]\d{1,4}/ })).toBeVisible()
+    await page.getByRole('link', { name: 'Excellent day out', exact: true }).click()
+    await expect(page.getByRole('heading', { name: 'Excellent day out', exact: true })).toBeVisible()
     await expect(page.getByText('Example Waypoint').first()).toBeVisible()
   })
 
   test('creates unlinked activity, edits it, and deletes it', async ({ page }) => {
     await page.goto('/activities')
     await page.getByRole('button', { name: 'Add activity' }).click()
+    await page.getByLabel('Activity title', { exact: true }).fill('Independent day out')
     await page.getByLabel('Postcode').fill('GL1 1AA')
     await page.getByLabel('Description / notes').fill('Unlinked activity')
     await page.getByRole('button', { name: 'Save activity' }).click()
 
     await expect(page.getByText('Activity saved.')).toBeVisible()
-    await page.getByRole('link', { name: '2026' }).first().click()
+    await page.getByRole('link', { name: 'Independent day out', exact: true }).click()
 
     await expect(page.getByText('No photos linked to this activity.')).toBeVisible()
     await expect(page.getByText('No references linked to this activity.')).toBeVisible()
 
     await page.getByRole('button', { name: 'Edit activity' }).click()
+    await page.getByRole('button', { name: 'References (optional)', exact: true }).click()
     await page.getByRole('button', { name: 'Add reference' }).click()
     await page.getByLabel('Reference title').fill('External article')
     await page.getByLabel('Reference URL').fill('https://example.com/article')
     await page.getByRole('button', { name: 'Save changes' }).click()
 
-    await expect(page.getByText('Activity updated.')).toBeVisible()
+    await expect(page.getByText('Activity saved.')).toBeVisible()
     await expect(page.getByText('External article')).toBeVisible()
 
     await page.getByRole('button', { name: 'Delete activity' }).first().click()
@@ -442,7 +446,9 @@ test.describe('activity management flow', () => {
     await page.getByLabel('Search waypoints').fill('Example Waypoint')
     await page.getByRole('link', { name: 'Example Waypoint' }).click()
     await page.getByRole('button', { name: 'Log activity' }).click()
-    await page.getByRole('combobox', { name: 'Activity category' }).click()
+    await page.getByLabel('Activity title', { exact: true }).fill('Recorded trail walk')
+    await page.getByRole('button', { name: 'Recorded GPX track (optional)', exact: true }).click()
+    await page.getByRole('combobox', { name: 'Award tier' }).click()
     await page.getByRole('option', { name: 'Gold' }).click()
     await page.locator('input[type="file"]').setInputFiles({
       name: 'walk.gpx',

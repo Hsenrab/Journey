@@ -121,6 +121,7 @@ describe('Ideas', () => {
       ],
       activities: [
         {
+          name: 'Recorded activity',
           activityId: 'a1',
           ideaIds: ['idea-1'],
           date: '2026-08-03',

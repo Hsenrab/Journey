@@ -1,5 +1,23 @@
-import { describe, expect, it } from 'vitest'
-import { JourneyDocumentSchema, JourneyMutationSchema } from './journeySchema.js'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import { readFileSync } from 'node:fs'
+import { JourneyDataSchema, JourneyDocumentSchema, JourneyMutationSchema } from './journeySchema.js'
+
+afterEach(() => vi.useRealTimers())
+
+function activity() {
+  return {
+    activityId: 'activity-1',
+    name: 'Abbey visit',
+    ideaIds: [],
+    date: '2026-01-01',
+    location: { kind: 'coordinates', latitude: 51.415, longitude: -2.123 },
+    notes: '',
+    referenceIds: [],
+    photoReferenceIds: [],
+    createdAt: '2026-01-01T00:00:00.000Z',
+    updatedAt: '2026-01-01T00:00:00.000Z',
+  }
+}
 
 function idea() {
   return {
@@ -113,6 +131,7 @@ describe('Journey document validation', () => {
           activities: [
             {
               activityId: 'activity-1',
+              name: 'Abbey visit',
               ideaIds: [],
               date: '2026-09-04',
               location: { kind: 'postcode', postcode: 'SN15 2LG' },
@@ -135,9 +154,10 @@ describe('Journey document validation', () => {
         id: 'activity-1',
         datasetId: 'production',
         type: 'activity',
-        schemaVersion: 4,
+        schemaVersion: 5,
         entity: {
           activityId: 'activity-1',
+          name: 'Abbey visit',
           ideaIds: [],
           date: '2026-09-04',
           location: { kind: 'postcode', postcode: 'SN15 2LG', latitude: 51.415, longitude: -2.123 },
@@ -367,6 +387,7 @@ describe('Journey document validation', () => {
     }
     const entity = {
       activityId: 'activity-1',
+      name: 'Abbey visit',
       ideaIds: [],
       date: '2026-09-04',
       location: { kind: 'postcode', postcode: 'SN15 2LG', latitude: 51.415, longitude: -2.123 },
@@ -386,13 +407,17 @@ describe('Journey document validation', () => {
         entity: activity,
       })
 
-    expect(document(4, entity).success).toBe(true)
-    expect(document(3, entity).success).toBe(false)
-    const legacyEntity = { ...entity }
-    delete (legacyEntity as { recordedTrack?: unknown }).recordedTrack
-    expect(document(3, legacyEntity).success).toBe(true)
+    expect(document(5, entity).success).toBe(true)
+    for (const version of [3, 4]) {
+      expect(document(version, entity).error?.issues[0]?.message).toBe(
+        `Document type "activity" requires schema version 5, received ${version}.`,
+      )
+      const withoutTrack = { ...entity }
+      delete (withoutTrack as { recordedTrack?: unknown }).recordedTrack
+      expect(document(version, withoutTrack).success).toBe(false)
+    }
     expect(
-      document(4, {
+      document(5, {
         ...entity,
         recordedTrack: {
           ...geometry,
@@ -405,7 +430,83 @@ describe('Journey document validation', () => {
         },
       }).success,
     ).toBe(false)
-    expect(document(4, { ...entity, recordedTrack: { ...geometry, coordinates: [[[-2, 0]]] } }).success).toBe(false)
+    expect(document(5, { ...entity, recordedTrack: { ...geometry, coordinates: [[[-2, 0]]] } }).success).toBe(false)
+  })
+
+  it.each([
+    { name: undefined },
+    { name: null },
+    { name: '' },
+    { name: ' \t\n ' },
+    { date: undefined },
+    { date: null },
+    { date: '' },
+    { date: '2026-1-01' },
+    { date: '2026-02-29' },
+    { date: '2026-04-31' },
+    { date: '2026-07-17' },
+  ])('rejects invalid Activity fields across stored, import and replacement schemas: %j', (fields) => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-07-15T23:30:00Z'))
+    const entity = { ...activity(), ...fields }
+    expect(
+      JourneyDocumentSchema.safeParse({
+        id: entity.activityId,
+        datasetId: 'production',
+        type: 'activity',
+        schemaVersion: 5,
+        entity,
+      }).success,
+    ).toBe(false)
+    for (const operation of ['import', 'replace']) {
+      expect(
+        JourneyMutationSchema.safeParse({
+          operation,
+          data: { ...emptyData(), activities: [activity(), { ...entity, activityId: 'activity-2' }] },
+          etags: {},
+        }).success,
+      ).toBe(false)
+    }
+  })
+
+  it('normalizes the title without changing the calendar date or imposing title/date uniqueness', () => {
+    const entity = { ...activity(), name: '  Abbey visit \t' }
+    const parsed = JourneyDocumentSchema.parse({
+      id: entity.activityId,
+      datasetId: 'production',
+      type: 'activity',
+      schemaVersion: 5,
+      entity,
+    })
+    expect(parsed.entity).toMatchObject({ name: 'Abbey visit', date: '2026-01-01' })
+    const data = JourneyDataSchema.parse({
+      ...emptyData(),
+      activities: [entity, { ...entity, activityId: 'activity-2' }],
+    })
+    expect(data.activities.map(({ name, date }) => ({ name, date }))).toEqual([
+      { name: 'Abbey visit', date: '2026-01-01' },
+      { name: 'Abbey visit', date: '2026-01-01' },
+    ])
+  })
+
+  it('re-evaluates UK today through the same document schema across midnight', () => {
+    vi.useFakeTimers()
+    const input = {
+      id: 'activity-1',
+      datasetId: 'production',
+      type: 'activity',
+      schemaVersion: 5,
+      entity: { ...activity(), date: '2026-07-16' },
+    }
+    vi.setSystemTime(new Date('2026-07-15T22:59:59Z'))
+    expect(JourneyDocumentSchema.safeParse(input).success).toBe(false)
+    vi.setSystemTime(new Date('2026-07-15T23:00:00Z'))
+    expect(JourneyDocumentSchema.parse(input).entity).toMatchObject({ date: '2026-07-16' })
+  })
+
+  it('validates the complete bundled Demo fixture against current API rules', () => {
+    const fixture: unknown = JSON.parse(readFileSync(new URL('../../../src/data/demo.json', import.meta.url), 'utf8'))
+    expect(JourneyDataSchema.safeParse(fixture).success).toBe(true)
   })
 
   it('requires a rejection reason only for rejected ideas', () => {

@@ -1,4 +1,6 @@
-import { MemoryRouter, Route, Routes, useNavigate } from 'react-router-dom'
+import { submitActivity } from '../test/activityActions'
+import { Route, Routes, useNavigate } from 'react-router-dom'
+import { MemoryRouter } from '../test/DataMemoryRouter'
 import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -101,6 +103,7 @@ describe('IdeaDetails', () => {
       ],
       activities: [
         {
+          name: 'Recorded activity',
           activityId: 'a1',
           ideaIds: ['idea-1'],
           waypointId: 'demo-foxglove-manor',
@@ -142,6 +145,7 @@ describe('IdeaDetails', () => {
       ],
       activities: [
         {
+          name: 'Recorded activity',
           activityId: 'a1',
           ideaIds: ['idea-1'],
           date: '2026-08-05',
@@ -385,9 +389,9 @@ describe('IdeaDetails', () => {
     expect(screen.getByRole('combobox', { name: 'Linked waypoint' })).toHaveValue('Foxglove Manor (Demo)')
     expect(screen.getByText('Try the outer trail')).toBeInTheDocument()
 
-    await user.click(screen.getByRole('combobox', { name: 'Activity category' }))
+    await user.click(screen.getByRole('combobox', { name: 'Award tier' }))
     await user.click(screen.getByRole('option', { name: 'Gold' }))
-    await user.click(screen.getByRole('button', { name: 'Save activity' }))
+    await submitActivity(user, 'Save activity')
 
     expect(await screen.findByRole('heading', { name: 'Try the outer trail', level: 1 })).toBeInTheDocument()
     expect(screen.getByText('Used in 1 activity')).toBeInTheDocument()
@@ -425,9 +429,9 @@ describe('IdeaDetails', () => {
 
     const ideaChip = (await screen.findByText('Try the outer trail')).closest('.MuiChip-root') as HTMLElement
     await user.click(within(ideaChip).getByTestId('CancelIcon'))
-    await user.click(screen.getByRole('combobox', { name: 'Activity category' }))
+    await user.click(screen.getByRole('combobox', { name: 'Award tier' }))
     await user.click(screen.getByRole('option', { name: 'Gold' }))
-    await user.click(screen.getByRole('button', { name: 'Save activity' }))
+    await submitActivity(user, 'Save activity')
 
     expect(await screen.findByText('Activity saved.')).toBeInTheDocument()
     expect(screen.queryByRole('heading', { name: 'Try the outer trail', level: 1 })).not.toBeInTheDocument()
@@ -469,9 +473,9 @@ describe('IdeaDetails', () => {
     await user.click(await screen.findByRole('link', { name: 'Log activity from this idea' }))
 
     expect(await screen.findByText('Activities')).toBeInTheDocument()
-    await user.click(screen.getByRole('combobox', { name: 'Activity category' }))
+    await user.click(screen.getByRole('combobox', { name: 'Award tier' }))
     await user.click(await screen.findByRole('option', { name: 'Gold' }))
-    await user.click(screen.getByRole('button', { name: 'Save activity' }))
+    await submitActivity(user, 'Save activity')
 
     expect(await screen.findByRole('alert')).toHaveTextContent('Your data has changed in another session.')
     expect(screen.getByRole('button', { name: 'Save activity' })).toBeInTheDocument()

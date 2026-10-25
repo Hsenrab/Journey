@@ -58,7 +58,7 @@ export function load(): WaypointsData {
 
 export function save(data: WaypointsData) {
   requireProductionDataMode()
-  localStorage.setItem(key, JSON.stringify(data))
+  localStorage.setItem(key, JSON.stringify(DataSchema.parse(data)))
 }
 
 export function createBackup(data: WaypointsData): Backup {

@@ -92,6 +92,7 @@ const emptyData = {
 
 const activity = {
   activityId: 'activity-1',
+  name: 'Orangery tour',
   ideaIds: ['idea-1'],
   date: '2026-08-02',
   location: { kind: 'postcode', postcode: 'GL3 4AQ' },
@@ -145,9 +146,134 @@ describe('journey', () => {
   })
 
   afterEach(() => {
+    vi.useRealTimers()
     vi.unstubAllGlobals()
     vi.unstubAllEnvs()
   })
+
+  describe.each(['create', 'update', 'import', 'replace'] as const)('%s Activity validation', (operation) => {
+    it.each([
+      [{ name: undefined }, 'Activity title is required.'],
+      [{ name: null }, 'Activity title is required.'],
+      [{ name: '' }, 'Activity title is required.'],
+      [{ name: ' \t\n ' }, 'Activity title is required.'],
+      [{ date: undefined }, 'Activity date is required.'],
+      [{ date: null }, 'Activity date is required.'],
+      [{ date: '' }, 'Activity date must be a real YYYY-MM-DD date no later than today in UK time.'],
+      [{ date: '2026-1-01' }, 'Activity date must be a real YYYY-MM-DD date no later than today in UK time.'],
+      [{ date: '2026-02-29' }, 'Activity date must be a real YYYY-MM-DD date no later than today in UK time.'],
+      [{ date: '2026-04-31' }, 'Activity date must be a real YYYY-MM-DD date no later than today in UK time.'],
+      [{ date: '2026-07-17' }, 'Activity date must be a real YYYY-MM-DD date no later than today in UK time.'],
+    ])('rejects %j before any Cosmos mutation', async (fields, message) => {
+      vi.useFakeTimers()
+      vi.setSystemTime(new Date('2026-07-15T23:30:00Z'))
+      const valid = {
+        ...activity,
+        ideaIds: [],
+        date: '2026-01-01',
+        location: { kind: 'coordinates', latitude: 51.844, longitude: -2.153 },
+      }
+      const invalid = { ...valid, ...fields, activityId: 'invalid-activity' }
+      const stored = { data: { ...emptyData, activities: [valid] }, etags: { 'activity-1': 'etag' } }
+      const before = structuredClone(stored)
+      loadDataset.mockResolvedValue(stored)
+      const body =
+        operation === 'import' || operation === 'replace'
+          ? { operation, data: { ...emptyData, activities: [valid, invalid] }, etags: stored.etags }
+          : { operation, type: 'activity', entity: invalid, id: invalid.activityId, ifMatch: 'etag' }
+      expect(await journey(request('production', operation === 'update' ? 'PUT' : 'POST', body), context())).toEqual({
+        status: 400,
+        jsonBody: { error: message },
+      })
+      expect(loadDataset).not.toHaveBeenCalled()
+      expect(createDocument).not.toHaveBeenCalled()
+      expect(replaceDocument).not.toHaveBeenCalled()
+      expect(replaceDataset).not.toHaveBeenCalled()
+      expect(replaceEntities).not.toHaveBeenCalled()
+      expect(deleteEntity).not.toHaveBeenCalled()
+      expect(stored).toEqual(before)
+    })
+  })
+
+  it.each(['create', 'update'] as const)(
+    'persists a trimmed Activity title and exact UK date on %s',
+    async (operation) => {
+      vi.useFakeTimers()
+      vi.setSystemTime(new Date('2026-07-15T23:30:00Z'))
+      const entity = {
+        ...activity,
+        name: '  Orangery tour \t',
+        ideaIds: [],
+        date: '2026-07-16',
+        location: { kind: 'coordinates', latitude: 51.844, longitude: -2.153 },
+      }
+      loadDataset.mockResolvedValue({ data: emptyData, etags: {} })
+      const write = operation === 'create' ? createDocument : replaceDocument
+      write.mockImplementation(async (_container, document) => ({
+        resource: document,
+        headers: { etag: 'saved-etag' },
+      }))
+      expect(
+        await journey(
+          request('production', operation === 'create' ? 'POST' : 'PUT', {
+            operation,
+            type: 'activity',
+            entity,
+            id: entity.activityId,
+            ifMatch: 'original-etag',
+          }),
+          context(),
+        ),
+      ).toMatchObject({
+        status: operation === 'create' ? 201 : 200,
+        jsonBody: { entity: { name: 'Orangery tour', date: '2026-07-16' }, etag: 'saved-etag' },
+      })
+      expect(write.mock.calls[0]?.[1]).toMatchObject({ schemaVersion: 5 })
+      if (operation === 'update') expect(write.mock.calls[0]?.[2]).toBe('original-etag')
+    },
+  )
+
+  it.each(['import', 'replace'] as const)(
+    'preserves named Activities, dates and deliberate duplicates on %s',
+    async (operation) => {
+      vi.useFakeTimers()
+      vi.setSystemTime(new Date('2026-07-15T23:30:00Z'))
+      const entity = {
+        ...activity,
+        name: '  Orangery tour \t',
+        ideaIds: [],
+        date: '2026-07-16',
+        location: { kind: 'coordinates', latitude: 51.844, longitude: -2.153 },
+      }
+      const data = { ...emptyData, activities: [entity, { ...entity, activityId: 'activity-2' }] }
+      const expectedData = JourneyDataSchema.parse(data)
+      loadDataset.mockResolvedValue({
+        data: expectedData,
+        etags: { 'activity-1': 'saved-etag', 'activity-2': 'new-etag' },
+      })
+      if (operation === 'import') loadDataset.mockResolvedValueOnce({ data: emptyData, etags: {} })
+      const etags = { 'activity-1': 'original-etag' }
+      expect(await journey(request('production', 'POST', { operation, data, etags }), context())).toMatchObject({
+        status: 200,
+        jsonBody: { data: expectedData },
+      })
+      expect(replaceDataset).toHaveBeenCalledWith(
+        {},
+        'production',
+        {
+          'activity-1': expect.objectContaining({
+            schemaVersion: 5,
+            entity: expect.objectContaining({ name: 'Orangery tour', date: '2026-07-16' }),
+          }),
+          'activity-2': expect.objectContaining({
+            schemaVersion: 5,
+            entity: expect.objectContaining({ name: 'Orangery tour', date: '2026-07-16' }),
+          }),
+        },
+        operation === 'import' ? {} : etags,
+      )
+    },
+  )
 
   describe.each(['import', 'replace'])('%s dataset', (operation) => {
     it.each(['same-type', 'cross-type'])('rejects %s duplicate IDs without changing stored data', async (kind) => {

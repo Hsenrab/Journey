@@ -16,7 +16,7 @@ import {
 } from './visit'
 
 export type ActivityJsonImportDraft = {
-  name?: string
+  name: string
   date: string
   notes: string
   category?: AwardedStatus
@@ -343,7 +343,7 @@ export function parseActivityDraftJson(value: string): ParseResult<ActivityJsonI
 
   try {
     createActivity({
-      name: payload.name as string | undefined,
+      name: payload.name as string,
       date: payload.date as string,
       notes: payload.notes as string,
       ideaIds: [],
@@ -367,7 +367,7 @@ export function parseActivityDraftJson(value: string): ParseResult<ActivityJsonI
   return {
     ok: true,
     value: {
-      name: payload.name as string | undefined,
+      name: (payload.name as string).trim(),
       date: payload.date as string,
       notes: payload.notes as string,
       category,

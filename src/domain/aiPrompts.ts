@@ -8,14 +8,14 @@ Use only the source material I provide (a website, notes, itinerary, etc.); do n
 Return ONLY one valid JSON object matching the shape below: no array, markdown, commentary, or additional fields.
 
 Required top-level fields:
-- "date" (string, required): the real calendar date the activity happened, in "YYYY-MM-DD" format.
+- "name" (string, required): a short, nonempty factual title for the activity.
+- "date" (string, required): the real calendar date the activity happened, in "YYYY-MM-DD" format, no later than today in UK time (including British Summer Time).
 - "notes" (string, required): a complete plain-text account of what happened. Include all useful supported details in a few focused sentences.
 - "location" (object, required): see "location shape" below.
 - "references" (array of objects, required): all useful supporting source links. Use [] if none are provided.
 - "photoReferences" (array of objects, required): all useful external photo links. Use [] if none are provided.
 
 Optional top-level fields (omit entirely unless clearly supported by the source):
-- "name" (string, optional): a short title for the activity, a few words. Omit if the source gives no natural name.
 - "category" (string, optional): exactly "bronze", "silver", or "gold". Include only when the source explicitly identifies that achievement tier.
 
 location shape (discriminated by "kind"):
@@ -48,6 +48,7 @@ Example 1 — activity with a postcode and supporting media:
 
 Example 2 — activity known by coordinates with no links:
 {
+  "name": "Juggling practice",
   "date": "2026-06-20",
   "notes": "Practised juggling outdoors for an hour, working from three-catch starts up to ten consecutive catches.",
   "location": { "kind": "coordinates", "latitude": 51.8642, "longitude": -2.2382 },

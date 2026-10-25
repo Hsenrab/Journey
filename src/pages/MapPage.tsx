@@ -45,6 +45,7 @@ import {
 } from '../domain/gpxMap'
 import {
   awardableStatuses,
+  activityTitle,
   statusLabels,
   waypointCompletionProgress,
   type Activity,
@@ -93,10 +94,6 @@ const markerIcons = {
 
 function waypointDisplayName(waypoint: Pick<Waypoint, 'title'>): string {
   return waypoint.title.trim() || 'Unnamed waypoint'
-}
-
-function activityDisplayName(activity: Pick<Activity, 'name'>): string {
-  return activity.name?.trim() || 'Unnamed activity'
 }
 
 function formatMiles(miles: number): string {
@@ -663,7 +660,7 @@ export default function MapPage() {
           .filter((activity) => activity.waypointId === waypoint.waypointId)
           .map((activity) => ({
             activityId: activity.activityId,
-            label: activityDisplayName(activity),
+            label: activityTitle(activity),
           }))
         const content = buildWaypointPopupContent(waypointDisplayName(waypoint), waypointActivities, (href) =>
           navigate(href),
@@ -689,7 +686,7 @@ export default function MapPage() {
           : undefined
         const content = buildPopupContent({
           eyebrow: 'Activity',
-          title: activityDisplayName(activity),
+          title: activityTitle(activity),
           metadata: [activity.category ? statusLabels[activity.category] : 'Uncategorised'],
           summary: waypoint ? waypointDisplayName(waypoint) : 'No linked waypoint',
           href: `/activities/${activity.activityId}`,
@@ -883,7 +880,7 @@ export default function MapPage() {
           const waypoint = data.waypoints.find((item) => item.waypointId === activity.waypointId)
           return [
             new atlas.data.Feature(new atlas.data.Point([coordinates.longitude, coordinates.latitude]), {
-              label: activityDisplayName(activity),
+              label: activityTitle(activity),
               icon: selectedActivityId === activity.activityId ? 'activity-selected' : 'activity',
               activityId: activity.activityId,
               description: `${waypoint ? waypointDisplayName(waypoint) : 'No linked waypoint'} · ${activity.category ? statusLabels[activity.category] : 'Uncategorised'}`,
@@ -970,7 +967,7 @@ export default function MapPage() {
       {loaded && (
         <>
           {mode === 'activities' && trackActivity?.recordedTrack && (
-            <Alert severity="info">Showing the recorded track for {activityDisplayName(trackActivity)}.</Alert>
+            <Alert severity="info">Showing the recorded track for {activityTitle(trackActivity)}.</Alert>
           )}
           <Card ref={filters}>
             <CardContent>
@@ -1110,7 +1107,7 @@ export default function MapPage() {
                       <CompactMapListItem
                         key={activity.activityId}
                         to={`/activities/${activity.activityId}`}
-                        name={activityDisplayName(activity)}
+                        name={activityTitle(activity)}
                         complete={true}
                         tier={activity.category}
                         distance={formatMiles(miles)}

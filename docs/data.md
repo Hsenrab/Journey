@@ -13,12 +13,14 @@ Cosmos stores one document per entity. Every document contains `id`, `datasetId`
 validated `WaypointsData` response. Cosmos ETags are kept in application memory and
 are not included in JSON exports.
 
-Each document type declares its own schema version (`activity` is version 4,
+Each document type declares its own schema version (`activity` is version 5,
 `challenge` is version 3, `idea` and `waypoint` are version 2, and the other types are version 1). A document whose
 version or entity shape does not match the current schema fails validation with its
-specific error. Challenge versions 1/2 are rejected without conversion. Activity version 3
-remains readable but cannot contain `recordedTrack`. Reading legacy documents does not migrate them, but a
-full-dataset replacement rewrites all supplied documents at their current versions.
+specific error. Challenge versions 1/2 and Activity versions 3/4 are rejected without
+conversion. Activity version 5 requires a trimmed, nonempty title and a real calendar
+date no later than today in `Europe/London`, including British Summer Time. No
+legacy-document migration or hosted-data correction is performed. A valid
+full-dataset replacement writes all supplied documents at their current versions.
 
 `src/data/demo.json` is the canonical demo fixture. Demo local loads it directly in the
 browser and is always read-only. The deployment workflow also reseeds the Cosmos `demo`
@@ -70,7 +72,8 @@ The persisted root object is:
 `activities` records include:
 
 - stable IDs and timestamps (`activityId`, `createdAt`, `updatedAt`)
-- `date` (`YYYY-MM-DD`)
+- required `name`, displayed as Activity title, trimmed and nonempty
+- required `date` (`YYYY-MM-DD`), a real calendar date no later than today in UK time
 - optional `waypointId`
 - `ideaIds` (zero, one, or many distinct Idea IDs, independent of `waypointId`)
 - optional `category` (`bronze` | `silver` | `gold`)
@@ -97,6 +100,8 @@ Validation is shared in `src/domain/visit.ts` and enforced by storage import/loa
 - Invalid stored JSON or invalid persisted shape throws immediately.
 - Import validates `version`, envelope shape, and full `data` schema.
 - Unsupported or malformed imports are rejected; existing stored data remains unchanged.
+- Missing/blank Activity titles and missing, impossible or future Activity dates are
+  rejected on load, import and write; titles are never generated and dates are never shifted.
 
 ## Backup format
 

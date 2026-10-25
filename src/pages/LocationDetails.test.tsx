@@ -1,6 +1,8 @@
+import { submitActivity } from '../test/activityActions'
 import { fireEvent, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { MemoryRouter, Route, Routes } from 'react-router-dom'
+import { Route, Routes } from 'react-router-dom'
+import { MemoryRouter } from '../test/DataMemoryRouter'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import LocationDetails from './LocationDetails'
 import { WaypointsProvider } from '../features/journey/JourneyContext'
@@ -108,6 +110,7 @@ describe('LocationDetails', () => {
         waypoint.waypointId === demoWaypointId ? { ...waypoint, completion: { mode: 'count', target: 5 } } : waypoint,
       ),
       activities: ['a', 'b'].map((suffix) => ({
+        name: 'Recorded activity',
         activityId: `activity-${suffix}`,
         waypointId: demoWaypointId,
         ideaIds: [],
@@ -143,9 +146,9 @@ describe('LocationDetails', () => {
 
     await user.click(screen.getByRole('button', { name: 'Log activity' }))
     await user.type(screen.getByLabelText('Description / notes'), 'Wonderful visit')
-    await user.click(screen.getByRole('combobox', { name: 'Activity category' }))
+    await user.click(screen.getByRole('combobox', { name: 'Award tier' }))
     await user.click(screen.getByRole('option', { name: 'Gold' }))
-    await user.click(screen.getByRole('button', { name: 'Save activity' }))
+    await submitActivity(user, 'Save activity')
 
     expect(screen.getByText('Activity saved.')).toBeInTheDocument()
     expect(screen.getByText('Completion: Done')).toBeInTheDocument()
@@ -162,9 +165,9 @@ describe('LocationDetails', () => {
     const dateInput = screen.getByLabelText('Activity date')
     await user.clear(dateInput)
     await user.type(dateInput, 'not-a-date')
-    await user.click(screen.getByRole('button', { name: 'Save activity' }))
+    await submitActivity(user, 'Save activity')
 
-    expect(screen.getByText('Please enter a valid activity date in YYYY-MM-DD format.')).toBeInTheDocument()
+    expect(screen.getByText('Activity date must use YYYY-MM-DD format.')).toBeInTheDocument()
     expect(load().activities).toEqual(createDemoModeData().activities)
   })
 

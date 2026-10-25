@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   backupVersion,
   createBackup,
@@ -13,6 +13,7 @@ import {
 import { GpxGeometrySchema, type Activity, type WaypointsData } from '../domain/visit'
 
 const activity: Activity = {
+  name: 'Recorded activity',
   activityId: 'a1',
   ideaIds: [],
   waypointId: 'waypoint-1',
@@ -36,6 +37,43 @@ const backup = (overrides: { version?: number; data?: Partial<WaypointsData> } =
 
 describe('load', () => {
   beforeEach(() => localStorage.clear())
+  afterEach(() => vi.restoreAllMocks())
+
+  it.each([{ name: '' }, { name: ' \t ' }, { date: '2025-02-30' }, { date: '9999-01-01' }])(
+    'rejects invalid Activity fields without writing or repairing data: %j',
+    (fields) => {
+      save({ ...createDefaultData(), activities: [activity] })
+      const original = localStorage.getItem('waypoints-v1')
+      const invalid = { ...createDefaultData(), activities: [{ ...activity, ...fields }] }
+      const write = vi.spyOn(Storage.prototype, 'setItem')
+      expect(() => save(invalid)).toThrow()
+      expect(() => parseImport(backup({ data: invalid }))).toThrow()
+      expect(write).not.toHaveBeenCalled()
+      expect(localStorage.getItem('waypoints-v1')).toBe(original)
+      write.mockRestore()
+
+      const raw = JSON.stringify(invalid)
+      localStorage.setItem('waypoints-v1', raw)
+      expect(() => load()).toThrow()
+      expect(localStorage.getItem('waypoints-v1')).toBe(raw)
+    },
+  )
+
+  it('round-trips trimmed titles and exact dates while preserving deliberate duplicate records', () => {
+    save({
+      ...createDefaultData(),
+      activities: [
+        { ...activity, name: '  Evening walk  ' },
+        { ...activity, activityId: 'a2', name: 'Evening walk' },
+      ],
+    })
+    const data = load()
+    expect(data.activities.map(({ activityId, name, date }) => ({ activityId, name, date }))).toEqual([
+      { activityId: 'a1', name: 'Evening walk', date: activity.date },
+      { activityId: 'a2', name: 'Evening walk', date: activity.date },
+    ])
+    expect(parseImport(JSON.stringify(createBackup(data)))).toEqual(data)
+  })
 
   it('starts with empty data and does not write a legacy catalogue into local storage', () => {
     expect(load()).toEqual(createDefaultData())
