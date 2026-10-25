@@ -1,6 +1,110 @@
 import { expect, test } from '@playwright/test'
 import type { WaypointsData } from '../src/domain/visit'
 
+for (const role of ['admin', 'viewer'] as const) {
+  for (const width of [360, 1280]) {
+    test(`Challenge member progress is readable and read-only when viewing as ${role} at ${width}px`, async ({
+      page,
+    }) => {
+      await page.setViewportSize({ width, height: 800 })
+      await page.addInitScript(() => {
+        localStorage.clear()
+        localStorage.setItem('journey-data-mode-v1', 'demo-cosmos')
+      })
+      const longTitle = `Long waypoint ${'unbroken'.repeat(12)}`
+      const data: WaypointsData = {
+        challenges: ['first', 'second'].map((challengeId) => ({
+          challengeId,
+          title: `${challengeId} challenge`,
+          description: 'Synthetic progress acceptance',
+          supportsActivityCategories: false,
+        })),
+        waypoints: ['once', 'counted', 'empty'].map((waypointId) => ({
+          waypointId,
+          title: waypointId === 'once' ? longTitle : `${waypointId} waypoint`,
+          description: 'Synthetic member description',
+          category: 'Walk',
+          tags: [],
+          challengeIds: ['first', 'second'],
+          completion: waypointId === 'counted' ? { mode: 'count', target: 5 } : { mode: 'once' },
+          referenceIds: [],
+          photoReferenceIds: [],
+        })),
+        activities: Array.from({ length: 8 }, (_, index) => ({
+          activityId: `activity-${index}`,
+          waypointId: index === 0 ? 'once' : 'counted',
+          ideaIds: [],
+          date: '2026-01-01',
+          location: { kind: 'coordinates', latitude: 51, longitude: -2 },
+          notes: '',
+          referenceIds: [],
+          photoReferenceIds: [],
+          createdAt: '2026-01-01T00:00:00Z',
+          updatedAt: '2026-01-01T00:00:00Z',
+        })),
+        ideas: [],
+        references: [],
+        photoReferences: [],
+      }
+      let reads = 0
+      let writes = 0
+      await page.route('**/api/journey/**', async (route) => {
+        if (route.request().method() === 'GET') reads += 1
+        else writes += 1
+        await route.fulfill({ json: { data, etags: {}, role } })
+      })
+      await page.goto('/challenges/first')
+      const card = (title: string) =>
+        page.locator('.MuiCard-root').filter({
+          has: page.getByRole('heading', { name: title, exact: true }),
+        })
+      await expect(card(longTitle).getByText('Completion: Done', { exact: true })).toBeVisible()
+      if (width === 1280) await expect(card(longTitle).getByText('Completion: Done', { exact: true })).toBeInViewport()
+      await expect(card('empty waypoint').getByText('Completion: Not done', { exact: true })).toBeVisible()
+      await expect(card('counted waypoint').getByText('Completion: 7 of 5 activities', { exact: true })).toBeVisible()
+      await expect(card('counted waypoint').getByText('Done', { exact: true })).toBeVisible()
+      await expect(page.getByRole('button', { name: 'Attach GPX route', exact: true })).toHaveCount(
+        role === 'admin' ? 1 : 0,
+      )
+      if (role === 'viewer') await expect(page.getByText(/read-only/i).first()).toBeVisible()
+      for (const title of [longTitle, 'counted waypoint']) {
+        const bounds = await card(title).evaluate((element) => {
+          const cardBox = element.getBoundingClientRect()
+          const texts = [...element.querySelectorAll('h6, p')].map((text) => {
+            const range = document.createRange()
+            range.selectNodeContents(text)
+            const box = range.getBoundingClientRect()
+            return { left: box.left, right: box.right, top: box.top, bottom: box.bottom }
+          })
+          const link = element.querySelector('a')!.getBoundingClientRect()
+          return { left: cardBox.left, right: cardBox.right, texts, linkTop: link.top }
+        })
+        for (const [index, text] of bounds.texts.entries()) {
+          expect(text.left).toBeGreaterThanOrEqual(bounds.left)
+          expect(text.right).toBeLessThanOrEqual(bounds.right)
+          if (index > 0) expect(text.top).toBeGreaterThanOrEqual(bounds.texts[index - 1].bottom)
+          expect(text.bottom).toBeLessThanOrEqual(bounds.linkTop)
+        }
+      }
+      expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width)
+      expect(reads).toBe(1)
+      const link = card('counted waypoint').getByRole('link', { name: 'View waypoint', exact: true })
+      await link.focus()
+      await expect(link).toBeFocused()
+      await link.press('Enter')
+      await expect(page).toHaveURL(/\/waypoints\/counted$/)
+      await expect(page.getByText('Completion: 7 of 5 activities', { exact: true })).toBeVisible()
+      expect(reads).toBe(1)
+      await page.goto('/challenges/second')
+      await expect(card('counted waypoint').getByText('Completion: 7 of 5 activities', { exact: true })).toBeVisible()
+      await expect(card('counted waypoint').getByText('Done', { exact: true })).toBeVisible()
+      expect(reads).toBe(2)
+      expect(writes).toBe(0)
+      expect(await page.evaluate(() => localStorage.getItem('waypoints-v1'))).toBeNull()
+    })
+  }
+}
+
 test('Challenge assignments are single-source and obsolete backups fail without writes', async ({ page }) => {
   await page.addInitScript(() => {
     localStorage.clear()

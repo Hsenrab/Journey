@@ -253,6 +253,13 @@ describe('activity rules', () => {
     })
     const visits = (count: number) => Array.from({ length: count }, (_, i) => ({ ...visit, activityId: `v${i}` }))
 
+    const zero = waypointCompletionProgress(counted, [])
+    expect(zero).toEqual({ count: 0, target: 5, complete: false })
+    expect(completionProgressLabel(counted, zero)).toBe('0 of 5 activities')
+    const exceeded = waypointCompletionProgress(counted, visits(7))
+    expect(exceeded).toEqual({ count: 7, target: 5, complete: true })
+    expect(completionProgressLabel(counted, exceeded)).toBe('7 of 5 activities')
+
     const partial = waypointCompletionProgress(counted, visits(2))
     expect(partial).toEqual({ count: 2, target: 5, complete: false })
     expect(completionProgressLabel(counted, partial)).toBe('2 of 5 activities')

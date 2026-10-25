@@ -5,6 +5,12 @@
 **Supersession**: [Feature013](../013-challenge-waypoint-relationships/spec.md)
 replaces the historical membership-union behavior described below. This evidence
 retains its original review date and is not new runtime acceptance.
+
+**Extension**: [Feature014](../014-challenge-waypoint-progress/spec.md) adds
+per-member completion/count labels on Challenge details. See its
+[validation record](../014-challenge-waypoint-progress/quickstart.md) for new
+acceptance results; the source-review evidence below remains historical.
+
 **Specification**: [Challenge baseline](spec.md)
 
 | Requirements          | Implementation reviewed                                                                                                                  | Existing tests reviewed                                                                                                                                                    |

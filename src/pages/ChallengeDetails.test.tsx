@@ -1,13 +1,60 @@
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { MemoryRouter, Route, Routes } from 'react-router-dom'
+import { MemoryRouter, Route, Routes, useNavigate } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { WaypointsProvider, useWaypoints } from '../features/journey/JourneyContext'
-import { createDemoModeData, load, save, setDataMode } from '../services/storage'
+import { createDefaultData as emptyData, createDemoModeData, load, save, setDataMode } from '../services/storage'
 import ChallengeDetails from './ChallengeDetails'
 import type { GpxMapLine } from '../domain/gpxMap'
 import { Layout } from '../components/Layout'
 import Settings from './Settings'
+import LocationDetails from './LocationDetails'
+import type { Activity, WaypointsData } from '../domain/visit'
+
+function progressData(): WaypointsData {
+  return {
+    ...emptyData(),
+    challenges: ['first', 'second'].map((challengeId) => ({
+      challengeId,
+      title: `${challengeId} challenge`,
+      description: 'Synthetic progress fixture',
+      supportsActivityCategories: true,
+    })),
+    waypoints: ['once', 'counted', 'other'].map((waypointId) => ({
+      waypointId,
+      title: `${waypointId} waypoint`,
+      description: `${waypointId} description`,
+      category: 'Walk',
+      tags: [],
+      challengeIds: ['first', 'second'],
+      completion: waypointId === 'counted' ? { mode: 'count', target: 5 } : { mode: 'once' },
+      referenceIds: [],
+      photoReferenceIds: [],
+    })),
+  }
+}
+
+function progressActivity(activityId: string, waypointId?: string): Activity {
+  return {
+    activityId,
+    waypointId,
+    challengeId: 'second',
+    ideaIds: [],
+    date: '2026-01-01',
+    location: { kind: 'coordinates', latitude: 51, longitude: -2 },
+    notes: '',
+    referenceIds: [],
+    photoReferenceIds: [],
+    createdAt: '2026-01-01T00:00:00Z',
+    updatedAt: '2026-01-01T00:00:00Z',
+  }
+}
+
+function member(title: string) {
+  const card = screen.getByRole('heading', { name: title }).closest('.MuiCard-root')
+  if (!(card instanceof HTMLElement)) throw new Error(`Missing member card: ${title}`)
+  return within(card)
+}
 
 vi.mock('../components/ChallengeRouteMap', () => ({
   ChallengeRouteMap: ({
@@ -67,6 +114,266 @@ describe('ChallengeDetails', () => {
     vi.restoreAllMocks()
     vi.unstubAllEnvs()
     vi.unstubAllGlobals()
+  })
+
+  it.each([false, true])('does not invent progress for missing Challenge=%s or empty membership', (missing) => {
+    const data = progressData()
+    data.waypoints = []
+    save(data)
+    renderDetails(missing ? 'missing' : 'first')
+    expect(
+      screen.getByText(missing ? 'Challenge not found.' : 'No waypoints linked to this challenge.'),
+    ).toBeInTheDocument()
+    expect(screen.queryByText(/^Completion:/)).not.toBeInTheDocument()
+  })
+
+  it('distinguishes loading and failed Production data from missing members without progress', async () => {
+    vi.stubEnv('MODE', 'production')
+    let finish!: (response: Response) => void
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(
+        () =>
+          new Promise<Response>((resolve) => {
+            finish = resolve
+          }),
+      ),
+    )
+    renderDetails('first')
+    expect(screen.getByText('Loading challenge…')).toBeInTheDocument()
+    expect(screen.queryByText(/^Completion:/)).not.toBeInTheDocument()
+    await act(async () => {
+      finish(
+        new Response(JSON.stringify({ error: 'Synthetic load failure' }), {
+          status: 503,
+          statusText: 'Service Unavailable',
+          headers: { 'content-type': 'application/json' },
+        }),
+      )
+    })
+    expect(
+      await screen.findByText(
+        'Production data could not be loaded. Check the Journey API and Cosmos configuration: Journey API request failed with 503: Service Unavailable: Synthetic load failure',
+      ),
+    ).toBeInTheDocument()
+    expect(screen.getByText('This is a load failure, not a missing challenge.')).toBeInTheDocument()
+    expect(screen.queryByText('Challenge not found.')).not.toBeInTheDocument()
+    expect(screen.queryByText(/^Completion:/)).not.toBeInTheDocument()
+  })
+
+  it.each([0, 1, 3])('shows once completion for %i Activities on the correct card', (count) => {
+    const data = progressData()
+    data.activities = Array.from({ length: count }, (_, i) => progressActivity(`once-${i}`, 'once'))
+    save(data)
+    renderDetails('first')
+    expect(member('once waypoint').getByText(`Completion: ${count ? 'Done' : 'Not done'}`)).toBeInTheDocument()
+    expect(member('other waypoint').getByText('Completion: Not done')).toBeInTheDocument()
+    expect(member('once waypoint').getByText('once description')).toBeInTheDocument()
+    expect(member('once waypoint').getByRole('link', { name: 'View waypoint' })).toHaveAttribute(
+      'href',
+      '/waypoints/once',
+    )
+    expect(screen.getAllByRole('link', { name: 'View waypoint' }).map((link) => link.getAttribute('href'))).toEqual([
+      '/waypoints/once',
+      '/waypoints/counted',
+      '/waypoints/other',
+    ])
+  })
+
+  it.each([
+    { count: 0, target: 5 },
+    { count: 2, target: 5 },
+    { count: 5, target: 5 },
+    { count: 7, target: 5 },
+    { count: 0, target: 1 },
+  ])('shows count $count of $target with explicit completion', ({ count, target }) => {
+    const data = progressData()
+    data.waypoints[1]!.completion = { mode: 'count', target }
+    data.activities = Array.from({ length: count }, (_, i) => progressActivity(`count-${i}`, 'counted'))
+    save(data)
+    renderDetails('first')
+    const card = member('counted waypoint')
+    expect(
+      card.getByText(`Completion: ${count} of ${target} ${target === 1 ? 'activity' : 'activities'}`),
+    ).toBeInTheDocument()
+    expect(card.getByText(count >= target ? 'Done' : 'Not done', { exact: true })).toBeInTheDocument()
+  })
+
+  it('counts only linked Activities regardless of category, date or direct Challenge link in overlapping views', () => {
+    const data = progressData()
+    data.activities = [
+      progressActivity('linked', 'counted'),
+      { ...progressActivity('awarded', 'counted'), category: 'gold', date: '2024-01-01' },
+      progressActivity('direct-only'),
+      progressActivity('elsewhere', 'other'),
+    ]
+    save(data)
+    const first = renderDetails('first')
+    expect(member('counted waypoint').getByText('Completion: 2 of 5 activities')).toBeInTheDocument()
+    first.unmount()
+    const second = renderDetails('second')
+    expect(member('counted waypoint').getByText('Completion: 2 of 5 activities')).toBeInTheDocument()
+    second.unmount()
+    render(
+      <MemoryRouter initialEntries={['/waypoints/counted']}>
+        <WaypointsProvider>
+          <Routes>
+            <Route path="/waypoints/:id" element={<LocationDetails />} />
+          </Routes>
+        </WaypointsProvider>
+      </MemoryRouter>,
+    )
+    expect(screen.getByText('Completion: 2 of 5 activities')).toBeInTheDocument()
+  })
+
+  it.each(['admin', 'viewer'] as const)(
+    'recalculates loaded progress without extra reads or writes for %s',
+    async (role) => {
+      vi.stubEnv('MODE', 'production')
+      let data = progressData()
+      const fetch = vi.fn(() => Promise.resolve(new Response(JSON.stringify({ data, etags: {}, role }))))
+      vi.stubGlobal('fetch', fetch)
+      const storageWrite = vi.spyOn(Storage.prototype, 'setItem')
+      let context!: ReturnType<typeof useWaypoints>
+      let navigate!: ReturnType<typeof useNavigate>
+      function Controls() {
+        context = useWaypoints()
+        navigate = useNavigate()
+        return <button onClick={() => void context.reload()}>Reload data</button>
+      }
+      const page = () => (
+        <MemoryRouter initialEntries={['/challenges/first']}>
+          <WaypointsProvider>
+            <Controls />
+            <Routes>
+              <Route path="/challenges/:challengeId" element={<ChallengeDetails />} />
+              <Route path="/waypoints/:id" element={<LocationDetails />} />
+            </Routes>
+          </WaypointsProvider>
+        </MemoryRouter>
+      )
+      const view = render(page())
+      await screen.findByText('Completion: 0 of 5 activities')
+      expect(fetch).toHaveBeenCalledTimes(1)
+      view.rerender(page())
+      expect(fetch).toHaveBeenCalledTimes(1)
+      const added = Array.from({ length: 5 }, (_, index) => progressActivity(`added-${index}`, 'counted'))
+      const stages = [
+        { activities: [], count: 0, otherDone: false },
+        { activities: added, count: 5, otherDone: false },
+        { activities: [{ ...added[0], waypointId: 'other' }, ...added.slice(1)], count: 4, otherDone: true },
+        { activities: [], count: 0, otherDone: false },
+      ]
+      for (const [index, stage] of stages.entries()) {
+        if (index > 0) {
+          data = { ...data, activities: stage.activities }
+          await act(async () => {
+            await context.reload()
+          })
+        }
+        const countLabel = `Completion: ${stage.count} of 5 activities`
+        const otherLabel = `Completion: ${stage.otherDone ? 'Done' : 'Not done'}`
+        for (const challengeId of ['first', 'second']) {
+          await act(async () => {
+            await navigate(`/challenges/${challengeId}`)
+          })
+          expect(member('counted waypoint').getByText(countLabel, { exact: true })).toBeInTheDocument()
+          expect(
+            member('counted waypoint').getByText(stage.count >= 5 ? 'Done' : 'Not done', { exact: true }),
+          ).toBeInTheDocument()
+          expect(member('other waypoint').getByText(otherLabel, { exact: true })).toBeInTheDocument()
+        }
+        for (const [waypointId, label] of [
+          ['counted', countLabel],
+          ['other', otherLabel],
+        ]) {
+          await act(async () => {
+            await navigate(`/waypoints/${waypointId}`)
+          })
+          expect(screen.getByText(label, { exact: true })).toBeInTheDocument()
+        }
+        await act(async () => {
+          await navigate('/challenges/first')
+        })
+        expect(fetch).toHaveBeenCalledTimes(index + 1)
+      }
+      expect(fetch).toHaveBeenCalledTimes(4)
+      expect(storageWrite).not.toHaveBeenCalled()
+      if (role === 'admin') expect(screen.getByRole('button', { name: 'Attach GPX route' })).toBeInTheDocument()
+      else expect(screen.queryByRole('button', { name: 'Attach GPX route' })).not.toBeInTheDocument()
+      await act(async () => {
+        await context.setDataMode('demo-local')
+      })
+      expect(screen.getByText('Challenge not found.')).toBeInTheDocument()
+      expect(fetch).toHaveBeenCalledTimes(4)
+      expect(storageWrite.mock.calls.filter(([key]) => key === 'waypoints-v1')).toEqual([])
+    },
+  )
+
+  it('shows identical per-member Demo progress for admin, viewer, Demo local and warned fallback without writes', async () => {
+    vi.stubEnv('MODE', 'production')
+    const data = createDemoModeData()
+    const baseline = new Map<string, { waypointId: string; labels: (string | null)[] }[]>()
+    for (const scenario of ['admin', 'viewer', 'demo-local', 'fallback'] as const) {
+      setDataMode(scenario === 'demo-local' ? 'demo-local' : 'demo-cosmos')
+      const fetch = vi.fn(() =>
+        Promise.resolve(
+          scenario === 'fallback'
+            ? new Response(JSON.stringify({ error: 'Demo unavailable' }), {
+                status: 503,
+                headers: { 'content-type': 'application/json' },
+              })
+            : new Response(JSON.stringify({ data, etags: {}, role: scenario === 'viewer' ? 'viewer' : 'admin' })),
+        ),
+      )
+      vi.stubGlobal('fetch', fetch)
+      const write = vi.spyOn(Storage.prototype, 'setItem')
+      let navigate!: ReturnType<typeof useNavigate>
+      function Controls() {
+        navigate = useNavigate()
+        return null
+      }
+      const view = render(
+        <MemoryRouter initialEntries={[`/challenges/${data.challenges[0].challengeId}`]}>
+          <WaypointsProvider>
+            <Controls />
+            <Routes>
+              <Route path="/challenges/:challengeId" element={<ChallengeDetails />} />
+            </Routes>
+          </WaypointsProvider>
+        </MemoryRouter>,
+      )
+      await screen.findByRole('heading', { name: data.challenges[0].title })
+      for (const challenge of data.challenges) {
+        await act(async () => {
+          await navigate(`/challenges/${challenge.challengeId}`)
+        })
+        const members = data.waypoints.filter((waypoint) => waypoint.challengeIds.includes(challenge.challengeId))
+        expect(screen.queryAllByRole('link', { name: 'View waypoint' })).toHaveLength(members.length)
+        const progress = members.map((waypoint) => {
+          const card = member(waypoint.title)
+          expect(card.getAllByText(/^Completion:/)).toHaveLength(1)
+          if (waypoint.completion.mode === 'count') expect(card.getAllByText(/^(Done|Not done)$/)).toHaveLength(1)
+          return {
+            waypointId: waypoint.waypointId,
+            labels: card.getAllByText(/^Completion:|^(Done|Not done)$/).map((label) => label.textContent),
+          }
+        })
+        if (scenario === 'admin') baseline.set(challenge.challengeId, progress)
+        else expect(progress).toEqual(baseline.get(challenge.challengeId))
+        if (scenario === 'admin') expect(screen.getByRole('group', { name: 'GPX route actions' })).toBeInTheDocument()
+        else {
+          expect(screen.queryByRole('group', { name: 'GPX route actions' })).not.toBeInTheDocument()
+          expect(screen.getByText('Read-only mode')).toBeInTheDocument()
+        }
+        if (scenario === 'fallback')
+          expect(screen.getByText(/Demo Cosmos data could not be loaded/)).toBeInTheDocument()
+        expect(fetch).toHaveBeenCalledTimes(scenario === 'demo-local' ? 0 : 1)
+      }
+      expect(write).not.toHaveBeenCalled()
+      view.unmount()
+      write.mockRestore()
+    }
   })
 
   it('protects removal drafts on the Settings path, confirms once, and unregisters after saving', async () => {

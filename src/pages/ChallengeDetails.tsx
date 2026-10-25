@@ -8,7 +8,12 @@ import { LoadingNotice } from '../components/LoadingNotice'
 import { ReadOnlyNotice } from '../components/ReadOnlyNotice'
 import { parseGpxFile } from '../domain/gpx'
 import { challengeRecordedTracks } from '../domain/gpxMap'
-import { challengeWaypoints, type PlannedRoute } from '../domain/visit'
+import {
+  challengeWaypoints,
+  completionProgressLabel,
+  waypointCompletionProgress,
+  type PlannedRoute,
+} from '../domain/visit'
 import { useJourneyDraft, useWaypoints } from '../features/journey/JourneyContext'
 import { JourneyConflictError } from '../services/journeyApi'
 
@@ -200,19 +205,26 @@ export default function ChallengeDetails() {
         {waypoints.length === 0 ? (
           <Typography color="text.secondary">No waypoints linked to this challenge.</Typography>
         ) : (
-          waypoints.map((waypoint) => (
-            <Card key={waypoint.waypointId}>
-              <CardContent>
-                <Stack spacing={1}>
-                  <Typography variant="h6">{waypoint.title}</Typography>
-                  <Typography color="text.secondary">{waypoint.description}</Typography>
-                  <Button component={Link} to={`/waypoints/${waypoint.waypointId}`}>
-                    View waypoint
-                  </Button>
-                </Stack>
-              </CardContent>
-            </Card>
-          ))
+          waypoints.map((waypoint) => {
+            const progress = waypointCompletionProgress(waypoint, data.activities)
+            return (
+              <Card key={waypoint.waypointId}>
+                <CardContent>
+                  <Stack spacing={1} sx={{ overflowWrap: 'anywhere' }}>
+                    <Typography variant="h6">{waypoint.title}</Typography>
+                    <Typography color="text.secondary">{waypoint.description}</Typography>
+                    <Typography>Completion: {completionProgressLabel(waypoint, progress)}</Typography>
+                    {waypoint.completion.mode === 'count' && (
+                      <Typography>{progress.complete ? 'Done' : 'Not done'}</Typography>
+                    )}
+                    <Button component={Link} to={`/waypoints/${waypoint.waypointId}`}>
+                      View waypoint
+                    </Button>
+                  </Stack>
+                </CardContent>
+              </Card>
+            )
+          })
         )}
       </Stack>
     </Stack>
