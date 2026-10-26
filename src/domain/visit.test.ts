@@ -2,6 +2,10 @@ import { describe, expect, it } from 'vitest'
 import {
   ActivitySchema,
   ChallengeSchema,
+  AwardDescriptionsSchema,
+  awardStatistics,
+  awardFilterError,
+  validateAwardTransition,
   DataSchema,
   challengeWaypoints,
   IdeaSchema,
@@ -10,6 +14,7 @@ import {
   activitiesUsingIdea,
   awardableStatuses,
   completedWaypointCount,
+  countLabel,
   completionProgressLabel,
   completionRuleLabel,
   createActivity,
@@ -28,6 +33,7 @@ import {
   type WaypointsData,
 } from './visit'
 import { completionStateForWaypoint } from './map'
+import { createAwardTestData } from '../test/demoData'
 
 describe('canonical Challenge assignments', () => {
   it.each([{ waypointIds: [] }, { waypointIds: ['demo-foxglove-manor'] }])(
@@ -83,6 +89,32 @@ function waypoint(waypointId: string): Waypoint {
 }
 
 describe('activity rules', () => {
+  it.each([
+    [0, 'activity', '0 activities'],
+    [1, 'activity', '1 activity'],
+    [2, 'linked activity', '2 linked activities'],
+    [2, 'waypoint', '2 waypoints'],
+  ] as const)('labels %s %s with the correct unit', (count, singular, expected) => {
+    expect(countLabel(count, singular)).toBe(expected)
+  })
+  it('validates awards and Activity links even when the dataset has no Waypoints', () => {
+    const data = { ...createAwardTestData(), waypoints: [], activities: [] }
+    const activity = createActivity({
+      name: 'Independent',
+      date: '2026-08-01',
+      location: { kind: 'coordinates', latitude: 51, longitude: -2 },
+    })
+    expect(DataSchema.safeParse({ ...data, activities: [activity] }).success).toBe(true)
+    expect(() => DataSchema.parse({ ...data, activities: [{ ...activity, category: 'gold' }] })).toThrow(
+      'does not support awards',
+    )
+    expect(() => DataSchema.parse({ ...data, activities: [{ ...activity, waypointId: 'missing' }] })).toThrow(
+      'unknown Waypoint',
+    )
+    expect(() => DataSchema.parse({ ...data, activities: [{ ...activity, challengeId: 'missing' }] })).toThrow(
+      'unknown Challenge',
+    )
+  })
   it('requires trimmed titles and real non-future dates on persisted and draft records', () => {
     const activity = createActivity({
       name: '  Evening walk  ',
@@ -199,7 +231,7 @@ describe('activity rules', () => {
     })
   })
 
-  it('makes category optional and validates eligibility by challenge config', () => {
+  it('requires awards exactly when the linked Waypoint is eligible', () => {
     const waypointId = 'waypoint-1'
     const data: WaypointsData = {
       waypoints: [waypoint(waypointId)],
@@ -209,6 +241,7 @@ describe('activity rules', () => {
           title: 'Test challenge',
           description: 'A challenge for this test.',
           supportsActivityCategories: true,
+          awardDescriptions: { bronze: 'Afternoon', silver: 'Full day', gold: 'Overnight' },
         },
       ],
       ideas: [],
@@ -226,14 +259,125 @@ describe('activity rules', () => {
       location: { kind: 'postcode', postcode: 'SN15 2LG' },
     })
     expect(() => validateActivityCategory(data, activity)).not.toThrow()
+    expect(() => validateActivityCategory(data, { ...activity, category: undefined })).toThrow('requires a Bronze')
 
     const unsupported: WaypointsData = {
       ...data,
-      challenges: data.challenges.map((challenge) => ({ ...challenge, supportsActivityCategories: false })),
+      challenges: data.challenges.map(({ awardDescriptions: _removed, ...challenge }) => ({
+        ...challenge,
+        supportsActivityCategories: false,
+      })),
     }
-    expect(() => validateActivityCategory(unsupported, activity)).toThrow(
-      'Selected waypoint does not support Bronze, Silver or Gold categories.',
-    )
+    expect(() => validateActivityCategory(unsupported, activity)).toThrow('does not support awards')
+  })
+
+  describe('Challenge award explanations and graph validation', () => {
+    it('keeps exact member and Activity distributions distinct and globally deduplicated', () => {
+      const data = createAwardTestData()
+      const stats = awardStatistics(data, 'award-a')
+      expect(stats.waypoints).toHaveLength(3)
+      expect(stats.activities).toHaveLength(4)
+      expect(
+        Object.fromEntries(Object.entries(stats.waypointAwards).map(([tier, records]) => [tier, records.length])),
+      ).toEqual({ 'not-started': 1, bronze: 0, silver: 1, gold: 1 })
+      expect(
+        Object.fromEntries(Object.entries(stats.activityAwards).map(([tier, records]) => [tier, records.length])),
+      ).toEqual({ bronze: 2, silver: 1, gold: 1 })
+      expect(awardStatistics(data).activities).toHaveLength(4)
+      expect(awardStatistics(data).waypoints).toHaveLength(3)
+      expect(awardStatistics(data, 'ordinary').supportsAwards).toBe(false)
+      expect(awardStatistics(data, 'ordinary').activities).toHaveLength(4)
+      expect(awardStatistics(data, 'empty').waypoints).toHaveLength(0)
+    })
+    it('recalculates the maximum, exact counts, and member records after editing, deleting, or moving Gold', () => {
+      const data = createAwardTestData()
+      const gold = data.activities.find((item) => item.category === 'gold')!
+      for (const change of ['edit', 'delete', 'move']) {
+        const next = {
+          ...data,
+          activities: data.activities.flatMap((item) =>
+            item !== gold
+              ? [item]
+              : change === 'delete'
+                ? []
+                : [{ ...item, ...(change === 'edit' ? { category: 'bronze' as const } : { waypointId: 'award-w2' }) }],
+          ),
+        }
+        const stats = awardStatistics(next, 'award-a')
+        expect(stats.waypointAwards.bronze.map((item) => item.waypointId)).toEqual(['award-w1'])
+        expect(stats.waypointAwards.gold.map((item) => item.waypointId)).toEqual(change === 'move' ? ['award-w2'] : [])
+        expect(stats.activityAwards.gold).toHaveLength(change === 'move' ? 1 : 0)
+      }
+    })
+    it('blocks disguised history loss but permits shared-Challenge removal', () => {
+      const data = createAwardTestData()
+      const candidate = {
+        ...data,
+        challenges: data.challenges.filter((item) => item.challengeId !== 'award-b'),
+        waypoints: data.waypoints.map((item) => ({
+          ...item,
+          challengeIds: item.challengeIds.filter((id) => id !== 'award-b'),
+        })),
+      }
+      expect(() => validateAwardTransition(data, candidate)).not.toThrow()
+      const invalid = {
+        ...candidate,
+        waypoints: candidate.waypoints.map((item) => ({ ...item, challengeIds: [] })),
+        activities: candidate.activities.map((item) => ({ ...item, category: undefined })),
+      }
+      expect(() => DataSchema.parse(invalid)).not.toThrow()
+      expect(() => validateAwardTransition(data, invalid)).toThrow('award-visit-0')
+      expect(() =>
+        DataSchema.parse({
+          ...data,
+          challenges: data.challenges.map((item) =>
+            item.challengeId !== 'ordinary'
+              ? item
+              : { ...item, supportsActivityCategories: true, awardDescriptions: data.challenges[0]!.awardDescriptions },
+          ),
+        }),
+      ).toThrow('ordinary-visit')
+    })
+    it('rejects invalid filters and preserves valid zero-result buckets', () => {
+      const data = createAwardTestData()
+      expect(awardFilterError(data, { challengeId: 'missing' })).toContain('Unknown Challenge')
+      expect(awardFilterError(data, { status: 'platinum' })).toContain('Invalid')
+      expect(awardFilterError(data, { award: 'not-started' })).toContain('Invalid')
+      expect(awardFilterError(data, { challengeId: 'ordinary', status: 'gold' })).toContain('ordinary')
+      expect(awardFilterError(data, { challengeId: 'award-a', status: 'bronze' })).toBeUndefined()
+      expect(awardStatistics(data, 'award-a').waypointAwards.bronze).toEqual([])
+    })
+    it('requires exactly three explicit nonblank explanations only when enabled', () => {
+      const challenge = createDemoData().challenges[0]!
+      expect(AwardDescriptionsSchema.parse({ bronze: ' Afternoon ', silver: 'Day', gold: 'Night' }).bronze).toBe(
+        'Afternoon',
+      )
+      for (const awardDescriptions of [
+        undefined,
+        {},
+        { bronze: 'Afternoon' },
+        { bronze: ' ', silver: 'Day', gold: 'Night' },
+        { bronze: 'Afternoon', silver: 'Day', gold: 'Night', platinum: 'Week' },
+      ])
+        expect(ChallengeSchema.safeParse({ ...challenge, awardDescriptions }).success).toBe(false)
+      expect(ChallengeSchema.safeParse({ ...challenge, supportsActivityCategories: false }).success).toBe(false)
+      const { awardDescriptions: _removed, ...ordinary } = challenge
+      expect(ChallengeSchema.safeParse({ ...ordinary, supportsActivityCategories: false }).success).toBe(true)
+    })
+
+    it('rejects missing eligible awards, supplied ineligible awards, and dangling Waypoints', () => {
+      const data = createDemoData()
+      const awarded = data.activities.find((activity) => activity.category)!
+      for (const invalid of [
+        { ...awarded, category: undefined },
+        { ...awarded, waypointId: undefined },
+        { ...awarded, waypointId: 'missing' },
+      ]) {
+        const result = DataSchema.safeParse({ ...data, activities: [invalid] })
+        expect(result.success).toBe(false)
+        if (!result.success) expect(result.error.message).toContain(awarded.activityId)
+      }
+    })
   })
 
   it('counts completion independently from category summaries', () => {

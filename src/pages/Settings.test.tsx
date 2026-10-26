@@ -33,6 +33,24 @@ function activity(category: 'bronze' | 'silver' | 'gold' = 'gold'): Activity {
   }
 }
 
+function activityData() {
+  const demo = createDemoModeData()
+  return {
+    ...createDefaultData(),
+    challenges: [demo.challenges[0]!],
+    waypoints: [
+      {
+        ...demo.waypoints[0]!,
+        waypointId: 'dyrham-park',
+        challengeIds: [demo.challenges[0]!.challengeId],
+        referenceIds: [],
+        photoReferenceIds: [],
+      },
+    ],
+    activities: [activity()],
+  }
+}
+
 function renderSettings() {
   render(
     <MemoryRouter>
@@ -182,9 +200,16 @@ describe('Settings', () => {
   })
 
   it('shows the challenge rules', () => {
+    save(activityData())
     renderSettings()
     expect(screen.getByText('Challenge rules')).toBeInTheDocument()
-    expect(screen.getByText('At least one linked Bronze activity has been recorded.')).toBeInTheDocument()
+    expect(screen.getByText('The highest recorded Activity award is Bronze.')).toBeInTheDocument()
+  })
+
+  it('omits tier rules when the active dataset has no enabled Challenges', () => {
+    renderSettings()
+    expect(screen.queryByRole('heading', { name: 'Bronze' })).not.toBeInTheDocument()
+    expect(screen.getByText(/Most Challenges do not use awards/)).toBeInTheDocument()
   })
 
   it('shows the data mode selector without duplicate mode buttons', () => {
@@ -196,7 +221,7 @@ describe('Settings', () => {
 
   it('switches to local demo data immediately and back to the production dataset', async () => {
     const user = userEvent.setup()
-    save({ ...createDefaultData(), activities: [activity()] })
+    save(activityData())
     renderSettings()
 
     await user.click(screen.getByRole('combobox', { name: 'Data mode' }))
@@ -242,7 +267,7 @@ describe('Settings', () => {
         JSON.stringify({
           version: backupVersion,
           exportedAt: '2026-08-01T00:00:00.000Z',
-          data: { ...createDefaultData(), activities: [activity()] },
+          data: activityData(),
         }),
       ),
     )
@@ -253,7 +278,7 @@ describe('Settings', () => {
 
   it('keeps existing data when the backup is invalid', async () => {
     const user = userEvent.setup()
-    save({ ...createDefaultData(), activities: [activity()] })
+    save(activityData())
     renderSettings()
 
     await user.upload(screen.getByLabelText('Restore JSON'), backupFile('{"version":99,"data":{}}'))
@@ -285,7 +310,7 @@ describe('Settings', () => {
 
   it('exports the current data as a downloadable JSON file', async () => {
     const user = userEvent.setup()
-    save({ ...createDefaultData(), activities: [activity()] })
+    save(activityData())
     renderSettings()
 
     const createObjectURL = URL.createObjectURL
@@ -348,7 +373,7 @@ describe('Settings', () => {
 
   it('clears data only after confirmation', async () => {
     const user = userEvent.setup()
-    save({ ...createDefaultData(), activities: [activity()] })
+    save(activityData())
     renderSettings()
 
     await user.click(screen.getByRole('button', { name: 'Clear data' }))
@@ -437,7 +462,7 @@ describe('Settings', () => {
 
   it('closes the clear data confirmation dialog when dismissed with escape', async () => {
     const user = userEvent.setup()
-    save({ ...createDefaultData(), activities: [activity()] })
+    save(activityData())
     renderSettings()
 
     await user.click(screen.getByRole('button', { name: 'Clear data' }))

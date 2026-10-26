@@ -11,6 +11,7 @@ import { Layout } from '../components/Layout'
 import Settings from './Settings'
 import LocationDetails from './LocationDetails'
 import type { Activity, WaypointsData } from '../domain/visit'
+import { createAwardTestData } from '../test/demoData'
 
 function progressData(): WaypointsData {
   return {
@@ -20,6 +21,7 @@ function progressData(): WaypointsData {
       title: `${challengeId} challenge`,
       description: 'Synthetic progress fixture',
       supportsActivityCategories: true,
+      awardDescriptions: { bronze: 'Afternoon', silver: 'Day', gold: 'Night' },
     })),
     waypoints: ['once', 'counted', 'other'].map((waypointId) => ({
       waypointId,
@@ -40,6 +42,7 @@ function progressActivity(activityId: string, waypointId?: string): Activity {
     name: 'Recorded activity',
     activityId,
     waypointId,
+    ...(waypointId ? { category: 'bronze' as const } : {}),
     challengeId: 'second',
     ideaIds: [],
     date: '2026-01-01',
@@ -108,6 +111,34 @@ const validGpx = '<gpx><trk><trkseg><trkpt lat="51.1" lon="-2.1"/><trkpt lat="51
 const createDefaultData = createDemoModeData
 
 describe('ChallengeDetails', () => {
+  it('shows exact member and recorded-visit distributions without a single overall award', () => {
+    save(createAwardTestData())
+    renderDetails('award-a')
+    expect(screen.getByRole('link', { name: 'Award Challenge A, highest Gold, 1 waypoint' })).toHaveAttribute(
+      'href',
+      '/waypoints?challenge=award-a&status=gold',
+    )
+    expect(screen.getByRole('link', { name: 'Award Challenge A, recorded Bronze, 2 activities' })).toHaveAttribute(
+      'href',
+      '/activities?challenge=award-a&award=bronze',
+    )
+    expect(
+      screen.getByRole('link', { name: 'Award Challenge A, highest No award recorded, 1 waypoint' }),
+    ).toBeInTheDocument()
+    expect(member('Silver Waypoint').getByText('Completion: 1 of 3 activities')).toBeInTheDocument()
+  })
+
+  it('keeps settings and history intact when disabling would invalidate an Activity', async () => {
+    save(createAwardTestData())
+    const user = userEvent.setup()
+    renderDetails('award-a')
+    await user.click(screen.getByRole('button', { name: 'Edit award settings' }))
+    await user.click(screen.getByRole('checkbox', { name: 'Use Bronze, Silver and Gold awards' }))
+    await user.click(screen.getByRole('button', { name: 'Save award settings' }))
+    expect(screen.getByRole('alert')).toHaveTextContent('silver-visit')
+    expect(screen.getByRole('button', { name: 'Save award settings' })).toBeInTheDocument()
+    expect(load().challenges.find((item) => item.challengeId === 'award-a')!.supportsActivityCategories).toBe(true)
+  })
   beforeEach(() => {
     localStorage.clear()
     save(createDemoModeData())
@@ -582,7 +613,7 @@ describe('ChallengeDetails', () => {
     }
     data.activities = [
       { ...activity, activityId: 'linked', name: 'Linked walk' },
-      { ...activity, activityId: 'unlinked', name: 'Unlinked walk', waypointId: undefined },
+      { ...activity, activityId: 'unlinked', name: 'Unlinked walk', waypointId: undefined, category: undefined },
     ]
     save(data)
     renderDetails()

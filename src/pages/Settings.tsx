@@ -222,14 +222,27 @@ export default function Settings() {
           Challenges organize waypoints around a shared goal. Activities link to waypoints and require location data
           before they can be saved.
         </Typography>
-        {statusOrder.map((status) => (
-          <Card key={status}>
-            <CardContent>
-              <Typography variant="h6">{statusLabels[status]}</Typography>
-              <Typography>{statusRules[status]}</Typography>
-            </CardContent>
-          </Card>
-        ))}
+        <Typography>
+          Most Challenges do not use awards. In an award-enabled Challenge, each linked Activity requires one
+          deliberately selected Bronze, Silver or Gold level using that Challenge's explanations. One level applies
+          across all enabled memberships. Waypoint summaries show the highest recorded award; Activity history shows
+          each visit's own level. Awards never change once/count completion.
+        </Typography>
+        <Typography>
+          Challenge statistics separate Waypoints by highest award from Activities by recorded award. Shared records
+          count once per Challenge and once globally. Changes that invalidate recorded awards are blocked; explicitly
+          review the identified Activities first. Award settings cannot convert unawarded history and never backfill
+          levels.
+        </Typography>
+        {data.challenges.some((item) => item.supportsActivityCategories) &&
+          statusOrder.map((status) => (
+            <Card key={status}>
+              <CardContent>
+                <Typography variant="h6">{statusLabels[status]}</Typography>
+                <Typography>{statusRules[status]}</Typography>
+              </CardContent>
+            </Card>
+          ))}
       </Stack>
     </Stack>
   )

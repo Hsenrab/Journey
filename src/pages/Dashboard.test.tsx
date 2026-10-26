@@ -213,13 +213,13 @@ describe('Dashboard', () => {
     await user.click(screen.getByRole('button', { name: 'Add challenge' }))
     await user.type(screen.getByRole('textbox', { name: 'Title' }), 'Discarded title')
     await user.type(screen.getByRole('textbox', { name: 'Description' }), 'Discarded description')
-    await user.click(screen.getByRole('checkbox', { name: 'Use Bronze, Silver and Gold activity categories' }))
+    await user.click(screen.getByRole('checkbox', { name: 'Use Bronze, Silver and Gold awards' }))
     await user.click(screen.getByRole('button', { name: 'Cancel' }))
     await user.click(screen.getByRole('button', { name: 'Add challenge' }))
 
     expect(screen.getByRole('textbox', { name: 'Title' })).toHaveValue('')
     expect(screen.getByRole('textbox', { name: 'Description' })).toHaveValue('')
-    expect(screen.getByRole('checkbox', { name: 'Use Bronze, Silver and Gold activity categories' })).not.toBeChecked()
+    expect(screen.getByRole('checkbox', { name: 'Use Bronze, Silver and Gold awards' })).not.toBeChecked()
   })
 
   it('shows inline errors for whitespace-only challenge fields', async () => {
@@ -330,12 +330,22 @@ describe('Dashboard', () => {
 
     const { getByRole } = renderDashboard()
 
-    const silverCard = getByRole('heading', { name: 'Silver' }).closest('div')
-    expect(silverCard).toHaveTextContent('1')
-
-    expect(getByRole('link', { name: 'Bronze: 0 waypoints' })).toHaveAttribute('href', '/waypoints?status=bronze')
-    expect(getByRole('link', { name: 'Silver: 1 waypoint' })).toHaveAttribute('href', '/waypoints?status=silver')
-    expect(getByRole('link', { name: 'Gold: 0 waypoints' })).toHaveAttribute('href', '/waypoints?status=gold')
+    expect(getByRole('link', { name: 'All eligible Waypoints, highest Bronze, 0 waypoints' })).toHaveAttribute(
+      'href',
+      '/waypoints?status=bronze',
+    )
+    expect(getByRole('link', { name: 'All eligible Waypoints, highest Silver, 1 waypoint' })).toHaveAttribute(
+      'href',
+      '/waypoints?status=silver',
+    )
+    expect(getByRole('link', { name: 'All eligible Waypoints, highest Gold, 0 waypoints' })).toHaveAttribute(
+      'href',
+      '/waypoints?status=gold',
+    )
+    expect(getByRole('link', { name: 'All eligible Waypoints, recorded Silver, 1 activity' })).toHaveAttribute(
+      'href',
+      '/activities?award=silver',
+    )
   })
 
   it('formats recent activity dates for the user locale', () => {

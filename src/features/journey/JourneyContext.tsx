@@ -34,6 +34,8 @@ import {
   createIdea,
   statusForWaypoint,
   validateActivityCategory,
+  validateAwardTransition,
+  DataSchema,
   type Activity,
   type GpxGeometry,
   type ActivityLocation,
@@ -98,6 +100,12 @@ export type WaypointDraft = {
 
 type Action =
   | { type: 'add-challenge'; input: Challenge }
+  | {
+      type: 'update-challenge-awards'
+      challengeId: string
+      input: Pick<Challenge, 'supportsActivityCategories' | 'awardDescriptions'>
+    }
+  | { type: 'delete-challenge'; challengeId: string }
   | { type: 'update-challenge-route'; challengeId: string; plannedRoute?: PlannedRoute }
   | { type: 'add-waypoint'; input: WaypointDraft }
   | { type: 'update-waypoint'; waypointId: string; input: WaypointDraft }
@@ -124,7 +132,14 @@ type WaypointsValue = {
   runMutation: <T>(operation: () => Promise<T>) => Promise<T>
   registerDraft: (id: symbol, dirty: boolean) => () => void
   confirmSettingsNavigation: () => boolean
-  addChallenge: (input: Pick<Challenge, 'title' | 'description' | 'supportsActivityCategories'>) => Promise<void>
+  addChallenge: (
+    input: Pick<Challenge, 'title' | 'description' | 'supportsActivityCategories' | 'awardDescriptions'>,
+  ) => Promise<void>
+  updateChallengeAwards: (
+    challengeId: string,
+    input: Pick<Challenge, 'supportsActivityCategories' | 'awardDescriptions'>,
+  ) => Promise<void>
+  deleteChallenge: (challengeId: string) => Promise<void>
   updateChallengeRoute: (challengeId: string, plannedRoute?: PlannedRoute) => Promise<void>
   addWaypoint: (input: WaypointDraft) => Promise<void>
   updateWaypoint: (waypointId: string, input: WaypointDraft) => Promise<void>
@@ -215,9 +230,8 @@ function pruneUnreferenced(data: WaypointsData): WaypointsData {
 }
 
 function ensureCategoryEligibility(data: WaypointsData, activity: Activity): Activity {
-  const cleaned = !activity.waypointId ? { ...activity, category: undefined } : activity
-  validateActivityCategory(data, cleaned)
-  return cleaned
+  validateActivityCategory(data, activity)
+  return activity
 }
 
 function reducer(data: WaypointsData, action: Action): WaypointsData {
@@ -226,6 +240,33 @@ function reducer(data: WaypointsData, action: Action): WaypointsData {
       return action.data
     case 'add-challenge':
       return { ...data, challenges: [...data.challenges, ChallengeSchema.parse(action.input)] }
+    case 'update-challenge-awards': {
+      const existing = data.challenges.find((item) => item.challengeId === action.challengeId)
+      if (!existing) throw new Error('Challenge not found')
+      const { awardDescriptions: _removed, ...retained } = existing
+      const updated = ChallengeSchema.parse({ ...retained, ...action.input })
+      return {
+        ...data,
+        challenges: data.challenges.map((item) => (item.challengeId === action.challengeId ? updated : item)),
+      }
+    }
+    case 'delete-challenge': {
+      if (!data.challenges.some((item) => item.challengeId === action.challengeId))
+        throw new Error('Challenge not found')
+      return {
+        ...data,
+        challenges: data.challenges.filter((item) => item.challengeId !== action.challengeId),
+        waypoints: data.waypoints.map((item) => ({
+          ...item,
+          challengeIds: item.challengeIds.filter((id) => id !== action.challengeId),
+        })),
+        activities: data.activities.map((item) => {
+          if (item.challengeId !== action.challengeId) return item
+          const { challengeId: _removed, ...retained } = item
+          return retained
+        }),
+      }
+    }
     case 'update-challenge-route': {
       const existing = data.challenges.find((challenge) => challenge.challengeId === action.challengeId)
       if (!existing) throw new Error('Challenge not found')
@@ -310,14 +351,14 @@ function reducer(data: WaypointsData, action: Action): WaypointsData {
         })),
         activities: data.activities.map((activity) => {
           if (activity.waypointId !== action.waypointId) return activity
-          const { waypointId: _removed, category: _category, ...detached } = activity
+          const { waypointId: _removed, ...detached } = activity
           return detached
         }),
       })
     case 'add-activity': {
       const refs = upsertReferences(data, action.input.references)
       const photos = upsertPhotoReferences(data, action.input.photoReferences)
-      const category = action.input.waypointId ? action.input.category : undefined
+      const category = action.input.category
       const activity = ensureCategoryEligibility(
         data,
         createActivity({
@@ -361,7 +402,7 @@ function reducer(data: WaypointsData, action: Action): WaypointsData {
           waypointId: action.input.waypointId,
           ideaIds: action.input.ideaIds,
           date: action.input.date,
-          category: action.input.waypointId ? action.input.category : undefined,
+          category: action.input.category,
           location: action.input.location,
           recordedTrack: action.input.recordedTrack,
           notes: action.input.notes,
@@ -585,12 +626,16 @@ export function WaypointsProvider({ children }: { children: ReactNode }) {
       return 'production'
     }
     const persist = async (container: JourneyContainer, action: Action, next: WaypointsData) => {
+      validateAwardTransition(data, next)
+      DataSchema.parse(next)
       if (localTestMode && dataMode === 'production') dispatch(action)
       else apply({ ...(await replaceJourney(container, next, etags)), role })
     }
 
     const mutations = {
-      addChallenge: async (input: Pick<Challenge, 'title' | 'description' | 'supportsActivityCategories'>) => {
+      addChallenge: async (
+        input: Pick<Challenge, 'title' | 'description' | 'supportsActivityCategories' | 'awardDescriptions'>,
+      ) => {
         const container = writableContainer()
         const action = {
           type: 'add-challenge' as const,
@@ -599,9 +644,33 @@ export function WaypointsProvider({ children }: { children: ReactNode }) {
             title: input.title.trim(),
             description: input.description.trim(),
             supportsActivityCategories: input.supportsActivityCategories,
+            ...(input.awardDescriptions ? { awardDescriptions: input.awardDescriptions } : {}),
           }),
         }
         await persist(container, action, reducer(data, action))
+      },
+      updateChallengeAwards: async (
+        challengeId: string,
+        input: Pick<Challenge, 'supportsActivityCategories' | 'awardDescriptions'>,
+      ) => {
+        const container = writableContainer()
+        const action = { type: 'update-challenge-awards' as const, challengeId, input }
+        await persist(container, action, reducer(data, action))
+      },
+      deleteChallenge: async (challengeId: string) => {
+        const container = writableContainer()
+        const action = { type: 'delete-challenge' as const, challengeId }
+        const next = reducer(data, action)
+        validateAwardTransition(data, next)
+        DataSchema.parse(next)
+        if (localTestMode && dataMode === 'production') {
+          dispatch(action)
+          return
+        }
+        const etag = etags[challengeId]
+        if (!etag) throw new Error(`Challenge "${challengeId}" has no ETag for delete.`)
+        await deleteJourneyEntity(container, 'challenge', challengeId, etag)
+        apply({ ...(await loadJourney(container)), role })
       },
       updateChallengeRoute: async (challengeId: string, plannedRoute?: PlannedRoute) => {
         const container = writableContainer()
@@ -625,6 +694,9 @@ export function WaypointsProvider({ children }: { children: ReactNode }) {
         const action = { type: 'delete-waypoint' as const, waypointId }
         if (!data.waypoints.some((waypoint) => waypoint.waypointId === waypointId))
           throw new Error('Waypoint not found')
+        const next = reducer(data, action)
+        validateAwardTransition(data, next)
+        DataSchema.parse(next)
         if (localTestMode && dataMode === 'production') {
           dispatch(action)
           return
@@ -702,6 +774,8 @@ export function WaypointsProvider({ children }: { children: ReactNode }) {
       registerDraft,
       confirmSettingsNavigation,
       addChallenge: track(mutations.addChallenge),
+      updateChallengeAwards: track(mutations.updateChallengeAwards),
+      deleteChallenge: track(mutations.deleteChallenge),
       updateChallengeRoute: track(mutations.updateChallengeRoute),
       addWaypoint: track(mutations.addWaypoint),
       updateWaypoint: track(mutations.updateWaypoint),

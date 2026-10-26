@@ -1,14 +1,7 @@
-import { CosmosClient, type Container, type Database, type ItemResponse } from '@azure/cosmos'
+import { CosmosClient, type Container, type Database } from '@azure/cosmos'
 import { DefaultAzureCredential } from '@azure/identity'
 import { readFile } from 'node:fs/promises'
-import {
-  deletionPlan,
-  entityId,
-  entityKey,
-  entityTypeFor,
-  referenceIntegrityError,
-  type UpdatePlan,
-} from './journeyGraph.js'
+import { entityId, entityKey, entityTypeFor, referenceIntegrityError } from './journeyGraph.js'
 import {
   JourneyDataSchema,
   JourneyDocumentSchema,
@@ -30,7 +23,7 @@ export class StoredJourneyRelationshipError extends Error {
 
 function storedRelationshipError(document: Record<string, unknown>): string | undefined {
   if (document.type === 'challenge') {
-    if (document.schemaVersion === 1 || document.schemaVersion === 2)
+    if (document.schemaVersion === 1 || document.schemaVersion === 2 || document.schemaVersion === 3)
       return `Challenge document "${String(document.id)}" uses unsupported schema version ${document.schemaVersion}; stored Challenge data must be corrected separately before loading.`
     const entity = document.entity
     if (typeof entity === 'object' && entity !== null && 'waypointIds' in entity) {
@@ -51,14 +44,6 @@ function storedRelationshipError(document: Record<string, unknown>): string | un
       return `Waypoint "${waypointId}" repeats a Challenge assignment; stored relationship data must be corrected separately before loading.`
   }
   return undefined
-}
-
-function isChallengeRelationshipError(message: string): boolean {
-  return (
-    message.includes(' repeats a challenge link.') ||
-    message.includes(' references unknown challenge "') ||
-    message.includes(' has a category but its waypoint does not support Bronze, Silver or Gold categories.')
-  )
 }
 
 function required(name: string): string {
@@ -123,11 +108,9 @@ export async function loadDataset(
   const data = JourneyDataSchema.parse(documentsToData(documents))
   const graphError = referenceIntegrityError(data)
   if (graphError) {
-    if (isChallengeRelationshipError(graphError))
-      throw new StoredJourneyRelationshipError(
-        `${graphError} Stored relationship data must be corrected separately before loading.`,
-      )
-    throw new Error(graphError)
+    throw new StoredJourneyRelationshipError(
+      `${graphError} Stored relationship data must be corrected separately before loading.`,
+    )
   }
   return { data, etags }
 }
@@ -165,14 +148,15 @@ export function documentsFor(datasetId: string, data: JourneyData): Record<strin
 async function runBatch(container: Container, datasetId: string, operations: unknown[]) {
   if (operations.length > 100)
     throw new Error(`${operations.length} operations exceed the Cosmos transactional batch limit of 100 operations.`)
-  if (operations.length === 0) return
+  if (operations.length === 0) return []
   const response = await container.items.batch(operations as never, datasetId)
   if (response.code !== 200) {
-    const failed = response.result?.find((result) => result.statusCode >= 400)
+    const failed = response.result?.find((result) => result.statusCode >= 400 && result.statusCode !== 424)
     throw Object.assign(new Error('Cosmos transactional batch failed.'), {
       code: failed?.statusCode ?? response.code,
     })
   }
+  return response.result
 }
 
 export async function replaceDataset(
@@ -181,7 +165,7 @@ export async function replaceDataset(
   documents: Record<string, JourneyDocument>,
   etags: Record<string, string>,
 ) {
-  await runBatch(container, datasetId, [
+  const results = await runBatch(container, datasetId, [
     ...Object.entries(documents).map(([id, document]) =>
       Object.hasOwn(etags, id)
         ? { operationType: 'Replace' as const, id, resourceBody: document, ifMatch: etags[id] }
@@ -191,84 +175,11 @@ export async function replaceDataset(
       .filter(([id]) => !Object.hasOwn(documents, id))
       .map(([id, ifMatch]) => ({ operationType: 'Delete' as const, id, ifMatch })),
   ])
-}
-
-export async function deleteEntity(
-  container: Container,
-  datasetId: string,
-  type: EntityType,
-  id: string,
-  ifMatch: string,
-  loaded: { data: JourneyData; etags: Record<string, string> },
-) {
-  const plan = deletionPlan(loaded.data, type, id)
-  const etagFor = (documentId: string) => {
-    const etag = documentId === id ? ifMatch : loaded.etags[documentId]
-    if (!etag) throw new Error(`Journey document "${documentId}" has no ETag for a transactional delete.`)
-    return etag
-  }
-  await runBatch(container, datasetId, [
-    ...plan.deletes.map((deletedId) => ({
-      operationType: 'Delete' as const,
-      id: deletedId,
-      ifMatch: etagFor(deletedId),
-    })),
-    ...plan.updates.map((update) => {
-      const document = documentFor(datasetId, update.type, update.entity)
-      return {
-        operationType: 'Replace' as const,
-        id: document.id,
-        resourceBody: document,
-        ifMatch: etagFor(document.id),
-      }
-    }),
-  ])
-}
-
-export async function replaceEntities(
-  container: Container,
-  datasetId: string,
-  plan: UpdatePlan,
-  id: string,
-  ifMatch: string,
-  loaded: { etags: Record<string, string> },
-) {
-  const etagFor = (documentId: string) => {
-    const etag = documentId === id ? ifMatch : loaded.etags[documentId]
-    if (!etag) throw new Error(`Journey document "${documentId}" has no ETag for a transactional update.`)
-    return etag
-  }
-  await runBatch(
-    container,
-    datasetId,
-    plan.updates.map((update) => {
-      const document = documentFor(datasetId, update.type, update.entity)
-      return {
-        operationType: 'Replace' as const,
-        id: document.id,
-        resourceBody: document,
-        ifMatch: etagFor(document.id),
-      }
-    }),
-  )
+  return Object.fromEntries(Object.keys(documents).map((id, index) => [id, results?.[index]?.eTag]))
 }
 
 export async function seedDemoDataset(container: Container, datasetId: string): Promise<void> {
   const raw = await readFile(new URL('../data/demo.json', import.meta.url), 'utf8')
   const data = JourneyDataSchema.parse(JSON.parse(raw))
   await replaceDataset(container, datasetId, documentsFor(datasetId, data), {})
-}
-
-export async function createDocument(container: Container, document: JourneyDocument) {
-  return container.items.create(document)
-}
-
-export async function replaceDocument(container: Container, document: JourneyDocument, ifMatch: string) {
-  return container
-    .item(document.id, document.datasetId)
-    .replace(document, { accessCondition: { type: 'IfMatch', condition: ifMatch } })
-}
-
-export function savedDocument(response: ItemResponse<JourneyDocument>) {
-  return { entity: response.resource?.entity, etag: response.headers.etag }
 }

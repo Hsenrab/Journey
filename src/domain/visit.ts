@@ -1,27 +1,36 @@
 import { z } from 'zod'
-import rawDemoData from '../data/demo.json'
+import rawDemoData from '../data/demo.json' with { type: 'json' }
 import { activityDateError } from './activityDate'
 
 export const statusOrder = ['not-started', 'bronze', 'silver', 'gold'] as const
 export type Status = (typeof statusOrder)[number]
 
 export const statusLabels: Record<Status, string> = {
-  'not-started': 'Not Started',
+  'not-started': 'No award recorded',
   bronze: 'Bronze',
   silver: 'Silver',
   gold: 'Gold',
 }
 
 export const statusRules: Record<Status, string> = {
-  'not-started': 'No linked activity with a Bronze, Silver or Gold category has been recorded.',
-  bronze: 'At least one linked Bronze activity has been recorded.',
-  silver: 'At least one linked Silver activity has been recorded.',
-  gold: 'At least one linked Gold activity has been recorded.',
+  'not-started': 'No award has been recorded at this eligible Waypoint.',
+  bronze: 'The highest recorded Activity award is Bronze.',
+  silver: 'The highest recorded Activity award is Silver.',
+  gold: 'The highest recorded Activity award is Gold.',
 }
 
 export const awardableStatuses = ['bronze', 'silver', 'gold'] as const satisfies readonly Status[]
 export const AwardedStatusSchema = z.enum(awardableStatuses)
 export type AwardedStatus = z.infer<typeof AwardedStatusSchema>
+export const AwardDescriptionsSchema = z
+  .object({
+    bronze: z.string().trim().min(1, 'Bronze explanation is required'),
+    silver: z.string().trim().min(1, 'Silver explanation is required'),
+    gold: z.string().trim().min(1, 'Gold explanation is required'),
+  })
+  .strict()
+export type AwardDescriptions = z.infer<typeof AwardDescriptionsSchema>
+export class AwardValidationError extends Error {}
 
 const isoDate = z.string().superRefine((value, context) => {
   const message = activityDateError(value)
@@ -121,10 +130,21 @@ export const ChallengeSchema = z.preprocess(
       title: z.string().min(1),
       description: z.string().min(1),
       supportsActivityCategories: z.boolean(),
+      awardDescriptions: AwardDescriptionsSchema.optional(),
       location: WaypointLocationSchema.optional(),
       plannedRoute: PlannedRouteSchema.optional(),
     })
-    .strict(),
+    .strict()
+    .superRefine((challenge, context) => {
+      if (challenge.supportsActivityCategories !== (challenge.awardDescriptions !== undefined))
+        context.addIssue({
+          code: 'custom',
+          path: ['awardDescriptions'],
+          message: challenge.supportsActivityCategories
+            ? 'Award-enabled Challenges require Bronze, Silver and Gold explanations.'
+            : 'Challenges with awards disabled must omit awardDescriptions.',
+        })
+    }),
 )
 
 export const planningStates = ['active', 'someday', 'rejected'] as const
@@ -247,6 +267,16 @@ export const DataSchema = z
           })
       })
     })
+    data.activities.forEach((activity, index) => {
+      const message = activityCategoryError(data, activity)
+      if (message) context.addIssue({ code: 'custom', path: ['activities', index, 'category'], message })
+      if (activity.challengeId && !challengeIds.has(activity.challengeId))
+        context.addIssue({
+          code: 'custom',
+          path: ['activities', index, 'challengeId'],
+          message: `Activity "${activity.activityId}" references unknown Challenge "${activity.challengeId}".`,
+        })
+    })
   })
 
 export type Waypoint = z.infer<typeof WaypointSchema>
@@ -273,7 +303,8 @@ export function activitySubtitle(activity: Activity) {
 }
 
 export function countLabel(count: number, singular: string) {
-  return `${count} ${singular}${count === 1 ? '' : 's'}`
+  const label = count === 1 ? singular : singular.endsWith('activity') ? `${singular.slice(0, -1)}ies` : `${singular}s`
+  return `${count} ${label}`
 }
 
 export function locationSummary(location: ActivityLocation): string {
@@ -291,17 +322,50 @@ export function challengeWaypoints(challenge: Challenge, waypoints: readonly Way
 }
 
 export function waypointSupportsActivityCategory(data: WaypointsData, waypointId: string | undefined): boolean {
-  if (!waypointId) return false
-  const waypoint = data.waypoints.find((item) => item.waypointId === waypointId)
-  if (!waypoint) return false
-  return waypoint.challengeIds.some((challengeId) =>
-    data.challenges.some((challenge) => challenge.challengeId === challengeId && challenge.supportsActivityCategories),
-  )
+  return eligibleAwardChallenges(data, waypointId).length > 0
 }
 
-export function validateActivityCategory(data: WaypointsData, activity: Activity) {
-  if (activity.category && !waypointSupportsActivityCategory(data, activity.waypointId)) {
-    throw new Error('Selected waypoint does not support Bronze, Silver or Gold categories.')
+export function eligibleAwardChallenges(data: WaypointsData, waypointId: string | undefined): Challenge[] {
+  if (!waypointId) return []
+  const waypoint = data.waypoints.find((item) => item.waypointId === waypointId)
+  if (!waypoint) throw new Error(`Unknown Waypoint "${waypointId}".`)
+  return waypoint.challengeIds.flatMap((id) => {
+    const challenge = data.challenges.find((item) => item.challengeId === id)
+    if (!challenge) throw new Error(`Waypoint "${waypointId}" references unknown Challenge "${id}".`)
+    return challenge.supportsActivityCategories ? [challenge] : []
+  })
+}
+
+export function activityCategoryError(
+  data: WaypointsData,
+  activity: Pick<Activity, 'activityId' | 'waypointId' | 'category'>,
+): string | undefined {
+  const waypoint = data.waypoints.find((item) => item.waypointId === activity.waypointId)
+  if (activity.waypointId && !waypoint)
+    return `Activity "${activity.activityId}" references unknown Waypoint "${activity.waypointId}".`
+  const eligible = waypoint?.challengeIds.some((id) =>
+    data.challenges.some((item) => item.challengeId === id && item.supportsActivityCategories),
+  )
+  if (eligible && !activity.category)
+    return `Activity "${activity.activityId}" at Waypoint "${activity.waypointId}" requires a Bronze, Silver or Gold award. Award settings and membership changes cannot convert unawarded history; no automatic backfill is available.`
+  if (!eligible && activity.category)
+    return `Activity "${activity.activityId}" has an award but its Waypoint does not support awards.`
+}
+
+export function validateActivityCategory(data: WaypointsData, activity: Activity): void {
+  const message = activityCategoryError(data, activity)
+  if (message) throw new AwardValidationError(message)
+}
+
+export function validateAwardTransition(original: WaypointsData, candidate: WaypointsData): void {
+  for (const activity of original.activities) {
+    if (!activity.category || !activity.waypointId) continue
+    if (!candidate.activities.some((item) => item.activityId === activity.activityId)) continue
+    const waypoint = candidate.waypoints.find((item) => item.waypointId === activity.waypointId)
+    if (!waypoint || !waypointSupportsActivityCategory(candidate, waypoint.waypointId))
+      throw new AwardValidationError(
+        `Activity "${activity.activityId}" at Waypoint "${activity.waypointId}" would lose its last award eligibility. Explicitly correct or delete the Activity before changing its Waypoint or Challenge.`,
+      )
   }
 }
 
@@ -459,6 +523,51 @@ export function statusCounts(waypoints: readonly Waypoint[], activities: readonl
   const counts: Record<Status, number> = { 'not-started': 0, bronze: 0, silver: 0, gold: 0 }
   for (const waypoint of waypoints) counts[statusForWaypoint(activities, waypoint.waypointId)]++
   return counts
+}
+
+export function awardStatistics(data: WaypointsData, challengeId?: string) {
+  const challenge =
+    challengeId === undefined ? undefined : data.challenges.find((item) => item.challengeId === challengeId)
+  if (challengeId !== undefined && !challenge) throw new AwardValidationError(`Unknown Challenge "${challengeId}".`)
+  const waypoints = challenge
+    ? challengeWaypoints(challenge, data.waypoints)
+    : data.waypoints.filter((item) => waypointSupportsActivityCategory(data, item.waypointId))
+  const ids = new Set(waypoints.map((item) => item.waypointId))
+  const activities = data.activities.filter((item) => item.waypointId !== undefined && ids.has(item.waypointId))
+  const supportsAwards = challenge ? challenge.supportsActivityCategories : waypoints.length > 0
+  const waypointAwards: Record<Status, Waypoint[]> = { 'not-started': [], bronze: [], silver: [], gold: [] }
+  const activityAwards: Record<AwardedStatus, Activity[]> = { bronze: [], silver: [], gold: [] }
+  if (supportsAwards) {
+    for (const waypoint of waypoints) waypointAwards[statusForWaypoint(activities, waypoint.waypointId)].push(waypoint)
+    for (const activity of activities) {
+      if (activity.category) activityAwards[activity.category].push(activity)
+    }
+  }
+  return { waypoints, activities, waypointAwards, activityAwards, supportsAwards }
+}
+
+export type AwardStatistics = ReturnType<typeof awardStatistics>
+
+export function awardFilterError(
+  data: WaypointsData,
+  filters: { challengeId?: string; status?: string; award?: string },
+): string | undefined {
+  const challenge = data.challenges.find((item) => item.challengeId === filters.challengeId)
+  if (filters.challengeId !== undefined && !challenge) return `Unknown Challenge "${filters.challengeId}".`
+  if (
+    filters.status !== undefined &&
+    filters.status !== 'all' &&
+    !statusOrder.some((value) => value === filters.status)
+  )
+    return `Invalid highest-award filter "${filters.status}".`
+  if (filters.award !== undefined && !awardableStatuses.some((value) => value === filters.award))
+    return `Invalid recorded-award filter "${filters.award}".`
+  if (
+    challenge &&
+    !challenge.supportsActivityCategories &&
+    ((filters.status !== undefined && filters.status !== 'all') || filters.award !== undefined)
+  )
+    return 'Award filters do not apply to an ordinary Challenge.'
 }
 
 export function progressTowards(

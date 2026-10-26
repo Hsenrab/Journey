@@ -6,14 +6,23 @@ at the same route.
 
 ## Purpose
 
-Summarize progress and activity-category distribution for each challenge.
+Summarize Challenge completion and clearly distinguish highest Waypoint awards
+from individual Activity awards.
 
 ## Key behavior
 
 - Completion percentage is based on waypoint completion rules (`once`/`count`) and linked activity count.
-- Category cards (Bronze/Silver/Gold) summarize waypoint category status derived from linked activities that have categories.
-- A waypoint with linked uncategorized activities can still be completed while showing `Not Started` in category summary.
-- Recent activity list links back to waypoint details.
+- Award-enabled Challenges require user-written Bronze, Silver, and Gold explanations.
+  Ordinary Challenges default to awards disabled.
+- Global award distributions count eligible Waypoints by exact highest award and
+  Activities by recorded award. Shared records count once globally. Matching links
+  open the contributing record lists; ordinary-only datasets omit distributions.
+- Recent visits link to Waypoint details and distinguish highest recorded award
+  from the explicitly labelled latest visit date.
+- Challenge details expose definitions, editable award settings, protected deletion,
+  and Statistics. Ordinary Challenges retain member, Activity, and completion
+  totals without award distributions. Enabled distributions include no-award
+  members, explicit zeros, and scoped drill-downs with return navigation.
 
 ## Challenge route map
 

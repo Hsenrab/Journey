@@ -11,15 +11,13 @@ import {
   setDataMode,
 } from './storage'
 import { GpxGeometrySchema, type Activity, type WaypointsData } from '../domain/visit'
+import { createAwardTestData } from '../test/demoData'
 
 const activity: Activity = {
   name: 'Recorded activity',
   activityId: 'a1',
   ideaIds: [],
-  waypointId: 'waypoint-1',
-  challengeId: 'challenge-1',
   date: '2026-08-01',
-  category: 'silver',
   location: { kind: 'postcode', postcode: 'GL1 1AA' },
   notes: 'Great day',
   referenceIds: [],
@@ -38,6 +36,31 @@ const backup = (overrides: { version?: number; data?: Partial<WaypointsData> } =
 describe('load', () => {
   beforeEach(() => localStorage.clear())
   afterEach(() => vi.restoreAllMocks())
+
+  it('round-trips explicit award guidance and rejects incompatible awards without repairing history', () => {
+    const data = createAwardTestData()
+    save(data)
+    expect(parseImport(JSON.stringify(createBackup(data)))).toEqual(data)
+    const original = localStorage.getItem('waypoints-v1')
+    const invalid = {
+      ...data,
+      activities: data.activities.map((item) =>
+        item.activityId === 'silver-visit' ? { ...item, category: undefined } : item,
+      ),
+    }
+    expect(() => save(invalid)).toThrow('silver-visit')
+    expect(() => parseImport(JSON.stringify(createBackup(invalid)))).toThrow('silver-visit')
+    expect(localStorage.getItem('waypoints-v1')).toBe(original)
+    const incompatible = {
+      ...data,
+      challenges: data.challenges.map((item) => ({ ...item, awardDescriptions: undefined })),
+    }
+    expect(() =>
+      parseImport(
+        JSON.stringify({ version: backupVersion, exportedAt: '2026-08-01T00:00:00.000Z', data: incompatible }),
+      ),
+    ).toThrow()
+  })
 
   it.each([{ name: '' }, { name: ' \t ' }, { date: '2025-02-30' }, { date: '9999-01-01' }])(
     'rejects invalid Activity fields without writing or repairing data: %j',

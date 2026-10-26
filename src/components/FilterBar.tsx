@@ -1,8 +1,8 @@
-import { Children, type ReactElement } from 'react'
+import { Children, type ReactNode } from 'react'
 import { Grid } from '@mui/material'
 
 type FilterBarProps = {
-  children: ReactElement | ReactElement[]
+  children: ReactNode
 }
 
 /** Responsive one-, two-, or three-column grid for full-width filter controls. */

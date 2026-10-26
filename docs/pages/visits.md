@@ -15,8 +15,14 @@ Activities can be linked to a waypoint or left unlinked.
 
 - Fields: date, description/notes, linked waypoint (or no waypoint), optional linked ideas, conditional Bronze/Silver/Gold category, required location, optional recorded GPX track, references, and external photo references.
 - Location is explicit: **Postcode** or **Latitude and longitude**.
-- Category is shown only when the selected waypoint belongs to at least one challenge with `supportsActivityCategories: true`.
-- If category eligibility is lost after changing waypoint, the category is cleared before save.
+- Award tier is mandatory exactly when the selected Waypoint belongs to an
+  enabled Challenge. All applicable named explanations are shown and one chosen
+  level applies across shared memberships; direct Activity/Challenge links do not
+  own awards.
+- New drafts have no tier selected. Same-Waypoint edits retain their recorded
+  tier. A different eligible destination requires a deliberate new selection.
+  Moving a recorded award to an ineligible destination requires explicit
+  acknowledgement of its removal; cancellation preserves the original record.
 - Idea selections are independent from waypoint selection. Changing or clearing waypoint does not clear selected ideas.
 - Invalid input keeps entered values and shows field-level messages.
 - A GPX track can be attached, replaced, or removed. Invalid GPX shows its parser error and keeps other form values and any previously attached track.
@@ -49,10 +55,16 @@ Activities can be linked to a waypoint or left unlinked.
 - Each row shows date, note excerpt, optional waypoint, location summary, optional category, photo count, and reference count.
 - **Add activity** opens the shared editor.
 - Selecting an activity opens `/activities/:activityId`.
+- `challenge=<id>&award=bronze|silver|gold` scopes the list to current member
+  Activities with that exact recorded tier, using the same groups as Statistics.
+  Active scope and return links remain visible. Invalid filters fail explicitly;
+  valid zero matches show an empty state with applicable controls retained.
 
 ## Activity details (`/activities/:activityId`)
 
-- Shows date, full notes, location, optional category, optional linked waypoint, linked ideas, references, photos, and a link to view an attached recorded GPX track on the map.
+- Shows date, full notes, location, the visit's own "Recorded award" where
+  applicable, optional linked Waypoint, linked Ideas, references, photos, and a
+  link to view an attached recorded GPX track on the map.
 - Photos are rendered in a simple gallery with previous/next controls.
 - References render as metadata cards (title, optional description, optional preview image, hostname, external-link action).
 - Supports edit via the shared editor and delete with confirmation.

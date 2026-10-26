@@ -43,9 +43,7 @@ describe('LocationDetails', () => {
     const chip = screen.getByText(challenge.title).closest('.MuiChip-root')!
     fireEvent.click(chip.querySelector('[data-testid="CancelIcon"]')!)
     await user.click(screen.getByRole('button', { name: 'Save waypoint' }))
-    expect(
-      await screen.findByText('Selected waypoint does not support Bronze, Silver or Gold categories.'),
-    ).toBeInTheDocument()
+    expect(await screen.findByText(/has an award but its Waypoint does not support awards/)).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Save waypoint' })).toBeInTheDocument()
     expect(load()).toEqual(before)
   })
@@ -128,7 +126,7 @@ describe('LocationDetails', () => {
 
     expect(screen.getByText('Completion: 2 of 5 activities')).toBeInTheDocument()
     expect(screen.getByText('Completed after 5 logged activities.')).toBeInTheDocument()
-    expect(screen.getByText('Award tier: Silver')).toBeInTheDocument()
+    expect(screen.getByText('Highest recorded award: Silver')).toBeInTheDocument()
     expect(screen.queryByText(/Category summary/)).not.toBeInTheDocument()
   })
 
@@ -137,7 +135,7 @@ describe('LocationDetails', () => {
 
     expect(screen.getByText('Completion: Not done')).toBeInTheDocument()
     expect(screen.getByText('Completed after one logged activity.')).toBeInTheDocument()
-    expect(screen.getByText('Award tier: Not Started')).toBeInTheDocument()
+    expect(screen.getByText('Highest recorded award: No award recorded')).toBeInTheDocument()
   })
 
   it('adds a linked activity', async () => {
@@ -212,7 +210,7 @@ describe('LocationDetails', () => {
     )
   })
 
-  it('deletes a waypoint after confirming linked activity and idea counts', async () => {
+  it('blocks deleting an awarded Waypoint without silently detaching its history', async () => {
     const user = userEvent.setup()
     const seed = createDemoModeData()
     save({
@@ -252,14 +250,14 @@ describe('LocationDetails', () => {
 
     await user.click(screen.getByRole('button', { name: 'Delete waypoint' }))
 
-    expect(screen.getByText(/1 linked activity and 1 linked idea/)).toBeInTheDocument()
+    expect(screen.getByText(/This Waypoint has recorded awards and cannot be deleted/)).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: 'Delete' }))
 
-    expect(screen.getByText('Waypoint list')).toBeInTheDocument()
+    expect(await screen.findByRole('alert')).toHaveTextContent('activity-1')
     const data = load()
-    expect(data.waypoints.some((waypoint) => waypoint.waypointId === demoWaypointId)).toBe(false)
-    expect(data.activities[0]?.waypointId).toBeUndefined()
-    expect(data.ideas[0]?.waypointIds).toEqual([])
+    expect(data.waypoints.some((waypoint) => waypoint.waypointId === demoWaypointId)).toBe(true)
+    expect(data.activities[0]).toMatchObject({ waypointId: demoWaypointId, category: 'gold' })
+    expect(data.ideas[0]?.waypointIds).toEqual([demoWaypointId])
   })
 
   it('links each logged activity card to its activity', () => {

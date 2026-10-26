@@ -16,7 +16,7 @@ Required top-level fields:
 - "photoReferences" (array of objects, required): all useful external photo links. Use [] if none are provided.
 
 Optional top-level fields (omit entirely unless clearly supported by the source):
-- "category" (string, optional): exactly "bronze", "silver", or "gold". Include only when the source explicitly identifies that achievement tier.
+- "category" (string, conditional): exactly "bronze", "silver", or "gold". Required when the selected Waypoint belongs to any award-enabled Challenge; otherwise omit it. Use the user's deliberately selected level against the named Challenge explanations, never invent or preselect one. One level applies to all enabled memberships. It describes this visit, not completion or the Waypoint's highest recorded award. If the required level is unknown, ask the user before producing import-ready JSON.
 
 location shape (discriminated by "kind"):
 - Postcode form: { "kind": "postcode", "postcode": "<UK postcode>" }. The object may also contain numeric "latitude" (-90 to 90) and "longitude" (-180 to 180) when both are known precisely.

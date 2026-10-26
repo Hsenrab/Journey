@@ -14,9 +14,9 @@ validated `WaypointsData` response. Cosmos ETags are kept in application memory 
 are not included in JSON exports.
 
 Each document type declares its own schema version (`activity` is version 5,
-`challenge` is version 3, `idea` and `waypoint` are version 2, and the other types are version 1). A document whose
+`challenge` is version 4, `idea` and `waypoint` are version 2, and the other types are version 1). A document whose
 version or entity shape does not match the current schema fails validation with its
-specific error. Challenge versions 1/2 and Activity versions 3/4 are rejected without
+specific error. Challenge versions 1/2/3 and Activity versions 3/4 are rejected without
 conversion. Activity version 5 requires a trimmed, nonempty title and a real calendar
 date no later than today in `Europe/London`, including British Summer Time. No
 legacy-document migration or hosted-data correction is performed. A valid
@@ -29,8 +29,10 @@ during the deployment lifetime, but those changes are intentionally temporary. E
 place, activity, idea and reference in the fixture is fabricated and visibly labelled as
 demo content. The fixture contains fictional places and unrelated local activities. It
 is parsed with `DataSchema` before use; only challenges that
-explicitly set `supportsActivityCategories` can use Bronze, Silver or Gold activity
-categories.
+explicitly set `supportsActivityCategories` use Bronze, Silver or Gold awards.
+Enabled Challenges require `awardDescriptions` with exactly `bronze`, `silver`,
+and `gold` nonblank explanations; disabled Challenges omit that object. These
+are editable current guidance, not historical criteria snapshots.
 
 The fixture is deliberately varied so every view has something to show: around fifty
 entities spread over waypoints, challenges, ideas, activities, references and photo
@@ -76,7 +78,9 @@ The persisted root object is:
 - required `date` (`YYYY-MM-DD`), a real calendar date no later than today in UK time
 - optional `waypointId`
 - `ideaIds` (zero, one, or many distinct Idea IDs, independent of `waypointId`)
-- optional `category` (`bronze` | `silver` | `gold`)
+- conditional `category` (`bronze` | `silver` | `gold`): required when the linked
+  Waypoint belongs to an award-enabled Challenge, forbidden otherwise. One level
+  applies to every enabled membership; a direct `challengeId` does not enable it.
 - structured location, always carrying the coordinates resolved at save time:
   - `{ "kind": "postcode", "postcode": "...", "latitude": number, "longitude": number }`, or
   - `{ "kind": "coordinates", "latitude": number, "longitude": number }`
@@ -87,6 +91,15 @@ The persisted root object is:
   `location`. The original GPX XML is not persisted.
 
 Raw `Activity.photos` strings are not used for new data.
+
+Backup envelope version 2 is unchanged, but its contents must satisfy the new
+Challenge and Activity graph rules. Incompatible documents and imports fail
+explicitly; no migration, default explanations, historical backfill, or silent
+award removal occurs. Award settings cannot convert retained unawarded history.
+Deleting an awarded Waypoint or removing the last eligible membership is blocked
+and identifies the affected Activities. Removing a shared Challenge is allowed
+when all awards remain eligible elsewhere. Explicit Activity corrections are
+separate from structural maintenance and recalculate summaries and statistics.
 
 `challenges` may include a `plannedRoute` containing the uploaded GPX file name and
 validated GeoJSON `MultiLineString` geometry. Route and track geometry each permit at

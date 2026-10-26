@@ -260,7 +260,7 @@ describe('Journey document validation', () => {
         id: 'challenge-1',
         datasetId: 'production',
         type: 'challenge',
-        schemaVersion: 3,
+        schemaVersion: 4,
         entity,
       }).success,
     ).toBe(true)
@@ -269,7 +269,7 @@ describe('Journey document validation', () => {
         id: 'challenge-1',
         datasetId: 'production',
         type: 'challenge',
-        schemaVersion: 3,
+        schemaVersion: 4,
         entity: { ...entity, plannedRoute: { ...entity.plannedRoute, fileName } },
       })
     expect(routeWithFileName('a'.repeat(255)).success).toBe(true)
@@ -300,7 +300,7 @@ describe('Journey document validation', () => {
         id: 'challenge-1',
         datasetId: 'production',
         type: 'challenge',
-        schemaVersion: 3,
+        schemaVersion: 4,
         entity: {
           challengeId: 'challenge-1',
           title: 'Challenge',
@@ -319,7 +319,7 @@ describe('Journey document validation', () => {
     expect(routeDocument([Array.from({ length: 10_001 }, () => point)]).success).toBe(false)
   })
 
-  it.each([1, 2])('rejects Challenge document schema version %s', (schemaVersion) => {
+  it.each([1, 2, 3, 5])('rejects Challenge document schema version %s', (schemaVersion) => {
     expect(
       JourneyDocumentSchema.safeParse({
         id: 'challenge-1',
@@ -341,7 +341,7 @@ describe('Journey document validation', () => {
       id: 'challenge-1',
       datasetId: 'production',
       type: 'challenge',
-      schemaVersion: 3,
+      schemaVersion: 4,
       entity: {
         challengeId: 'challenge-1',
         title: 'Challenge',
@@ -355,6 +355,40 @@ describe('Journey document validation', () => {
     expect(result.error?.issues.map(({ message }) => message)).toContain(
       'Challenge "challenge-1" contains obsolete field "waypointIds"; review its links and correct them separately before use.',
     )
+  })
+
+  it('requires exactly three trimmed nonblank descriptions iff Challenge awards are enabled', () => {
+    const descriptions = { bronze: '  Afternoon  ', silver: '\tFull day ', gold: ' Overnight\n' }
+    const parse = (supportsActivityCategories: boolean, awardDescriptions?: unknown) =>
+      JourneyDocumentSchema.safeParse({
+        id: 'challenge-1',
+        datasetId: 'production',
+        type: 'challenge',
+        schemaVersion: 4,
+        entity: {
+          challengeId: 'challenge-1',
+          title: 'Challenge',
+          description: 'Guidance',
+          supportsActivityCategories,
+          ...(awardDescriptions === undefined ? {} : { awardDescriptions }),
+        },
+      })
+    expect(parse(false).success).toBe(true)
+    expect(parse(true, descriptions).data?.entity.awardDescriptions).toEqual({
+      bronze: 'Afternoon',
+      silver: 'Full day',
+      gold: 'Overnight',
+    })
+    expect(parse(true).success).toBe(false)
+    for (const invalid of [null, {}, { bronze: 'Visit' }, { ...descriptions, platinum: 'Extra' }]) {
+      expect(parse(true, invalid).success).toBe(false)
+    }
+    for (const tier of ['bronze', 'silver', 'gold']) {
+      for (const value of ['', ' \t\n ', null, 4, undefined]) {
+        expect(parse(true, { ...descriptions, [tier]: value }).success).toBe(false)
+      }
+    }
+    for (const value of [descriptions, {}, null]) expect(parse(false, value).success).toBe(false)
   })
 
   it('requires distinct nonempty Waypoint Challenge assignments', () => {

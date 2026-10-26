@@ -10,10 +10,11 @@ review an activity.
 ## Supported actions
 
 - Search by title, saved area or category
-- Filter by status (all, Not Started, Bronze, Silver, Gold)
+- Filter eligible Waypoints by highest recorded award (all, No award recorded,
+  Bronze, Silver, Gold); ordinary-only scopes omit award controls
 - Filter by saved area and category under **More filters**, a
   closed-by-default accordion whose summary reports how many of those filters are active
-- Sort by name, award tier or last activity date
+- Sort by name, highest recorded award where applicable, or last activity date
 - Add a waypoint with the shared waypoint add form
 - Open a location's details page
 
@@ -27,11 +28,15 @@ review an activity.
 
 ## Rules and data flow
 
-1. Waypoints with no visits are shown as `not-started`; otherwise the highest status awarded by
-   their visits is shown.
+1. Eligible Waypoints show their highest recorded Activity award, or "No award
+   recorded" without visits. Ordinary Waypoints and ordinary Challenge contexts
+   omit award indicators. Completion remains independent.
 2. Search is case-insensitive and matches the waypoint title, saved area and category.
 3. Filtering is applied before sorting; sorting by name uses locale comparison, sorting by progress
    orders by status value, and sorting by last activity date shows newest activities first.
+   Award-control applicability uses the selected dataset or Challenge before
+   list filters and pagination. Empty results retain applicable controls and
+   a clearing action.
 4. Add mode includes **Form** and **Paste JSON** tabs. Paste JSON accepts one waypoint content object
    without entity links or generated identifiers and rejects arrays and unlisted fields.
 5. **Copy example JSON** copies a representative draft shape. **Load into form** validates the pasted

@@ -301,7 +301,12 @@
       "challengeId": "national-trust",
       "title": "National Trust Demo Collection (Fictional)",
       "description": "Six wholly fabricated heritage places used to demonstrate Bronze, Silver and Gold progress.",
-      "supportsActivityCategories": true
+      "supportsActivityCategories": true,
+      "awardDescriptions": {
+        "bronze": "Explore the fictional place for an afternoon.",
+        "silver": "Spend a full day exploring the fictional place.",
+        "gold": "Stay overnight as part of the fictional visit."
+      }
     },
     {
       "challengeId": "heritage-weekend",

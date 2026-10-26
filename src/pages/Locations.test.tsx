@@ -6,6 +6,7 @@ import Locations from './Locations'
 import { WaypointsProvider } from '../features/journey/JourneyContext'
 import { createDefaultData, save, setDataMode } from '../services/storage'
 import type { Activity, Waypoint, WaypointsData } from '../domain/visit'
+import { createAwardTestData } from '../test/demoData'
 
 function activity(waypointId: string, category: 'bronze' | 'silver' | 'gold'): Activity {
   return {
@@ -57,6 +58,7 @@ function testData(): WaypointsData {
         title: 'Test challenge',
         description: 'A challenge for testing waypoint behavior.',
         supportsActivityCategories: true,
+        awardDescriptions: { bronze: 'Afternoon', silver: 'Day', gold: 'Night' },
       },
     ],
   }
@@ -84,6 +86,34 @@ function waypointNames() {
 const SLOW_EDITOR_TEST_TIMEOUT_MS = 20_000
 
 describe('Locations', () => {
+  it('retains applicable controls for empty scoped results and clears them back to all members', async () => {
+    save(createAwardTestData())
+    const user = userEvent.setup()
+    renderLocations(['/waypoints?challenge=award-a&status=bronze'])
+    expect(screen.getByRole('combobox', { name: 'Highest recorded award' })).toBeInTheDocument()
+    expect(screen.getByText('No waypoints match your search and filters.')).toBeInTheDocument()
+    await user.type(screen.getByLabelText('Search waypoints'), 'missing')
+    await user.click(screen.getByRole('button', { name: 'Clear filters' }))
+    expect(document.querySelectorAll('.MuiCard-root')).toHaveLength(3)
+  })
+
+  it.each(['/waypoints?challenge=missing', '/waypoints?status=platinum', '/waypoints?challenge=ordinary&status=gold'])(
+    'shows an explicit invalid-scope error for %s',
+    (path) => {
+      save(createAwardTestData())
+      renderLocations([path])
+      expect(screen.getByRole('alert')).toBeInTheDocument()
+      expect(document.querySelectorAll('.MuiCard-root')).toHaveLength(0)
+    },
+  )
+
+  it('hides award metadata, filtering and ordering in an ordinary shared-member scope', () => {
+    save(createAwardTestData())
+    renderLocations(['/waypoints?challenge=ordinary'])
+    expect(document.querySelectorAll('.MuiCard-root')).toHaveLength(2)
+    expect(screen.queryByRole('combobox', { name: 'Highest recorded award' })).not.toBeInTheDocument()
+    expect(screen.queryByText(/Highest recorded award:/)).not.toBeInTheDocument()
+  })
   beforeEach(() => {
     localStorage.clear()
     save(testData())
@@ -168,10 +198,10 @@ describe('Locations', () => {
 
     const stourhead = screen.getByRole('link', { name: 'Stourhead' })
     expect(within(stourhead).getByText('Completion: 1 of 3 activities')).toBeInTheDocument()
-    expect(within(stourhead).getByText('Award tier: Gold')).toBeInTheDocument()
+    expect(within(stourhead).getByText('Highest recorded award: Gold')).toBeInTheDocument()
     const dyrham = screen.getByRole('link', { name: 'Dyrham Park' })
     expect(within(dyrham).getByText('Completion: Done')).toBeInTheDocument()
-    expect(within(dyrham).getByText('Award tier: Bronze')).toBeInTheDocument()
+    expect(within(dyrham).getByText('Highest recorded award: Bronze')).toBeInTheDocument()
     const hidcote = screen.getByRole('link', { name: 'Hidcote' })
     expect(within(hidcote).getByText('Completion: Not done')).toBeInTheDocument()
   })
@@ -180,7 +210,7 @@ describe('Locations', () => {
     renderLocations()
 
     expect(screen.getByLabelText('Search waypoints')).toBeVisible()
-    expect(screen.getByRole('combobox', { name: 'Award tier' })).toBeVisible()
+    expect(screen.getByRole('combobox', { name: 'Highest recorded award' })).toBeVisible()
     expect(screen.getByRole('combobox', { name: 'Sort' })).toBeVisible()
     const summary = screen.getByRole('button', { name: 'More filters (0 active)' })
     expect(summary).toHaveAttribute('aria-expanded', 'false')
@@ -237,7 +267,7 @@ describe('Locations', () => {
     const namesByName = waypointNames()
 
     await user.click(screen.getAllByRole('combobox')[1])
-    await user.click(screen.getByRole('option', { name: 'Award tier' }))
+    await user.click(screen.getByRole('option', { name: 'Highest recorded award' }))
 
     const namesByProgress = waypointNames()
     expect(namesByProgress).not.toEqual(namesByName)

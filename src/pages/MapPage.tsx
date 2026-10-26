@@ -45,8 +45,11 @@ import {
 } from '../domain/gpxMap'
 import {
   awardableStatuses,
+  waypointSupportsActivityCategory,
+  completionProgressLabel,
   activityTitle,
   statusLabels,
+  statusForWaypoint,
   waypointCompletionProgress,
   type Activity,
   type AwardedStatus,
@@ -247,6 +250,7 @@ function buildPopupContent({ eyebrow, title, metadata = [], summary, href, onNav
 function buildWaypointPopupContent(
   waypointTitle: string,
   activities: Array<{ activityId: string; label: string }>,
+  awardSummary: string | undefined,
   onNavigate?: (href: string) => void,
 ): HTMLElement {
   const content = document.createElement('article')
@@ -259,13 +263,19 @@ function buildWaypointPopupContent(
   const titleElement = document.createElement('h2')
   titleElement.className = 'journey-map-popup__title'
   titleElement.textContent = waypointTitle
+  content.append(eyebrowElement, titleElement)
+  if (awardSummary) {
+    const awardElement = document.createElement('p')
+    awardElement.textContent = awardSummary
+    content.append(awardElement)
+  }
 
   const summaryElement = document.createElement('p')
   summaryElement.className = 'journey-map-popup__summary'
 
   if (activities.length === 0) {
     summaryElement.textContent = 'No recorded activities yet'
-    content.append(eyebrowElement, titleElement, summaryElement)
+    content.append(summaryElement)
     return content
   }
 
@@ -287,7 +297,7 @@ function buildWaypointPopupContent(
     item.append(link)
     list.append(item)
   }
-  content.append(eyebrowElement, titleElement, summaryElement, list)
+  content.append(summaryElement, list)
   return content
 }
 
@@ -662,8 +672,14 @@ export default function MapPage() {
             activityId: activity.activityId,
             label: activityTitle(activity),
           }))
-        const content = buildWaypointPopupContent(waypointDisplayName(waypoint), waypointActivities, (href) =>
-          navigate(href),
+        const awardSummary = waypointSupportsActivityCategory(data, waypointId)
+          ? `Highest recorded award: ${statusLabels[statusForWaypoint(data.activities, waypointId)]}`
+          : undefined
+        const content = buildWaypointPopupContent(
+          waypointDisplayName(waypoint),
+          waypointActivities,
+          awardSummary,
+          (href) => navigate(href),
         )
         const coordinates = waypointCoordinates(waypoint)
         if (!coordinates) return
@@ -687,7 +703,7 @@ export default function MapPage() {
         const content = buildPopupContent({
           eyebrow: 'Activity',
           title: activityTitle(activity),
-          metadata: [activity.category ? statusLabels[activity.category] : 'Uncategorised'],
+          metadata: activity.category ? [`Recorded award: ${statusLabels[activity.category]}`] : [],
           summary: waypoint ? waypointDisplayName(waypoint) : 'No linked waypoint',
           href: `/activities/${activity.activityId}`,
           onNavigate: (href) => navigate(href),
@@ -744,7 +760,7 @@ export default function MapPage() {
       mapPopup.current = null
       setMapReady(false)
     }
-  }, [data.activities, data.waypoints, loaded, mapCenter.latitude, mapCenter.longitude, navigate, token, trackActivity])
+  }, [data, loaded, mapCenter.latitude, mapCenter.longitude, navigate, token, trackActivity])
 
   const visibleWaypoints = useMemo(
     () =>
@@ -755,10 +771,12 @@ export default function MapPage() {
           (progressFilter === 'started'
             ? waypointCompletionProgress(waypoint, data.activities).count > 0
             : waypointCompletionProgress(waypoint, data.activities).count === 0)
-        const matchesMedal = medalFilter === 'all' || status === medalFilter
+        const matchesMedal =
+          medalFilter === 'all' ||
+          (waypointSupportsActivityCategory(data, waypoint.waypointId) && status === medalFilter)
         return matchesProgress && matchesMedal
       }),
-    [data.activities, data.waypoints, medalFilter, progressFilter, statusFor],
+    [data, medalFilter, progressFilter, statusFor],
   )
   const nearby = useMemo(
     () => (origin ? orderNearbyWaypoints(visibleWaypoints, origin).slice(0, 10) : []),
@@ -859,14 +877,16 @@ export default function MapPage() {
                   : completionStateForWaypoint(waypoint, data.activities) === 'complete'
                     ? 'waypoint-complete'
                     : 'waypoint-not-started',
-              award: statusLabels[status],
+              award: waypointSupportsActivityCategory(data, waypoint.waypointId)
+                ? `Highest recorded award: ${statusLabels[status]}`
+                : completionProgressLabel(waypoint, waypointCompletionProgress(waypoint, data.activities)),
               waypointId: waypoint.waypointId,
             }),
           ]
         }),
       )
     }
-  }, [data.activities, mapReady, mode, selectedWaypointId, statusFor, visibleWaypoints])
+  }, [data, mapReady, mode, selectedWaypointId, statusFor, visibleWaypoints])
 
   useEffect(() => {
     const source = activitySource.current
@@ -883,7 +903,7 @@ export default function MapPage() {
               label: activityTitle(activity),
               icon: selectedActivityId === activity.activityId ? 'activity-selected' : 'activity',
               activityId: activity.activityId,
-              description: `${waypoint ? waypointDisplayName(waypoint) : 'No linked waypoint'} · ${activity.category ? statusLabels[activity.category] : 'Uncategorised'}`,
+              description: `${waypoint ? waypointDisplayName(waypoint) : 'No linked waypoint'}${activity.category ? ` · Recorded award: ${statusLabels[activity.category]}` : ''}`,
             }),
           ]
         }),
@@ -1005,20 +1025,22 @@ export default function MapPage() {
                       <MenuItem value="started">Started</MenuItem>
                       <MenuItem value="not-started">Not Started</MenuItem>
                     </TextField>
-                    <TextField
-                      select
-                      label="Medal tier"
-                      value={medalFilter}
-                      onChange={(event) => setMedalFilter(event.target.value as typeof medalFilter)}
-                      sx={{ flex: 1, minWidth: 0 }}
-                    >
-                      <MenuItem value="all">All</MenuItem>
-                      {awardableStatuses.map((status) => (
-                        <MenuItem key={status} value={status}>
-                          {statusLabels[status]}
-                        </MenuItem>
-                      ))}
-                    </TextField>
+                    {data.waypoints.some((waypoint) => waypointSupportsActivityCategory(data, waypoint.waypointId)) && (
+                      <TextField
+                        select
+                        label="Highest recorded award"
+                        value={medalFilter}
+                        onChange={(event) => setMedalFilter(event.target.value as typeof medalFilter)}
+                        sx={{ flex: 1, minWidth: 0 }}
+                      >
+                        <MenuItem value="all">All</MenuItem>
+                        {awardableStatuses.map((status) => (
+                          <MenuItem key={status} value={status}>
+                            {statusLabels[status]}
+                          </MenuItem>
+                        ))}
+                      </TextField>
+                    )}
                   </Stack>
                 )}
               </Stack>

@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { createAwardTestData } from '../test/demoData'
 import {
   activityImportExample,
   parseActivityDraftJson,
@@ -7,6 +8,16 @@ import {
 } from './draftJsonImport'
 
 describe('draftJsonImport', () => {
+  it('validates a JSON award against the selected Waypoint before replacing any form values', () => {
+    const data = createAwardTestData()
+    const parse = (waypointId: string | undefined, category?: string) =>
+      parseActivityDraftJson(JSON.stringify({ ...activityImportExample, category }), { data, waypointId })
+    expect(parse('award-w1').ok).toBe(false)
+    expect(parse('award-w1', 'gold').ok).toBe(true)
+    expect(parse('ordinary-w', 'gold').ok).toBe(false)
+    expect(parse(undefined, 'gold').ok).toBe(false)
+    expect(parse('ordinary-w').ok).toBe(true)
+  })
   it('rejects missing titles and future dates before applying and returns trimmed titles', () => {
     for (const name of [undefined, '', '   '])
       expect(parseActivityDraftJson(JSON.stringify({ ...activityImportExample, name })).ok).toBe(false)

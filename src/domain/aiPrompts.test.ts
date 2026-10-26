@@ -7,6 +7,15 @@ function promptExamples(prompt: string): string[] {
 }
 
 describe('AI JSON prompts', () => {
+  it('requires deliberate contextual visit awards without guessing completion or a highest level', () => {
+    expect(activityJsonAiPrompt).toContain(
+      'Required when the selected Waypoint belongs to any award-enabled Challenge; otherwise omit it.',
+    )
+    expect(activityJsonAiPrompt).toContain('never invent or preselect one')
+    expect(activityJsonAiPrompt).toContain('One level applies to all enabled memberships.')
+    expect(activityJsonAiPrompt).toContain("not completion or the Waypoint's highest recorded award")
+    expect(activityJsonAiPrompt).toContain('ask the user before producing import-ready JSON')
+  })
   it('contains two valid examples for each entity type', () => {
     const activityExamples = promptExamples(activityJsonAiPrompt)
     const ideaExamples = promptExamples(ideaJsonAiPrompt)

@@ -7,6 +7,8 @@ import {
   WaypointSchema,
   createActivity,
   createIdea,
+  activityCategoryError,
+  type WaypointsData,
   type ActivityLocation,
   type AwardedStatus,
   type ExternalPhotoReference,
@@ -264,7 +266,10 @@ function unknownFieldsError(path: string, fields: string[]): string {
   return `${path}: Unexpected field${fields.length === 1 ? '' : 's'}: ${fields.join(', ')}.`
 }
 
-export function parseActivityDraftJson(value: string): ParseResult<ActivityJsonImportDraft> {
+export function parseActivityDraftJson(
+  value: string,
+  context?: { data: WaypointsData; waypointId?: string },
+): ParseResult<ActivityJsonImportDraft> {
   const parsedObject = parseObject(value)
   if (!parsedObject.ok) return parsedObject
 
@@ -340,6 +345,10 @@ export function parseActivityDraftJson(value: string): ParseResult<ActivityJsonI
     typeof payload.category === 'string' && !payload.category.trim()
       ? undefined
       : (payload.category as AwardedStatus | undefined)
+  if (context) {
+    const issue = activityCategoryError(context.data, { activityId: 'draft', waypointId: context.waypointId, category })
+    if (issue) issues.push(issue)
+  }
 
   try {
     createActivity({
