@@ -7,11 +7,11 @@ import Activities from './Activities'
 import { WaypointsProvider } from '../features/journey/JourneyContext'
 import { createDefaultData, load, save } from '../services/storage'
 import type { Activity } from '../domain/visit'
-import { createDemoTestData } from '../test/demoData'
+import { createDemoTestData, createAwardTestData } from '../test/demoData'
 
-function renderActivities() {
+function renderActivities(path = '/activities') {
   render(
-    <MemoryRouter>
+    <MemoryRouter initialEntries={[path]}>
       <WaypointsProvider>
         <Activities />
       </WaypointsProvider>
@@ -25,6 +25,34 @@ describe('Activities', () => {
     vi.restoreAllMocks()
     vi.unstubAllGlobals()
     vi.unstubAllEnvs()
+  })
+
+  it.each([
+    ['bronze', 2],
+    ['silver', 1],
+    ['gold', 1],
+  ])('shows the exact scoped %s Activity group', (award, count) => {
+    save(createAwardTestData())
+    renderActivities(`/activities?challenge=award-a&award=${award}`)
+    expect(document.querySelectorAll('.MuiCard-root')).toHaveLength(count)
+    expect(screen.getByRole('link', { name: 'Back to Award Challenge A Statistics' })).toHaveAttribute(
+      'href',
+      '/challenges/award-a#statistics',
+    )
+  })
+
+  it('rejects unsupported award filters instead of showing an unfiltered list', () => {
+    save(createAwardTestData())
+    renderActivities('/activities?challenge=ordinary&award=gold')
+    expect(screen.getByRole('alert')).toHaveTextContent('Award filters do not apply to an ordinary Challenge.')
+    expect(document.querySelectorAll('.MuiCard-root')).toHaveLength(0)
+  })
+
+  it('omits awards from ordinary shared-member visits', () => {
+    save(createAwardTestData())
+    renderActivities('/activities?challenge=ordinary')
+    expect(document.querySelectorAll('.MuiCard-root')).toHaveLength(4)
+    expect(screen.queryByText(/Recorded award:/)).not.toBeInTheDocument()
   })
 
   it('shows an empty state when there are no activities', () => {

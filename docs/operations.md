@@ -629,7 +629,7 @@ no server-side database to back up.
 ## Challenge relationship contract change
 
 Feature013 makes `Waypoint.challengeIds` the sole membership source. Challenge
-documents require schema version 3 and no `waypointIds` field, including an empty
+documents now require schema version **4** (feature017) and no `waypointIds` field, including an empty
 list. Backups require version 2; version-1 backups are rejected. No records are
 automatically converted, merged, or silently discarded.
 
@@ -642,3 +642,61 @@ authorize hosted data changes or deployment.
 The existing infrastructure deployment Demo reseed uses the updated bundled fixture.
 Demo Cosmos load failures retain the explicit read-only Demo local warning;
 Production failures block writes and never substitute Demo or stale records.
+
+### Challenge award configuration and protected maintenance
+
+Award-enabled Challenges (`supportsActivityCategories: true`) require
+`awardDescriptions` with exactly `bronze`, `silver`, and `gold`: each is a
+trimmed, nonblank, user-written string. Disabled Challenges must omit this
+object. Descriptions are current guidance; editing them never changes recorded
+Activity levels and retains no historical criteria versions. Challenge versions
+1, 2, and 3 are rejected without a migration or compatibility reader. Activity
+version 5, Waypoint version 2, Idea version 2, Reference/PhotoReference version 1,
+and backup envelope version 2 remain unchanged.
+
+Every Activity whose linked Waypoint belongs to any enabled Challenge must
+record one `category` (`bronze`, `silver`, or `gold`). Other Activities must omit
+it. A direct `Activity.challengeId` is independently validated but never makes
+an Activity eligible for an award. Dangling references fail. Shared enabled
+memberships use the same Activity award; they do not create separate awards.
+Waypoint highest-award and individual Activity-tier statistics are derived from
+the current graph, not separate stored records.
+
+Load, import, full replacement, and raw writes enforce the complete graph.
+Enabling awards or adding an enabled membership cannot convert retained
+unawarded history: the request fails and names a blocking Activity and Waypoint.
+There is no automatic backfill or instruction to assign tiers while ineligible.
+Awarded Waypoint deletion and loss of the last eligible membership are blocked.
+First handle the relevant Activities through deliberate separate edits/deletions.
+Full replacement cannot evade this rule by stripping categories from retained
+Activities at the same time. Explicit whole-dataset Clear remains a separate
+destructive action; it still loads and validates the stored dataset first.
+
+Deleting or disabling an enabled Challenge is allowed when all affected awards
+remain eligible through another enabled membership. Allowed Challenge deletion
+detaches its ID from Waypoint memberships and direct Activity links in the same
+transaction, preserving Activity categories. Existing non-awarded Waypoint/Idea/
+Activity detachment and newly orphaned reference/photo pruning remain intact.
+
+Raw create/update/delete and full replacement use the existing complete-snapshot,
+ETag-checked Cosmos transactional batch in one dataset partition. Unchanged
+snapshot documents are replaced with their loaded ETags too, so new awarded
+Activities contend with concurrent disabling, membership changes, and deletion.
+Raw update/delete first check the target client's `ifMatch`; full replacement
+retains the caller's complete expected ETag snapshot. Stale or incomplete
+snapshots return HTTP 409 `conflict`, with no retry, merge, or refreshed
+preconditions. The combined creates/replacements/deletes must fit **100
+operations**; larger plans fail explicitly before submission, without chunking
+or partial writes. Raw creates and non-Waypoint updates retain entity/ETag
+responses; raw Waypoint updates retain their dataset/ETag envelope using the
+committed batch snapshot. Delete returns 204, and full load/replace retain
+dataset/ETag responses.
+
+Invalid incoming award configuration, graph, or structural transitions return
+HTTP 400 with a specific error. Stored relationship/award graph corruption and
+obsolete Challenge versions return HTTP 422, not an empty successful load.
+Unexpected storage/schema failures retain their specific errors. Existing
+authenticated `aad` admin/viewer enforcement is unchanged: viewers cannot write.
+The build still copies `src/data/demo.json` as the single Demo source; malformed
+seed data fails before a batch is submitted. None of these changes authorize a
+reseed, persisted-data correction, deployment, or hosted migration.

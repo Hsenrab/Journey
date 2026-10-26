@@ -90,10 +90,21 @@ const schemas = {
         title: identifier,
         description: identifier,
         supportsActivityCategories: z.boolean(),
+        awardDescriptions: z.object({ bronze: text, silver: text, gold: text }).strict().optional(),
         location: place.optional(),
         plannedRoute: plannedRoute.optional(),
       })
-      .strict(),
+      .strict()
+      .superRefine((challenge, context) => {
+        if (challenge.supportsActivityCategories !== (challenge.awardDescriptions !== undefined))
+          context.addIssue({
+            code: 'custom',
+            path: ['awardDescriptions'],
+            message: challenge.supportsActivityCategories
+              ? 'Award-enabled Challenges require Bronze, Silver and Gold descriptions.'
+              : 'Challenges with awards disabled must omit awardDescriptions.',
+          })
+      }),
   ),
   idea: z
     .object({
@@ -168,7 +179,7 @@ const replacementWaypoint = schemas.waypoint
 
 export const schemaVersions = {
   waypoint: 2,
-  challenge: 3,
+  challenge: 4,
   idea: 2,
   activity: 5,
   reference: 1,

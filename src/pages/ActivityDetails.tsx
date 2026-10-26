@@ -173,7 +173,7 @@ export default function ActivityDetails() {
 
       {detailSubtitle && <Typography color="text.secondary">{detailSubtitle}</Typography>}
       <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: 'wrap' }}>
-        {activity.category && <Chip label={statusLabels[activity.category]} />}
+        {activity.category && <Chip label={`Recorded award: ${statusLabels[activity.category]}`} />}
         {waypoint && (
           <Chip component={Link} clickable to={backTarget} label={`Waypoint: ${waypoint.title}`} variant="outlined" />
         )}

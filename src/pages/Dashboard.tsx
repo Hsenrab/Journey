@@ -1,15 +1,5 @@
 import { useState, type FormEvent } from 'react'
-import {
-  Alert,
-  Box,
-  Button,
-  Checkbox,
-  FormControlLabel,
-  LinearProgress,
-  Stack,
-  TextField,
-  Typography,
-} from '@mui/material'
+import { Alert, Box, Button, LinearProgress, Stack, TextField, Typography } from '@mui/material'
 import InboxOutlinedIcon from '@mui/icons-material/InboxOutlined'
 import { EmptyState } from '../components/EmptyState'
 import { LoadFailureAlert } from '../components/LoadFailureAlert'
@@ -17,16 +7,18 @@ import { LoadingNotice } from '../components/LoadingNotice'
 import { ClickableCard } from '../components/ClickableCard'
 import { PageHeader } from '../components/PageHeader'
 import { ReadOnlyNotice } from '../components/ReadOnlyNotice'
+import { ChallengeAwardFields, emptyAwardDescriptions } from '../components/ChallengeAwardFields'
+import { AwardStatistics } from '../components/AwardStatistics'
 import {
-  awardableStatuses,
   challengeWaypoints,
   completedWaypointCount,
-  countLabel,
   lastActivityDate,
   recentlyVisited,
-  statusCounts,
+  awardStatistics,
+  waypointSupportsActivityCategory,
   statusForWaypoint,
   statusLabels,
+  AwardDescriptionsSchema,
 } from '../domain/visit'
 import { useJourneyDraft, useWaypoints } from '../features/journey/JourneyContext'
 import { JourneyConflictError } from '../services/journeyApi'
@@ -38,7 +30,12 @@ export default function Dashboard() {
   const [description, setDescription] = useState('')
   const [errors, setErrors] = useState<{ title?: string; description?: string }>({})
   const [supportsActivityCategories, setSupportsActivityCategories] = useState(false)
-  useJourneyDraft(showEditor && Boolean(title || description || supportsActivityCategories))
+  const [awardDescriptions, setAwardDescriptions] = useState(emptyAwardDescriptions)
+  const [awardErrors, setAwardErrors] = useState(false)
+  useJourneyDraft(
+    showEditor &&
+      Boolean(title || description || supportsActivityCategories || Object.values(awardDescriptions).some(Boolean)),
+  )
   const [message, setMessage] = useState<{ text: string; severity: 'success' | 'error'; conflict: boolean } | null>(
     null,
   )
@@ -50,15 +47,26 @@ export default function Dashboard() {
       description: description.trim() ? undefined : 'Description is required.',
     }
     setErrors(nextErrors)
+    setAwardErrors(true)
     if (nextErrors.title || nextErrors.description) return
+    if (supportsActivityCategories && !AwardDescriptionsSchema.safeParse(awardDescriptions).success) return
 
     try {
-      await addChallenge({ title, description, supportsActivityCategories })
+      await addChallenge({
+        title,
+        description,
+        supportsActivityCategories,
+        ...(supportsActivityCategories ? { awardDescriptions } : {}),
+      })
       setShowEditor(false)
       setTitle('')
       setDescription('')
       setErrors({})
       setSupportsActivityCategories(false)
+      setAwardDescriptions(emptyAwardDescriptions)
+      setAwardErrors(false)
+      setAwardDescriptions(emptyAwardDescriptions)
+      setAwardErrors(false)
       setMessage({ text: 'Challenge saved.', severity: 'success', conflict: false })
     } catch (error) {
       setMessage({
@@ -82,6 +90,8 @@ export default function Dashboard() {
     setDescription('')
     setErrors({})
     setSupportsActivityCategories(false)
+    setAwardDescriptions(emptyAwardDescriptions)
+    setAwardErrors(false)
   }
 
   if (loadState.status === 'failed') {
@@ -107,7 +117,7 @@ export default function Dashboard() {
 
   const waypoints = data.waypoints
   const activities = data.activities
-  const counts = statusCounts(waypoints, activities)
+  const statistics = awardStatistics(data)
   const recent = recentlyVisited(waypoints, activities)
 
   return (
@@ -142,7 +152,7 @@ export default function Dashboard() {
         </Alert>
       )}
       {showEditor && !readOnly && (
-        <Box component="form" onSubmit={(event) => void submit(event)}>
+        <Box component="form" noValidate onSubmit={(event) => void submit(event)}>
           <Stack spacing={2}>
             <Typography variant="h6">New challenge</Typography>
             <TextField
@@ -170,14 +180,12 @@ export default function Dashboard() {
                 if (value.trim()) setErrors((current) => ({ ...current, description: undefined }))
               }}
             />
-            <FormControlLabel
-              control={
-                <Checkbox
-                  checked={supportsActivityCategories}
-                  onChange={(event) => setSupportsActivityCategories(event.target.checked)}
-                />
-              }
-              label="Use Bronze, Silver and Gold activity categories"
+            <ChallengeAwardFields
+              enabled={supportsActivityCategories}
+              descriptions={awardDescriptions}
+              onEnabledChange={setSupportsActivityCategories}
+              onDescriptionsChange={setAwardDescriptions}
+              showErrors={awardErrors}
             />
             <Stack direction="row" spacing={1}>
               <Button type="submit" variant="contained">
@@ -232,35 +240,7 @@ export default function Dashboard() {
             })}
           </Box>
 
-          <Box>
-            <Typography variant="h5" sx={{ mb: 2 }}>
-              Activity categories
-            </Typography>
-            <Box
-              sx={{
-                display: 'grid',
-                gap: 2,
-                gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))',
-              }}
-            >
-              {awardableStatuses.map((status) => (
-                <ClickableCard
-                  key={status}
-                  to={`/waypoints?status=${status}`}
-                  ariaLabel={`${statusLabels[status]}: ${countLabel(counts[status], 'waypoint')}`}
-                >
-                  {(titleId) => (
-                    <>
-                      <Typography id={titleId} variant="h6">
-                        {statusLabels[status]}
-                      </Typography>
-                      <Typography variant="h4">{counts[status]}</Typography>
-                    </>
-                  )}
-                </ClickableCard>
-              ))}
-            </Box>
-          </Box>
+          <AwardStatistics statistics={statistics} scopeLabel="All eligible Waypoints" />
 
           <Stack spacing={2}>
             <Typography variant="h5">Recently visited</Typography>
@@ -285,8 +265,9 @@ export default function Dashboard() {
                             {waypoint.title}
                           </Typography>
                           <Typography color="text.secondary">
-                            {statusLabels[statusForWaypoint(activities, waypoint.waypointId)]}
-                            {date ? ` · ${new Date(`${date}T00:00:00`).toLocaleDateString()}` : ''}
+                            {waypointSupportsActivityCategory(data, waypoint.waypointId) &&
+                              `Highest recorded award: ${statusLabels[statusForWaypoint(activities, waypoint.waypointId)]}. `}
+                            {date ? `Latest visit: ${new Date(`${date}T00:00:00`).toLocaleDateString()}` : ''}
                           </Typography>
                         </Stack>
                       )}

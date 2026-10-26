@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
-import { Alert, Button, Chip, Stack, Typography } from '@mui/material'
+import { Alert, Button, Chip, MenuItem, Stack, TextField, Typography } from '@mui/material'
 import LinkIcon from '@mui/icons-material/Link'
 import PhotoLibraryIcon from '@mui/icons-material/PhotoLibrary'
 import PlaceIcon from '@mui/icons-material/Place'
@@ -13,7 +13,16 @@ import { LoadFailureAlert } from '../components/LoadFailureAlert'
 import { LoadingNotice } from '../components/LoadingNotice'
 import { PageHeader } from '../components/PageHeader'
 import { ReadOnlyNotice } from '../components/ReadOnlyNotice'
-import { activitySubtitle, activityTitle, countLabel, locationSummary, statusLabels } from '../domain/visit'
+import {
+  activitySubtitle,
+  activityTitle,
+  countLabel,
+  locationSummary,
+  statusLabels,
+  awardableStatuses,
+  awardStatistics,
+  awardFilterError,
+} from '../domain/visit'
 import { useWaypoints } from '../features/journey/JourneyContext'
 import { JourneyConflictError, JourneyInputError } from '../services/journeyApi'
 
@@ -30,6 +39,12 @@ export default function Activities() {
   const waypointById = new Map(data.waypoints.map((waypoint) => [waypoint.waypointId, waypoint]))
   const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
+  const challengeId = searchParams.get('challenge') ?? undefined
+  const award = searchParams.get('award') ?? undefined
+  const filterError = awardFilterError(data, { challengeId, award })
+  const statistics = filterError ? undefined : awardStatistics(data, challengeId)
+  const challenge = data.challenges.find((item) => item.challengeId === challengeId)
+  const tier = awardableStatuses.find((value) => value === award)
   const showEditor = searchParams.get('mode') === 'add'
   const initialWaypointId = searchParams.get('waypoint') ?? undefined
   const initialIdeaId = searchParams.get('idea') ?? undefined
@@ -38,9 +53,15 @@ export default function Activities() {
     null,
   )
 
-  const activities = [...data.activities].sort(
-    (a, b) => b.date.localeCompare(a.date) || b.updatedAt.localeCompare(a.updatedAt),
-  )
+  const records =
+    award !== undefined
+      ? tier
+        ? (statistics?.activityAwards[tier] ?? [])
+        : []
+      : challengeId !== undefined
+        ? (statistics?.activities ?? [])
+        : data.activities
+  const activities = [...records].sort((a, b) => b.date.localeCompare(a.date) || b.updatedAt.localeCompare(a.updatedAt))
   const clearEditorParams = () => {
     setSearchParams((previous) => {
       const next = new URLSearchParams(previous)
@@ -88,6 +109,37 @@ export default function Activities() {
         )}
       </PageHeader>
       <ReadOnlyNotice />
+      {challenge && (
+        <Stack spacing={1}>
+          <Typography>Challenge scope: {challenge.title}</Typography>
+          <Button component={Link} to={`/challenges/${encodeURIComponent(challenge.challengeId)}#statistics`}>
+            Back to {challenge.title} Statistics
+          </Button>
+        </Stack>
+      )}
+      {loadState.status === 'loaded' && !filterError && statistics?.supportsAwards && (
+        <TextField
+          select
+          size="small"
+          label="Recorded award"
+          value={award ?? 'all'}
+          onChange={(event) =>
+            setSearchParams((previous) => {
+              const next = new URLSearchParams(previous)
+              if (event.target.value === 'all') next.delete('award')
+              else next.set('award', event.target.value)
+              return next
+            })
+          }
+        >
+          <MenuItem value="all">All recorded awards</MenuItem>
+          {awardableStatuses.map((value) => (
+            <MenuItem key={value} value={value}>
+              {statusLabels[value]}
+            </MenuItem>
+          ))}
+        </TextField>
+      )}
 
       {loadState.status === 'failed' && (
         <LoadFailureAlert
@@ -154,6 +206,8 @@ export default function Activities() {
         <Typography variant="h5">Activity log</Typography>
         {loadState.status === 'failed' ? null : loadState.status === 'loading' ? (
           <LoadingNotice message="Loading activities…" />
+        ) : filterError ? (
+          <Alert severity="error">{filterError}</Alert>
         ) : activities.length === 0 ? (
           <EmptyState icon={<InboxOutlinedIcon color="disabled" />} message="No activities logged yet." />
         ) : (
@@ -170,9 +224,9 @@ export default function Activities() {
                         {title}
                       </Typography>
                       {subtitle && <Typography color="text.secondary">{subtitle}</Typography>}
-                      {activity.category && (
+                      {activity.category && (!challenge || challenge.supportsActivityCategories) && (
                         <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: 'wrap' }}>
-                          <Chip label={statusLabels[activity.category]} />
+                          <Chip label={`Recorded award: ${statusLabels[activity.category]}`} />
                         </Stack>
                       )}
                       <CardDetailRow icon={<PlaceIcon fontSize="small" />}>

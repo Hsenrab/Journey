@@ -268,7 +268,7 @@ describe('MapPage', () => {
     expect(screen.queryByRole('group', { name: 'Marker colour legend' })).not.toBeInTheDocument()
     expect(screen.getByRole('group', { name: 'Waypoint filters' })).toBeInTheDocument()
     expect(screen.getByRole('combobox', { name: 'Progress status' })).toBeInTheDocument()
-    expect(screen.getByRole('combobox', { name: 'Medal tier' })).toBeInTheDocument()
+    expect(screen.getByRole('combobox', { name: 'Highest recorded award' })).toBeInTheDocument()
     expect(screen.getByRole('textbox', { name: /Nearby origin/ })).toHaveValue('')
     expect(screen.getByText('Choose a nearby origin to see waypoints.')).toBeInTheDocument()
     expect(await screen.findByText('Map access failed: Sign in required')).toBeInTheDocument()
@@ -318,7 +318,7 @@ describe('MapPage', () => {
     expect(within(waypointList).getByText(goldWaypoint!.title)).toBeInTheDocument()
     expect(within(waypointList).queryByText(notStartedWaypoint!.title)).not.toBeInTheDocument()
 
-    await selectOption('Medal tier', 'Bronze')
+    await selectOption('Highest recorded award', 'Bronze')
     expect(within(waypointList).getByText(bronzeWaypoint!.title)).toBeInTheDocument()
     expect(within(waypointList).queryByText(goldWaypoint!.title)).not.toBeInTheDocument()
 
@@ -326,7 +326,7 @@ describe('MapPage', () => {
     expect(within(waypointList).queryByText(bronzeWaypoint!.title)).not.toBeInTheDocument()
     expect(within(waypointList).queryByText(notStartedWaypoint!.title)).not.toBeInTheDocument()
 
-    await selectOption('Medal tier', 'All')
+    await selectOption('Highest recorded award', 'All')
     expect(within(waypointList).getByText(notStartedWaypoint!.title)).toBeInTheDocument()
     await selectOption('Progress status', 'All')
     expect(within(waypointList).getByText(bronzeWaypoint!.title)).toBeInTheDocument()
@@ -340,6 +340,7 @@ describe('MapPage', () => {
     waypoint.location = { latitude: 51.84, longitude: -2.15 }
     const uncategorizedActivity = activity(waypoint.waypointId, 'bronze')
     delete uncategorizedActivity.category
+    waypoint.challengeIds = []
     data.activities = [uncategorizedActivity]
     localStorage.setItem('waypoints-v1', JSON.stringify(data))
     const user = userEvent.setup()
@@ -481,13 +482,13 @@ describe('MapPage', () => {
         </WaypointsProvider>
       </MemoryRouter>,
     )
-    await user.click(screen.getByRole('combobox', { name: 'Medal tier' }))
+    await user.click(screen.getByRole('combobox', { name: 'Highest recorded award' }))
     await user.click(screen.getByRole('option', { name: 'Gold' }))
     await user.type(screen.getByRole('textbox', { name: /Nearby origin/ }), 'no match')
     await user.click(screen.getByRole('button', { name: 'Search' }))
     expect(await screen.findByText(/No places matched that search/)).toBeInTheDocument()
     expect(screen.getByRole('tab', { name: 'Activities' })).toHaveAttribute('aria-selected', 'false')
-    expect(screen.getByRole('combobox', { name: 'Medal tier' })).toHaveTextContent('Gold')
+    expect(screen.getByRole('combobox', { name: 'Highest recorded award' })).toHaveTextContent('Gold')
   })
 
   it('requires an explicit selection for ambiguous nearby origins', async () => {
@@ -589,7 +590,6 @@ describe('MapPage', () => {
       name: 'Recorded activity',
       activityId: 'postcode-activity',
       ideaIds: [],
-      waypointId: 'missing-waypoint',
       date: '2026-08-10',
       category: undefined,
       location: { kind: 'postcode', postcode: 'GL3 4AA' },
@@ -621,7 +621,7 @@ describe('MapPage', () => {
         </WaypointsProvider>
       </MemoryRouter>,
     )
-    await user.click(screen.getByRole('combobox', { name: 'Medal tier' }))
+    await user.click(screen.getByRole('combobox', { name: 'Highest recorded award' }))
     await user.click(screen.getByRole('option', { name: 'Gold' }))
     await user.type(screen.getByRole('textbox', { name: /Nearby origin/ }), 'Example')
     await user.click(screen.getByRole('button', { name: 'Search' }))
@@ -771,7 +771,7 @@ describe('MapPage', () => {
         ideaIds: [],
         waypointId: waypoint.waypointId,
         date: '2026-08-10',
-        category: undefined,
+        category: 'bronze',
         location: { kind: 'coordinates', latitude: 51.85, longitude: -2.14 },
         notes: '',
         referenceIds: [],
@@ -1187,7 +1187,9 @@ describe('MapPage', () => {
       mapEvents.click!({ shapes: [{ properties: { waypointId: 'unknown' } }] })
       mapEvents.click!({ shapes: [{ getProperties: () => ({ waypointId: waypoint.waypointId }) }] })
     }).not.toThrow()
-    expect(mapEvents.popupContent).toHaveTextContent(`Waypoint${waypoint.title}Recorded activities`)
+    expect(mapEvents.popupContent).toHaveTextContent(
+      `Waypoint${waypoint.title}Highest recorded award: SilverRecorded activities`,
+    )
     expect(mapEvents.popupContent).not.toHaveTextContent('Not started')
     expect(mapEvents.popupContent?.querySelector('a')).toHaveAttribute('href', '/activities/linked-activity')
     expect(mapEvents.popupContent?.querySelector('a')).toHaveTextContent('Ridge walk')
@@ -1304,10 +1306,10 @@ describe('MapPage', () => {
       mapEvents.activityClick!({ shapes: [{ properties: { activityId: 'unknown' } }] })
     }).not.toThrow()
     mapEvents.activityClick!({ shapes: [{ properties: { activityId: activity.activityId } }] })
-    expect(mapEvents.popupContent).toHaveTextContent('ActivityLinked garden visitBronze')
+    expect(mapEvents.popupContent).toHaveTextContent('ActivityLinked garden visitRecorded award: Bronze')
     expect(mapEvents.popupContent).not.toHaveTextContent('Activity2026-08-10Bronze')
     mapEvents.activityClick!({ shapes: [{ properties: { activityId: unlinked.activityId } }] })
-    expect(mapEvents.popupContent).toHaveTextContent('ActivityIndependent garden visitUncategorisedNo linked waypoint')
+    expect(mapEvents.popupContent).toHaveTextContent('ActivityIndependent garden visitNo linked waypoint')
     expect(mapEvents.popupContent?.querySelector('a')).toHaveAttribute('href', '/activities/unlinked')
   })
 

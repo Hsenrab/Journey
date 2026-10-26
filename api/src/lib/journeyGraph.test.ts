@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest'
-import { applyPlan, deletionPlan, referenceIntegrityError, updatePlan, upsertEntity } from './journeyGraph.js'
+import {
+  applyPlan,
+  awardTransitionError,
+  deletionPlan,
+  referenceIntegrityError,
+  updatePlan,
+  upsertEntity,
+} from './journeyGraph.js'
 import type { JourneyData } from './journeySchema.js'
 
 function data(): JourneyData {
@@ -64,8 +71,81 @@ function data(): JourneyData {
 }
 
 describe('referenceIntegrityError', () => {
+  it('requires awards only through Waypoint memberships, never a direct Challenge link', () => {
+    const graph = data()
+    graph.challenges[0]!.supportsActivityCategories = true
+    expect(referenceIntegrityError(graph)).toContain('Activity "activity-1" at Waypoint "waypoint-1" requires')
+    graph.activities[0]!.category = 'gold'
+    expect(referenceIntegrityError(graph)).toBeUndefined()
+    graph.activities[0]!.challengeId = 'challenge-1'
+    graph.waypoints[0]!.challengeIds = []
+    expect(referenceIntegrityError(graph)).toContain('waypoint "waypoint-1" does not support')
+    delete graph.activities[0]!.category
+    expect(referenceIntegrityError(graph)).toBeUndefined()
+    graph.activities[0]!.waypointId = 'missing'
+    expect(referenceIntegrityError(graph)).toBe('Activity "activity-1" references unknown waypoint "missing".')
+    delete graph.activities[0]!.waypointId
+    graph.activities[0]!.challengeId = 'missing'
+    expect(referenceIntegrityError(graph)).toBe('Activity "activity-1" references unknown challenge "missing".')
+  })
+
   it('accepts a complete dataset', () => {
     expect(referenceIntegrityError(data())).toBeUndefined()
+  })
+
+  describe('awardTransitionError', () => {
+    function awarded() {
+      const graph = data()
+      graph.challenges[0]!.supportsActivityCategories = true
+      graph.activities[0]!.category = 'gold'
+      return graph
+    }
+
+    it.each(['waypoint', 'membership', 'disable', 'challenge'] as const)(
+      'blocks disguised %s award loss even when retained Activity categories are stripped',
+      (operation) => {
+        const before = awarded()
+        const after = structuredClone(before)
+        delete after.activities[0]!.category
+        if (operation === 'waypoint') {
+          after.waypoints = []
+          delete after.activities[0]!.waypointId
+          after.ideas[0]!.waypointIds = []
+        }
+        if (operation === 'membership') after.waypoints[0]!.challengeIds = []
+        if (operation === 'disable') after.challenges[0]!.supportsActivityCategories = false
+        if (operation === 'challenge') {
+          after.challenges = []
+          after.waypoints[0]!.challengeIds = []
+        }
+        expect(referenceIntegrityError(after)).toBeUndefined()
+        expect(awardTransitionError(before, after)).toContain('Activity "activity-1" at Waypoint "waypoint-1"')
+      },
+    )
+
+    it('permits separate deliberate Activity edits, deletion and shared eligibility', () => {
+      const before = awarded()
+      const edited = structuredClone(before)
+      delete edited.activities[0]!.waypointId
+      delete edited.activities[0]!.category
+      expect(awardTransitionError(before, edited)).toBeUndefined()
+      expect(referenceIntegrityError(edited)).toBeUndefined()
+      expect(
+        awardTransitionError(edited, applyPlan(edited, deletionPlan(edited, 'waypoint', 'waypoint-1'))),
+      ).toBeUndefined()
+      const deleted = { ...before, activities: [] }
+      expect(awardTransitionError(before, deleted)).toBeUndefined()
+      const shared = structuredClone(before)
+      shared.challenges.push({ ...shared.challenges[0]!, challengeId: 'challenge-2' })
+      shared.waypoints[0]!.challengeIds.push('challenge-2')
+      shared.activities[0]!.challengeId = 'challenge-1'
+      const after = applyPlan(shared, deletionPlan(shared, 'challenge', 'challenge-1'))
+      expect(awardTransitionError(shared, after)).toBeUndefined()
+      expect(referenceIntegrityError(after)).toBeUndefined()
+      expect(after.waypoints[0]!.challengeIds).toEqual(['challenge-2'])
+      expect(after.activities[0]).toMatchObject({ category: 'gold' })
+      expect(after.activities[0]).not.toHaveProperty('challengeId')
+    })
   })
 
   it('rejects unknown and duplicate referenced IDs', () => {
@@ -95,7 +175,7 @@ describe('referenceIntegrityError', () => {
     invalid.activities[0]!.category = 'silver'
 
     expect(referenceIntegrityError(invalid)).toBe(
-      'Activity "activity-1" has a category but its waypoint does not support Bronze, Silver or Gold categories.',
+      'Activity "activity-1" has a category but its waypoint "waypoint-1" does not support Bronze, Silver or Gold categories.',
     )
   })
 
@@ -112,9 +192,8 @@ describe('referenceIntegrityError', () => {
 
 describe('deletionPlan', () => {
   it('detaches ideas and activities when a waypoint is deleted', () => {
-    const withCategory = data()
-    withCategory.activities[0]!.category = 'silver'
-    const plan = deletionPlan(withCategory, 'waypoint', 'waypoint-1')
+    const original = data()
+    const plan = deletionPlan(original, 'waypoint', 'waypoint-1')
 
     expect(plan.deletes).toEqual(['waypoint-1', 'reference-3'])
     expect(plan.updates).toEqual([
@@ -123,7 +202,7 @@ describe('deletionPlan', () => {
     ])
     expect(plan.updates[1]!.entity).not.toHaveProperty('waypointId')
     expect(plan.updates[1]!.entity).not.toHaveProperty('category')
-    expect(referenceIntegrityError(applyPlan(withCategory, plan))).toBeUndefined()
+    expect(referenceIntegrityError(applyPlan(original, plan))).toBeUndefined()
   })
 
   it('updates only the waypoint when its challenge assignments change', () => {
@@ -162,7 +241,7 @@ describe('deletionPlan', () => {
     })
 
     expect(referenceIntegrityError(applyPlan(withCategory, plan))).toBe(
-      'Activity "activity-1" has a category but its waypoint does not support Bronze, Silver or Gold categories.',
+      'Activity "activity-1" has a category but its waypoint "waypoint-1" does not support Bronze, Silver or Gold categories.',
     )
   })
 

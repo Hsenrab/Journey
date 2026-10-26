@@ -37,6 +37,8 @@ import {
   planningStateLabels,
   statusLabels,
   waypointCompletionProgress,
+  waypointSupportsActivityCategory,
+  eligibleAwardChallenges,
 } from '../domain/visit'
 import { useWaypoints } from '../features/journey/JourneyContext'
 import { JourneyConflictError, JourneyInputError } from '../services/journeyApi'
@@ -133,8 +135,19 @@ export default function LocationDetails() {
           label={`Completion: ${completionProgressLabel(waypoint, progress)}`}
           color={progress.complete ? 'success' : 'default'}
         />
-        <Chip variant="outlined" label={`Award tier: ${statusLabels[statusFor(id)]}`} />
+        {waypointSupportsActivityCategory(data, id) && (
+          <Chip variant="outlined" label={`Highest recorded award: ${statusLabels[statusFor(id)]}`} />
+        )}
       </Stack>
+      {waypointSupportsActivityCategory(data, id) && (
+        <Typography color="text.secondary">
+          Award context:{' '}
+          {eligibleAwardChallenges(data, id)
+            .map((item) => item.title)
+            .join(', ')}
+          . Each Activity retains its own recorded level.
+        </Typography>
+      )}
       <Typography color="text.secondary">{completionRuleLabel(waypoint)}</Typography>
       <Typography>{waypoint.description}</Typography>
       <Typography color="text.secondary">
@@ -255,7 +268,7 @@ export default function LocationDetails() {
                   {subtitle && <Typography color="text.secondary">{subtitle}</Typography>}
                   {activity.category && (
                     <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: 'wrap' }}>
-                      <Chip label={statusLabels[activity.category]} />
+                      <Chip label={`Recorded award: ${statusLabels[activity.category]}`} />
                     </Stack>
                   )}
                   {activity.notes && <Typography>{activity.notes}</Typography>}
@@ -279,9 +292,15 @@ export default function LocationDetails() {
           <DialogTitle>Delete waypoint?</DialogTitle>
           <DialogContent>
             <Typography>
-              Deleting this waypoint clears it from {countLabel(activities.length, 'linked activity')} and{' '}
-              {countLabel(waypointIdeas.length, 'linked idea')}. Activities and ideas are kept, and the waypoint is
-              removed from linked challenges.
+              {activities.some((activity) => activity.category) ? (
+                'This Waypoint has recorded awards and cannot be deleted. Explicitly correct, move or delete its awarded Activities first; their awards will not be silently removed.'
+              ) : (
+                <>
+                  Deleting this waypoint clears it from {countLabel(activities.length, 'linked activity')} and{' '}
+                  {countLabel(waypointIdeas.length, 'linked idea')}. Activities and ideas are kept, and the waypoint is
+                  removed from linked challenges.
+                </>
+              )}
             </Typography>
           </DialogContent>
           <DialogActions>

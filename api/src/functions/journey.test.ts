@@ -1,25 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { HttpRequest, InvocationContext } from '@azure/functions'
 import { journey } from './journey.js'
-import { JourneyDataSchema } from '../lib/journeySchema.js'
+import { JourneyDataSchema, type JourneyData, type JourneyDocument } from '../lib/journeySchema.js'
 import { StoredJourneyRelationshipError } from '../lib/cosmos.js'
 
-const {
-  loadDataset,
-  journeyContainer,
-  createDocument,
-  deleteEntity,
-  replaceEntities,
-  replaceDocument,
-  replaceDataset,
-  acquireMapsAccessToken,
-} = vi.hoisted(() => ({
+const { loadDataset, journeyContainer, replaceDataset, acquireMapsAccessToken } = vi.hoisted(() => ({
   loadDataset: vi.fn(),
   journeyContainer: vi.fn(),
-  createDocument: vi.fn(),
-  deleteEntity: vi.fn(),
-  replaceEntities: vi.fn(),
-  replaceDocument: vi.fn(),
   replaceDataset: vi.fn(),
   acquireMapsAccessToken: vi.fn(),
 }))
@@ -30,16 +17,12 @@ vi.mock('../lib/cosmos.js', async () => {
     datasetIdFor: (container: string) => container,
     journeyContainer,
     loadDataset,
-    createDocument,
-    deleteEntity,
-    replaceEntities,
     documentFor: actual.documentFor,
     documentsFor: actual.documentsFor,
+    documentsToData: actual.documentsToData,
     emptyJourneyData: actual.emptyJourneyData,
     StoredJourneyRelationshipError: actual.StoredJourneyRelationshipError,
-    replaceDocument,
     replaceDataset,
-    savedDocument: actual.savedDocument,
   }
 })
 
@@ -129,15 +112,119 @@ const idea = {
   updatedAt: '2026-08-01T00:00:00.000Z',
 }
 
+const awardDescriptions = { bronze: 'Afternoon', silver: 'Full day', gold: 'Overnight' }
+
+function awardData(awarded = true, shared = false): JourneyData {
+  return JourneyDataSchema.parse({
+    ...emptyData,
+    challenges: [
+      {
+        challengeId: 'challenge-1',
+        title: 'Heritage',
+        description: 'Heritage visits',
+        supportsActivityCategories: true,
+        awardDescriptions,
+      },
+      ...(shared
+        ? [
+            {
+              challengeId: 'challenge-2',
+              title: 'Gardens',
+              description: 'Garden visits',
+              supportsActivityCategories: true,
+              awardDescriptions,
+            },
+          ]
+        : []),
+    ],
+    waypoints: [
+      {
+        ...waypoint,
+        location: { latitude: 51.4, longitude: -2.1 },
+        challengeIds: shared ? ['challenge-1', 'challenge-2'] : ['challenge-1'],
+      },
+    ],
+    activities: awarded
+      ? [
+          {
+            ...activity,
+            ideaIds: [],
+            waypointId: 'waypoint-1',
+            challengeId: 'challenge-1',
+            category: 'gold',
+            location: { kind: 'coordinates', latitude: 51.4, longitude: -2.1 },
+          },
+        ]
+      : [],
+  })
+}
+
+type BatchOperation = {
+  operationType: 'Create' | 'Replace' | 'Delete'
+  id?: string
+  resourceBody?: JourneyDocument
+  ifMatch?: string
+}
+
+async function memoryDataset(initial: JourneyData) {
+  const cosmos = await vi.importActual<typeof import('../lib/cosmos.js')>('../lib/cosmos.js')
+  let revision = 1
+  let stored = new Map(
+    Object.values(cosmos.documentsFor('production', initial)).map((document) => [
+      document.id,
+      { ...document, _etag: `initial-${document.id}` },
+    ]),
+  )
+  function commit(operations: BatchOperation[]) {
+    const failure = operations.findIndex((operation) => {
+      const id = operation.id ?? operation.resourceBody!.id
+      return operation.operationType === 'Create' ? stored.has(id) : stored.get(id)?._etag !== operation.ifMatch
+    })
+    if (failure !== -1)
+      return {
+        code: 207,
+        result: operations.map((_, index) => ({ statusCode: index === failure ? 412 : 424 })),
+      }
+    const next = new Map(stored)
+    const result = operations.map((operation) => {
+      const id = operation.id ?? operation.resourceBody!.id
+      if (operation.operationType === 'Delete') {
+        next.delete(id)
+        return { statusCode: 204 }
+      }
+      const eTag = `revision-${revision++}`
+      next.set(id, { ...structuredClone(operation.resourceBody!), _etag: eTag })
+      return { statusCode: operation.operationType === 'Create' ? 201 : 200, eTag }
+    })
+    stored = next
+    return { code: 200, result }
+  }
+  const batch = vi.fn(async (operations: BatchOperation[], _datasetId: string) => commit(operations))
+  const container = {
+    items: {
+      batch,
+      query: () => ({ fetchNext: async () => ({ resources: structuredClone([...stored.values()]) }) }),
+    },
+  }
+  journeyContainer.mockReturnValue(container)
+  loadDataset.mockImplementation(cosmos.loadDataset)
+  replaceDataset.mockImplementation(cosmos.replaceDataset)
+  return {
+    batch,
+    commit,
+    snapshot: () => structuredClone([...stored.values()]),
+    loaded: () => cosmos.loadDataset(container as never, 'production'),
+  }
+}
+
 describe('journey', () => {
   beforeEach(() => {
     loadDataset.mockReset()
     journeyContainer.mockReset()
-    createDocument.mockReset()
-    deleteEntity.mockReset()
-    replaceEntities.mockReset()
-    replaceDocument.mockReset()
     replaceDataset.mockReset()
+    replaceDataset.mockImplementation(async (_container, _datasetId, documents) =>
+      Object.fromEntries(Object.keys(documents).map((id) => [id, 'saved-etag'])),
+    )
     acquireMapsAccessToken.mockReset()
     acquireMapsAccessToken.mockResolvedValue({ token: 'entra-token', expiresOn: '2026-01-01T00:00:00.000Z' })
     journeyContainer.mockReturnValue({})
@@ -186,11 +273,7 @@ describe('journey', () => {
         jsonBody: { error: message },
       })
       expect(loadDataset).not.toHaveBeenCalled()
-      expect(createDocument).not.toHaveBeenCalled()
-      expect(replaceDocument).not.toHaveBeenCalled()
       expect(replaceDataset).not.toHaveBeenCalled()
-      expect(replaceEntities).not.toHaveBeenCalled()
-      expect(deleteEntity).not.toHaveBeenCalled()
       expect(stored).toEqual(before)
     })
   })
@@ -207,12 +290,11 @@ describe('journey', () => {
         date: '2026-07-16',
         location: { kind: 'coordinates', latitude: 51.844, longitude: -2.153 },
       }
-      loadDataset.mockResolvedValue({ data: emptyData, etags: {} })
-      const write = operation === 'create' ? createDocument : replaceDocument
-      write.mockImplementation(async (_container, document) => ({
-        resource: document,
-        headers: { etag: 'saved-etag' },
-      }))
+      loadDataset.mockResolvedValue(
+        operation === 'create'
+          ? { data: emptyData, etags: {} }
+          : { data: { ...emptyData, activities: [entity] }, etags: { 'activity-1': 'original-etag' } },
+      )
       expect(
         await journey(
           request('production', operation === 'create' ? 'POST' : 'PUT', {
@@ -228,8 +310,8 @@ describe('journey', () => {
         status: operation === 'create' ? 201 : 200,
         jsonBody: { entity: { name: 'Orangery tour', date: '2026-07-16' }, etag: 'saved-etag' },
       })
-      expect(write.mock.calls[0]?.[1]).toMatchObject({ schemaVersion: 5 })
-      if (operation === 'update') expect(write.mock.calls[0]?.[2]).toBe('original-etag')
+      expect(replaceDataset.mock.calls[0]?.[2]['activity-1']).toMatchObject({ schemaVersion: 5 })
+      if (operation === 'update') expect(replaceDataset.mock.calls[0]?.[3]).toEqual({ 'activity-1': 'original-etag' })
     },
   )
 
@@ -251,8 +333,12 @@ describe('journey', () => {
         data: expectedData,
         etags: { 'activity-1': 'saved-etag', 'activity-2': 'new-etag' },
       })
-      if (operation === 'import') loadDataset.mockResolvedValueOnce({ data: emptyData, etags: {} })
       const etags = { 'activity-1': 'original-etag' }
+      loadDataset.mockResolvedValueOnce(
+        operation === 'import'
+          ? { data: emptyData, etags: {} }
+          : { data: { ...emptyData, activities: [{ ...entity, name: 'Orangery tour' }] }, etags },
+      )
       expect(await journey(request('production', 'POST', { operation, data, etags }), context())).toMatchObject({
         status: 200,
         jsonBody: { data: expectedData },
@@ -347,7 +433,12 @@ describe('journey', () => {
     const cosmos = await vi.importActual<typeof import('../lib/cosmos.js')>('../lib/cosmos.js')
     const batch = vi.fn().mockResolvedValue({ code: 200, result: [] })
     journeyContainer.mockReturnValue({ items: { batch } })
-    loadDataset.mockResolvedValue({ data: emptyData, etags: {} })
+    loadDataset
+      .mockResolvedValueOnce({
+        data: { ...emptyData, ideas: [{ ...idea, ideaId: '__proto__' }] },
+        etags: JSON.parse('{"__proto__":"proto-etag"}'),
+      })
+      .mockResolvedValue({ data: emptyData, etags: {} })
     replaceDataset.mockImplementation(cosmos.replaceDataset)
     const { journey } = await import('./journey.js')
 
@@ -386,10 +477,6 @@ describe('journey', () => {
       })
       expect(journeyContainer).not.toHaveBeenCalled()
       expect(loadDataset).not.toHaveBeenCalled()
-      expect(createDocument).not.toHaveBeenCalled()
-      expect(replaceDocument).not.toHaveBeenCalled()
-      expect(replaceEntities).not.toHaveBeenCalled()
-      expect(deleteEntity).not.toHaveBeenCalled()
       expect(replaceDataset).not.toHaveBeenCalled()
       expect(acquireMapsAccessToken).not.toHaveBeenCalled()
       expect(fetch).not.toHaveBeenCalled()
@@ -424,10 +511,6 @@ describe('journey', () => {
       expect(journeyContainer).toHaveBeenCalledWith(containerName)
       expect(json).not.toHaveBeenCalled()
       expect(loadDataset).not.toHaveBeenCalled()
-      expect(createDocument).not.toHaveBeenCalled()
-      expect(replaceDocument).not.toHaveBeenCalled()
-      expect(replaceEntities).not.toHaveBeenCalled()
-      expect(deleteEntity).not.toHaveBeenCalled()
       expect(replaceDataset).not.toHaveBeenCalled()
       expect(acquireMapsAccessToken).not.toHaveBeenCalled()
       expect(fetch).not.toHaveBeenCalled()
@@ -614,6 +697,7 @@ describe('journey', () => {
     it('preserves stale ETag conflicts after resolution', async () => {
       const data = { ...emptyData, waypoints: [waypoint] }
       const etags = { 'waypoint-1': 'stale-etag' }
+      loadDataset.mockResolvedValue({ data, etags })
       replaceDataset.mockRejectedValue(Object.assign(new Error('stale'), { code: 412 }))
 
       expect(await journey(request('production', 'POST', { operation: 'replace', data, etags }), context())).toEqual({
@@ -665,7 +749,7 @@ describe('journey', () => {
         context(),
       ),
     ).toEqual({ status: 400, jsonBody: { error: 'Activity "activity-1" references unknown idea "idea-1".' } })
-    expect(createDocument).not.toHaveBeenCalled()
+    expect(replaceDataset).not.toHaveBeenCalled()
   })
 
   it('rejects an entity that fails complete validation', async () => {
@@ -705,7 +789,7 @@ describe('journey', () => {
       },
     })
     expect(loadDataset).not.toHaveBeenCalled()
-    expect(createDocument).not.toHaveBeenCalled()
+    expect(replaceDataset).not.toHaveBeenCalled()
   })
 
   it.each(['import', 'replace'] as const)(
@@ -737,10 +821,7 @@ describe('journey', () => {
 
   it('geocodes a postcode-only activity before it is persisted', async () => {
     loadDataset.mockResolvedValue({ data: emptyData, etags: {} })
-    createDocument.mockImplementation(async (_container, document) => ({
-      resource: document,
-      headers: { etag: 'created-etag' },
-    }))
+    replaceDataset.mockResolvedValue({ 'activity-1': 'created-etag' })
 
     const result = await journey(
       request('production', 'POST', { operation: 'create', type: 'activity', entity: { ...activity, ideaIds: [] } }),
@@ -751,13 +832,17 @@ describe('journey', () => {
       status: 201,
       jsonBody: { entity: { activityId: 'activity-1' }, etag: 'created-etag' },
     })
-    expect(createDocument).toHaveBeenCalledWith(
+    expect(replaceDataset).toHaveBeenCalledWith(
       {},
-      expect.objectContaining({
-        entity: expect.objectContaining({
-          location: { kind: 'postcode', postcode: 'GL3 4AQ', latitude: 51.844, longitude: -2.153 },
+      'production',
+      {
+        'activity-1': expect.objectContaining({
+          entity: expect.objectContaining({
+            location: { kind: 'postcode', postcode: 'GL3 4AQ', latitude: 51.844, longitude: -2.153 },
+          }),
         }),
-      }),
+      },
+      {},
     )
     expect(fetch).toHaveBeenCalledWith(
       'https://atlas.microsoft.com/search/address/json?api-version=1.0&query=GL3+4AQ',
@@ -767,10 +852,7 @@ describe('journey', () => {
 
   it('allows demo creates against the demo dataset', async () => {
     loadDataset.mockResolvedValue({ data: emptyData, etags: {} })
-    createDocument.mockImplementation(async (_container, document) => ({
-      resource: document,
-      headers: { etag: 'demo-etag' },
-    }))
+    replaceDataset.mockResolvedValue({ 'activity-1': 'demo-etag' })
 
     expect(
       await journey(
@@ -781,18 +863,21 @@ describe('journey', () => {
       status: 201,
       jsonBody: { entity: { activityId: 'activity-1' }, etag: 'demo-etag' },
     })
-    expect(createDocument).toHaveBeenCalledWith(
+    expect(replaceDataset).toHaveBeenCalledWith(
       {},
-      expect.objectContaining({
-        datasetId: 'demo',
-        entity: expect.objectContaining({ activityId: 'activity-1' }),
-      }),
+      'demo',
+      {
+        'activity-1': expect.objectContaining({
+          datasetId: 'demo',
+          entity: expect.objectContaining({ activityId: 'activity-1' }),
+        }),
+      },
+      {},
     )
   })
 
   it('geocodes a place-only waypoint before it is persisted', async () => {
     loadDataset.mockResolvedValue({ data: emptyData, etags: {} })
-    createDocument.mockResolvedValue({ resource: {}, headers: {} })
 
     const result = await journey(
       request('production', 'POST', { operation: 'create', type: 'waypoint', entity: waypoint }),
@@ -800,18 +885,22 @@ describe('journey', () => {
     )
 
     expect(result).toMatchObject({ status: 201 })
-    expect(createDocument).toHaveBeenCalledWith(
+    expect(replaceDataset).toHaveBeenCalledWith(
       {},
-      expect.objectContaining({
-        entity: expect.objectContaining({
-          location: {
-            placeName: 'Lacock Abbey',
-            addressOrRegion: 'Wiltshire',
-            latitude: 51.844,
-            longitude: -2.153,
-          },
+      'production',
+      {
+        'waypoint-1': expect.objectContaining({
+          entity: expect.objectContaining({
+            location: {
+              placeName: 'Lacock Abbey',
+              addressOrRegion: 'Wiltshire',
+              latitude: 51.844,
+              longitude: -2.153,
+            },
+          }),
         }),
-      }),
+      },
+      {},
     )
   })
 
@@ -825,13 +914,20 @@ describe('journey', () => {
         context(),
       ),
     ).toEqual({ status: 400, jsonBody: { error: 'Azure Maps found no coordinates for "GL3 4AQ".' } })
-    expect(createDocument).not.toHaveBeenCalled()
+    expect(replaceDataset).not.toHaveBeenCalled()
   })
 
   it.each(['production', 'demo'])(
     'deletes an idea in %s transactionally and reports ETag conflicts',
     async (containerName) => {
-      const loaded = { data: { ...emptyData, ideas: [idea], activities: [activity] }, etags: { 'idea-1': 'etag' } }
+      const loaded = {
+        data: {
+          ...emptyData,
+          ideas: [idea],
+          activities: [{ ...activity, location: { ...activity.location, latitude: 51.844, longitude: -2.153 } }],
+        },
+        etags: { 'idea-1': 'etag', 'activity-1': 'activity-etag' },
+      }
       loadDataset.mockResolvedValue(loaded)
       const deleteRequest = request(containerName, 'DELETE', {
         operation: 'delete',
@@ -841,50 +937,57 @@ describe('journey', () => {
       })
 
       expect(await journey(deleteRequest, context())).toEqual({ status: 204 })
-      expect(deleteEntity).toHaveBeenCalledWith({}, containerName, 'idea', 'idea-1', 'etag', loaded)
+      expect(replaceDataset).toHaveBeenCalledWith(
+        {},
+        containerName,
+        { 'activity-1': expect.objectContaining({ entity: expect.objectContaining({ ideaIds: [] }) }) },
+        loaded.etags,
+      )
 
-      deleteEntity.mockRejectedValueOnce(Object.assign(new Error('conflict'), { code: 412 }))
+      replaceDataset.mockRejectedValueOnce(Object.assign(new Error('conflict'), { code: 412 }))
       expect(await journey(deleteRequest, context())).toEqual({ status: 409, jsonBody: { error: 'conflict' } })
     },
   )
 
-  it.each(['production', 'demo'])('updates only the waypoint document in %s transactionally', async (containerName) => {
-    const challenge = {
-      challengeId: 'challenge-1',
-      title: 'Heritage weekend',
-      description: 'Heritage weekend',
-      supportsActivityCategories: false,
-    }
-    const loaded = {
-      data: { ...emptyData, waypoints: [waypoint], challenges: [challenge] },
-      etags: { 'waypoint-1': 'waypoint-etag', 'challenge-1': 'challenge-etag' },
-    }
-    loadDataset.mockResolvedValue(loaded)
-    const updated = { ...waypoint, title: 'Updated waypoint', challengeIds: ['challenge-1'] }
+  it.each(['production', 'demo'])(
+    'updates the waypoint and guards unchanged Challenges in %s transactionally',
+    async (containerName) => {
+      const challenge = {
+        challengeId: 'challenge-1',
+        title: 'Heritage weekend',
+        description: 'Heritage weekend',
+        supportsActivityCategories: false,
+      }
+      const loaded = {
+        data: { ...emptyData, waypoints: [waypoint], challenges: [challenge] },
+        etags: { 'waypoint-1': 'waypoint-etag', 'challenge-1': 'challenge-etag' },
+      }
+      loadDataset.mockResolvedValue(loaded)
+      const updated = { ...waypoint, title: 'Updated waypoint', challengeIds: ['challenge-1'] }
 
-    expect(
-      await journey(
-        request(containerName, 'PUT', {
-          operation: 'update',
-          type: 'waypoint',
-          id: 'waypoint-1',
-          entity: updated,
-          ifMatch: 'waypoint-etag',
-        }),
-        context(),
-      ),
-    ).toMatchObject({ status: 200 })
-    expect(replaceEntities).toHaveBeenCalledWith(
-      {},
-      containerName,
-      {
-        updates: [{ type: 'waypoint', entity: expect.objectContaining({ title: 'Updated waypoint' }) }],
-      },
-      'waypoint-1',
-      'waypoint-etag',
-      loaded,
-    )
-  })
+      expect(
+        await journey(
+          request(containerName, 'PUT', {
+            operation: 'update',
+            type: 'waypoint',
+            id: 'waypoint-1',
+            entity: updated,
+            ifMatch: 'waypoint-etag',
+          }),
+          context(),
+        ),
+      ).toMatchObject({ status: 200 })
+      expect(replaceDataset).toHaveBeenCalledWith(
+        {},
+        containerName,
+        {
+          'waypoint-1': expect.objectContaining({ entity: expect.objectContaining({ title: 'Updated waypoint' }) }),
+          'challenge-1': expect.objectContaining({ entity: challenge }),
+        },
+        loaded.etags,
+      )
+    },
+  )
 
   it('rejects a waypoint update that invalidates an activity category', async () => {
     const challenge = {
@@ -892,6 +995,7 @@ describe('journey', () => {
       title: 'Heritage weekend',
       description: 'Heritage weekend',
       supportsActivityCategories: true,
+      awardDescriptions: { bronze: 'Afternoon', silver: 'Full day', gold: 'Overnight' },
     }
     const categorizedActivity = {
       ...activity,
@@ -924,14 +1028,13 @@ describe('journey', () => {
         }),
         context(),
       ),
-    ).toEqual({
+    ).toMatchObject({
       status: 400,
       jsonBody: {
-        error:
-          'Activity "activity-1" has a category but its waypoint does not support Bronze, Silver or Gold categories.',
+        error: expect.stringContaining('Activity "activity-1" at Waypoint "waypoint-1"'),
       },
     })
-    expect(replaceEntities).not.toHaveBeenCalled()
+    expect(replaceDataset).not.toHaveBeenCalled()
   })
 
   it('rejects a waypoint update whose entity ID differs from the request ID', async () => {
@@ -948,7 +1051,7 @@ describe('journey', () => {
       ),
     ).toEqual({ status: 400, jsonBody: { error: 'Entity ID does not match update ID.' } })
     expect(loadDataset).not.toHaveBeenCalled()
-    expect(replaceEntities).not.toHaveBeenCalled()
+    expect(replaceDataset).not.toHaveBeenCalled()
   })
 
   it('deletes a waypoint transactionally after detaching linked entities', async () => {
@@ -959,7 +1062,12 @@ describe('journey', () => {
       supportsActivityCategories: false,
     }
     const linkedIdea = { ...idea, waypointIds: ['waypoint-1'] }
-    const linkedActivity = { ...activity, ideaIds: [], waypointId: 'waypoint-1' }
+    const linkedActivity = {
+      ...activity,
+      ideaIds: [],
+      waypointId: 'waypoint-1',
+      location: { ...activity.location, latitude: 51.844, longitude: -2.153 },
+    }
     const loaded = {
       data: {
         ...emptyData,
@@ -988,7 +1096,18 @@ describe('journey', () => {
         context(),
       ),
     ).toEqual({ status: 204 })
-    expect(deleteEntity).toHaveBeenCalledWith({}, 'production', 'waypoint', 'waypoint-1', 'waypoint-etag', loaded)
+    expect(replaceDataset).toHaveBeenCalledWith(
+      {},
+      'production',
+      {
+        'challenge-1': expect.objectContaining({ entity: challenge }),
+        'idea-1': expect.objectContaining({ entity: expect.objectContaining({ waypointIds: [] }) }),
+        'activity-1': expect.objectContaining({
+          entity: expect.not.objectContaining({ waypointId: expect.anything() }),
+        }),
+      },
+      loaded.etags,
+    )
   })
 
   it('rejects duplicate and dangling Challenge assignments before persistence', async () => {
@@ -1020,6 +1139,476 @@ describe('journey', () => {
       )
       expect(response).toMatchObject({ status: 400, jsonBody: { error: expected } })
     }
-    expect(createDocument).not.toHaveBeenCalled()
+    expect(replaceDataset).not.toHaveBeenCalled()
+  })
+
+  describe('award graph writes', () => {
+    it('preserves the raw Waypoint update dataset/ETag envelope from its committed batch snapshot', async () => {
+      const original = awardData()
+      const memory = await memoryDataset(original)
+      const { etags } = await memory.loaded()
+      loadDataset.mockClear()
+      const entity = { ...original.waypoints[0]!, title: 'Updated awarded Waypoint' }
+      const response = await journey(
+        request('production', 'PUT', {
+          operation: 'update',
+          type: 'waypoint',
+          id: 'waypoint-1',
+          entity,
+          ifMatch: etags['waypoint-1'],
+        }),
+        context(),
+      )
+      expect(loadDataset).toHaveBeenCalledTimes(1)
+      const committed = await memory.loaded()
+      expect(response).toEqual({ status: 200, jsonBody: committed })
+      expect(committed.data.waypoints[0]).toEqual(entity)
+      expect(committed.data.activities).toEqual(original.activities)
+      expect(Object.keys(committed.etags)).toHaveLength(3)
+      for (const [id, etag] of Object.entries(committed.etags)) expect(etag).not.toBe(etags[id])
+      expect(memory.batch).toHaveBeenCalledTimes(1)
+    })
+
+    it.each(['create', 'update', 'import', 'replace'] as const)(
+      'rejects invalid Challenge award configurations on %s before any writes',
+      async (operation) => {
+        for (const fields of [
+          { supportsActivityCategories: true, awardDescriptions: undefined },
+          { supportsActivityCategories: true, awardDescriptions: { bronze: 'Visit', silver: 'Day' } },
+          { supportsActivityCategories: true, awardDescriptions: { ...awardDescriptions, bronze: ' \t ' } },
+          { supportsActivityCategories: true, awardDescriptions: { ...awardDescriptions, platinum: 'Extra' } },
+          { supportsActivityCategories: false, awardDescriptions },
+        ]) {
+          const original = awardData()
+          const candidate = { ...original, challenges: [{ ...original.challenges[0]!, ...fields }] }
+          const memory = await memoryDataset(operation === 'import' ? JourneyDataSchema.parse(emptyData) : original)
+          const before = memory.snapshot()
+          const { etags } = await memory.loaded()
+          const body =
+            operation === 'import' || operation === 'replace'
+              ? { operation, data: candidate, etags }
+              : {
+                  operation,
+                  type: 'challenge',
+                  id: 'challenge-1',
+                  entity: candidate.challenges[0],
+                  ifMatch: etags['challenge-1'],
+                }
+          expect(
+            (await journey(request('production', operation === 'update' ? 'PUT' : 'POST', body), context())).status,
+          ).toBe(400)
+          expect(memory.batch).not.toHaveBeenCalled()
+          expect(memory.snapshot()).toEqual(before)
+        }
+      },
+    )
+
+    it.each(['create', 'update', 'import', 'replace'] as const)(
+      'rejects missing eligible categories and ineligible supplied categories on %s without writes',
+      async (operation) => {
+        for (const eligible of [true, false]) {
+          const original = awardData(true)
+          const candidate = structuredClone(original)
+          if (eligible) delete candidate.activities[0]!.category
+          else candidate.waypoints[0]!.challengeIds = []
+          const stored = operation === 'import' ? emptyData : original
+          const memory = await memoryDataset(JourneyDataSchema.parse(stored))
+          const before = memory.snapshot()
+          const loaded = await memory.loaded()
+          const entity = eligible ? candidate.activities[0]! : { ...candidate.activities[0]!, waypointId: undefined }
+          const data = eligible ? candidate : { ...candidate, activities: [entity] }
+          const body =
+            operation === 'import' || operation === 'replace'
+              ? { operation, data, etags: loaded.etags }
+              : { operation, type: 'activity', id: 'activity-1', entity, ifMatch: loaded.etags['activity-1'] }
+          if (operation === 'create') {
+            body.entity = { ...entity, activityId: 'activity-new' }
+          }
+          const response = await journey(
+            request('production', operation === 'update' ? 'PUT' : 'POST', body),
+            context(),
+          )
+          expect(response.status).toBe(400)
+          expect(response.jsonBody).toMatchObject({
+            error: expect.stringContaining(eligible ? 'requires a Bronze' : 'not linked to a waypoint'),
+          })
+          expect(memory.batch).not.toHaveBeenCalled()
+          expect(memory.snapshot()).toEqual(before)
+        }
+      },
+    )
+
+    it.each(['enable', 'membership'] as const)(
+      'rejects %s with unawarded retained history and explains the blocking Activity',
+      async (operation) => {
+        const original = awardData(true)
+        delete original.activities[0]!.category
+        if (operation === 'enable') {
+          original.challenges[0]!.supportsActivityCategories = false
+          delete original.challenges[0]!.awardDescriptions
+        } else original.waypoints[0]!.challengeIds = []
+        const memory = await memoryDataset(original)
+        const loaded = await memory.loaded()
+        const type = operation === 'enable' ? 'challenge' : 'waypoint'
+        const entity =
+          operation === 'enable'
+            ? { ...original.challenges[0]!, supportsActivityCategories: true, awardDescriptions }
+            : { ...original.waypoints[0]!, challengeIds: ['challenge-1'] }
+        const id = operation === 'enable' ? 'challenge-1' : 'waypoint-1'
+        const response = await journey(
+          request('production', 'PUT', {
+            operation: 'update',
+            type,
+            id,
+            entity,
+            ifMatch: loaded.etags[id],
+          }),
+          context(),
+        )
+        expect(response).toMatchObject({
+          status: 400,
+          jsonBody: { error: expect.stringContaining('Activity "activity-1" at Waypoint "waypoint-1" requires') },
+        })
+        expect(response.jsonBody.error).toContain('cannot convert unawarded history')
+        expect(memory.batch).not.toHaveBeenCalled()
+      },
+    )
+
+    it('edits descriptions without changing awards and returns the committed target ETag', async () => {
+      const original = awardData()
+      const memory = await memoryDataset(original)
+      const loaded = await memory.loaded()
+      const entity = {
+        ...original.challenges[0]!,
+        awardDescriptions: { ...awardDescriptions, gold: '  Overnight expedition  ' },
+      }
+      const response = await journey(
+        request('production', 'PUT', {
+          operation: 'update',
+          type: 'challenge',
+          id: 'challenge-1',
+          ifMatch: loaded.etags['challenge-1'],
+          entity,
+        }),
+        context(),
+      )
+      const saved = await memory.loaded()
+      expect(response).toEqual({
+        status: 200,
+        jsonBody: { entity: saved.data.challenges[0], etag: saved.etags['challenge-1'] },
+      })
+      expect(saved.data.challenges[0]!.awardDescriptions!.gold).toBe('Overnight expedition')
+      expect(saved.data.activities).toEqual(original.activities)
+      expect(memory.batch.mock.calls[0]![0]).toHaveLength(3)
+      expect(memory.batch.mock.calls[0]![0]).toContainEqual(
+        expect.objectContaining({
+          operationType: 'Replace',
+          id: 'activity-1',
+          ifMatch: loaded.etags['activity-1'],
+        }),
+      )
+    })
+
+    it.each(['disable', 'delete', 'membership', 'waypoint'] as const)(
+      'blocks raw %s that destroys an existing award without partial writes',
+      async (operation) => {
+        const original = awardData()
+        const memory = await memoryDataset(original)
+        const before = memory.snapshot()
+        const { etags } = await memory.loaded()
+        const isDelete = operation === 'delete' || operation === 'waypoint'
+        const type = operation === 'membership' || operation === 'waypoint' ? 'waypoint' : 'challenge'
+        const id = type === 'waypoint' ? 'waypoint-1' : 'challenge-1'
+        const entity =
+          operation === 'disable'
+            ? { ...original.challenges[0]!, supportsActivityCategories: false, awardDescriptions: undefined }
+            : { ...original.waypoints[0]!, challengeIds: [] }
+        const response = await journey(
+          request('production', isDelete ? 'DELETE' : 'PUT', {
+            operation: isDelete ? 'delete' : 'update',
+            type,
+            id,
+            ifMatch: etags[id],
+            entity,
+          }),
+          context(),
+        )
+        expect(response).toMatchObject({
+          status: 400,
+          jsonBody: { error: expect.stringContaining('Activity "activity-1" at Waypoint "waypoint-1"') },
+        })
+        expect(memory.batch).not.toHaveBeenCalled()
+        expect(memory.snapshot()).toEqual(before)
+      },
+    )
+
+    it.each(['disable', 'delete', 'membership', 'waypoint'] as const)(
+      'rejects full replacement disguising %s by stripping the retained award',
+      async (operation) => {
+        const original = awardData()
+        const memory = await memoryDataset(original)
+        const before = memory.snapshot()
+        const { etags } = await memory.loaded()
+        const candidate = structuredClone(original)
+        delete candidate.activities[0]!.category
+        if (operation === 'disable') {
+          candidate.challenges[0]!.supportsActivityCategories = false
+          delete candidate.challenges[0]!.awardDescriptions
+        } else if (operation === 'delete') {
+          candidate.challenges = []
+          candidate.waypoints[0]!.challengeIds = []
+          delete candidate.activities[0]!.challengeId
+        } else if (operation === 'membership') candidate.waypoints[0]!.challengeIds = []
+        else {
+          candidate.waypoints = []
+          delete candidate.activities[0]!.waypointId
+        }
+        const response = await journey(
+          request('production', 'POST', {
+            operation: 'replace',
+            data: candidate,
+            etags,
+          }),
+          context(),
+        )
+        expect(response).toMatchObject({
+          status: 400,
+          jsonBody: { error: expect.stringContaining('Handle these Activities separately') },
+        })
+        expect(memory.batch).not.toHaveBeenCalled()
+        expect(memory.snapshot()).toEqual(before)
+      },
+    )
+
+    it.each(['disable', 'delete'] as const)(
+      'allows Challenge %s with shared eligibility, detaching direct links only on delete',
+      async (operation) => {
+        const original = awardData(true, true)
+        const memory = await memoryDataset(original)
+        const { etags } = await memory.loaded()
+        const response = await journey(
+          request('production', operation === 'delete' ? 'DELETE' : 'PUT', {
+            operation: operation === 'delete' ? 'delete' : 'update',
+            type: 'challenge',
+            id: 'challenge-1',
+            ifMatch: etags['challenge-1'],
+            entity: { ...original.challenges[0]!, supportsActivityCategories: false, awardDescriptions: undefined },
+          }),
+          context(),
+        )
+        expect(response.status).toBe(operation === 'delete' ? 204 : 200)
+        const saved = await memory.loaded()
+        expect(saved.data.activities[0]!.category).toBe('gold')
+        if (operation === 'delete') {
+          expect(saved.data.waypoints[0]!.challengeIds).toEqual(['challenge-2'])
+          expect(saved.data.activities[0]).not.toHaveProperty('challengeId')
+        } else expect(saved.data.activities).toEqual(original.activities)
+      },
+    )
+
+    it('permits deliberately removing Activity eligibility first and then deleting its Waypoint', async () => {
+      const original = awardData()
+      const memory = await memoryDataset(original)
+      const { etags } = await memory.loaded()
+      const { waypointId: _waypoint, category: _award, ...entity } = original.activities[0]!
+      expect(
+        (
+          await journey(
+            request('production', 'PUT', {
+              operation: 'update',
+              type: 'activity',
+              id: 'activity-1',
+              ifMatch: etags['activity-1'],
+              entity,
+            }),
+            context(),
+          )
+        ).status,
+      ).toBe(200)
+      const refreshed = await memory.loaded()
+      expect(
+        await journey(
+          request('production', 'DELETE', {
+            operation: 'delete',
+            type: 'waypoint',
+            id: 'waypoint-1',
+            ifMatch: refreshed.etags['waypoint-1'],
+          }),
+          context(),
+        ),
+      ).toEqual({ status: 204 })
+      expect((await memory.loaded()).data.activities[0]).not.toHaveProperty('category')
+    })
+
+    it('allows a full replacement that deliberately edits an Activity tier without changing eligibility', async () => {
+      const original = awardData()
+      const memory = await memoryDataset(original)
+      const { etags } = await memory.loaded()
+      const candidate = structuredClone(original)
+      candidate.activities[0]!.category = 'silver'
+      const response = await journey(
+        request('production', 'POST', {
+          operation: 'replace',
+          data: candidate,
+          etags,
+        }),
+        context(),
+      )
+      expect(response).toMatchObject({ status: 200, jsonBody: { data: candidate } })
+      expect(memory.batch).toHaveBeenCalledTimes(1)
+      expect((await memory.loaded()).data.activities[0]!.category).toBe('silver')
+    })
+
+    it('requires awarded Activities to be handled separately before deleting their Waypoint, even in a replacement', async () => {
+      const original = awardData()
+      const memory = await memoryDataset(original)
+      const { etags } = await memory.loaded()
+      expect(
+        await journey(
+          request('production', 'POST', {
+            operation: 'replace',
+            data: { ...original, activities: [], waypoints: [] },
+            etags,
+          }),
+          context(),
+        ),
+      ).toMatchObject({
+        status: 400,
+        jsonBody: { error: expect.stringContaining('Activity "activity-1" at Waypoint "waypoint-1"') },
+      })
+      expect(memory.batch).not.toHaveBeenCalled()
+    })
+
+    it('allows explicit Clear of an awarded dataset', async () => {
+      const memory = await memoryDataset(awardData())
+      expect(await journey(request('production', 'POST', { operation: 'clear' }), context())).toEqual({
+        status: 200,
+        jsonBody: { data: emptyData, etags: {} },
+      })
+      expect(memory.snapshot()).toEqual([])
+      expect(memory.batch).toHaveBeenCalledTimes(1)
+    })
+
+    it.each(['create', 'update', 'delete', 'replace'] as const)(
+      'fails an oversized raw/full %s explicitly without submitting or changing any document',
+      async (operation) => {
+        const original = awardData(false)
+        original.references = Array.from({ length: 99 }, (_, index) => ({
+          referenceId: `reference-${index}`,
+          title: 'Reference',
+          url: 'https://example.test/',
+        }))
+        const memory = await memoryDataset(original)
+        const before = memory.snapshot()
+        const { etags } = await memory.loaded()
+        const body =
+          operation === 'replace'
+            ? { operation, data: original, etags }
+            : operation === 'create'
+              ? { operation, type: 'activity', entity: awardData().activities[0] }
+              : {
+                  operation,
+                  type: 'challenge',
+                  id: 'challenge-1',
+                  ifMatch: etags['challenge-1'],
+                  entity: original.challenges[0],
+                }
+        await expect(
+          journey(
+            request('production', operation === 'update' ? 'PUT' : operation === 'delete' ? 'DELETE' : 'POST', body),
+            context(),
+          ),
+        ).rejects.toThrow(
+          `${operation === 'create' ? 102 : 101} operations exceed the Cosmos transactional batch limit of 100 operations.`,
+        )
+        expect(memory.batch).not.toHaveBeenCalled()
+        expect(memory.snapshot()).toEqual(before)
+      },
+    )
+
+    it.each(['update', 'delete', 'replace'] as const)(
+      'rejects stale %s preconditions before building any batch',
+      async (operation) => {
+        const original = awardData()
+        const memory = await memoryDataset(original)
+        const before = memory.snapshot()
+        const body =
+          operation === 'replace'
+            ? { operation, data: original, etags: { 'challenge-1': 'stale' } }
+            : { operation, type: 'challenge', id: 'challenge-1', entity: original.challenges[0], ifMatch: 'stale' }
+        expect(
+          await journey(
+            request('production', operation === 'update' ? 'PUT' : operation === 'delete' ? 'DELETE' : 'POST', body),
+            context(),
+          ),
+        ).toEqual({
+          status: 409,
+          jsonBody: { error: 'conflict' },
+        })
+        expect(memory.batch).not.toHaveBeenCalled()
+        expect(memory.snapshot()).toEqual(before)
+      },
+    )
+
+    it.each([
+      ['disable', 'activity'],
+      ['disable', 'structural'],
+      ['delete', 'activity'],
+      ['delete', 'structural'],
+    ] as const)('atomically resolves new awarded Activity racing with %s (%s wins)', async (operation, winner) => {
+      const original = awardData(false)
+      const memory = await memoryDataset(original)
+      const { etags } = await memory.loaded()
+      type Result = ReturnType<typeof memory.commit>
+      const pending: { operations: BatchOperation[]; resolve: (value: Result) => void }[] = []
+      let bothSubmitted!: () => void
+      const submitted = new Promise<void>((resolve) => {
+        bothSubmitted = resolve
+      })
+      memory.batch.mockImplementation(
+        (operations) =>
+          new Promise<Result>((resolve) => {
+            pending.push({ operations, resolve })
+            if (pending.length === 2) bothSubmitted()
+          }),
+      )
+      const activityRequest = journey(
+        request('production', 'POST', {
+          operation: 'create',
+          type: 'activity',
+          entity: awardData().activities[0],
+        }),
+        context(),
+      )
+      const structuralRequest = journey(
+        request('production', operation === 'delete' ? 'DELETE' : 'PUT', {
+          operation: operation === 'delete' ? 'delete' : 'update',
+          type: 'challenge',
+          id: 'challenge-1',
+          ifMatch: etags['challenge-1'],
+          entity: { ...original.challenges[0]!, supportsActivityCategories: false, awardDescriptions: undefined },
+        }),
+        context(),
+      )
+      await submitted
+      const activityIndex = pending.findIndex(({ operations }) =>
+        operations.some((op) => op.resourceBody?.type === 'activity'),
+      )
+      const winningIndex = winner === 'activity' ? activityIndex : 1 - activityIndex
+      const losingIndex = 1 - winningIndex
+      pending[winningIndex]!.resolve(memory.commit(pending[winningIndex]!.operations))
+      pending[losingIndex]!.resolve(memory.commit(pending[losingIndex]!.operations))
+      const [created, structural] = await Promise.all([activityRequest, structuralRequest])
+      expect(winner === 'activity' ? created.status : structural.status).toBe(
+        winner === 'activity' ? 201 : operation === 'delete' ? 204 : 200,
+      )
+      expect(winner === 'activity' ? structural : created).toEqual({ status: 409, jsonBody: { error: 'conflict' } })
+      const saved = await memory.loaded()
+      expect(saved.data.activities).toHaveLength(winner === 'activity' ? 1 : 0)
+      expect(saved.data.challenges.some((challenge) => challenge.supportsActivityCategories)).toBe(
+        winner === 'activity',
+      )
+      expect(memory.batch).toHaveBeenCalledTimes(2)
+    })
   })
 })

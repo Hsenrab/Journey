@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import {
   Accordion,
   AccordionDetails,
@@ -29,6 +29,9 @@ import {
   statusLabels,
   statusOrder,
   waypointCompletionProgress,
+  awardFilterError,
+  awardStatistics,
+  waypointSupportsActivityCategory,
 } from '../domain/visit'
 import { useWaypoints } from '../features/journey/JourneyContext'
 import { JourneyConflictError } from '../services/journeyApi'
@@ -48,6 +51,14 @@ export default function Locations() {
   const [searchParams, setSearchParams] = useSearchParams()
   const showEditor = searchParams.get('mode') === 'add'
   const status = searchParams.get('status') ?? 'all'
+  const challengeId = searchParams.get('challenge') ?? undefined
+  const filterError = awardFilterError(data, { challengeId, status })
+  const statistics = useMemo(
+    () => (filterError ? undefined : awardStatistics(data, challengeId)),
+    [data, challengeId, filterError],
+  )
+  const challenge = data.challenges.find((item) => item.challengeId === challengeId)
+  const awardsApplicable = statistics?.supportsAwards === true
   const setStatus = (value: string) => {
     setSearchParams(
       (previous) => {
@@ -61,6 +72,9 @@ export default function Locations() {
   }
   const [query, setQuery] = useState('')
   const [sort, setSort] = useState<SortKey>('name')
+  useEffect(() => {
+    if (!awardsApplicable && sort === 'status') setSort('name')
+  }, [awardsApplicable, sort])
   const [area, setArea] = useState('all')
   const [category, setCategory] = useState('all')
   const activeMoreFilterCount = [area, category].filter((value) => value !== 'all').length
@@ -99,12 +113,13 @@ export default function Locations() {
 
   const list = useMemo(() => {
     const dates = lastActivityDates(activities)
-    return data.waypoints
+    return (challengeId === undefined ? data.waypoints : (statistics?.waypoints ?? []))
       .filter((waypoint) => {
         const waypointArea = waypoint.location?.addressOrRegion ?? 'Unspecified'
         const waypointStatus = statusFor(waypoint.waypointId)
         return (
-          (status === 'all' || waypointStatus === status) &&
+          (status === 'all' ||
+            (waypointSupportsActivityCategory(data, waypoint.waypointId) && waypointStatus === status)) &&
           (area === 'all' || waypointArea === area) &&
           (category === 'all' || waypoint.category === category) &&
           `${waypoint.title} ${waypointArea} ${waypoint.category}`.toLowerCase().includes(query.toLowerCase())
@@ -120,7 +135,7 @@ export default function Locations() {
             return a.title.localeCompare(b.title)
         }
       })
-  }, [activities, area, category, data.waypoints, query, sort, status, statusFor])
+  }, [activities, area, category, data, query, sort, status, statusFor, challengeId, statistics])
 
   return (
     <Stack spacing={2}>
@@ -142,6 +157,17 @@ export default function Locations() {
         )}
       </PageHeader>
       <ReadOnlyNotice />
+      {challenge && (
+        <Stack spacing={1}>
+          <Typography>
+            Challenge scope: {challenge.title}
+            {awardsApplicable ? '. Waypoints by highest recorded award.' : ''}
+          </Typography>
+          <Button component={Link} to={`/challenges/${encodeURIComponent(challenge.challengeId)}#statistics`}>
+            Back to {challenge.title} Statistics
+          </Button>
+        </Stack>
+      )}
       {loadState.status === 'failed' && (
         <LoadFailureAlert
           message={loadState.message}
@@ -194,23 +220,25 @@ export default function Locations() {
           }}
         />
       )}
-      {loadState.status !== 'failed' && (
+      {loadState.status !== 'failed' && !filterError && (
         <FilterBar>
           <TextField label="Search waypoints" value={query} onChange={(e) => setQuery(e.target.value)} />
-          <TextField
-            id="waypoint-status"
-            select
-            label="Award tier"
-            value={status}
-            onChange={(e) => setStatus(e.target.value)}
-          >
-            <MenuItem value="all">All award tiers</MenuItem>
-            {statusOrder.map((s) => (
-              <MenuItem key={s} value={s}>
-                {statusLabels[s]}
-              </MenuItem>
-            ))}
-          </TextField>
+          {awardsApplicable && (
+            <TextField
+              id="waypoint-status"
+              select
+              label="Highest recorded award"
+              value={status}
+              onChange={(e) => setStatus(e.target.value)}
+            >
+              <MenuItem value="all">All award tiers</MenuItem>
+              {statusOrder.map((s) => (
+                <MenuItem key={s} value={s}>
+                  {statusLabels[s]}
+                </MenuItem>
+              ))}
+            </TextField>
+          )}
           <TextField
             id="waypoint-sort"
             select
@@ -219,10 +247,22 @@ export default function Locations() {
             onChange={(e) => setSort(e.target.value as SortKey)}
           >
             <MenuItem value="name">Name</MenuItem>
-            <MenuItem value="status">Award tier</MenuItem>
+            {awardsApplicable && <MenuItem value="status">Highest recorded award</MenuItem>}
             <MenuItem value="lastActivity">Last activity date</MenuItem>
           </TextField>
         </FilterBar>
+      )}
+      {(status !== 'all' || query || area !== 'all' || category !== 'all') && (
+        <Button
+          onClick={() => {
+            setStatus('all')
+            setQuery('')
+            setArea('all')
+            setCategory('all')
+          }}
+        >
+          Clear filters
+        </Button>
       )}
       {loadState.status !== 'failed' && (
         <Accordion disableGutters>
@@ -253,6 +293,8 @@ export default function Locations() {
       )}
       {loadState.status === 'failed' ? null : loadState.status === 'loading' ? (
         <LoadingNotice message="Loading waypoints…" />
+      ) : filterError ? (
+        <Alert severity="error">{filterError}</Alert>
       ) : list.length === 0 ? (
         <EmptyState icon={<SearchOffIcon color="disabled" />} message="No waypoints match your search and filters." />
       ) : (
@@ -281,7 +323,9 @@ export default function Locations() {
                         label={`Completion: ${completionProgressLabel(waypoint, progress)}`}
                         color={progress.complete ? 'success' : 'default'}
                       />
-                      <Chip variant="outlined" label={`Award tier: ${statusLabels[waypointStatus]}`} />
+                      {awardsApplicable && waypointSupportsActivityCategory(data, waypoint.waypointId) && (
+                        <Chip variant="outlined" label={`Highest recorded award: ${statusLabels[waypointStatus]}`} />
+                      )}
                     </Stack>
                   </Stack>
                 )}

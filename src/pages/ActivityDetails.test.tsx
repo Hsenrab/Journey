@@ -81,6 +81,7 @@ describe('ActivityDetails', () => {
           ideaIds: [],
           waypointId: 'demo-foxglove-manor',
           date: '2026-08-01',
+          category: 'bronze',
           location: { kind: 'postcode', postcode: 'BA12 6QF' },
           notes: '',
           referenceIds: [],
@@ -139,6 +140,7 @@ describe('ActivityDetails', () => {
     renderDetails()
 
     expect(screen.getByRole('heading', { name: 'Recorded activity', level: 1 })).toBeInTheDocument()
+    expect(screen.getByText('Recorded award: Gold')).toBeInTheDocument()
     expect(screen.getAllByText('Foxglove Manor (Demo)').length).toBeGreaterThan(0)
     expect(screen.getByText('Guide')).toBeInTheDocument()
     expect(screen.getByRole('img', { name: 'View' })).toBeInTheDocument()

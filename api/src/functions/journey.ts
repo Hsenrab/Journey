@@ -6,24 +6,26 @@ import {
   type JourneyRole,
 } from '../lib/principal.js'
 import {
-  createDocument,
   datasetIdFor,
-  deleteEntity,
   documentFor,
   documentsFor,
+  documentsToData,
   emptyJourneyData,
   journeyContainer,
   loadDataset,
-  replaceDocument,
   replaceDataset,
-  replaceEntities,
-  savedDocument,
   StoredJourneyRelationshipError,
 } from '../lib/cosmos.js'
 import { JourneyDataSchema, JourneyMutationSchema, type EntityType } from '../lib/journeySchema.js'
 import { GeocodeError, resolveEntityCoordinates } from '../lib/geocode.js'
 import { DefaultAzureCredential } from '@azure/identity'
-import { applyPlan, deletionPlan, referenceIntegrityError, updatePlan, upsertEntity } from '../lib/journeyGraph.js'
+import {
+  applyPlan,
+  awardTransitionError,
+  deletionPlan,
+  referenceIntegrityError,
+  upsertEntity,
+} from '../lib/journeyGraph.js'
 import { ZodError } from 'zod'
 
 type ContainerName = 'production' | 'demo'
@@ -128,7 +130,18 @@ export async function journey(request: HttpRequest, context: InvocationContext):
       const finalGraphError = referenceIntegrityError(finalData.data)
       if (finalGraphError) return { status: 400, jsonBody: { error: finalGraphError } }
 
-      await replaceDataset(cosmos, datasetId, documentsFor(datasetId, finalData.data), parsed.data.etags)
+      const loaded = await loadDataset(cosmos, datasetId)
+      const expectedEtags = parsed.data.etags
+      if (
+        Object.keys(loaded.etags).length !== Object.keys(expectedEtags).length ||
+        Object.entries(loaded.etags).some(
+          ([id, etag]) => !Object.hasOwn(expectedEtags, id) || expectedEtags[id] !== etag,
+        )
+      )
+        throw new ResponseError(409, 'conflict')
+      const transitionError = awardTransitionError(loaded.data, finalData.data)
+      if (transitionError) throw new ResponseError(400, transitionError)
+      await replaceDataset(cosmos, datasetId, documentsFor(datasetId, finalData.data), expectedEtags)
       return { status: 200, jsonBody: await loadDataset(cosmos, datasetId) }
     }
     if (parsed.data.operation === 'create' || parsed.data.operation === 'update') {
@@ -139,35 +152,39 @@ export async function journey(request: HttpRequest, context: InvocationContext):
       if (parsed.data.operation === 'update' && document.id !== parsed.data.id)
         throw new ResponseError(400, 'Entity ID does not match update ID.')
       const loaded = await loadDataset(cosmos, datasetId)
-      const plan =
-        parsed.data.operation === 'update' && document.type === 'waypoint'
-          ? updatePlan(loaded.data, document.type, document.entity)
-          : undefined
-      const invalid = referenceIntegrityError(
-        plan ? applyPlan(loaded.data, plan) : upsertEntity(loaded.data, document.type, document.entity),
-      )
+      if (parsed.data.operation === 'update' && loaded.etags[document.id] !== parsed.data.ifMatch)
+        throw new ResponseError(409, 'conflict')
+      if (parsed.data.operation === 'create' && Object.hasOwn(loaded.etags, document.id))
+        throw new ResponseError(409, 'conflict')
+      const candidate = upsertEntity(loaded.data, document.type, document.entity)
+      const invalid = awardTransitionError(loaded.data, candidate) ?? referenceIntegrityError(candidate)
       if (invalid) return { status: 400, jsonBody: { error: invalid } }
-      if (parsed.data.operation === 'create') {
-        return { status: 201, jsonBody: savedDocument(await createDocument(cosmos, document)) }
+      const documents = documentsFor(datasetId, candidate)
+      const etags = await replaceDataset(cosmos, datasetId, documents, loaded.etags)
+      if (!etags[document.id]) throw new Error(`Journey document "${document.id}" has no ETag in its batch response.`)
+      if (parsed.data.operation === 'update' && document.type === 'waypoint') {
+        for (const [id, etag] of Object.entries(etags))
+          if (!etag) throw new Error(`Journey document "${id}" has no ETag in its batch response.`)
+        return { status: 200, jsonBody: { data: documentsToData(Object.values(documents)), etags } }
       }
-      if (document.type === 'waypoint') {
-        if (!plan) throw new Error('Waypoint update plan was not created.')
-        await replaceEntities(cosmos, datasetId, plan, parsed.data.id, parsed.data.ifMatch, loaded)
-        return { status: 200, jsonBody: await loadDataset(cosmos, datasetId) }
+      return {
+        status: parsed.data.operation === 'create' ? 201 : 200,
+        jsonBody: { entity: document.entity, etag: etags[document.id] },
       }
-      return { status: 200, jsonBody: savedDocument(await replaceDocument(cosmos, document, parsed.data.ifMatch)) }
     }
     if (request.method !== 'DELETE') throw new ResponseError(405, 'method_not_allowed')
     const loaded = await loadDataset(cosmos, datasetId)
+    if (loaded.etags[parsed.data.id] !== parsed.data.ifMatch) throw new ResponseError(409, 'conflict')
     const plan = deletionPlan(loaded.data, parsed.data.type, parsed.data.id)
-    const invalid = referenceIntegrityError(applyPlan(loaded.data, plan))
+    const candidate = applyPlan(loaded.data, plan)
+    const invalid = awardTransitionError(loaded.data, candidate) ?? referenceIntegrityError(candidate)
     if (invalid) return { status: 400, jsonBody: { error: invalid } }
-    await deleteEntity(cosmos, datasetId, parsed.data.type, parsed.data.id, parsed.data.ifMatch, loaded)
+    await replaceDataset(cosmos, datasetId, documentsFor(datasetId, candidate), loaded.etags)
     return { status: 204 }
   } catch (error) {
     if (error instanceof ResponseError) return { status: error.status, jsonBody: { error: error.code } }
     if (error instanceof StoredJourneyRelationshipError) return { status: 422, jsonBody: { error: error.message } }
-    if (typeof error === 'object' && error !== null && 'code' in error && error.code === 412) {
+    if (typeof error === 'object' && error !== null && 'code' in error && (error.code === 412 || error.code === 409)) {
       return { status: 409, jsonBody: { error: 'conflict' } }
     }
     context.error(`Journey API failed: ${error instanceof Error ? error.message : String(error)}`)

@@ -4,9 +4,62 @@ import { useState } from 'react'
 import { WaypointsProvider, useJourneyDraft, useWaypoints } from './JourneyContext'
 import { createDemoModeData, getDataMode, load, save, setDataMode } from '../../services/storage'
 import { createActivity, createIdea, GpxGeometrySchema, type WaypointsData } from '../../domain/visit'
+import { createAwardTestData } from '../../test/demoData'
 
 const waypointId = 'demo-foxglove-manor'
 const lacockId = waypointId
+
+describe('award maintenance', () => {
+  beforeEach(() => {
+    localStorage.clear()
+    vi.stubEnv('MODE', 'test')
+    save(createAwardTestData())
+  })
+  afterEach(() => {
+    localStorage.clear()
+    vi.unstubAllEnvs()
+  })
+
+  it('updates current explanations without changing recorded levels and allows shared deletion', async () => {
+    const { result } = renderHook(() => useWaypoints(), { wrapper: WaypointsProvider })
+    await waitFor(() => expect(result.current.loading).toBe(false))
+    const awards = result.current.data.activities.map((item) => item.category)
+    await act(async () => {
+      await result.current.updateChallengeAwards('award-a', {
+        supportsActivityCategories: true,
+        awardDescriptions: { bronze: 'A short visit', silver: 'A full visit', gold: 'An overnight visit' },
+      })
+    })
+    await act(async () => {
+      await result.current.deleteChallenge('award-b')
+    })
+    expect(result.current.data.activities.map((item) => item.category)).toEqual(awards)
+    expect(result.current.data.waypoints[0]!.challengeIds).toEqual(['award-a', 'ordinary'])
+    expect(load().challenges.find((item) => item.challengeId === 'award-a')!.awardDescriptions!.gold).toBe(
+      'An overnight visit',
+    )
+  })
+
+  it('blocks awarded Waypoint deletion and last eligibility loss without changing persisted records', async () => {
+    const { result } = renderHook(() => useWaypoints(), { wrapper: WaypointsProvider })
+    await waitFor(() => expect(result.current.loading).toBe(false))
+    const before = load()
+    await act(async () => {
+      await expect(result.current.deleteWaypoint('award-w1')).rejects.toThrow('award-visit-0')
+      await expect(
+        result.current.updateChallengeAwards('award-a', { supportsActivityCategories: false }),
+      ).rejects.toThrow('silver-visit')
+      await expect(
+        result.current.updateChallengeAwards('ordinary', {
+          supportsActivityCategories: true,
+          awardDescriptions: { bronze: 'Short', silver: 'Day', gold: 'Night' },
+        }),
+      ).rejects.toThrow('ordinary-visit')
+    })
+    expect(load()).toEqual(before)
+    expect(result.current.data).toEqual(before)
+  })
+})
 
 function testData(): WaypointsData {
   const data = createDemoModeData()
@@ -446,7 +499,7 @@ describe('WaypointsContext', () => {
     expect(result.current.data.challenges[0]).not.toHaveProperty('waypointIds')
   })
 
-  it('updates and deletes a waypoint while detaching linked records', () => {
+  it('requires awarded Activity removal before deleting its Waypoint and detaching Ideas', async () => {
     const { result } = renderHook(() => useWaypoints(), { wrapper: WaypointsProvider })
 
     act(() => {
@@ -486,8 +539,12 @@ describe('WaypointsContext', () => {
     )
     expect(result.current.data.challenges).toEqual(testData().challenges)
 
-    act(() => {
-      result.current.deleteWaypoint(lacockId)
+    await act(async () => {
+      await expect(result.current.deleteWaypoint(lacockId)).rejects.toThrow('would lose its last award eligibility')
+      await result.current.deleteActivity(result.current.data.activities[0]!.activityId)
+    })
+    await act(async () => {
+      await result.current.deleteWaypoint(lacockId)
     })
 
     expect(result.current.data.waypoints.some((waypoint) => waypoint.waypointId === lacockId)).toBe(false)
@@ -511,7 +568,7 @@ describe('WaypointsContext', () => {
         references: [],
         photoReferences: [],
       }),
-    ).rejects.toThrow('Selected waypoint does not support Bronze, Silver or Gold categories.')
+    ).rejects.toThrow('does not support awards')
     expect(result.current.data.waypoints.find((waypoint) => waypoint.waypointId === lacockId)?.challengeIds).toEqual([
       'national-trust',
     ])
@@ -671,11 +728,13 @@ describe('WaypointsContext in production mode', () => {
     async (mode) => {
       setDataMode(mode)
       const seeded = createDefaultData()
+      const deletableWaypointId = seeded.waypoints.find((waypoint) => waypoint.waypointId !== lacockId)!.waypointId
       const activity = createActivity({
         name: 'Recorded activity',
         waypointId: lacockId,
         ideaIds: [],
         date: '2026-08-01',
+        category: 'bronze',
         location: draft.location,
         notes: '',
       })
@@ -691,9 +750,16 @@ describe('WaypointsContext in production mode', () => {
       seeded.ideas = [idea]
       const fetch = vi.fn().mockImplementation(
         () =>
-          new Response(JSON.stringify({ data: seeded, etags: { [lacockId]: 'waypoint-etag' }, role: 'admin' }), {
-            status: 200,
-          }),
+          new Response(
+            JSON.stringify({
+              data: seeded,
+              etags: { [lacockId]: 'waypoint-etag', [deletableWaypointId]: 'unvisited-waypoint-etag' },
+              role: 'admin',
+            }),
+            {
+              status: 200,
+            },
+          ),
       )
       vi.stubGlobal('fetch', fetch)
 
@@ -720,7 +786,7 @@ describe('WaypointsContext in production mode', () => {
         await result.current.updateWaypoint(lacockId, waypointDraft)
       })
       await act(async () => {
-        await result.current.deleteWaypoint(lacockId)
+        await result.current.deleteWaypoint(deletableWaypointId)
       })
       await act(async () => {
         await result.current.addActivity(draft)
@@ -1066,6 +1132,7 @@ describe('WaypointsContext in production mode', () => {
         waypointId: lacockId,
         ideaIds: [],
         date: '2026-08-01',
+        category: 'bronze',
         location: draft.location,
         notes: '',
       }),

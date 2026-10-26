@@ -16,6 +16,9 @@ fallbacks, and document the challenge rules and status definitions.
 - Restore the active writable data partition from a previously exported JSON backup
 - Clear the active writable data partition, after confirming a warning dialog
 - Read the qualifying-location rules and what each status means
+- Read conditional mandatory award rules, shared Challenge explanations,
+  highest-versus-recorded statistical units, and protected maintenance behavior.
+  Ordinary-only datasets show no inapplicable award-status cards.
 
 ## Data read
 

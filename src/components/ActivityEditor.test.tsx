@@ -10,6 +10,7 @@ import type { ActivityDraft } from '../features/journey/JourneyContext'
 import { WaypointsProvider, useWaypoints } from '../features/journey/JourneyContext'
 import { activityImportExample } from '../domain/draftJsonImport'
 import { createActivity, GpxGeometrySchema } from '../domain/visit'
+import { createAwardTestData } from '../test/demoData'
 
 const createDefaultData = createDemoModeData
 
@@ -360,7 +361,7 @@ describe('ActivityEditor', () => {
     expect(screen.getByText('Longitude must be between -180 and 180.')).toBeInTheDocument()
   })
 
-  it('shows category for eligible waypoints and clears it when unlinked', async () => {
+  it('shows awards for eligible waypoints and explains a changed draft context', async () => {
     const user = userEvent.setup()
     const { data } = renderEditor({ initialWaypointId: dataWaypointId(createDefaultData()) })
 
@@ -371,13 +372,42 @@ describe('ActivityEditor', () => {
     await user.click(screen.getByRole('option', { name: 'No linked waypoint' }))
 
     expect(
-      screen.getByText('Category cleared because the selected waypoint does not support Bronze, Silver or Gold.'),
+      screen.getByText('The linked Waypoint changed. Choose an award for its new context if required.'),
     ).toBeInTheDocument()
     expect(screen.queryByRole('combobox', { name: 'Award tier' })).not.toBeInTheDocument()
 
     expect(
       data.challenges.find((challenge) => challenge.challengeId === 'national-trust')?.supportsActivityCategories,
     ).toBe(true)
+  })
+
+  it('keeps Gold when editing an unrelated field at the same Waypoint and shows all named definitions', async () => {
+    const data = createAwardTestData()
+    const initialActivity = data.activities.find((item) => item.category === 'gold')!
+    const { onSubmit } = renderEditor({ data, initialActivity })
+    expect(screen.getByRole('combobox', { name: 'Award tier' })).toHaveTextContent('Gold')
+    expect(screen.getByText('Award Challenge A award explanations')).toBeInTheDocument()
+    expect(screen.getByText('Award Challenge B award explanations')).toBeInTheDocument()
+    const user = userEvent.setup()
+    await user.type(screen.getByRole('textbox', { name: 'Activity title' }), ' corrected')
+    await submitActivity(user, 'Save')
+    expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ category: 'gold', waypointId: 'award-w1' }))
+  })
+
+  it('requires acknowledgement before a saved award is removed by moving to an ordinary Waypoint', async () => {
+    const data = createAwardTestData()
+    const { onSubmit } = renderEditor({
+      data,
+      initialActivity: data.activities.find((item) => item.category === 'gold')!,
+    })
+    const user = userEvent.setup()
+    await user.click(screen.getByRole('combobox', { name: 'Linked waypoint' }))
+    await user.click(screen.getByRole('option', { name: 'Ordinary Waypoint' }))
+    await submitActivity(user, 'Save')
+    expect(onSubmit).not.toHaveBeenCalled()
+    await user.click(screen.getByRole('checkbox', { name: 'I confirm removal of the recorded award' }))
+    await submitActivity(user, 'Save')
+    expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ category: undefined, waypointId: 'ordinary-w' }))
   })
 
   it('prefills the linked waypoint coordinates and still allows a postcode', async () => {

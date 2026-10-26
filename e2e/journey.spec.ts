@@ -372,6 +372,7 @@ test.describe('activity management flow', () => {
               title: 'Example Challenge',
               description: 'A challenge created for the end-to-end test.',
               supportsActivityCategories: true,
+              awardDescriptions: { bronze: 'Afternoon visit', silver: 'Full-day visit', gold: 'Overnight visit' },
             },
           ],
           ideas: [],
@@ -397,7 +398,7 @@ test.describe('activity management flow', () => {
     await page.getByRole('button', { name: 'Save activity' }).click()
 
     await expect(page.getByText('Activity saved.')).toBeVisible()
-    await expect(page.getByText('Award tier: Gold')).toBeVisible()
+    await expect(page.getByText('Highest recorded award: Gold')).toBeVisible()
 
     await page.getByRole('link', { name: 'Excellent day out', exact: true }).click()
     await expect(page.getByRole('heading', { name: 'Excellent day out', exact: true })).toBeVisible()

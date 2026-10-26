@@ -166,16 +166,41 @@ met: for `once` waypoints, any linked activity completes the waypoint regardless
 category; for `count` waypoints, completion requires the target number of linked
 activities.
 
-Bronze/Silver/Gold describe how well an activity fits the challenge — they are not
-challenge completion milestones. Category selection is only available when the selected
-waypoint belongs to a challenge with explicit `supportsActivityCategories: true`.
-Waypoint completion still counts linked activities even when they have no category.
+Bronze/Silver/Gold describe the level of an individual visit, not Challenge
+completion milestones. Most Challenges have awards disabled. An enabled Challenge
+requires three explicit nonblank `awardDescriptions` explaining its fixed levels;
+disabled Challenges omit the descriptions. The guidance can be edited after
+recording without reclassifying visits or retaining earlier explanation versions.
+
+An Activity requires exactly one award when its Waypoint belongs to any enabled
+Challenge, and forbids an award otherwise. All named explanation sets are shown;
+one level applies across shared memberships. New drafts have no tier selected.
+Same-Waypoint edits retain the recorded level; moves to another eligible Waypoint
+require a deliberate choice. Moving to an ineligible destination requires
+acknowledgement of award removal before saving. Required awards are also enforced
+on imports, loads, JSON application, and protected writes.
 
 `waypointCompletionProgress()` in `src/domain/visit.ts` is the single source for a
 waypoint's completion state. The waypoint detail page and list cards show it as a
 "Completion" chip (`Done`/`Not done` for `once`, `N of target activities` for
-`count`), alongside a separate "Award tier" chip for the highest Bronze/Silver/Gold
-category. The Dashboard percentage and Map completion icons use the same helper.
+`count`). Eligible Waypoints separately show "Highest recorded award" or
+"No award recorded". Ordinary Challenge views omit awards even when a member
+is eligible through another Challenge. Individual visits show "Recorded award";
+the latest visit date is not the date of the maximum award.
+The Dashboard percentage and Map completion icons use the same helper.
+
+Challenge statistics distinguish exact highest-award Waypoint buckets (including
+no recorded award) from individual recorded-award Activity buckets. Totals link
+to matching scoped lists; shared records count once per Challenge and once
+globally, never once per membership. These values are derived, not persisted.
+Editing, deleting, or reassigning the sole Gold visit can lower the maximum and
+updates the loaded distributions without manual reload.
+
+Awarded Waypoint deletion and structural changes that remove the last eligible
+Challenge are blocked before writes and identify affected Activities. Deleting,
+disabling, or removing one shared Challenge is allowed if all retained awards
+remain eligible. Settings/membership actions cannot convert unawarded history;
+no migration or automatic backfill is provided.
 
 Challenge details show completion inside each member card, between its description
 and View waypoint link. Once-mode members show `Completion: Done` or

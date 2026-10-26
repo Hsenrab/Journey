@@ -1,14 +1,17 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
-  deleteEntity,
   documentsFor,
   documentsToData,
   loadDataset,
   replaceDataset,
+  seedDemoDataset,
   StoredJourneyRelationshipError,
 } from './cosmos.js'
 import type { JourneyData, JourneyDocument } from './journeySchema.js'
-import { entityId, entityTypeFor } from './journeyGraph.js'
+import { applyPlan, deletionPlan, entityId, entityTypeFor } from './journeyGraph.js'
+
+const { readDemoFile } = vi.hoisted(() => ({ readDemoFile: vi.fn() }))
+vi.mock('node:fs/promises', () => ({ readFile: readDemoFile }))
 
 const activity = {
   activityId: 'activity-1',
@@ -92,11 +95,98 @@ const data: JourneyData = {
 }
 
 describe('Cosmos Journey persistence', () => {
+  it('seeds enabled Challenges with descriptions using the existing typed batch path', async () => {
+    const seeded = structuredClone(data)
+    seeded.challenges[0]!.supportsActivityCategories = true
+    seeded.challenges[0]!.awardDescriptions = { bronze: 'Afternoon', silver: 'Full day', gold: 'Overnight' }
+    readDemoFile.mockResolvedValue(JSON.stringify(seeded))
+    const batch = vi.fn().mockResolvedValue({ code: 200, result: [] })
+    await seedDemoDataset({ items: { batch } } as never, 'demo')
+    expect(readDemoFile).toHaveBeenCalledWith(expect.any(URL), 'utf8')
+    expect(batch).toHaveBeenCalledWith(
+      expect.arrayContaining([
+        expect.objectContaining({
+          operationType: 'Create',
+          resourceBody: expect.objectContaining({
+            datasetId: 'demo',
+            type: 'challenge',
+            schemaVersion: 4,
+            entity: expect.objectContaining({ awardDescriptions: seeded.challenges[0]!.awardDescriptions }),
+          }),
+        }),
+      ]),
+      'demo',
+    )
+  })
+
+  it.each(['descriptions', 'category', 'json'] as const)(
+    'rejects malformed %s seed data before any batch',
+    async (kind) => {
+      const seeded = structuredClone(data)
+      seeded.challenges[0]!.supportsActivityCategories = true
+      if (kind !== 'descriptions')
+        seeded.challenges[0]!.awardDescriptions = { bronze: 'Afternoon', silver: 'Full day', gold: 'Overnight' }
+      if (kind === 'category') seeded.activities[0]!.waypointId = 'waypoint-1'
+      readDemoFile.mockResolvedValue(kind === 'json' ? '{' : JSON.stringify(seeded))
+      const batch = vi.fn()
+      await expect(seedDemoDataset({ items: { batch } } as never, 'demo')).rejects.toThrow()
+      expect(batch).not.toHaveBeenCalled()
+    },
+  )
+
+  it.each(['missing', 'ineligible', 'direct-only', 'dangling'] as const)(
+    'rejects stored %s award graphs explicitly instead of returning an empty dataset',
+    async (kind) => {
+      const stored = structuredClone(data)
+      stored.challenges[0]!.supportsActivityCategories = true
+      stored.challenges[0]!.awardDescriptions = { bronze: 'Afternoon', silver: 'Full day', gold: 'Overnight' }
+      stored.activities[0]!.waypointId = 'waypoint-1'
+      stored.activities[0]!.category = 'gold'
+      const documents = Object.values(documentsFor('dataset', stored))
+      const activityDocument = documents.find((document) => document.type === 'activity')!
+      const waypointDocument = documents.find((document) => document.type === 'waypoint')!
+      if (kind === 'missing') delete activityDocument.entity.category
+      if (kind === 'ineligible') waypointDocument.entity.challengeIds = []
+      if (kind === 'direct-only') {
+        delete activityDocument.entity.waypointId
+        activityDocument.entity.challengeId = 'challenge-1'
+      }
+      if (kind === 'dangling') activityDocument.entity.waypointId = 'missing'
+      const fetchNext = vi.fn().mockResolvedValue({ resources: documents })
+      await expect(loadDataset({ items: { query: () => ({ fetchNext }) } } as never, 'dataset')).rejects.toBeInstanceOf(
+        StoredJourneyRelationshipError,
+      )
+      await expect(loadDataset({ items: { query: () => ({ fetchNext }) } } as never, 'dataset')).rejects.toThrow(
+        'Activity "activity-1"',
+      )
+    },
+  )
+
+  it('returns committed ETags in document order and guards every unchanged snapshot document', async () => {
+    const documents = documentsFor('dataset', data)
+    const etags = Object.fromEntries(Object.keys(documents).map((id) => [id, `old-${id}`]))
+    const batch = vi.fn().mockImplementation(async (operations) => ({
+      code: 200,
+      result: operations.map((operation: { id: string }) => ({ statusCode: 200, eTag: `new-${operation.id}` })),
+    }))
+    expect(await replaceDataset({ items: { batch } } as never, 'dataset', documents, etags)).toEqual(
+      Object.fromEntries(Object.keys(documents).map((id) => [id, `new-${id}`])),
+    )
+    expect(batch.mock.calls[0]![0]).toEqual(
+      Object.entries(documents).map(([id, resourceBody]) => ({
+        operationType: 'Replace',
+        id,
+        resourceBody,
+        ifMatch: etags[id],
+      })),
+    )
+  })
+
   it('converts a complete dataset to typed documents and back', () => {
     const documents = documentsFor('dataset', data)
     expect(Object.keys(documents)).toHaveLength(6)
     expect(documents['activity-1']).toMatchObject({ type: 'activity', schemaVersion: 5 })
-    expect(documents['challenge-1']).toMatchObject({ type: 'challenge', schemaVersion: 3 })
+    expect(documents['challenge-1']).toMatchObject({ type: 'challenge', schemaVersion: 4 })
     expect(documents['idea-1']).toMatchObject({ type: 'idea', schemaVersion: 2 })
     expect(documentsToData(Object.values(documents))).toEqual(data)
   })
@@ -250,10 +340,13 @@ describe('Cosmos Journey persistence', () => {
       id: 'challenge-1',
       datasetId: 'dataset',
       type: 'challenge',
-      schemaVersion: 3,
+      schemaVersion: 4,
       entity: { ...challengeEntity, waypointIds: [] },
     }
-    for (const document of [challenge, { ...challenge, schemaVersion: 2, entity: challengeEntity }]) {
+    for (const document of [
+      challenge,
+      ...[1, 2, 3].map((schemaVersion) => ({ ...challenge, schemaVersion, entity: challengeEntity })),
+    ]) {
       const fetchNext = vi.fn().mockResolvedValue({ resources: [document] })
       await expect(loadDataset({ items: { query: () => ({ fetchNext }) } } as never, 'dataset')).rejects.toBeInstanceOf(
         StoredJourneyRelationshipError,
@@ -291,24 +384,25 @@ describe('Cosmos Journey persistence', () => {
     }
   })
 
-  it('deletes a waypoint without replacing its Challenges', async () => {
+  it('deletes a waypoint while guarding unchanged Challenges in the snapshot', async () => {
     const batch = vi.fn().mockResolvedValue({ code: 200, result: [] })
     const linkedData: JourneyData = {
       ...data,
       ideas: [{ ...idea, waypointIds: ['waypoint-1'] }],
       activities: [{ ...activity, waypointId: 'waypoint-1' }],
     }
-    await deleteEntity({ items: { batch } } as never, 'dataset', 'waypoint', 'waypoint-1', 'waypoint-etag', {
-      data: linkedData,
-      etags: {
-        'waypoint-1': 'waypoint-etag',
-        'idea-1': 'idea-etag',
-        'activity-1': 'activity-etag',
-      },
-    })
+    const etags = Object.fromEntries(Object.keys(documentsFor('dataset', linkedData)).map((id) => [id, `${id}-etag`]))
+    await replaceDataset(
+      { items: { batch } } as never,
+      'dataset',
+      documentsFor('dataset', applyPlan(linkedData, deletionPlan(linkedData, 'waypoint', 'waypoint-1'))),
+      etags,
+    )
 
     const operations = batch.mock.calls[0][0]
-    expect(operations.some((operation: { id: string }) => operation.id === 'challenge-1')).toBe(false)
+    expect(operations).toContainEqual(
+      expect.objectContaining({ id: 'challenge-1', operationType: 'Replace', ifMatch: 'challenge-1-etag' }),
+    )
     expect(operations).toEqual(
       expect.arrayContaining([
         expect.objectContaining({ operationType: 'Delete', id: 'waypoint-1' }),
@@ -320,21 +414,24 @@ describe('Cosmos Journey persistence', () => {
 
   it('deletes an idea, its activity links and orphaned references in one batch', async () => {
     const batch = vi.fn().mockResolvedValue({ code: 200, result: [] })
-    await deleteEntity({ items: { batch } } as never, 'dataset', 'idea', 'idea-1', 'idea-etag', {
-      data,
-      etags: { 'idea-1': 'idea-etag', 'activity-1': 'activity-etag' },
-    })
+    const etags = Object.fromEntries(Object.keys(documentsFor('dataset', data)).map((id) => [id, `${id}-etag`]))
+    await replaceDataset(
+      { items: { batch } } as never,
+      'dataset',
+      documentsFor('dataset', applyPlan(data, deletionPlan(data, 'idea', 'idea-1'))),
+      etags,
+    )
 
     expect(batch).toHaveBeenCalledWith(
-      [
-        { operationType: 'Delete', id: 'idea-1', ifMatch: 'idea-etag' },
-        {
+      expect.arrayContaining([
+        { operationType: 'Delete', id: 'idea-1', ifMatch: 'idea-1-etag' },
+        expect.objectContaining({
           operationType: 'Replace',
           id: 'activity-1',
           resourceBody: expect.objectContaining({ entity: expect.objectContaining({ ideaIds: [] }) }),
-          ifMatch: 'activity-etag',
-        },
-      ],
+          ifMatch: 'activity-1-etag',
+        }),
+      ]),
       'dataset',
     )
   })
@@ -373,5 +470,27 @@ describe('Cosmos Journey persistence', () => {
     await expect(replaceDataset({} as never, 'dataset', documents, {})).rejects.toThrow(
       '101 operations exceed the Cosmos transactional batch limit of 100 operations.',
     )
+  })
+
+  it('counts retained replacements, creates and deletes together toward the same operation limit', async () => {
+    const document = documentsFor('dataset', data)['challenge-1']!
+    const documents = Object.fromEntries(
+      Array.from({ length: 99 }, (_, index) => {
+        const id = `challenge-${index}`
+        return [id, { ...document, id, entity: { ...document.entity, challengeId: id } }]
+      }),
+    )
+    const etags = Object.fromEntries(
+      [...Object.keys(documents).slice(0, 98), 'removed-1', 'removed-2'].map((id) => [id, `old-${id}`]),
+    )
+    const batch = vi.fn()
+    await expect(replaceDataset({ items: { batch } } as never, 'dataset', documents, etags)).rejects.toThrow(
+      '101 operations exceed the Cosmos transactional batch limit of 100 operations.',
+    )
+    expect(batch).not.toHaveBeenCalled()
+    delete etags['removed-2']
+    batch.mockResolvedValue({ code: 200, result: [] })
+    await replaceDataset({ items: { batch } } as never, 'dataset', documents, etags)
+    expect(batch.mock.calls[0]![0]).toHaveLength(100)
   })
 })

@@ -1,7 +1,6 @@
 import { spawn, type ChildProcess } from 'node:child_process'
 import { once } from 'node:events'
 import { cp, mkdtemp, readFile, rm, symlink, writeFile } from 'node:fs/promises'
-import { tmpdir } from 'node:os'
 import { resolve, join } from 'node:path'
 import { setTimeout as delay } from 'node:timers/promises'
 import { afterEach, expect, it } from 'vitest'
@@ -20,7 +19,7 @@ afterEach(async () => {
 })
 
 async function startHost(missingRoutes = false) {
-  directory = await mkdtemp(join(tmpdir(), 'journey-functions-'))
+  directory = await mkdtemp(resolve('.journey-functions-'))
   await cp(resolve('dist'), join(directory, 'dist'), { recursive: true })
   await cp(resolve('host.json'), join(directory, 'host.json'))
   await cp(resolve('package.json'), join(directory, 'package.json'))

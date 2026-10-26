@@ -11,6 +11,8 @@ import {
   Button,
   Card,
   CardContent,
+  Checkbox,
+  FormControlLabel,
   FormControl,
   FormHelperText,
   IconButton,
@@ -32,6 +34,8 @@ import {
   awardableStatuses,
   statusLabels,
   waypointSupportsActivityCategory,
+  eligibleAwardChallenges,
+  AwardedStatusSchema,
   type Activity,
   type ActivityLocation,
   type AwardedStatus,
@@ -44,6 +48,7 @@ import { parseGpxFile } from '../domain/gpx'
 import { activityImportExample, parseActivityDraftJson } from '../domain/draftJsonImport'
 import { activityJsonAiPrompt } from '../domain/aiPrompts'
 import { AiPromptButton } from './AiPromptButton'
+import { ChallengeAwardDefinitions } from './ChallengeAwardFields'
 import type { ActivityDraft } from '../features/journey/JourneyContext'
 
 type Props = {
@@ -120,6 +125,7 @@ export function ActivityEditor({
   const [waypointId, setWaypointId] = useState(initialActivity?.waypointId ?? initialWaypointId ?? '')
   const [ideaIds, setIdeaIds] = useState<string[]>(initialActivity?.ideaIds ?? initialIdeaIds ?? [])
   const [category, setCategory] = useState<AwardedStatus | ''>(initialActivity?.category ?? '')
+  const [awardRemovalConfirmed, setAwardRemovalConfirmed] = useState(false)
   const [locationKind, setLocationKind] = useState<ActivityLocation['kind']>(initialLocation.kind)
   const [postcode, setPostcode] = useState(initialLocation.kind === 'postcode' ? initialLocation.postcode : '')
   const [latitude, setLatitude] = useState(
@@ -163,6 +169,10 @@ export function ActivityEditor({
     !locationEdited && initialLocation.kind === 'postcode' && initialLocation.postcode.trim() === ''
 
   const supportsCategories = waypointSupportsActivityCategory(data, waypointId || undefined)
+  const awardChallenges = eligibleAwardChallenges(data, waypointId || undefined)
+  const removesRecordedAward = Boolean(
+    initialActivity?.category && initialActivity.waypointId !== (waypointId || undefined) && !supportsCategories,
+  )
   const sortedIdeas = useMemo(
     () =>
       data.ideas.slice().sort((a, b) => {
@@ -177,13 +187,6 @@ export function ActivityEditor({
     () => [{ waypointId: '', title: 'No linked waypoint' }, ...data.waypoints],
     [data.waypoints],
   )
-
-  useEffect(() => {
-    if (!supportsCategories && category) {
-      setCategory('')
-      setMessage('Category cleared because the selected waypoint does not support Bronze, Silver or Gold.')
-    }
-  }, [category, supportsCategories])
 
   const formDirty = useMemo(() => {
     const initial = {
@@ -307,6 +310,8 @@ export function ActivityEditor({
     }
 
     if (supportsCategories && !category) nextErrors.category = 'Select Bronze, Silver or Gold.'
+    if (removesRecordedAward && !awardRemovalConfirmed)
+      nextErrors.awardRemoval = 'Confirm removal of the recorded award before saving.'
 
     references.forEach((reference, index) => {
       if (!reference.title.trim()) nextErrors[`reference-${index}-title`] = 'Reference title is required.'
@@ -440,7 +445,7 @@ export function ActivityEditor({
                     <Button
                       variant="contained"
                       onClick={() => {
-                        const parsed = parseActivityDraftJson(jsonInput)
+                        const parsed = parseActivityDraftJson(jsonInput, { data, waypointId: waypointId || undefined })
                         if (!parsed.ok) {
                           setJsonError(parsed.error)
                           setJsonIssues(parsed.issues)
@@ -546,6 +551,11 @@ export function ActivityEditor({
                     getOptionLabel={(option) => option.title}
                     onChange={(_, value) => {
                       const nextWaypointId = value?.waypointId ?? ''
+                      if (nextWaypointId !== waypointId) {
+                        setCategory('')
+                        setAwardRemovalConfirmed(false)
+                        setMessage('The linked Waypoint changed. Choose an award for its new context if required.')
+                      }
                       setWaypointId(nextWaypointId)
                       if (!canPrefillLocation) return
                       const location = waypointInitialLocation(data, nextWaypointId)
@@ -580,6 +590,39 @@ export function ActivityEditor({
                     )}
                   />
 
+                  {removesRecordedAward && initialActivity?.category && (
+                    <Stack spacing={1}>
+                      <Alert severity="warning">
+                        Saving this move will remove this Activity's recorded {statusLabels[initialActivity.category]}{' '}
+                        award. Cancel to keep the original record.
+                      </Alert>
+                      <FormControlLabel
+                        control={
+                          <Checkbox
+                            checked={awardRemovalConfirmed}
+                            disabled={saving}
+                            slotProps={{
+                              input: {
+                                'aria-invalid': Boolean(errors.awardRemoval),
+                                'aria-describedby': errors.awardRemoval ? 'award-removal-error' : undefined,
+                              },
+                            }}
+                            onChange={(event) => setAwardRemovalConfirmed(event.target.checked)}
+                          />
+                        }
+                        label="I confirm removal of the recorded award"
+                      />
+                      {errors.awardRemoval && (
+                        <Alert id="award-removal-error" severity="error">
+                          {errors.awardRemoval}
+                        </Alert>
+                      )}
+                    </Stack>
+                  )}
+                  {supportsCategories && <ChallengeAwardDefinitions challenges={awardChallenges} />}
+                  {awardChallenges.length > 1 && (
+                    <Typography>One selected award applies to all these Challenges.</Typography>
+                  )}
                   {supportsCategories && (
                     <FormControl required error={Boolean(errors.category)} disabled={saving}>
                       <InputLabel id="activity-category-label">Award tier</InputLabel>
@@ -589,7 +632,10 @@ export function ActivityEditor({
                         aria-describedby="activity-award-help"
                         inputProps={{ 'aria-label': 'Award tier' }}
                         value={category}
-                        onChange={(event) => setCategory(event.target.value as AwardedStatus)}
+                        onChange={(event) => {
+                          setCategory(AwardedStatusSchema.parse(event.target.value))
+                          setErrors((current) => ({ ...current, category: '' }))
+                        }}
                       >
                         {awardableStatuses.map((value) => (
                           <MenuItem key={value} value={value}>

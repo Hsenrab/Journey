@@ -113,15 +113,38 @@ export function referenceIntegrityError(data: JourneyGraphData): string | undefi
       linkError('Activity', activity.activityId, 'photo reference', activity.photoReferenceIds, photoIds),
     ]),
     ...data.activities.map((activity) => {
-      if (!activity.category) return undefined
+      if (!activity.category) {
+        return activity.waypointId && categoryWaypointIds.has(activity.waypointId)
+          ? `Activity "${activity.activityId}" at Waypoint "${activity.waypointId}" requires a Bronze, Silver or Gold category. Award settings and memberships cannot convert unawarded history or automatically assign tiers.`
+          : undefined
+      }
       if (!activity.waypointId)
         return `Activity "${activity.activityId}" has a category but is not linked to a waypoint.`
       return !categoryWaypointIds.has(activity.waypointId)
-        ? `Activity "${activity.activityId}" has a category but its waypoint does not support Bronze, Silver or Gold categories.`
+        ? `Activity "${activity.activityId}" has a category but its waypoint "${activity.waypointId}" does not support Bronze, Silver or Gold categories.`
         : undefined
     }),
   ]
   return errors.find((error) => error !== undefined)
+}
+
+export function awardTransitionError(before: JourneyGraphData, after: JourneyGraphData): string | undefined {
+  const enabled = new Set(
+    after.challenges
+      .filter((challenge) => challenge.supportsActivityCategories)
+      .map((challenge) => challenge.challengeId),
+  )
+  const waypoints = new Map(after.waypoints.map((waypoint) => [waypoint.waypointId, waypoint]))
+  const retainedActivities = new Set(after.activities.map((activity) => activity.activityId))
+  const blocked = before.activities.filter((activity) => {
+    if (!activity.category || !activity.waypointId) return false
+    const waypoint = waypoints.get(activity.waypointId)
+    return (
+      !waypoint || (retainedActivities.has(activity.activityId) && !waypoint.challengeIds.some((id) => enabled.has(id)))
+    )
+  })
+  if (blocked.length === 0) return undefined
+  return `Recorded awards would lose their Waypoint or last eligible Challenge: ${blocked.map((activity) => `Activity "${activity.activityId}" at Waypoint "${activity.waypointId}"`).join(', ')}. Handle these Activities separately before changing memberships, disabling awards, or deleting their Waypoint or Challenge.`
 }
 
 function unreferencedIds(data: JourneyData): string[] {
@@ -179,7 +202,7 @@ export function deletionPlan(data: JourneyData, type: EntityType, id: string): D
     const activityUpdates = data.activities
       .filter((activity) => activity.waypointId === id)
       .map((activity) => {
-        const { waypointId: _removed, category: _category, ...detached } = activity
+        const { waypointId: _removed, ...detached } = activity
         return detached
       })
     const ideas = data.ideas.map((idea) => ideaUpdates.find((updated) => updated.ideaId === idea.ideaId) ?? idea)
@@ -198,6 +221,26 @@ export function deletionPlan(data: JourneyData, type: EntityType, id: string): D
       updates: [
         ...ideaUpdates.map((idea) => ({ type: 'idea' as const, entity: { ...idea } })),
         ...activityUpdates.map((activity) => ({ type: 'activity' as const, entity: { ...activity } })),
+      ],
+    }
+  }
+
+  if (type === 'challenge') {
+    return {
+      deletes: [id],
+      updates: [
+        ...data.waypoints
+          .filter((waypoint) => waypoint.challengeIds.includes(id))
+          .map((waypoint) => ({
+            type: 'waypoint' as const,
+            entity: { ...waypoint, challengeIds: waypoint.challengeIds.filter((challengeId) => challengeId !== id) },
+          })),
+        ...data.activities
+          .filter((activity) => activity.challengeId === id)
+          .map((activity) => {
+            const { challengeId: _removed, ...detached } = activity
+            return { type: 'activity' as const, entity: detached }
+          }),
       ],
     }
   }
