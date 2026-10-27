@@ -80,6 +80,8 @@ Activities can be linked to a waypoint or left unlinked.
   link to view an attached recorded GPX track on the map.
 - Photos are rendered in a simple gallery with previous/next controls.
 - References render as metadata cards (title, optional description, optional preview image, hostname, external-link action).
+- Reference cards, gallery photos and thumbnails follow the Activity's saved order.
+  Reopening the editor preserves that order, including after adding or moving evidence and reloading the page.
 - Supports edit via the shared editor and delete with confirmation.
 
 The Map page opens the Activities view for a linked recorded track and fits the map to its recorded geometry. The Activities view also draws attached tracks when opened without a selected activity.

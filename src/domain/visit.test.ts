@@ -25,6 +25,8 @@ import {
   ideaUsageCount,
   ideasForActivity,
   ideasForWaypoint,
+  photoReferencesForActivity,
+  referencesForActivity,
   statusForWaypoint,
   validateActivityCategory,
   waypointSupportsActivityCategory,
@@ -35,6 +37,52 @@ import {
 } from './visit'
 import { completionStateForWaypoint } from './map'
 import { createAwardTestData, createJourneyTestData } from '../test/demoData'
+
+describe('Activity evidence order', () => {
+  const references = [
+    { referenceId: 'r1', title: 'First reference', url: 'https://example.com/first' },
+    { referenceId: 'r2', title: 'Second reference', url: 'https://example.com/second' },
+    { referenceId: 'other', title: 'Unlinked reference', url: 'https://example.com/other' },
+  ]
+  const photos = [
+    { photoReferenceId: 'p1', title: 'First photo', url: 'https://example.com/first.jpg' },
+    { photoReferenceId: 'p2', title: 'Second photo', url: 'https://example.com/second.jpg' },
+    { photoReferenceId: 'other', title: 'Unlinked photo', url: 'https://example.com/other.jpg' },
+  ]
+  const activity = createActivity({
+    activityId: 'ordered',
+    name: 'Ordered activity',
+    date: '2026-08-01',
+    location: { kind: 'postcode', postcode: 'GL1 1AA' },
+    referenceIds: ['r2', 'r1'],
+    photoReferenceIds: ['p2', 'p1'],
+  })
+
+  it('resolves only linked evidence in saved order without changing collection order', () => {
+    expect(referencesForActivity(references, activity)).toEqual([references[1], references[0]])
+    expect(photoReferencesForActivity(photos, activity)).toEqual([photos[1], photos[0]])
+    expect(references.map((item) => item.referenceId)).toEqual(['r1', 'r2', 'other'])
+    expect(photos.map((item) => item.photoReferenceId)).toEqual(['p1', 'p2', 'other'])
+  })
+
+  it('returns no evidence for empty link arrays', () => {
+    const empty = { ...activity, referenceIds: [], photoReferenceIds: [] }
+    expect(referencesForActivity(references, empty)).toEqual([])
+    expect(photoReferencesForActivity(photos, empty)).toEqual([])
+  })
+
+  it('fails explicitly for a missing linked reference', () => {
+    expect(() => referencesForActivity(references, { ...activity, referenceIds: ['missing'] })).toThrow(
+      'Activity "ordered" references unknown reference "missing".',
+    )
+  })
+
+  it('fails explicitly for a missing linked photo', () => {
+    expect(() => photoReferencesForActivity(photos, { ...activity, photoReferenceIds: ['missing'] })).toThrow(
+      'Activity "ordered" references unknown photo reference "missing".',
+    )
+  })
+})
 
 describe('Challenge completion summary', () => {
   it('uses completed members rather than Activities, rounds percentages, and handles empty membership', () => {
