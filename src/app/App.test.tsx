@@ -5,8 +5,66 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import App from './App'
 import { createDefaultData, getDataMode, save } from '../services/storage'
 import type { Waypoint } from '../domain/visit'
+import { createJourneyTestData } from '../test/demoData'
 
 afterEach(cleanup)
+
+describe('Challenge recording return journey', () => {
+  beforeEach(() => {
+    localStorage.clear()
+    vi.stubEnv('MODE', 'test')
+    save(createJourneyTestData())
+    window.history.replaceState(null, '', '/challenges/journey')
+  })
+  afterEach(() => {
+    vi.restoreAllMocks()
+    vi.unstubAllEnvs()
+  })
+
+  it('retains named origin, focuses success, and returns to current progress then Dashboard', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+    await user.click((await screen.findAllByRole('link', { name: 'View waypoint' }))[0]!)
+    expect(screen.getByRole('link', { name: 'Back to Discovery Challenge' })).toHaveAttribute(
+      'href',
+      '/challenges/journey',
+    )
+    await user.click(screen.getByRole('button', { name: 'Log activity' }))
+    expect(screen.getByLabelText('Activity title')).toHaveFocus()
+    await user.type(screen.getByLabelText('Activity title'), 'A recorded visit')
+    await user.type(screen.getByLabelText('Postcode'), 'GL1 1AA')
+    await user.click(screen.getByRole('button', { name: 'Save activity' }))
+    expect(await screen.findByRole('status', { name: 'Activity saved confirmation' })).toHaveFocus()
+    expect(window.location.pathname).toBe('/waypoints/once')
+    await user.click(
+      within(screen.getByRole('status', { name: 'Activity saved confirmation' })).getByRole('link', {
+        name: 'Back to Discovery Challenge',
+      }),
+    )
+    expect(await screen.findByText('1 of 2 waypoints completed (50%).')).toBeInTheDocument()
+    await user.click(screen.getByRole('link', { name: 'Back to Dashboard' }))
+    expect(window.location.pathname).toBe('/challenges')
+    expect(
+      within(screen.getByRole('link', { name: 'Discovery Challenge' })).getByText('1 of 2 waypoints completed'),
+    ).toBeInTheDocument()
+  })
+
+  it('does not discard a dirty Activity when a return is declined', async () => {
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false)
+    const user = userEvent.setup()
+    render(<App />)
+    await user.click((await screen.findAllByRole('link', { name: 'View waypoint' }))[0]!)
+    await user.click(screen.getByRole('button', { name: 'Log activity' }))
+    await user.type(screen.getByLabelText('Activity title'), 'Keep my draft')
+    await user.click(screen.getByRole('link', { name: 'Back to Discovery Challenge' }))
+    expect(screen.getByLabelText('Activity title')).toHaveValue('Keep my draft')
+    expect(window.location.pathname).toBe('/waypoints/once')
+    confirm.mockReturnValue(true)
+    await user.click(screen.getByRole('link', { name: 'Back to Discovery Challenge' }))
+    expect(window.location.pathname).toBe('/challenges/journey')
+    expect(confirm).toHaveBeenCalledTimes(2)
+  })
+})
 
 describe('editor to Settings discard journey', () => {
   beforeEach(() => {
@@ -177,16 +235,16 @@ describe('editor to Settings discard journey', () => {
     expect(confirm).not.toHaveBeenCalled()
     await user.click(screen.getByRole('link', { name: editor.path === '/activities' ? 'Ideas' : 'Activities' }))
     await user.click(screen.getByRole('link', { name: 'Settings' }))
-    expect(screen.getByRole('combobox', { name: 'Data mode' })).toHaveAttribute('aria-disabled', 'true')
+    expect(window.location.pathname).toBe('/activities')
+    expect(screen.queryByRole('combobox', { name: 'Data mode' })).not.toBeInTheDocument()
     expect(getDataMode()).toBe('production')
     await act(async () => {
       if (editor.fails) fail(new Error('Unmounted save failure'))
       else finish(new Response(JSON.stringify({ data: createDefaultData(), etags: {}, role: 'admin' })))
     })
-    await waitFor(() =>
-      expect(screen.getByRole('combobox', { name: 'Data mode' })).not.toHaveAttribute('aria-disabled', 'true'),
-    )
-    expect(window.location.pathname).toBe('/settings')
+    expect(window.location.pathname).toBe('/activities')
+    await user.click(screen.getByRole('link', { name: 'Settings' }))
+    expect(screen.getByRole('combobox', { name: 'Data mode' })).not.toHaveAttribute('aria-disabled', 'true')
     expect(confirm).not.toHaveBeenCalled()
     expect(screen.queryByText(/^(Waypoint|Idea|Activity) saved\.$/)).not.toBeInTheDocument()
   })

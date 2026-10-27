@@ -13,6 +13,22 @@ Challenge summary and next step, stale validation errors, and excessive travel t
 the recording form and Save action. Cover desktop, mobile, zero and partial
 progress, and viewers who can browse but cannot edit.
 
+**Current baseline**: [Challenge award levels](../017-challenge-award-levels/spec.md)
+is complete. Its conditional mandatory awards, highest-versus-recorded labels,
+exact statistics, and history protection remain unchanged. Award clarity in
+User Story 3, FR-009, FR-010, and SC-004 is regression coverage, not a second award
+redesign. The remaining work concerns return navigation, progress explanation
+and next steps, validation feedback, and recording ergonomics.
+
+## Clarifications
+
+### Session 2026-10-26
+
+- Q: Should the originating Challenge's return link also appear on Activity details and editing when opened from its Waypoint? → A: No. Keep it on the Waypoint, during its recording flow, and in its save confirmation; Activity details and editing retain their existing navigation.
+- Q: If the Activity's linked Waypoint changes before saving, should confirmation retain the original Challenge return even when the Activity no longer contributes to it? → A: Yes. Keep "Back to [original Challenge]" while the original context remains valid, explicitly state when the Activity does not contribute to it, and never imply a progress increase when there is no contribution.
+- Q: Should Challenge details include a direct "Back to Dashboard" action on both screen sizes rather than rely on main navigation? → A: Yes. Provide a visible page-level action that reaches Dashboard in one action on mobile and desktop, without opening a navigation menu or using browser history.
+- Q: After a successful Activity save on the Waypoint, where should the page move the view and keyboard focus? → A: Bring the success confirmation into view and focus the confirmation itself, with the valid original Challenge return available; stay on the Waypoint without automatic navigation.
+
 ## User Scenarios & Testing _(mandatory)_
 
 ### User Story 1 - Return to the Challenge I Started From (Priority: P1)
@@ -41,14 +57,29 @@ Repeat browsing as a viewer and with a Waypoint shared by two Challenges.
    to view the originating Challenge's progress; following it shows the saved
    Activity's effect without a manual reload.
 4. **Given** I return to the Challenge, **When** I want to return to my starting
-   Dashboard, **Then** an explicit Dashboard navigation action is available
-   without using browser Back.
+   Dashboard, **Then** a visible page-level "Back to Dashboard" action reaches
+   it in one action on both mobile and desktop, without opening the main
+   navigation menu or using browser Back.
 5. **Given** I opened a Waypoint directly or from the Waypoints list, **When**
    I browse or save, **Then** normal Waypoints navigation remains available
    and no originating Challenge is invented.
 6. **Given** a save is pending or a draft has unsaved changes, **When** I use
    the new return action, **Then** existing pending-save protection and
    unsaved-change decisions apply; navigation does not silently discard input.
+7. **Given** I open an Activity's details or editing from a Waypoint,
+   **When** I navigate within those Activity screens, **Then** their existing
+   navigation and save destinations remain unchanged; this feature does not
+   extend the named Challenge return into those screens.
+8. **Given** I change the draft to an unlinked Activity or a Waypoint outside
+   the originating Challenge, **When** saving succeeds and the original context
+   remains valid, **Then** confirmation retains "Back to [original Challenge]",
+   states that the Activity does not contribute to it, and shows no invented
+   progress on return.
+9. **Given** I successfully save from the Waypoint's recording form,
+   **When** the form finishes saving, **Then** the success confirmation is
+   brought into view and receives keyboard focus, its valid Challenge return
+   is available, and the application stays on the Waypoint until I choose a
+   navigation action.
 
 ---
 
@@ -90,13 +121,14 @@ complete, and empty Challenges.
 
 ---
 
-### User Story 3 - Distinguish Completion from Awards (Priority: P2)
+### User Story 3 - Preserve Completion and Award Clarity (Priority: P2)
 
 As a user, I can trust that a saved Activity counts toward completion without
 mistaking the absence of an award for the absence of progress.
 
-**Why this priority**: "Not Started" beside recorded progress contradicts the
-successful recording experience even when the underlying calculation is correct.
+**Why this priority**: The completed award feature already distinguishes these
+concepts. The new journey must preserve that clarity rather than reintroduce
+contradictory "Not Started" award wording.
 
 **Independent Test**: Record Activities against Waypoints with and without
 applicable awards, then inspect Waypoint details and Dashboard's Recently visited
@@ -104,13 +136,13 @@ entries as both an administrator and a viewer.
 
 **Acceptance Scenarios**:
 
-1. **Given** a Waypoint with no applicable award categories, **When** I view its
+1. **Given** a Waypoint with no award-enabled Challenge membership, **When** I view its
    details or its Recently visited entry, **Then** no award-tier indicator appears;
    completion remains visible.
-2. **Given** applicable awards but no earned award, **When** I view an award
+2. **Given** applicable awards but no recorded award, **When** I view an award
    indicator on those surfaces, **Then** it explicitly identifies the award
-   context and says "No award yet", not an unqualified "Not Started".
-3. **Given** an earned award and partial or completed Waypoint progress,
+   context and says "No award recorded", not an unqualified "Not Started".
+3. **Given** a recorded award and partial or completed Waypoint progress,
    **When** I view those surfaces, **Then** the award and completion have
    distinct labels and both agree with the recorded Activities.
 4. **Given** a Waypoint with recorded Activities, **When** it appears in
@@ -186,8 +218,14 @@ and keyboard interaction.
   destination. Ordinary Waypoints navigation remains available; missing records
   and failed loads retain their explicit states.
 - If the saved Activity is unlinked from the originating Waypoint or reassigned,
-  confirmation must not claim that the original Challenge gained progress. Its
-  return action may still offer browsing with accurate unchanged progress.
+  confirmation must describe its actual contribution rather than assume that
+  the original Challenge gained progress. Its
+  return action must retain "Back to [original Challenge]" while the original
+  context remains valid, without switching to another Challenge. If the saved
+  Activity has no linked Waypoint in that Challenge, confirmation must state
+  that it does not contribute to it. If the new Waypoint is also a member,
+  actual derived progress may change; the original Waypoint must not falsely
+  appear to have gained an Activity.
 - Cancelling or failing to save must not increase progress or show save success.
 - Once-only completion, count targets of one, exact targets, and counts above the
   target retain their existing rules and wording; actual counts are not capped.
@@ -208,13 +246,26 @@ and keyboard interaction.
 
 - **FR-001**: Challenge-to-Waypoint visits MUST retain the originating Challenge
   for that visit and offer a named, one-action return while the origin remains
-  valid. Shared membership MUST NOT select a different origin.
+  valid, including while the Waypoint's recording form or save confirmation is
+  shown. Shared membership MUST NOT select a different origin. Activity details
+  and editing screens MUST retain their existing navigation; this feature MUST
+  NOT extend the Challenge return link into those screens.
 - **FR-002**: Successful Waypoint-origin Activity saves MUST retain confirmation
   on the Waypoint and offer a one-action route to the valid originating
-  Challenge's progress. Success MUST appear only after saving succeeds.
-- **FR-003**: Challenge details MUST offer an explicit Dashboard navigation
-  action. Direct or list-origin Waypoint visits MUST retain normal Waypoints
-  navigation without inventing Challenge context.
+  Challenge, labelled "Back to [original Challenge]". This return MUST remain
+  available when the saved Activity no longer contributes to that Challenge,
+  provided the original context remains valid; confirmation MUST state the
+  lack of contribution rather than imply a progress increase. Changing the
+  draft's linked Waypoint MUST NOT select a different originating Challenge.
+  Success MUST appear only after saving succeeds. On successful completion,
+  the confirmation MUST be brought into view and receive keyboard focus,
+  without automatic navigation; pending, failed, or cancelled saves MUST NOT
+  trigger this success transition.
+- **FR-003**: Challenge details MUST offer a visible page-level "Back to
+  Dashboard" action that reaches Dashboard in one action on both target viewport
+  sizes, without opening the main navigation menu or using browser history.
+  Direct or list-origin Waypoint visits MUST retain normal Waypoints navigation
+  without inventing Challenge context.
 - **FR-004**: New navigation MUST respect pending saves and unsaved-change
   decisions. Invalid origin context MUST NOT link across datasets or to a
   deleted or no-longer-associated Challenge.
@@ -232,9 +283,11 @@ and keyboard interaction.
   distinct. Empty Challenges MUST NOT be represented as 100% complete.
 - **FR-009**: Waypoint details and Dashboard Recently visited MUST distinguish
   completion from awards, omit inapplicable award indicators, and label the
-  applicable unearned state "No award yet" in an explicit award context.
-- **FR-010**: Recently visited MUST show Waypoint completion; earned award
-  indicators MUST remain accurate and separately identified.
+  applicable unrecorded state "No award recorded" in an explicit award context,
+  preserving feature 017's existing highest-versus-recorded terminology.
+- **FR-010**: Recently visited MUST show Waypoint completion; recorded award
+  indicators MUST remain accurate and separately identified. FR-009 and FR-010
+  preserve the delivered award behavior rather than introduce new award rules.
 - **FR-011**: Across supported Activity creation and editing surfaces, reported
   field errors and accessible invalid indications MUST be updated no later than
   leaving a corrected field or finishing a requirement-changing selection.
@@ -269,7 +322,7 @@ and keyboard interaction.
 - **Waypoint**: A record that can belong to multiple Challenges and completes
   according to its existing once-only or count-based Activity rule.
 - **Activity**: A recorded event contributing to the progress of its linked
-  Waypoint, independently of any earned award.
+  Waypoint, independently of its recorded award.
 - **Originating Challenge**: Visit context identifying the Challenge from which
   a Waypoint was opened, not a new membership or persisted Journey record.
 - **Activity draft and feedback**: Unsaved values, field errors, and save state;
@@ -281,7 +334,9 @@ and keyboard interaction.
 
 - **SC-001**: In every valid-origin acceptance case, users can return from the
   Waypoint or its save confirmation to the correct named Challenge in one action,
-  and then reach Dashboard through explicit application navigation.
+  and then reach Dashboard in one further action through the visible page-level
+  action. Both return legs meet this requirement at both target viewport sizes
+  without opening the main navigation menu or using browser history.
 - **SC-002**: All zero, partial, exact-target, above-target, once-only, shared
   membership, and empty acceptance cases show the correct member and aggregate
   progress. A partial increment and a completion-threshold crossing produce the
@@ -291,7 +346,8 @@ and keyboard interaction.
   traversing route-editing controls or opening every member.
 - **SC-004**: No reviewed Waypoint-detail or Recently visited award state
   describes recorded completion as unqualified "Not Started"; all applicable
-  earned and unearned awards remain distinguishable from completion.
+  recorded awards and "No award recorded" states remain distinguishable from
+  completion, preserving feature 017.
 - **SC-005**: Every reported-field correction case shows accurate visible and
   accessible validity before another submission, with no lost draft values,
   unexpected focus movement, or writes caused by correction.
@@ -305,18 +361,29 @@ and keyboard interaction.
 - **SC-008**: Every cancelled, pending, failed-save, invalid-origin, and
   read-only acceptance case preserves its explicit outcome without false
   success, invented progress, cross-dataset navigation, or lost draft input.
+  Every successful Waypoint-recording acceptance case brings confirmation
+  into view and focuses it without automatic navigation.
 
 ## Assumptions
 
-- This is one new improvement feature addressing all five findings from the
-  preceding UX review, not a baseline audit or a change to progress arithmetic.
+- This feature completes the remaining findings from the preceding UX review,
+  retaining the already-delivered award improvements as regression coverage;
+  it is not a baseline audit or a change to progress arithmetic.
 - It builds on [Challenge member progress](../014-challenge-waypoint-progress/spec.md),
-  [Activity recording](../015-activity-recording-experience/spec.md), and the
-  existing navigation and responsive UI contracts. It extends Waypoint-origin
-  navigation without replacing the established Idea-origin save destination.
+  [Activity recording](../015-activity-recording-experience/spec.md),
+  [Challenge award levels](../017-challenge-award-levels/spec.md), and the
+  existing navigation and responsive UI contracts. It extends the Waypoint's
+  browsing and recording navigation without changing Activity details/editing
+  navigation or replacing the established Idea-origin save destination.
 - Recording remains on the Waypoint after save, with an explicit Challenge
   return action rather than automatic redirection, so users can inspect history
-  or record another Activity.
+  or record another Activity. Successful saving moves the view and focus to
+  the confirmation rather than directly to a navigation button.
+- The existing Activity form already collapses empty recorded-GPX, reference,
+  and photo sections on new drafts and opens sections containing existing
+  content when editing. Preserve that behavior; the remaining recording work
+  concerns entry focus, Save reach, and successful-save feedback, not a new
+  optional-evidence redesign.
 - Selecting a recommended incomplete Waypoint follows existing member ordering;
   no ranking, scheduling, or recommendation system is introduced.
 - Visit context need not survive a fresh direct visit or page reload. Such

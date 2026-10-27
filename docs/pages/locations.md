@@ -49,6 +49,29 @@ review an activity.
 7. Each card links to `/waypoints/:id`, where the id is the stable identifier used as the storage
    key.
 
+## Challenge browsing and recording
+
+Opening a Waypoint from a Challenge offers **Back to [original Challenge]**
+while browsing, recording, and after a successful save. Shared membership never
+chooses a different Challenge. Direct/list visits and page reloads use ordinary
+Waypoints navigation without inventing an origin. Returns are removed if the
+original Challenge/membership disappears or the loaded dataset changes.
+
+**Log activity** brings the title field into view and focuses it. Empty GPX,
+reference, and photo sections stay collapsed. For a minimal draft, Save is
+within one viewport of additional scrolling after the last required field,
+before unrelated Waypoint history.
+
+Successful recording stays on the Waypoint and reveals/focuses the confirmation,
+not its return button. Follow the named return to see current Challenge progress.
+Changing the draft's destination retains that original return, but confirmation
+explicitly explains non-contribution if the Activity is unlinked or elsewhere.
+Loaded deletion/reassignment determines current progress, not an old receipt.
+
+Dirty returns ask before discarding; pending mutations block navigation.
+Viewers and Demo local users retain browsing and return links, with the read-only
+notice and Settings link, but no recording/editing controls.
+
 ### Waypoint Paste JSON draft example
 
 ```json

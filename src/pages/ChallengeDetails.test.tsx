@@ -11,7 +11,7 @@ import { Layout } from '../components/Layout'
 import Settings from './Settings'
 import LocationDetails from './LocationDetails'
 import type { Activity, WaypointsData } from '../domain/visit'
-import { createAwardTestData } from '../test/demoData'
+import { createAwardTestData, createJourneyTestData } from '../test/demoData'
 
 function progressData(): WaypointsData {
   return {
@@ -111,6 +111,36 @@ const validGpx = '<gpx><trk><trkseg><trkpt lat="51.1" lon="-2.1"/><trkpt lat="51
 const createDefaultData = createDemoModeData
 
 describe('ChallengeDetails', () => {
+  it('puts the summary, next action and member progress before optional route administration', () => {
+    save(createJourneyTestData(true))
+    renderDetails('journey')
+    expect(screen.getByText('1 of 2 waypoints completed (50%).')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Continue with Counted Waypoint' })).toHaveAttribute(
+      'href',
+      '/waypoints/counted',
+    )
+    expect(screen.getByRole('link', { name: 'Back to Dashboard' })).toHaveAttribute('href', '/challenges')
+    const members = screen.getByLabelText('Member progress')
+    const administration = screen.getByRole('group', { name: 'GPX route actions' })
+    expect(members.compareDocumentPosition(administration) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(
+      screen.getByLabelText('Challenge completion').compareDocumentPosition(members) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy()
+  })
+
+  it('keeps a dirty Challenge draft when Dashboard return is declined', async () => {
+    const user = userEvent.setup()
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false)
+    renderDetails()
+    await user.click(screen.getByRole('button', { name: 'Edit award settings' }))
+    fireEvent.change(screen.getByRole('textbox', { name: /^Bronze explanation/ }), {
+      target: { value: 'Changed explanation' },
+    })
+    await user.click(screen.getByRole('link', { name: 'Back to Dashboard' }))
+    expect(screen.getByRole('textbox', { name: /^Bronze explanation/ })).toHaveValue('Changed explanation')
+    expect(confirm).toHaveBeenCalledWith('You have unsaved changes. Discard them and continue to Dashboard?')
+  })
+
   it('shows exact member and recorded-visit distributions without a single overall award', () => {
     save(createAwardTestData())
     renderDetails('award-a')

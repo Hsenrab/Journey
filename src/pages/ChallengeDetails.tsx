@@ -17,6 +17,7 @@ import { parseGpxFile } from '../domain/gpx'
 import { challengeRecordedTracks } from '../domain/gpxMap'
 import {
   challengeWaypoints,
+  challengeCompletionSummary,
   completionProgressLabel,
   waypointCompletionProgress,
   type PlannedRoute,
@@ -30,13 +31,24 @@ import {
 } from '../domain/visit'
 import { useJourneyDraft, useWaypoints } from '../features/journey/JourneyContext'
 import { JourneyConflictError, JourneyInputError } from '../services/journeyApi'
+import { challengeJourneyState } from '../features/journey/challengeJourney'
 
 type Message = { severity: 'success' | 'error'; text: string; conflict?: boolean }
 
 export default function ChallengeDetails() {
   const { challengeId = '' } = useParams()
-  const { data, loadState, readOnly, reload, updateChallengeRoute, updateChallengeAwards, deleteChallenge } =
-    useWaypoints()
+  const {
+    data,
+    dataMode,
+    activeDataMode,
+    confirmNavigation,
+    loadState,
+    readOnly,
+    reload,
+    updateChallengeRoute,
+    updateChallengeAwards,
+    deleteChallenge,
+  } = useWaypoints()
   const navigate = useNavigate()
   const challenge = data.challenges.find((item) => item.challengeId === challengeId)
   const [draftRoute, setDraftRoute] = useState<PlannedRoute | null | undefined>()
@@ -74,10 +86,32 @@ export default function ChallengeDetails() {
   const breadcrumbs = [{ label: 'Challenges', to: '/challenges' }]
   if (fatal) throw fatal.error
 
-  if (!challenge) {
+  const dashboardReturn = (
+    <Button
+      component={Link}
+      to="/challenges"
+      onClick={(event) => {
+        if (
+          event.button === 0 &&
+          !event.ctrlKey &&
+          !event.metaKey &&
+          !event.shiftKey &&
+          !event.altKey &&
+          !confirmNavigation('Dashboard')
+        )
+          event.preventDefault()
+      }}
+    >
+      Back to Dashboard
+    </Button>
+  )
+  if (!challenge || loadState.status !== 'loaded') {
     return (
       <Stack spacing={3}>
-        <DetailPageHeader breadcrumbs={breadcrumbs} title="Challenge" />
+        <DetailPageHeader breadcrumbs={breadcrumbs} title="Challenge">
+          {dashboardReturn}
+        </DetailPageHeader>
+        {loadState.status === 'loaded' && <ReadOnlyNotice />}
         {loadState.status === 'failed' ? (
           <LoadFailureAlert
             message={loadState.message}
@@ -92,6 +126,10 @@ export default function ChallengeDetails() {
     )
   }
 
+  const completion = challengeCompletionSummary(waypoints, data.activities)
+  const nextWaypoint = waypoints.find((waypoint) => !waypointCompletionProgress(waypoint, data.activities).complete)
+  const originState = (waypointId: string) =>
+    challengeJourneyState(challengeId, waypointId, { dataMode, activeDataMode, loaded: true })
   const displayedRoute = draftRoute === undefined ? challenge.plannedRoute : (draftRoute ?? undefined)
   const statistics = awardStatistics(data, challengeId)
   const changeAwards = async (operation: 'save' | 'delete') => {
@@ -194,8 +232,35 @@ export default function ChallengeDetails() {
 
   return (
     <Stack spacing={3}>
-      <DetailPageHeader breadcrumbs={breadcrumbs} title={challenge.title} />
+      <DetailPageHeader breadcrumbs={breadcrumbs} title={challenge.title}>
+        {dashboardReturn}
+      </DetailPageHeader>
       <ReadOnlyNotice />
+      <Stack spacing={1} aria-label="Challenge completion" sx={{ overflowWrap: 'anywhere' }}>
+        <Typography variant="h5" component="h2">
+          Challenge progress
+        </Typography>
+        <Typography>
+          {completion.completed} of {completion.total} waypoints completed ({completion.percentage}%).
+        </Typography>
+        <Typography color="text.secondary">
+          Completion percentage counts completed Waypoints, not Activities. A count-based Waypoint can make progress
+          before the percentage changes.
+        </Typography>
+        {nextWaypoint ? (
+          <Button
+            component={Link}
+            to={`/waypoints/${nextWaypoint.waypointId}`}
+            state={originState(nextWaypoint.waypointId)}
+            variant="contained"
+            sx={{ alignSelf: 'flex-start', whiteSpace: 'normal' }}
+          >
+            Continue with {nextWaypoint.title}
+          </Button>
+        ) : waypoints.length > 0 ? (
+          <Typography>All waypoints complete.</Typography>
+        ) : null}
+      </Stack>
       <Typography>{challenge.description}</Typography>
       <Stack direction="row" spacing={1}>
         <Button component="a" href="#statistics">
@@ -222,6 +287,42 @@ export default function ChallengeDetails() {
         </Alert>
       )}
 
+      <Stack spacing={2} aria-label="Member progress">
+        <Typography variant="h5">Waypoints</Typography>
+        {waypoints.length === 0 ? (
+          <Typography color="text.secondary">No waypoints linked to this challenge.</Typography>
+        ) : (
+          waypoints.map((waypoint) => {
+            const progress = waypointCompletionProgress(waypoint, data.activities)
+            return (
+              <Card key={waypoint.waypointId}>
+                <CardContent>
+                  <Stack spacing={1} sx={{ overflowWrap: 'anywhere' }}>
+                    <Typography variant="h6">{waypoint.title}</Typography>
+                    <Typography color="text.secondary">{waypoint.description}</Typography>
+                    <Typography>Completion: {completionProgressLabel(waypoint, progress)}</Typography>
+                    {challenge.supportsActivityCategories && (
+                      <Typography>
+                        Highest recorded award: {statusLabels[statusForWaypoint(data.activities, waypoint.waypointId)]}
+                      </Typography>
+                    )}
+                    {waypoint.completion.mode === 'count' && (
+                      <Typography>{progress.complete ? 'Done' : 'Not done'}</Typography>
+                    )}
+                    <Button
+                      component={Link}
+                      to={`/waypoints/${waypoint.waypointId}`}
+                      state={originState(waypoint.waypointId)}
+                    >
+                      View waypoint
+                    </Button>
+                  </Stack>
+                </CardContent>
+              </Card>
+            )
+          })
+        )}
+      </Stack>
       <Stack spacing={2}>
         {hasMapFeatures && (
           <ChallengeRouteMap plannedRoute={displayedRoute} waypoints={waypoints} recordedTracks={recordedTracks} />
@@ -273,39 +374,6 @@ export default function ChallengeDetails() {
               </>
             )}
           </Stack>
-        )}
-      </Stack>
-
-      <Stack spacing={2}>
-        <Typography variant="h5">Waypoints</Typography>
-        {waypoints.length === 0 ? (
-          <Typography color="text.secondary">No waypoints linked to this challenge.</Typography>
-        ) : (
-          waypoints.map((waypoint) => {
-            const progress = waypointCompletionProgress(waypoint, data.activities)
-            return (
-              <Card key={waypoint.waypointId}>
-                <CardContent>
-                  <Stack spacing={1} sx={{ overflowWrap: 'anywhere' }}>
-                    <Typography variant="h6">{waypoint.title}</Typography>
-                    <Typography color="text.secondary">{waypoint.description}</Typography>
-                    <Typography>Completion: {completionProgressLabel(waypoint, progress)}</Typography>
-                    {challenge.supportsActivityCategories && (
-                      <Typography>
-                        Highest recorded award: {statusLabels[statusForWaypoint(data.activities, waypoint.waypointId)]}
-                      </Typography>
-                    )}
-                    {waypoint.completion.mode === 'count' && (
-                      <Typography>{progress.complete ? 'Done' : 'Not done'}</Typography>
-                    )}
-                    <Button component={Link} to={`/waypoints/${waypoint.waypointId}`}>
-                      View waypoint
-                    </Button>
-                  </Stack>
-                </CardContent>
-              </Card>
-            )
-          })
         )}
       </Stack>
       <Stack id="award-definitions" spacing={2}>

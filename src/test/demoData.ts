@@ -5,6 +5,79 @@ export function createDemoTestData(): WaypointsData {
   return { ...data, ideas: [], activities: [] }
 }
 
+export function createJourneyTestData(partial = false): WaypointsData {
+  const data = createAwardTestData()
+  const template = data.waypoints[0]!
+  return DataSchema.parse({
+    ...data,
+    challenges: [
+      {
+        challengeId: 'journey',
+        title: 'Discovery Challenge',
+        description: 'Discover and record progress.',
+        supportsActivityCategories: false,
+      },
+      {
+        challengeId: 'shared',
+        title: 'Another Challenge',
+        description: 'A shared-member Challenge.',
+        supportsActivityCategories: false,
+      },
+      {
+        challengeId: 'empty',
+        title: 'Empty Challenge',
+        description: 'No members are linked.',
+        supportsActivityCategories: false,
+      },
+      data.challenges[0]!,
+    ],
+    waypoints: [
+      {
+        ...template,
+        waypointId: 'once',
+        title: 'First Waypoint',
+        challengeIds: ['journey', 'shared'],
+        completion: { mode: 'once' },
+      },
+      {
+        ...template,
+        waypointId: 'counted',
+        title: 'Counted Waypoint',
+        challengeIds: ['journey'],
+        completion: { mode: 'count', target: 3 },
+      },
+      {
+        ...template,
+        waypointId: 'one-count',
+        title: 'Count target one',
+        challengeIds: ['shared'],
+        completion: { mode: 'count', target: 1 },
+      },
+      { ...template, waypointId: 'award-w1', title: 'Award Waypoint', challengeIds: ['award-a'] },
+    ],
+    activities: partial
+      ? [
+          createActivity({
+            activityId: 'once-visit',
+            name: 'First visit',
+            waypointId: 'once',
+            date: '2026-08-01',
+            location: { kind: 'postcode', postcode: 'GL1 1AA' },
+          }),
+          ...[1, 2].map((index) =>
+            createActivity({
+              activityId: `count-${index}`,
+              name: `Counted visit ${index}`,
+              waypointId: 'counted',
+              date: '2026-08-01',
+              location: { kind: 'postcode', postcode: 'GL1 1AA' },
+            }),
+          ),
+        ]
+      : [],
+  })
+}
+
 export function createAwardTestData(): WaypointsData {
   const demo = createDemoData()
   const enabled = demo.challenges[0]!

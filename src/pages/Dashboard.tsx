@@ -11,7 +11,9 @@ import { ChallengeAwardFields, emptyAwardDescriptions } from '../components/Chal
 import { AwardStatistics } from '../components/AwardStatistics'
 import {
   challengeWaypoints,
-  completedWaypointCount,
+  challengeCompletionSummary,
+  completionProgressLabel,
+  waypointCompletionProgress,
   lastActivityDate,
   recentlyVisited,
   awardStatistics,
@@ -214,8 +216,10 @@ export default function Dashboard() {
           <Box sx={{ display: 'grid', gap: 2, gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))' }}>
             {data.challenges.map((challenge) => {
               const members = challengeWaypoints(challenge, waypoints)
-              const complete = completedWaypointCount(members, activities)
-              const completionPercent = members.length === 0 ? 0 : Math.round((complete / members.length) * 100)
+              const { completed: complete, percentage: completionPercent } = challengeCompletionSummary(
+                members,
+                activities,
+              )
               return (
                 <ClickableCard key={challenge.challengeId} to={`/challenges/${challenge.challengeId}`}>
                   {(titleId) => (
@@ -265,6 +269,8 @@ export default function Dashboard() {
                             {waypoint.title}
                           </Typography>
                           <Typography color="text.secondary">
+                            Completion:{' '}
+                            {completionProgressLabel(waypoint, waypointCompletionProgress(waypoint, activities))}.{' '}
                             {waypointSupportsActivityCategory(data, waypoint.waypointId) &&
                               `Highest recorded award: ${statusLabels[statusForWaypoint(activities, waypoint.waypointId)]}. `}
                             {date ? `Latest visit: ${new Date(`${date}T00:00:00`).toLocaleDateString()}` : ''}

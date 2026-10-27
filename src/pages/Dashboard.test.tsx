@@ -6,6 +6,7 @@ import Dashboard from './Dashboard'
 import { WaypointsProvider, useWaypoints } from '../features/journey/JourneyContext'
 import { createDemoModeData, save, setDataMode } from '../services/storage'
 import type { Activity } from '../domain/visit'
+import { createAwardTestData, createJourneyTestData } from '../test/demoData'
 
 const lacockId = 'demo-foxglove-manor'
 function testData() {
@@ -56,6 +57,24 @@ function renderDashboard(controls = false) {
 }
 
 describe('Dashboard', () => {
+  it('shows the shared completed-Waypoint percentage alongside ordinary visit completion without awards', () => {
+    save(createJourneyTestData(true))
+    renderDashboard()
+    const challenge = within(screen.getByRole('link', { name: 'Discovery Challenge' }))
+    expect(challenge.getByText('50% complete')).toBeInTheDocument()
+    expect(challenge.getByText('1 of 2 waypoints completed')).toBeInTheDocument()
+    expect(
+      within(screen.getByRole('link', { name: 'Counted Waypoint' })).getByText(/Completion: 2 of 3 activities\./),
+    ).toBeInTheDocument()
+    expect(screen.queryByText(/Highest recorded award:/)).not.toBeInTheDocument()
+  })
+  it('keeps Recently visited completion separate from the highest recorded award', () => {
+    save(createAwardTestData())
+    renderDashboard()
+    const recent = within(screen.getByRole('link', { name: 'Shared Award Waypoint' }))
+    expect(recent.getByText(/Completion: Done\./)).toHaveTextContent('Highest recorded award: Gold.')
+    expect(recent.getByText(/Completion: Done\./)).toHaveTextContent('Latest visit:')
+  })
   beforeEach(() => {
     localStorage.clear()
     save(testData())
