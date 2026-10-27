@@ -14,6 +14,7 @@ import {
   activitiesUsingIdea,
   awardableStatuses,
   completedWaypointCount,
+  challengeCompletionSummary,
   countLabel,
   completionProgressLabel,
   completionRuleLabel,
@@ -33,7 +34,32 @@ import {
   type WaypointsData,
 } from './visit'
 import { completionStateForWaypoint } from './map'
-import { createAwardTestData } from '../test/demoData'
+import { createAwardTestData, createJourneyTestData } from '../test/demoData'
+
+describe('Challenge completion summary', () => {
+  it('uses completed members rather than Activities, rounds percentages, and handles empty membership', () => {
+    const data = createJourneyTestData(true)
+    const members = challengeWaypoints(data.challenges[0]!, data.waypoints)
+    expect(challengeCompletionSummary(members, data.activities)).toEqual({ completed: 1, total: 2, percentage: 50 })
+    const extra = createActivity({
+      activityId: 'threshold',
+      name: 'Threshold',
+      waypointId: 'counted',
+      date: '2026-08-02',
+      location: { kind: 'postcode', postcode: 'GL1' },
+    })
+    expect(challengeCompletionSummary(members, [...data.activities, extra])).toEqual({
+      completed: 2,
+      total: 2,
+      percentage: 100,
+    })
+    expect(
+      challengeCompletionSummary(members, [...data.activities, extra, { ...extra, activityId: 'above' }]).completed,
+    ).toBe(2)
+    expect(challengeCompletionSummary([], data.activities)).toEqual({ completed: 0, total: 0, percentage: 0 })
+    expect(challengeCompletionSummary([...members, data.waypoints[2]!], data.activities).percentage).toBe(33)
+  })
+})
 
 describe('canonical Challenge assignments', () => {
   it.each([{ waypointIds: [] }, { waypointIds: ['demo-foxglove-manor'] }])(

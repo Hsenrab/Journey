@@ -9,6 +9,47 @@ import { createAwardTestData } from '../../test/demoData'
 const waypointId = 'demo-foxglove-manor'
 const lacockId = waypointId
 
+describe('destination-aware navigation guard', () => {
+  afterEach(() => {
+    vi.restoreAllMocks()
+    vi.unstubAllEnvs()
+    localStorage.clear()
+  })
+
+  it('retains declined drafts, names the destination, and blocks pending work without a draft', async () => {
+    vi.stubEnv('MODE', 'test')
+    localStorage.clear()
+    const { result } = renderHook(() => useWaypoints(), { wrapper: WaypointsProvider })
+    await waitFor(() => expect(result.current.loading).toBe(false))
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false)
+    const unregister = result.current.registerDraft(Symbol(), true)
+    expect(result.current.confirmNavigation('Discovery Challenge')).toBe(false)
+    expect(confirm).toHaveBeenCalledWith('You have unsaved changes. Discard them and continue to Discovery Challenge?')
+    expect(result.current.confirmNavigation('Dashboard')).toBe(false)
+    confirm.mockReturnValue(true)
+    expect(result.current.confirmNavigation('Dashboard')).toBe(true)
+    unregister()
+    confirm.mockClear()
+    let finish!: () => void
+    let pending!: Promise<void>
+    act(() => {
+      pending = result.current.runMutation(
+        () =>
+          new Promise<void>((resolve) => {
+            finish = resolve
+          }),
+      )
+      expect(result.current.confirmNavigation('Dashboard')).toBe(false)
+    })
+    expect(confirm).not.toHaveBeenCalled()
+    await act(async () => {
+      finish()
+      await pending
+    })
+    expect(result.current.confirmNavigation('Dashboard')).toBe(true)
+  })
+})
+
 describe('award maintenance', () => {
   beforeEach(() => {
     localStorage.clear()

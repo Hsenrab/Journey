@@ -65,6 +65,27 @@ describe('Layout', () => {
     expect(screen.getByText('Page content')).toBeInTheDocument()
   })
 
+  it('guards keyboard Settings navigation once with the destination name', async () => {
+    function Draft() {
+      useJourneyDraft(true)
+      return null
+    }
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false)
+    render(
+      <MemoryRouter>
+        <WaypointsProvider>
+          <Layout>
+            <Draft />
+          </Layout>
+        </WaypointsProvider>
+      </MemoryRouter>,
+    )
+    screen.getByRole('link', { name: 'Settings' }).focus()
+    await userEvent.setup().keyboard('{Enter}')
+    expect(confirm).toHaveBeenCalledOnce()
+    expect(confirm).toHaveBeenCalledWith('You have unsaved changes. Discard them and continue to Settings?')
+  })
+
   it.each([
     { ctrlKey: true },
     { metaKey: true },

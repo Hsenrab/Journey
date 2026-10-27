@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react'
 import { useJourneyDraft } from '../features/journey/JourneyContext'
 import { useBeforeUnload, useBlocker } from 'react-router-dom'
 import {
@@ -29,7 +29,8 @@ import ArrowDownwardIcon from '@mui/icons-material/ArrowDownward'
 import ArrowUpwardIcon from '@mui/icons-material/ArrowUpward'
 import DeleteIcon from '@mui/icons-material/Delete'
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
-import { activityDateError, ukToday } from '../domain/activityDate'
+import { ukToday } from '../domain/activityDate'
+import { validateActivityDraft } from '../domain/activityDraftValidation'
 import {
   awardableStatuses,
   statusLabels,
@@ -63,9 +64,16 @@ type Props = {
   onSaved?: (draft: ActivityDraft) => void
   onCancel?: () => void
   onDelete?: () => void
+  focusOnOpen?: boolean
 }
 
 type Errors = Record<string, string>
+function errorGroup(key: string) {
+  if (key === 'postcode' || key === 'coordinates') return 'location'
+  if (key.startsWith('reference-')) return 'references'
+  if (key.startsWith('photo-')) return 'photos'
+  return key
+}
 type EditorReference = {
   referenceId?: string
   title: string
@@ -99,6 +107,7 @@ export function ActivityEditor({
   onSaved,
   onCancel,
   onDelete,
+  focusOnOpen = false,
 }: Props) {
   const initialLocation = useMemo<ActivityLocation>(
     () =>
@@ -113,6 +122,15 @@ export function ActivityEditor({
   const savingRef = useRef(false)
   const [fatal, setFatal] = useState<{ error: unknown } | null>(null)
   const formRef = useRef<HTMLFormElement>(null)
+  const titleRef = useRef<HTMLInputElement>(null)
+  const reportedGroups = useRef(new Set<string>())
+  const [revalidationRequested, setRevalidationRequested] = useState(false)
+  useEffect(() => {
+    if (focusOnOpen && titleRef.current) {
+      titleRef.current.focus()
+      titleRef.current.scrollIntoView({ block: 'center' })
+    }
+  }, [focusOnOpen])
   const focusError = useRef(false)
   const [trackOpen, setTrackOpen] = useState(Boolean(initialActivity?.recordedTrack))
   const [referencesOpen, setReferencesOpen] = useState(Boolean(initialReferences?.length))
@@ -279,58 +297,57 @@ export function ActivityEditor({
     { capture: true },
   )
 
-  const validate = (): { errors: Errors; location?: ActivityLocation } => {
-    const nextErrors: Errors = {}
-
-    if (!name.trim()) nextErrors.name = 'Activity title is required.'
-    const dateError = activityDateError(date)
-    if (dateError) nextErrors.date = dateError
-
-    let location: ActivityLocation | undefined
-    if (locationKind === 'postcode') {
-      const trimmed = postcode.trim()
-      if (!trimmed) nextErrors.postcode = 'Postcode is required.'
-      else location = { kind: 'postcode', postcode: trimmed }
-    } else {
-      if (!latitude.trim() || !longitude.trim()) {
-        nextErrors.coordinates = 'Enter both latitude and longitude.'
-      } else {
-        const parsedLatitude = Number(latitude)
-        const parsedLongitude = Number(longitude)
-        if (Number.isNaN(parsedLatitude) || Number.isNaN(parsedLongitude)) {
-          nextErrors.coordinates = 'Latitude and longitude must be numeric.'
-        } else if (parsedLatitude < -90 || parsedLatitude > 90) {
-          nextErrors.coordinates = 'Latitude must be between -90 and 90.'
-        } else if (parsedLongitude < -180 || parsedLongitude > 180) {
-          nextErrors.coordinates = 'Longitude must be between -180 and 180.'
-        } else {
-          location = { kind: 'coordinates', latitude: parsedLatitude, longitude: parsedLongitude }
-        }
-      }
-    }
-
-    if (supportsCategories && !category) nextErrors.category = 'Select Bronze, Silver or Gold.'
-    if (removesRecordedAward && !awardRemovalConfirmed)
-      nextErrors.awardRemoval = 'Confirm removal of the recorded award before saving.'
-
-    references.forEach((reference, index) => {
-      if (!reference.title.trim()) nextErrors[`reference-${index}-title`] = 'Reference title is required.'
-      if (!reference.url.trim().startsWith('https://')) {
-        nextErrors[`reference-${index}-url`] = 'Reference URL must start with https://.'
-      }
-      if (reference.previewImageUrl && !reference.previewImageUrl.trim().startsWith('https://')) {
-        nextErrors[`reference-${index}-preview`] = 'Preview image URL must start with https://.'
-      }
-    })
-
-    photoReferences.forEach((photoReference, index) => {
-      if (!photoReference.title.trim()) nextErrors[`photo-${index}-title`] = 'Photo title is required.'
-      if (!photoReference.url.trim().startsWith('https://')) {
-        nextErrors[`photo-${index}-url`] = 'Photo URL must start with https://.'
-      }
-    })
-
-    return { errors: nextErrors, location }
+  const validate = useCallback(
+    () =>
+      validateActivityDraft({
+        name,
+        date,
+        locationKind,
+        postcode,
+        latitude,
+        longitude,
+        supportsCategories,
+        category,
+        removesRecordedAward,
+        awardRemovalConfirmed,
+        references,
+        photoReferences,
+      }),
+    [
+      name,
+      date,
+      locationKind,
+      postcode,
+      latitude,
+      longitude,
+      supportsCategories,
+      category,
+      removesRecordedAward,
+      awardRemovalConfirmed,
+      references,
+      photoReferences,
+    ],
+  )
+  const revalidateReported = useCallback(() => {
+    if (reportedGroups.current.size === 0) return
+    setErrors(
+      Object.fromEntries(
+        Object.entries(validate().errors).filter(([key]) => reportedGroups.current.has(errorGroup(key))),
+      ),
+    )
+  }, [validate])
+  useEffect(() => {
+    if (!revalidationRequested) return
+    revalidateReported()
+    setRevalidationRequested(false)
+  }, [revalidationRequested, revalidateReported])
+  const changeReferences = (change: (current: EditorReference[]) => EditorReference[]) => {
+    setReferences(change)
+    setRevalidationRequested(true)
+  }
+  const changePhotos = (change: (current: EditorPhotoReference[]) => EditorPhotoReference[]) => {
+    setPhotoReferences(change)
+    setRevalidationRequested(true)
   }
 
   if (fatal) throw fatal.error
@@ -345,12 +362,14 @@ export function ActivityEditor({
           noValidate
           aria-busy={saving}
           spacing={2}
+          onBlur={revalidateReported}
           onSubmit={async (event) => {
             event.preventDefault()
             // Save controls are hidden in JSON mode; submission remains form-only.
             if (addMode && mode === 'json') return
             if (trackParsingRef.current || savingRef.current) return
             const result = validate()
+            Object.keys(result.errors).forEach((key) => reportedGroups.current.add(errorGroup(key)))
             if (Object.keys(result.errors).length > 0 || !result.location) {
               setErrors(result.errors)
               if (Object.keys(result.errors).some((key) => key.startsWith('reference-'))) setReferencesOpen(true)
@@ -359,6 +378,7 @@ export function ActivityEditor({
               return
             }
             setErrors({})
+            setRevalidationRequested(true)
             const draft: ActivityDraft = {
               name: name.trim(),
               waypointId: waypointId || undefined,
@@ -510,6 +530,7 @@ export function ActivityEditor({
                   {message && <Alert severity="info">{message}</Alert>}
                   <TextField
                     id="activity-title"
+                    inputRef={titleRef}
                     label="Activity title"
                     required
                     value={name}
@@ -551,6 +572,7 @@ export function ActivityEditor({
                     getOptionLabel={(option) => option.title}
                     onChange={(_, value) => {
                       const nextWaypointId = value?.waypointId ?? ''
+                      setRevalidationRequested(true)
                       if (nextWaypointId !== waypointId) {
                         setCategory('')
                         setAwardRemovalConfirmed(false)
@@ -607,7 +629,10 @@ export function ActivityEditor({
                                 'aria-describedby': errors.awardRemoval ? 'award-removal-error' : undefined,
                               },
                             }}
-                            onChange={(event) => setAwardRemovalConfirmed(event.target.checked)}
+                            onChange={(event) => {
+                              setAwardRemovalConfirmed(event.target.checked)
+                              setRevalidationRequested(true)
+                            }}
                           />
                         }
                         label="I confirm removal of the recorded award"
@@ -634,7 +659,7 @@ export function ActivityEditor({
                         value={category}
                         onChange={(event) => {
                           setCategory(AwardedStatusSchema.parse(event.target.value))
-                          setErrors((current) => ({ ...current, category: '' }))
+                          setRevalidationRequested(true)
                         }}
                       >
                         {awardableStatuses.map((value) => (
@@ -658,6 +683,7 @@ export function ActivityEditor({
                       onChange={(event) => {
                         setLocationEdited(true)
                         setLocationKind(event.target.value as ActivityLocation['kind'])
+                        setRevalidationRequested(true)
                       }}
                     >
                       <MenuItem value="postcode">Postcode</MenuItem>
@@ -842,7 +868,7 @@ export function ActivityEditor({
                                 <IconButton
                                   aria-label={`Move reference ${index + 1} up`}
                                   onClick={() =>
-                                    setReferences((current) => {
+                                    changeReferences((current) => {
                                       if (index === 0) return current
                                       const next = [...current]
                                       ;[next[index - 1], next[index]] = [next[index], next[index - 1]]
@@ -855,7 +881,7 @@ export function ActivityEditor({
                                 <IconButton
                                   aria-label={`Move reference ${index + 1} down`}
                                   onClick={() =>
-                                    setReferences((current) => {
+                                    changeReferences((current) => {
                                       if (index === current.length - 1) return current
                                       const next = [...current]
                                       ;[next[index + 1], next[index]] = [next[index], next[index + 1]]
@@ -868,7 +894,7 @@ export function ActivityEditor({
                                 <IconButton
                                   aria-label={`Remove reference ${index + 1}`}
                                   onClick={() =>
-                                    setReferences((current) => current.filter((_, itemIndex) => itemIndex !== index))
+                                    changeReferences((current) => current.filter((_, itemIndex) => itemIndex !== index))
                                   }
                                 >
                                   <DeleteIcon />
@@ -879,7 +905,7 @@ export function ActivityEditor({
                         ))}
                         <Button
                           onClick={() =>
-                            setReferences((current) => [
+                            changeReferences((current) => [
                               ...current,
                               { title: '', url: '', description: '', previewImageUrl: '' },
                             ])
@@ -947,7 +973,7 @@ export function ActivityEditor({
                                 <IconButton
                                   aria-label={`Move photo ${index + 1} up`}
                                   onClick={() =>
-                                    setPhotoReferences((current) => {
+                                    changePhotos((current) => {
                                       if (index === 0) return current
                                       const next = [...current]
                                       ;[next[index - 1], next[index]] = [next[index], next[index - 1]]
@@ -960,7 +986,7 @@ export function ActivityEditor({
                                 <IconButton
                                   aria-label={`Move photo ${index + 1} down`}
                                   onClick={() =>
-                                    setPhotoReferences((current) => {
+                                    changePhotos((current) => {
                                       if (index === current.length - 1) return current
                                       const next = [...current]
                                       ;[next[index + 1], next[index]] = [next[index], next[index + 1]]
@@ -973,9 +999,7 @@ export function ActivityEditor({
                                 <IconButton
                                   aria-label={`Remove photo ${index + 1}`}
                                   onClick={() =>
-                                    setPhotoReferences((current) =>
-                                      current.filter((_, itemIndex) => itemIndex !== index),
-                                    )
+                                    changePhotos((current) => current.filter((_, itemIndex) => itemIndex !== index))
                                   }
                                 >
                                   <DeleteIcon />
@@ -985,9 +1009,7 @@ export function ActivityEditor({
                           </Box>
                         ))}
                         <Button
-                          onClick={() =>
-                            setPhotoReferences((current) => [...current, { title: '', url: '', altText: '' }])
-                          }
+                          onClick={() => changePhotos((current) => [...current, { title: '', url: '', altText: '' }])}
                         >
                           Add photo reference
                         </Button>

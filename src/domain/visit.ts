@@ -519,6 +519,12 @@ export function completedWaypointCount(waypoints: readonly Waypoint[], activitie
   return waypoints.filter((waypoint) => waypointCompletionProgress(waypoint, activities).complete).length
 }
 
+export function challengeCompletionSummary(waypoints: readonly Waypoint[], activities: readonly Activity[]) {
+  const completed = completedWaypointCount(waypoints, activities)
+  const total = waypoints.length
+  return { completed, total, percentage: total === 0 ? 0 : Math.round((completed / total) * 100) }
+}
+
 export function statusCounts(waypoints: readonly Waypoint[], activities: readonly Activity[]): Record<Status, number> {
   const counts: Record<Status, number> = { 'not-started': 0, bronze: 0, silver: 0, gold: 0 }
   for (const waypoint of waypoints) counts[statusForWaypoint(activities, waypoint.waypointId)]++

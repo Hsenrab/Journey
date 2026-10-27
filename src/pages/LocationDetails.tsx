@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { Link, useNavigate, useParams } from 'react-router-dom'
+import { useEffect, useRef, useState } from 'react'
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
 import {
   Alert,
   Button,
@@ -42,12 +42,48 @@ import {
 } from '../domain/visit'
 import { useWaypoints } from '../features/journey/JourneyContext'
 import { JourneyConflictError, JourneyInputError } from '../services/journeyApi'
+import { resolveChallengeOrigin } from '../features/journey/challengeJourney'
 
 export default function LocationDetails() {
   const { id = '' } = useParams()
   const navigate = useNavigate()
-  const { addActivity, updateWaypoint, deleteWaypoint, activitiesFor, statusFor, data, loadState, readOnly, reload } =
-    useWaypoints()
+  const {
+    addActivity,
+    updateWaypoint,
+    deleteWaypoint,
+    activitiesFor,
+    statusFor,
+    data,
+    dataMode,
+    activeDataMode,
+    confirmNavigation,
+    loadState,
+    readOnly,
+    reload,
+  } = useWaypoints()
+  const location = useLocation()
+  const origin = resolveChallengeOrigin(
+    location.state,
+    id,
+    { dataMode, activeDataMode, loaded: loadState.status === 'loaded' },
+    data,
+  )
+  const [savedActivityId, setSavedActivityId] = useState<string>()
+  const savedId = useRef<string | undefined>(undefined)
+  const confirmationRef = useRef<HTMLDivElement>(null)
+  const focusedConfirmation = useRef<string | undefined>(undefined)
+  useEffect(() => {
+    if (
+      savedActivityId &&
+      savedActivityId !== focusedConfirmation.current &&
+      loadState.status === 'loaded' &&
+      confirmationRef.current
+    ) {
+      focusedConfirmation.current = savedActivityId
+      confirmationRef.current.scrollIntoView({ block: 'center' })
+      confirmationRef.current.focus({ preventScroll: true })
+    }
+  }, [savedActivityId, loadState.status])
   const [showEditor, setShowEditor] = useState(false)
   const [editingWaypoint, setEditingWaypoint] = useState(false)
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
@@ -57,10 +93,11 @@ export default function LocationDetails() {
   const breadcrumbs = [{ label: 'Waypoints', to: '/waypoints' }]
   const waypoint = data.waypoints.find((item) => item.waypointId === id)
 
-  if (!waypoint) {
+  if (!waypoint || loadState.status !== 'loaded') {
     return (
       <Stack spacing={3}>
         <DetailPageHeader breadcrumbs={breadcrumbs} title="Waypoint" />
+        {loadState.status === 'loaded' && <ReadOnlyNotice />}
         {loadState.status === 'failed' ? (
           <LoadFailureAlert message={loadState.message} description="This is a load failure, not a missing waypoint." />
         ) : loadState.status === 'loading' ? (
@@ -75,6 +112,34 @@ export default function LocationDetails() {
   const activities = activitiesFor(id)
   const progress = waypointCompletionProgress(waypoint, data.activities)
   const waypointIdeas = ideasForWaypoint(data.ideas, id)
+  const savedActivity = data.activities.find((activity) => activity.activityId === savedActivityId)
+  const contributes = Boolean(
+    savedActivity?.waypointId &&
+    data.waypoints.some(
+      (item) =>
+        item.waypointId === savedActivity.waypointId && origin && item.challengeIds.includes(origin.challengeId),
+    ),
+  )
+  const challengeReturn = origin && (
+    <Button
+      component={Link}
+      to={`/challenges/${origin.challengeId}`}
+      sx={{ whiteSpace: 'normal', overflowWrap: 'anywhere' }}
+      onClick={(event) => {
+        if (
+          event.button === 0 &&
+          !event.ctrlKey &&
+          !event.metaKey &&
+          !event.shiftKey &&
+          !event.altKey &&
+          !confirmNavigation(origin.title)
+        )
+          event.preventDefault()
+      }}
+    >
+      Back to {origin.title}
+    </Button>
+  )
   const reloadLatest = async () => {
     const result = await reload()
     if (result.status === 'failure') {
@@ -93,12 +158,14 @@ export default function LocationDetails() {
   return (
     <Stack spacing={3}>
       <DetailPageHeader breadcrumbs={breadcrumbs} title={waypoint.title}>
+        {challengeReturn}
         {!readOnly && !showEditor && !editingWaypoint && (
           <>
             <Button
               variant="contained"
               onClick={() => {
                 setMessage(null)
+                setSavedActivityId(undefined)
                 setShowEditor(true)
               }}
             >
@@ -124,12 +191,6 @@ export default function LocationDetails() {
         )}
       </DetailPageHeader>
       <ReadOnlyNotice />
-      {loadState.status === 'failed' && (
-        <LoadFailureAlert
-          message={loadState.message}
-          description="This is a load failure, not an empty waypoint dataset."
-        />
-      )}
       <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: 'wrap' }}>
         <Chip
           label={`Completion: ${completionProgressLabel(waypoint, progress)}`}
@@ -170,6 +231,29 @@ export default function LocationDetails() {
           {message.text}
         </Alert>
       )}
+      {savedActivityId && (
+        <Alert
+          severity="success"
+          role="status"
+          aria-label="Activity saved confirmation"
+          tabIndex={-1}
+          ref={confirmationRef}
+        >
+          <Typography>Activity saved.</Typography>
+          {!savedActivity ? (
+            <Typography>This Activity is no longer present in the loaded data.</Typography>
+          ) : (
+            origin && (
+              <Typography>
+                {contributes
+                  ? `This Activity contributes to ${origin.title}. Completion depends on each Waypoint's target.`
+                  : `This Activity does not contribute to ${origin.title}.`}
+              </Typography>
+            )
+          )}
+          {challengeReturn}
+        </Alert>
+      )}
 
       {!readOnly && editingWaypoint && (
         <WaypointEditor
@@ -200,10 +284,11 @@ export default function LocationDetails() {
         <ActivityEditor
           data={data}
           initialWaypointId={id}
+          focusOnOpen
           submitLabel="Save activity"
           onSubmit={async (draft) => {
             try {
-              await addActivity(draft)
+              savedId.current = await addActivity(draft)
               return true
             } catch (error) {
               if (!(error instanceof JourneyInputError || error instanceof JourneyConflictError)) throw error
@@ -217,7 +302,8 @@ export default function LocationDetails() {
           }}
           onSaved={() => {
             setShowEditor(false)
-            setMessage({ severity: 'success', text: 'Activity saved.', conflict: false })
+            setMessage(null)
+            setSavedActivityId(savedId.current)
           }}
           onCancel={() => {
             setMessage(null)

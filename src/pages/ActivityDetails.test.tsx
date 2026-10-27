@@ -217,6 +217,14 @@ describe('ActivityDetails', () => {
       ),
     )
     expect(await screen.findByText('A recorded GPX track is attached.')).toBeInTheDocument()
+    await user.clear(screen.getByLabelText('Activity title'))
+    await user.click(screen.getByRole('button', { name: 'Save changes' }))
+    expect(screen.getByLabelText('Activity title')).toHaveAttribute('aria-invalid', 'true')
+    await user.type(screen.getByLabelText('Activity title'), 'Recorded activity')
+    await user.tab()
+    expect(screen.getByLabelText('Activity title')).toHaveAttribute('aria-invalid', 'false')
+    expect(screen.getByText('A recorded GPX track is attached.')).toBeInTheDocument()
+    expect(load().activities[0]!.recordedTrack).toBeUndefined()
     await submitActivity(user, 'Save changes')
     expect(await screen.findByRole('link', { name: 'View recorded track on map' })).toHaveAttribute(
       'href',

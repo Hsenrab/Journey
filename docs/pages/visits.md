@@ -25,8 +25,21 @@ Activities can be linked to a waypoint or left unlinked.
   acknowledgement of its removal; cancellation preserves the original record.
 - Idea selections are independent from waypoint selection. Changing or clearing waypoint does not clear selected ideas.
 - Invalid input keeps entered values and shows field-level messages.
+- Previously reported errors and accessible invalid indications update when a
+  corrected field is left or a requirement-changing selection finishes. Invalid
+  values retain their errors. Location/award dependencies and evidence row
+  changes are revalidated without moving focus or writing a record.
+- Corrections retain unrelated errors, notes, attachments, and specific
+  save/conflict/GPX failures; correcting input does not mean saving succeeded.
 - A GPX track can be attached, replaced, or removed. Invalid GPX shows its parser error and keeps other form values and any previously attached track.
 - Unsaved edits show a leave warning on page unload and when cancelling the form.
+- New Challenge/Dashboard returns also confirm dirty drafts and block pending
+  saves. Saving from a Waypoint reveals and focuses its confirmation without
+  redirecting. Its valid original Challenge return remains available, with
+  truthful contribution feedback even after changing the draft's destination.
+- Ordinary creation stays on Activities; an Idea-origin save that retains that
+  Idea returns there. Activity details/editing retain their existing navigation
+  and do not acquire a Challenge-origin return.
 - Add mode includes **Form** and **Paste JSON** tabs. Paste JSON accepts one activity content object
   without entity links or generated identifiers and rejects arrays and unlisted fields.
 - **Copy example JSON** copies a representative draft shape. **Load into form** validates the pasted

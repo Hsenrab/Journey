@@ -126,12 +126,18 @@ for (const width of [360, 1280]) {
         })
         .click()
       const title = page.getByLabel('Activity title', { exact: true })
-      const recordedTitle =
-        journey === 'edit' ? 'Earlier walk' : `Recorded walk ${'through the woods and beside the river '.repeat(8)}`
-      if (journey !== 'edit') await title.fill(recordedTitle)
-      if (journey === 'activities') await page.getByLabel('Postcode', { exact: true }).fill('GL1 1AA')
       const save = () =>
         page.getByRole('button', { name: journey === 'edit' ? 'Save changes' : 'Save activity', exact: true })
+      await title.fill('')
+      await save().click()
+      await expect(title).toHaveAttribute('aria-invalid', 'true')
+      const recordedTitle =
+        journey === 'edit' ? 'Earlier walk' : `Recorded walk ${'through the woods and beside the river '.repeat(8)}`
+      await title.fill(recordedTitle)
+      await title.press('Tab')
+      await expect(title).toHaveAttribute('aria-invalid', 'false')
+      expect(writes).toBe(0)
+      if (journey === 'activities') await page.getByLabel('Postcode', { exact: true }).fill('GL1 1AA')
       await save().focus()
       await page.keyboard.press('Enter')
       await expect(page.getByRole('status')).toHaveText('Saving...')
@@ -154,6 +160,13 @@ for (const width of [360, 1280]) {
       release!(false)
       await expect(page.getByRole('alert').filter({ hasText: 'Specific rejected save' })).toBeVisible()
       await expect(title).toHaveValue(recordedTitle)
+      await title.fill('')
+      await title.press('Tab')
+      await title.fill(recordedTitle)
+      await title.press('Tab')
+      await expect(title).toHaveAttribute('aria-invalid', 'false')
+      await expect(page.getByRole('alert').filter({ hasText: 'Specific rejected save' })).toBeVisible()
+      expect(writes).toBe(1)
       await save().click()
       await expect.poll(() => writes).toBe(2)
       release!(true)

@@ -131,7 +131,7 @@ type WaypointsValue = {
   mutationPending: boolean
   runMutation: <T>(operation: () => Promise<T>) => Promise<T>
   registerDraft: (id: symbol, dirty: boolean) => () => void
-  confirmSettingsNavigation: () => boolean
+  confirmNavigation: (destination: string) => boolean
   addChallenge: (
     input: Pick<Challenge, 'title' | 'description' | 'supportsActivityCategories' | 'awardDescriptions'>,
   ) => Promise<void>
@@ -513,11 +513,10 @@ export function WaypointsProvider({ children }: { children: ReactNode }) {
       drafts.current.delete(id)
     }
   }, [])
-  const confirmSettingsNavigation = useCallback(() => {
-    if (drafts.current.size === 0) return true
+  const confirmNavigation = useCallback((destination: string) => {
     if (pendingCount.current > 0) return false
-    if (!window.confirm('You have unsaved changes. Discard them and continue to Settings or another data mode?'))
-      return false
+    if (drafts.current.size === 0) return true
+    if (!window.confirm(`You have unsaved changes. Discard them and continue to ${destination}?`)) return false
     drafts.current.clear()
     return true
   }, [])
@@ -591,12 +590,12 @@ export function WaypointsProvider({ children }: { children: ReactNode }) {
     async (mode: JourneyDataMode) => {
       if (pendingCount.current > 0) throw new Error('Cannot switch data modes while a Journey mutation is pending.')
       if (mode === dataMode) return 'switched' as const
-      if (!confirmSettingsNavigation()) return 'cancelled' as const
+      if (!confirmNavigation('another data mode')) return 'cancelled' as const
       saveDataMode(mode)
       setDataModeState(mode)
       return 'switched' as const
     },
-    [confirmSettingsNavigation, dataMode],
+    [confirmNavigation, dataMode],
   )
   useEffect(() => {
     if (localTestMode && dataMode === 'production' && activeDataMode === 'production') save(data)
@@ -772,7 +771,7 @@ export function WaypointsProvider({ children }: { children: ReactNode }) {
       mutationPending,
       runMutation,
       registerDraft,
-      confirmSettingsNavigation,
+      confirmNavigation,
       addChallenge: track(mutations.addChallenge),
       updateChallengeAwards: track(mutations.updateChallengeAwards),
       deleteChallenge: track(mutations.deleteChallenge),
@@ -807,7 +806,7 @@ export function WaypointsProvider({ children }: { children: ReactNode }) {
     mutationPending,
     runMutation,
     registerDraft,
-    confirmSettingsNavigation,
+    confirmNavigation,
   ])
   return (
     <Context.Provider value={value}>

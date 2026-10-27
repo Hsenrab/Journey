@@ -55,7 +55,7 @@ export function Layout({ children }: { children: ReactNode }) {
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'))
   const [open, setOpen] = useState(false)
   const location = useLocation()
-  const { activeDataMode, dataMode, loadError, loading, readOnly, role, confirmSettingsNavigation } = useWaypoints()
+  const { activeDataMode, dataMode, loadError, loading, readOnly, role, confirmNavigation } = useWaypoints()
   const chip = dataModeStatusView[dataModeStatus({ activeDataMode, dataMode, loadError, loading, readOnly, role })]
 
   const navList = (
@@ -90,7 +90,7 @@ export function Layout({ children }: { children: ReactNode }) {
           return
         const anchor = (event.target as HTMLElement).closest('a')
         if (anchor?.target && anchor.target !== '_self') return
-        if (anchor?.getAttribute('href') === '/settings' && !confirmSettingsNavigation()) {
+        if (anchor?.getAttribute('href') === '/settings' && !confirmNavigation('Settings')) {
           event.preventDefault()
           event.stopPropagation()
         }

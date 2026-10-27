@@ -7,8 +7,13 @@ import { ApplicationError } from '../app/App'
 import { createDefaultData } from '../services/storage'
 import { ukToday } from '../domain/activityDate'
 import type { ActivityDraft } from '../features/journey/JourneyContext'
+import { createAwardTestData } from '../test/demoData'
 
-function setup(onSubmit = vi.fn<(draft: ActivityDraft) => Promise<boolean>>().mockResolvedValue(true)) {
+function setup(
+  onSubmit = vi.fn<(draft: ActivityDraft) => Promise<boolean>>().mockResolvedValue(true),
+  focusOnOpen = false,
+  data = createDefaultData(),
+) {
   const onSaved = vi.fn()
   const router = createMemoryRouter(
     [
@@ -18,7 +23,13 @@ function setup(onSubmit = vi.fn<(draft: ActivityDraft) => Promise<boolean>>().mo
         element: (
           <>
             <Link to="/elsewhere">Leave editor</Link>
-            <ActivityEditor data={createDefaultData()} submitLabel="Save" onSubmit={onSubmit} onSaved={onSaved} />
+            <ActivityEditor
+              data={data}
+              submitLabel="Save"
+              onSubmit={onSubmit}
+              onSaved={onSaved}
+              focusOnOpen={focusOnOpen}
+            />
           </>
         ),
       },
@@ -36,6 +47,90 @@ function fill() {
 }
 
 describe('Activity recording lifecycle', () => {
+  it('updates reported award feedback after tier and destination selections without writing', async () => {
+    const { user, onSubmit } = setup(undefined, false, createAwardTestData())
+    fill()
+    await user.type(screen.getByRole('combobox', { name: 'Linked waypoint' }), 'Shared Award')
+    await user.click(screen.getByRole('option', { name: 'Shared Award Waypoint' }))
+    await user.click(screen.getByRole('button', { name: 'Save' }))
+    expect(screen.getByText('Select Bronze, Silver or Gold.')).toBeInTheDocument()
+    await user.click(screen.getByRole('combobox', { name: 'Award tier' }))
+    await user.click(screen.getByRole('option', { name: 'Gold' }))
+    expect(screen.queryByText('Select Bronze, Silver or Gold.')).not.toBeInTheDocument()
+    await user.clear(screen.getByRole('combobox', { name: 'Linked waypoint' }))
+    await user.type(screen.getByRole('combobox', { name: 'Linked waypoint' }), 'Ordinary Waypoint')
+    await user.click(screen.getByRole('option', { name: 'Ordinary Waypoint' }))
+    expect(screen.queryByRole('combobox', { name: 'Award tier' })).not.toBeInTheDocument()
+    expect(onSubmit).not.toHaveBeenCalled()
+  })
+
+  it('keeps reported photo errors attached to current rows after reordering', async () => {
+    const { user, onSubmit } = setup()
+    fill()
+    await user.click(screen.getByRole('button', { name: 'Photos (optional)' }))
+    await user.click(screen.getByRole('button', { name: 'Add photo reference' }))
+    await user.type(screen.getByLabelText('Photo title'), 'Valid photo')
+    await user.type(screen.getByLabelText('Photo URL'), 'https://example.com/photo')
+    await user.click(screen.getByRole('button', { name: 'Add photo reference' }))
+    await user.click(screen.getByRole('button', { name: 'Save' }))
+    await user.click(screen.getByRole('button', { name: 'Move photo 2 up' }))
+    expect(screen.getAllByLabelText('Photo title')[0]).toHaveAttribute('aria-invalid', 'true')
+    expect(screen.getAllByLabelText('Photo title')[1]).toHaveAttribute('aria-invalid', 'false')
+    expect(screen.getAllByLabelText('Photo title')[1]).toHaveValue('Valid photo')
+    expect(onSubmit).not.toHaveBeenCalled()
+  })
+
+  it('updates reported errors on blur without moving focus, writing, or exposing unrelated untouched errors', async () => {
+    const { user, onSubmit } = setup()
+    await user.click(screen.getByRole('button', { name: 'Save' }))
+    const title = screen.getByLabelText('Activity title')
+    const postcode = screen.getByLabelText('Postcode')
+    await user.type(title, 'Corrected visit')
+    await user.tab()
+    expect(title).toHaveAttribute('aria-invalid', 'false')
+    expect(postcode).toHaveAttribute('aria-invalid', 'true')
+    expect(screen.getByLabelText('Activity date')).toHaveFocus()
+    await user.clear(title)
+    await user.tab()
+    expect(title).toHaveAttribute('aria-invalid', 'true')
+    await user.type(title, 'Retained visit')
+    await user.click(screen.getByRole('combobox', { name: 'Location type' }))
+    await user.click(screen.getByRole('option', { name: 'Latitude and longitude' }))
+    expect(screen.getByLabelText('Latitude')).toHaveAccessibleDescription('Enter both latitude and longitude.')
+    await user.type(screen.getByLabelText('Latitude'), '51')
+    await user.type(screen.getByLabelText('Longitude'), '-2')
+    await user.tab()
+    expect(screen.getByLabelText('Latitude')).toHaveAttribute('aria-invalid', 'false')
+    expect(screen.getByLabelText('Activity title')).toHaveValue('Retained visit')
+    expect(onSubmit).not.toHaveBeenCalled()
+  })
+
+  it('opts into initial focus only for the explicit recording entry', async () => {
+    const { user } = setup(undefined, true)
+    expect(screen.getByLabelText('Activity title')).toHaveFocus()
+    await user.click(screen.getByLabelText('Postcode'))
+    await user.type(screen.getByLabelText('Postcode'), 'GL1')
+    expect(screen.getByLabelText('Postcode')).toHaveFocus()
+  })
+
+  it('revalidates indexed reported evidence after removing another row', async () => {
+    const { user, onSubmit } = setup()
+    fill()
+    await user.click(screen.getByRole('button', { name: 'References (optional)' }))
+    await user.click(screen.getByRole('button', { name: 'Add reference' }))
+    await user.type(screen.getByLabelText('Reference title'), 'Valid reference')
+    await user.type(screen.getByLabelText('Reference URL'), 'https://example.com')
+    await user.click(screen.getByRole('button', { name: 'Add reference' }))
+    await user.click(screen.getByRole('button', { name: 'Save' }))
+    await user.click(screen.getByRole('button', { name: 'Remove reference 1' }))
+    expect(screen.getByLabelText('Reference title')).toHaveAttribute('aria-invalid', 'true')
+    await user.type(screen.getByLabelText('Reference title'), 'Corrected reference')
+    await user.tab()
+    expect(screen.getByLabelText('Reference title')).toHaveAttribute('aria-invalid', 'false')
+    expect(screen.getByLabelText('Reference URL')).toHaveAttribute('aria-invalid', 'true')
+    expect(onSubmit).not.toHaveBeenCalled()
+  })
+
   it('prefills UK today, focuses missing title and rejects future dates without submitting', async () => {
     const { user, onSubmit } = setup()
     expect(screen.getByLabelText('Activity date')).toHaveValue(ukToday())

@@ -5,15 +5,45 @@ import { Route, Routes } from 'react-router-dom'
 import { MemoryRouter } from '../test/DataMemoryRouter'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import LocationDetails from './LocationDetails'
-import { WaypointsProvider } from '../features/journey/JourneyContext'
+import { WaypointsProvider, useWaypoints } from '../features/journey/JourneyContext'
+import { challengeJourneyState } from '../features/journey/challengeJourney'
+import { createAwardTestData, createJourneyTestData } from '../test/demoData'
 import { createDemoModeData, load, save } from '../services/storage'
 
 const demoWaypointId = 'demo-foxglove-manor'
 
-function renderDetails(id: string) {
+function DatasetControls() {
+  const { reload, deleteActivity, updateActivity, data } = useWaypoints()
+  const last = data.activities.at(-1)
+  return (
+    <>
+      <button onClick={() => void reload()}>Reload dataset</button>
+      {last && (
+        <button
+          onClick={() =>
+            void updateActivity(last.activityId, {
+              ...last,
+              waypointId: 'one-count',
+              references: last.referenceIds.map((id) => data.references.find((item) => item.referenceId === id)!),
+              photoReferences: last.photoReferenceIds.map((id) =>
+                data.photoReferences.find((item) => item.photoReferenceId === id)!,
+              ),
+            })
+          }
+        >
+          Reassign saved Activity
+        </button>
+      )}
+      {last && <button onClick={() => void deleteActivity(last.activityId)}>Delete saved Activity</button>}
+    </>
+  )
+}
+
+function renderDetails(id: string, state?: unknown, controls = false) {
   return render(
-    <MemoryRouter initialEntries={[`/waypoints/${id}`]}>
+    <MemoryRouter initialEntries={[{ pathname: `/waypoints/${id}`, state }]}>
       <WaypointsProvider>
+        {controls && <DatasetControls />}
         <Routes>
           <Route path="/waypoints/:id" element={<LocationDetails />} />
           <Route path="/waypoints" element={<div>Waypoint list</div>} />
@@ -24,6 +54,76 @@ function renderDetails(id: string) {
 }
 
 describe('LocationDetails', () => {
+  it('keeps applicable unrecorded awards separate from completion throughout originated recording', async () => {
+    const data = createAwardTestData()
+    save(data)
+    renderDetails(
+      'award-w3',
+      challengeJourneyState('award-a', 'award-w3', {
+        dataMode: 'production',
+        activeDataMode: 'production',
+        loaded: true,
+      }),
+    )
+    expect(screen.getByText('Completion: Not done')).toBeInTheDocument()
+    expect(screen.getByText('Highest recorded award: No award recorded')).toBeInTheDocument()
+    const user = userEvent.setup()
+    await user.click(screen.getByRole('button', { name: 'Log activity' }))
+    await user.click(screen.getByRole('button', { name: 'Save activity' }))
+    expect(screen.getByText('Select Bronze, Silver or Gold.')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Back to Award Challenge A' })).toBeInTheDocument()
+    expect(load().activities).toEqual(data.activities)
+  })
+
+  it('does not retain current-looking progress after a Production reload fails', async () => {
+    vi.stubEnv('MODE', 'production')
+    vi.stubGlobal(
+      'fetch',
+      vi
+        .fn()
+        .mockResolvedValueOnce(
+          new Response(JSON.stringify({ data: createJourneyTestData(true), etags: {}, role: 'admin' })),
+        )
+        .mockResolvedValueOnce(
+          new Response(JSON.stringify({ error: 'Specific Production load failure' }), {
+            status: 503,
+            statusText: 'Service Unavailable',
+          }),
+        ),
+    )
+    renderDetails('once', undefined, true)
+    expect(await screen.findByText('Completion: Done')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Reload dataset' }))
+    expect(await screen.findByText(/Journey API request failed with 503: Service Unavailable/)).toBeInTheDocument()
+    expect(screen.queryByText('Completion: Done')).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Log activity' })).not.toBeInTheDocument()
+  })
+
+  it('derives saved contribution from current records after loaded reassignment and deletion', async () => {
+    save(createJourneyTestData())
+    renderDetails(
+      'once',
+      challengeJourneyState('journey', 'once', { dataMode: 'production', activeDataMode: 'production', loaded: true }),
+      true,
+    )
+    const user = userEvent.setup()
+    await user.click(screen.getByRole('button', { name: 'Log activity' }))
+    fireEvent.change(screen.getByLabelText('Activity title'), { target: { value: 'A visit' } })
+    fireEvent.change(screen.getByLabelText('Postcode'), { target: { value: 'GL1' } })
+    await user.click(screen.getByRole('button', { name: 'Save activity' }))
+    expect(await screen.findByRole('status', { name: 'Activity saved confirmation' })).toHaveTextContent(
+      'This Activity contributes to Discovery Challenge.',
+    )
+    await user.click(screen.getByRole('button', { name: 'Reassign saved Activity' }))
+    expect(await screen.findByText('This Activity does not contribute to Discovery Challenge.')).toBeInTheDocument()
+    expect(screen.getByText('Completion: Not done')).toBeInTheDocument()
+    expect(screen.getAllByRole('link', { name: 'Back to Discovery Challenge' })).toHaveLength(2)
+    await user.click(screen.getByRole('button', { name: 'Delete saved Activity' }))
+    expect(await screen.findByText('This Activity is no longer present in the loaded data.')).toBeInTheDocument()
+    expect(screen.getByText('Completion: Not done')).toBeInTheDocument()
+    expect(screen.queryByText(/This Activity contributes to Discovery Challenge/)).not.toBeInTheDocument()
+  })
+
   beforeEach(() => {
     localStorage.clear()
     save(createDemoModeData())

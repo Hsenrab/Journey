@@ -2,6 +2,9 @@ import '@testing-library/jest-dom/vitest'
 import { cleanup } from '@testing-library/react'
 import { afterEach, vi } from 'vitest'
 
+// JSDOM has no layout or scrolling; browser acceptance checks the actual movement.
+HTMLElement.prototype.scrollIntoView = vi.fn()
+
 vi.mock('azure-maps-control', () => ({
   AuthenticationType: { anonymous: 'anonymous' },
   Map: class {

@@ -20,6 +20,19 @@ function renderActivities(path = '/activities') {
 }
 
 describe('Activities', () => {
+  it('clears corrected reported title feedback before saving an independent Activity', async () => {
+    const user = userEvent.setup()
+    renderActivities()
+    await user.click(screen.getByRole('button', { name: 'Add activity' }))
+    await user.click(screen.getByRole('button', { name: 'Save activity' }))
+    const title = screen.getByLabelText('Activity title')
+    await user.type(title, 'Corrected independent visit')
+    await user.tab()
+    expect(title).toHaveAttribute('aria-invalid', 'false')
+    expect(screen.getByLabelText('Postcode')).toHaveAttribute('aria-invalid', 'true')
+    expect(load().activities).toHaveLength(0)
+  })
+
   beforeEach(() => localStorage.clear())
   afterEach(() => {
     vi.restoreAllMocks()

@@ -11,14 +11,25 @@ from individual Activity awards.
 
 ## Key behavior
 
-- Completion percentage is based on waypoint completion rules (`once`/`count`) and linked activity count.
+- Completion percentage is the rounded percentage of completed member Waypoints,
+  not the percentage of recorded Activities. A count-based member can gain an
+  Activity without changing the overall percentage until its target is reached.
+  Empty Challenges are 0%, not 100%.
+- Challenge details show the same completed/total and percentage, an explanation,
+  and an action to the first incomplete member in existing order. Member progress
+  precedes optional map/route administration. Complete and empty Challenges have
+  no suggested incomplete member.
+- Opening a member from a Challenge preserves a named return on its Waypoint,
+  including recording and successful confirmation. Challenge details offer
+  **Back to Dashboard** without a menu or browser Back.
 - Award-enabled Challenges require user-written Bronze, Silver, and Gold explanations.
   Ordinary Challenges default to awards disabled.
 - Global award distributions count eligible Waypoints by exact highest award and
   Activities by recorded award. Shared records count once globally. Matching links
   open the contributing record lists; ordinary-only datasets omit distributions.
-- Recent visits link to Waypoint details and distinguish highest recorded award
-  from the explicitly labelled latest visit date.
+- Recent visits link to Waypoint details and show completion separately from
+  the highest recorded award and latest visit date. Ordinary Waypoints omit award
+  indicators; applicable unrecorded awards say **No award recorded**.
 - Challenge details expose definitions, editable award settings, protected deletion,
   and Statistics. Ordinary Challenges retain member, Activity, and completion
   totals without award distributions. Enabled distributions include no-award
