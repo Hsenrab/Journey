@@ -119,6 +119,7 @@ describe('Locations', () => {
     save(testData())
   })
   afterEach(() => {
+    vi.restoreAllMocks()
     vi.unstubAllGlobals()
     vi.unstubAllEnvs()
   })
@@ -159,23 +160,109 @@ describe('Locations', () => {
     expect(fetch).toHaveBeenCalledTimes(2)
   })
 
-  it('keeps remote viewer waypoints browsable without add controls', async () => {
-    vi.stubEnv('MODE', 'production')
-    const fetch = vi
-      .fn()
-      .mockImplementation(
-        () => new Response(JSON.stringify({ data: testData(), etags: {}, role: 'viewer' }), { status: 200 }),
-      )
-    vi.stubGlobal('fetch', fetch)
-    renderLocations()
+  it.each(['production', 'demo-cosmos'] as const)(
+    'keeps %s viewer waypoints browsable without add controls',
+    async (mode) => {
+      vi.stubEnv('MODE', 'production')
+      setDataMode(mode)
+      const fetch = vi
+        .fn()
+        .mockImplementation(
+          () => new Response(JSON.stringify({ data: testData(), etags: {}, role: 'viewer' }), { status: 200 }),
+        )
+      vi.stubGlobal('fetch', fetch)
+      renderLocations(['/waypoints?mode=add'])
 
-    expect(
-      await screen.findByText(/Your Journey access is viewer only, so you can read this data but not change it\./),
-    ).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: 'Stourhead' })).toHaveAttribute('href', '/waypoints/stourhead')
-    expect(screen.queryByRole('button', { name: /add waypoint/i })).not.toBeInTheDocument()
+      expect(
+        await screen.findByText(/Your Journey access is viewer only, so you can read this data but not change it\./),
+      ).toBeInTheDocument()
+      expect(screen.getByRole('link', { name: 'Stourhead' })).toHaveAttribute('href', '/waypoints/stourhead')
+      expect(screen.queryByRole('button', { name: /add waypoint/i })).not.toBeInTheDocument()
+      expect(screen.getByRole('link', { name: 'Change the data mode in Settings' })).toHaveAttribute(
+        'href',
+        '/settings',
+      )
+      expect(fetch).toHaveBeenCalledTimes(1)
+    },
+  )
+
+  it('preserves a declined add draft and its shortlist, then discards and reopens without writing', async () => {
+    const user = userEvent.setup()
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false)
+    const before = testData()
+    renderLocations(['/waypoints?challenge=test-challenge&mode=add'])
+    fireEvent.change(screen.getByLabelText('Search waypoints'), { target: { value: 'Stourhead' } })
+    fireEvent.change(screen.getByLabelText('Title'), { target: { value: 'Abandoned title' } })
+    await user.click(screen.getByRole('button', { name: 'Cancel' }))
+    expect(screen.getByLabelText('Title')).toHaveValue('Abandoned title')
+    expect(screen.getByLabelText('Search waypoints')).toHaveValue('Stourhead')
+    expect(screen.getByRole('combobox', { name: 'Highest recorded award' })).toBeInTheDocument()
+    expect(JSON.parse(localStorage.getItem('waypoints-v1')!)).toEqual(before)
+    confirm.mockReturnValue(true)
+    await user.click(screen.getByRole('button', { name: 'Cancel' }))
+    expect(screen.queryByRole('button', { name: 'Save waypoint' })).not.toBeInTheDocument()
+    expect(screen.getByLabelText('Search waypoints')).toHaveValue('Stourhead')
+    await user.click(screen.getByRole('button', { name: 'Add waypoint' }))
+    expect(screen.getByLabelText('Title')).toHaveValue('')
+    await user.click(screen.getByRole('tab', { name: 'Paste JSON' }))
+    expect(screen.getByLabelText('Waypoint JSON')).toHaveValue('')
+    expect(JSON.parse(localStorage.getItem('waypoints-v1')!)).toEqual(before)
+    expect(confirm).toHaveBeenCalledTimes(2)
+  })
+
+  it('cancels an unchanged add draft without a prompt or write', async () => {
+    const user = userEvent.setup()
+    const confirm = vi.spyOn(window, 'confirm')
+    const before = localStorage.getItem('waypoints-v1')
+    renderLocations(['/waypoints?mode=add'])
+    await user.click(screen.getByRole('button', { name: 'Cancel' }))
+    expect(confirm).not.toHaveBeenCalled()
+    expect(screen.queryByRole('button', { name: 'Save waypoint' })).not.toBeInTheDocument()
+    expect(localStorage.getItem('waypoints-v1')).toBe(before)
+  })
+
+  it.each(['production', 'demo-cosmos'] as const)(
+    'retains the specific %s add failure when discard is declined',
+    async (mode) => {
+      vi.stubEnv('MODE', 'production')
+      setDataMode(mode)
+      const data = createDefaultData()
+      const fetch = vi.fn(async (_url: string, init?: RequestInit) =>
+        init?.method === 'POST'
+          ? new Response(JSON.stringify({ error: 'Deliberate Waypoint save failure' }), {
+              status: 400,
+              statusText: 'Bad Request',
+            })
+          : new Response(JSON.stringify({ data, etags: {}, role: 'admin' })),
+      )
+      vi.stubGlobal('fetch', fetch)
+      const user = userEvent.setup()
+      const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false)
+      renderLocations(['/waypoints?mode=add'])
+      await screen.findByLabelText('Title')
+      for (const [label, value] of Object.entries({
+        Title: 'Retained title',
+        Description: 'Retained description',
+        Category: 'Walk',
+      })) {
+        fireEvent.change(screen.getByRole('textbox', { name: label }), { target: { value } })
+      }
+      await user.click(screen.getByRole('button', { name: 'Save waypoint' }))
+      expect(await screen.findByText(/Deliberate Waypoint save failure/)).toBeInTheDocument()
+      await user.click(screen.getByRole('button', { name: 'Cancel' }))
+      expect(confirm).toHaveBeenCalledOnce()
+      expect(screen.getByLabelText('Title')).toHaveValue('Retained title')
+      expect(screen.getByText(/Deliberate Waypoint save failure/)).toBeInTheDocument()
+      expect(screen.queryByText('Waypoint saved.')).not.toBeInTheDocument()
+      expect(fetch.mock.calls.filter(([, init]) => init?.method === 'POST')).toHaveLength(1)
+    },
+  )
+
+  it('does not open a direct add URL in Demo local', () => {
+    setDataMode('demo-local')
+    renderLocations(['/waypoints?mode=add'])
+    expect(screen.queryByRole('button', { name: 'Save waypoint' })).not.toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Change the data mode in Settings' })).toHaveAttribute('href', '/settings')
-    expect(fetch).toHaveBeenCalledTimes(1)
   })
 
   it('lists every waypoint by default', () => {

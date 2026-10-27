@@ -148,6 +148,10 @@ test('Challenge assignments are single-source and obsolete backups fail without 
   await page.goto('/waypoints/assigned')
   await page.getByRole('button', { name: 'Edit waypoint', exact: true }).click()
   await page.getByRole('button', { name: 'first challenge', exact: true }).press('Backspace')
+  page.once('dialog', async (dialog) => {
+    expect(dialog.message()).toBe('You have unsaved Waypoint changes. Discard them?')
+    await dialog.accept()
+  })
   await page.getByRole('button', { name: 'Cancel', exact: true }).click()
   expect(writes).toBe(0)
   await page.getByRole('button', { name: 'Edit waypoint', exact: true }).click()

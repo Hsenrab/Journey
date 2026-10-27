@@ -1,9 +1,10 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { useJourneyDraft } from '../features/journey/JourneyContext'
 import { useBeforeUnload } from 'react-router-dom'
 import {
   Alert,
   Autocomplete,
+  Box,
   Button,
   Card,
   CardContent,
@@ -28,7 +29,7 @@ import { effectiveWaypointLocation } from '../domain/waypointLocation'
 type Props = {
   data: WaypointsData
   submitLabel: string
-  onSubmit: (draft: WaypointDraft) => void
+  onSubmit: (draft: WaypointDraft) => Promise<void>
   onCancel?: () => void
   errorMessage?: string | null
   initialWaypoint?: Waypoint
@@ -112,6 +113,9 @@ export function WaypointEditor({ data, submitLabel, onSubmit, onCancel, errorMes
   const [appliedJsonInput, setAppliedJsonInput] = useState('')
   const [jsonError, setJsonError] = useState<string | null>(null)
   const [jsonIssues, setJsonIssues] = useState<string[]>([])
+  const [saving, setSaving] = useState(false)
+  const savingRef = useRef(false)
+  const [fatal, setFatal] = useState<{ error: unknown } | null>(null)
 
   const formDirty = useMemo(
     () =>
@@ -269,22 +273,25 @@ export function WaypointEditor({ data, submitLabel, onSubmit, onCancel, errorMes
     return { errors: nextErrors, location, completion, tags }
   }
 
+  if (fatal) throw fatal.error
+
   return (
     <Card>
       <CardContent>
         <Stack
           component="form"
+          aria-busy={saving}
           spacing={2}
-          onSubmit={(event) => {
+          onSubmit={async (event) => {
             event.preventDefault()
-            if (mode === 'json') return
+            if (mode === 'json' || savingRef.current) return
             const result = validate()
             if (Object.keys(result.errors).length > 0) {
               setErrors(result.errors)
               return
             }
             setErrors({})
-            onSubmit({
+            const draft: WaypointDraft = {
               title: title.trim(),
               description: description.trim(),
               category: category.trim(),
@@ -305,354 +312,392 @@ export function WaypointEditor({ data, submitLabel, onSubmit, onCancel, errorMes
                 altText: photoReference.altText.trim() || undefined,
                 url: photoReference.url.trim(),
               })),
-            })
+            }
+            savingRef.current = true
+            setSaving(true)
+            try {
+              await onSubmit(draft)
+            } catch (error) {
+              setFatal({ error })
+            } finally {
+              savingRef.current = false
+              setSaving(false)
+            }
           }}
         >
-          <Tabs
-            value={mode}
-            onChange={(_, next: EditorMode) => setMode(next)}
-            aria-label="Waypoint input mode"
-            sx={{ borderBottom: 1, borderColor: 'divider' }}
-          >
-            <Tab label="Form" value="form" />
-            <Tab label="Paste JSON" value="json" />
-          </Tabs>
-
-          {mode === 'json' && (
-            <Stack spacing={1.5}>
-              <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
-                <Typography variant="body2" color="text.secondary">
-                  Generate with AI
-                </Typography>
-                <AiPromptButton label="Waypoint JSON" prompt={waypointJsonAiPrompt} />
-              </Stack>
-              <TextField
-                label="Waypoint JSON"
-                value={jsonInput}
-                onChange={(event) => setJsonInput(event.target.value)}
-                multiline
-                minRows={10}
-              />
-              <Stack direction="row" spacing={1}>
-                <Button
-                  onClick={() => {
-                    const clipboard = navigator.clipboard
-                    if (!clipboard?.writeText) {
-                      setJsonError('Clipboard is unavailable in this browser.')
-                      setJsonIssues([])
-                      return
-                    }
-                    void clipboard.writeText(JSON.stringify(waypointImportExample, null, 2)).catch((error) => {
-                      const message = error instanceof Error ? error.message : String(error)
-                      setJsonError(`Could not copy example JSON: ${message}`)
-                      setJsonIssues([])
-                    })
-                  }}
-                >
-                  Copy example JSON
-                </Button>
-                <Button
-                  variant="contained"
-                  onClick={() => {
-                    const parsed = parseWaypointDraftJson(jsonInput)
-                    if (!parsed.ok) {
-                      setJsonError(parsed.error)
-                      setJsonIssues(parsed.issues)
-                      return
-                    }
-
-                    setAppliedJsonInput(jsonInput)
-                    setTitle(parsed.value.title)
-                    setDescription(parsed.value.description)
-                    setCategory(parsed.value.category)
-                    setTagsInput(parsed.value.tags.join(', '))
-                    setCompletionMode(parsed.value.completion.mode)
-                    setCompletionTarget(
-                      parsed.value.completion.mode === 'count' ? String(parsed.value.completion.target) : '1',
-                    )
-                    setPlaceName(parsed.value.location?.placeName ?? '')
-                    setAddressOrRegion(parsed.value.location?.addressOrRegion ?? '')
-                    setSource(parsed.value.location?.source ?? '')
-                    setLatitude(
-                      parsed.value.location?.latitude === undefined ? '' : String(parsed.value.location.latitude),
-                    )
-                    setLongitude(
-                      parsed.value.location?.longitude === undefined ? '' : String(parsed.value.location.longitude),
-                    )
-                    setApproximate(parsed.value.location?.approximate ?? false)
-                    setReferences(
-                      parsed.value.references.map((reference) => ({
-                        title: reference.title,
-                        description: reference.description ?? '',
-                        url: reference.url,
-                        previewImageUrl: reference.previewImageUrl ?? '',
-                      })),
-                    )
-                    setPhotoReferences(
-                      parsed.value.photoReferences.map((photoReference) => ({
-                        title: photoReference.title,
-                        altText: photoReference.altText ?? '',
-                        url: photoReference.url,
-                      })),
-                    )
-                    setErrors({})
-                    setJsonError(null)
-                    setJsonIssues([])
-                    setMode('form')
-                  }}
-                >
-                  Load into form
-                </Button>
-              </Stack>
-              {jsonError && <Alert severity="error">{jsonError}</Alert>}
-              {jsonIssues.length > 0 && (
-                <Alert severity="error">
-                  <ul>
-                    {jsonIssues.map((issue) => (
-                      <li key={issue}>{issue}</li>
-                    ))}
-                  </ul>
-                </Alert>
-              )}
-            </Stack>
-          )}
-
-          {mode === 'form' && (
-            <>
-              <TextField
-                label="Title"
-                value={title}
-                onChange={(event) => setTitle(event.target.value)}
-                error={Boolean(errors.title)}
-                helperText={errors.title}
-              />
-              <TextField
-                label="Description"
-                value={description}
-                onChange={(event) => setDescription(event.target.value)}
-                multiline
-                minRows={2}
-                error={Boolean(errors.description)}
-                helperText={errors.description}
-              />
-              <TextField
-                label="Category"
-                value={category}
-                onChange={(event) => setCategory(event.target.value)}
-                error={Boolean(errors.category)}
-                helperText={errors.category}
-              />
-              <TextField
-                label="Tags (comma-separated)"
-                value={tagsInput}
-                onChange={(event) => setTagsInput(event.target.value)}
-              />
-              <Autocomplete
-                multiple
-                options={data.challenges}
-                value={data.challenges.filter((challenge) => challengeIds.includes(challenge.challengeId))}
-                getOptionLabel={(challenge) => challenge.title}
-                onChange={(_, next) => setChallengeIds(next.map((challenge) => challenge.challengeId))}
-                renderInput={(params) => (
-                  <TextField
-                    {...params}
-                    label="Challenges"
-                    error={Boolean(errors.challengeIds)}
-                    helperText={errors.challengeIds}
-                  />
-                )}
-              />
-              <TextField
-                select
-                label="Completion mode"
-                value={completionMode}
-                onChange={(event) => setCompletionMode(event.target.value as Waypoint['completion']['mode'])}
+          {saving && <Typography role="status">Saving...</Typography>}
+          <Box component="fieldset" disabled={saving} sx={{ border: 0, p: 0, m: 0, minWidth: 0 }}>
+            <Stack spacing={2}>
+              <Tabs
+                value={mode}
+                onChange={(_, next: EditorMode) => setMode(next)}
+                aria-label="Waypoint input mode"
+                sx={{ borderBottom: 1, borderColor: 'divider' }}
               >
-                <MenuItem value="once">Once</MenuItem>
-                <MenuItem value="count">Count</MenuItem>
-              </TextField>
-              {completionMode === 'count' && (
-                <TextField
-                  label="Completion target"
-                  value={completionTarget}
-                  onChange={(event) => setCompletionTarget(event.target.value)}
-                  error={Boolean(errors.completionTarget)}
-                  helperText={errors.completionTarget}
-                />
+                <Tab label="Form" value="form" disabled={saving} />
+                <Tab label="Paste JSON" value="json" disabled={saving} />
+              </Tabs>
+
+              {mode === 'json' && (
+                <Stack spacing={1.5}>
+                  <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
+                    <Typography variant="body2" color="text.secondary">
+                      Generate with AI
+                    </Typography>
+                    <AiPromptButton label="Waypoint JSON" prompt={waypointJsonAiPrompt} />
+                  </Stack>
+                  <TextField
+                    label="Waypoint JSON"
+                    value={jsonInput}
+                    onChange={(event) => setJsonInput(event.target.value)}
+                    multiline
+                    minRows={10}
+                  />
+                  <Stack direction="row" spacing={1}>
+                    <Button
+                      onClick={() => {
+                        const clipboard = navigator.clipboard
+                        if (!clipboard?.writeText) {
+                          setJsonError('Clipboard is unavailable in this browser.')
+                          setJsonIssues([])
+                          return
+                        }
+                        void clipboard.writeText(JSON.stringify(waypointImportExample, null, 2)).catch((error) => {
+                          const message = error instanceof Error ? error.message : String(error)
+                          setJsonError(`Could not copy example JSON: ${message}`)
+                          setJsonIssues([])
+                        })
+                      }}
+                    >
+                      Copy example JSON
+                    </Button>
+                    <Button
+                      variant="contained"
+                      onClick={() => {
+                        const parsed = parseWaypointDraftJson(jsonInput)
+                        if (!parsed.ok) {
+                          setJsonError(parsed.error)
+                          setJsonIssues(parsed.issues)
+                          return
+                        }
+
+                        setAppliedJsonInput(jsonInput)
+                        setTitle(parsed.value.title)
+                        setDescription(parsed.value.description)
+                        setCategory(parsed.value.category)
+                        setTagsInput(parsed.value.tags.join(', '))
+                        setCompletionMode(parsed.value.completion.mode)
+                        setCompletionTarget(
+                          parsed.value.completion.mode === 'count' ? String(parsed.value.completion.target) : '1',
+                        )
+                        setPlaceName(parsed.value.location?.placeName ?? '')
+                        setAddressOrRegion(parsed.value.location?.addressOrRegion ?? '')
+                        setSource(parsed.value.location?.source ?? '')
+                        setLatitude(
+                          parsed.value.location?.latitude === undefined ? '' : String(parsed.value.location.latitude),
+                        )
+                        setLongitude(
+                          parsed.value.location?.longitude === undefined ? '' : String(parsed.value.location.longitude),
+                        )
+                        setApproximate(parsed.value.location?.approximate ?? false)
+                        setReferences(
+                          parsed.value.references.map((reference) => ({
+                            title: reference.title,
+                            description: reference.description ?? '',
+                            url: reference.url,
+                            previewImageUrl: reference.previewImageUrl ?? '',
+                          })),
+                        )
+                        setPhotoReferences(
+                          parsed.value.photoReferences.map((photoReference) => ({
+                            title: photoReference.title,
+                            altText: photoReference.altText ?? '',
+                            url: photoReference.url,
+                          })),
+                        )
+                        setErrors({})
+                        setJsonError(null)
+                        setJsonIssues([])
+                        setMode('form')
+                      }}
+                    >
+                      Load into form
+                    </Button>
+                  </Stack>
+                  {jsonError && <Alert severity="error">{jsonError}</Alert>}
+                  {jsonIssues.length > 0 && (
+                    <Alert severity="error">
+                      <ul>
+                        {jsonIssues.map((issue) => (
+                          <li key={issue}>{issue}</li>
+                        ))}
+                      </ul>
+                    </Alert>
+                  )}
+                </Stack>
               )}
-              <Stack spacing={1}>
-                <TextField
-                  label="Place name"
-                  value={placeName}
-                  onChange={(event) => setPlaceName(event.target.value)}
-                />
-                <TextField
-                  label="Address or region"
-                  value={addressOrRegion}
-                  onChange={(event) => setAddressOrRegion(event.target.value)}
-                />
-                <TextField label="Source" value={source} onChange={(event) => setSource(event.target.value)} />
-                <TextField label="Latitude" value={latitude} onChange={(event) => setLatitude(event.target.value)} />
-                <TextField label="Longitude" value={longitude} onChange={(event) => setLongitude(event.target.value)} />
-                <FormControlLabel
-                  control={
-                    <Checkbox checked={approximate} onChange={(event) => setApproximate(event.target.checked)} />
-                  }
-                  label="Approximate location"
-                />
-                {errors.coordinates && <Alert severity="error">{errors.coordinates}</Alert>}
-              </Stack>
 
-              <Stack spacing={1}>
-                {references.map((reference, index) => (
-                  <Card key={index} variant="outlined">
-                    <CardContent>
-                      <Stack spacing={1}>
-                        <Stack direction="row" sx={{ justifyContent: 'space-between', alignItems: 'center' }}>
-                          <strong>Reference {index + 1}</strong>
-                          <IconButton
-                            aria-label={`Remove reference ${index + 1}`}
-                            onClick={() => setReferences(references.filter((_, itemIndex) => itemIndex !== index))}
-                          >
-                            <DeleteIcon />
-                          </IconButton>
-                        </Stack>
-                        <TextField
-                          label="Title"
-                          value={reference.title}
-                          onChange={(event) =>
-                            setReferences(
-                              references.map((item, itemIndex) =>
-                                itemIndex === index ? { ...item, title: event.target.value } : item,
-                              ),
-                            )
-                          }
-                          error={Boolean(errors[`reference-${index}-title`])}
-                          helperText={errors[`reference-${index}-title`]}
-                        />
-                        <TextField
-                          label="URL"
-                          value={reference.url}
-                          onChange={(event) =>
-                            setReferences(
-                              references.map((item, itemIndex) =>
-                                itemIndex === index ? { ...item, url: event.target.value } : item,
-                              ),
-                            )
-                          }
-                          error={Boolean(errors[`reference-${index}-url`])}
-                          helperText={errors[`reference-${index}-url`]}
-                        />
-                        <TextField
-                          label="Description"
-                          value={reference.description}
-                          onChange={(event) =>
-                            setReferences(
-                              references.map((item, itemIndex) =>
-                                itemIndex === index ? { ...item, description: event.target.value } : item,
-                              ),
-                            )
-                          }
-                        />
-                        <TextField
-                          label="Preview image URL"
-                          value={reference.previewImageUrl}
-                          onChange={(event) =>
-                            setReferences(
-                              references.map((item, itemIndex) =>
-                                itemIndex === index ? { ...item, previewImageUrl: event.target.value } : item,
-                              ),
-                            )
-                          }
-                          error={Boolean(errors[`reference-${index}-preview`])}
-                          helperText={errors[`reference-${index}-preview`]}
-                        />
-                      </Stack>
-                    </CardContent>
-                  </Card>
-                ))}
-                <Button
-                  onClick={() =>
-                    setReferences([...references, { title: '', url: '', description: '', previewImageUrl: '' }])
-                  }
-                >
-                  Add reference
-                </Button>
-              </Stack>
+              {mode === 'form' && (
+                <>
+                  <TextField
+                    label="Title"
+                    value={title}
+                    onChange={(event) => setTitle(event.target.value)}
+                    error={Boolean(errors.title)}
+                    helperText={errors.title}
+                  />
+                  <TextField
+                    label="Description"
+                    value={description}
+                    onChange={(event) => setDescription(event.target.value)}
+                    multiline
+                    minRows={2}
+                    error={Boolean(errors.description)}
+                    helperText={errors.description}
+                  />
+                  <TextField
+                    label="Category"
+                    value={category}
+                    onChange={(event) => setCategory(event.target.value)}
+                    error={Boolean(errors.category)}
+                    helperText={errors.category}
+                  />
+                  <TextField
+                    label="Tags (comma-separated)"
+                    value={tagsInput}
+                    onChange={(event) => setTagsInput(event.target.value)}
+                  />
+                  <Autocomplete
+                    disabled={saving}
+                    multiple
+                    options={data.challenges}
+                    value={data.challenges.filter((challenge) => challengeIds.includes(challenge.challengeId))}
+                    getOptionLabel={(challenge) => challenge.title}
+                    onChange={(_, next) => setChallengeIds(next.map((challenge) => challenge.challengeId))}
+                    renderInput={(params) => (
+                      <TextField
+                        {...params}
+                        label="Challenges"
+                        error={Boolean(errors.challengeIds)}
+                        helperText={errors.challengeIds}
+                      />
+                    )}
+                  />
+                  <TextField
+                    select
+                    disabled={saving}
+                    label="Completion mode"
+                    value={completionMode}
+                    onChange={(event) => setCompletionMode(event.target.value as Waypoint['completion']['mode'])}
+                  >
+                    <MenuItem value="once">Once</MenuItem>
+                    <MenuItem value="count">Count</MenuItem>
+                  </TextField>
+                  {completionMode === 'count' && (
+                    <TextField
+                      label="Completion target"
+                      value={completionTarget}
+                      onChange={(event) => setCompletionTarget(event.target.value)}
+                      error={Boolean(errors.completionTarget)}
+                      helperText={errors.completionTarget}
+                    />
+                  )}
+                  <Stack spacing={1}>
+                    <TextField
+                      label="Place name"
+                      value={placeName}
+                      onChange={(event) => setPlaceName(event.target.value)}
+                    />
+                    <TextField
+                      label="Address or region"
+                      value={addressOrRegion}
+                      onChange={(event) => setAddressOrRegion(event.target.value)}
+                    />
+                    <TextField label="Source" value={source} onChange={(event) => setSource(event.target.value)} />
+                    <TextField
+                      label="Latitude"
+                      value={latitude}
+                      onChange={(event) => setLatitude(event.target.value)}
+                    />
+                    <TextField
+                      label="Longitude"
+                      value={longitude}
+                      onChange={(event) => setLongitude(event.target.value)}
+                    />
+                    <FormControlLabel
+                      control={
+                        <Checkbox checked={approximate} onChange={(event) => setApproximate(event.target.checked)} />
+                      }
+                      label="Approximate location"
+                    />
+                    {errors.coordinates && <Alert severity="error">{errors.coordinates}</Alert>}
+                  </Stack>
 
-              <Stack spacing={1}>
-                {photoReferences.map((photoReference, index) => (
-                  <Card key={index} variant="outlined">
-                    <CardContent>
-                      <Stack spacing={1}>
-                        <Stack direction="row" sx={{ justifyContent: 'space-between', alignItems: 'center' }}>
-                          <strong>Photo {index + 1}</strong>
-                          <IconButton
-                            aria-label={`Remove photo ${index + 1}`}
-                            onClick={() =>
-                              setPhotoReferences(photoReferences.filter((_, itemIndex) => itemIndex !== index))
-                            }
-                          >
-                            <DeleteIcon />
-                          </IconButton>
-                        </Stack>
-                        <TextField
-                          label="Title"
-                          value={photoReference.title}
-                          onChange={(event) =>
-                            setPhotoReferences(
-                              photoReferences.map((item, itemIndex) =>
-                                itemIndex === index ? { ...item, title: event.target.value } : item,
-                              ),
-                            )
-                          }
-                          error={Boolean(errors[`photo-${index}-title`])}
-                          helperText={errors[`photo-${index}-title`]}
-                        />
-                        <TextField
-                          label="URL"
-                          value={photoReference.url}
-                          onChange={(event) =>
-                            setPhotoReferences(
-                              photoReferences.map((item, itemIndex) =>
-                                itemIndex === index ? { ...item, url: event.target.value } : item,
-                              ),
-                            )
-                          }
-                          error={Boolean(errors[`photo-${index}-url`])}
-                          helperText={errors[`photo-${index}-url`]}
-                        />
-                        <TextField
-                          label="Alt text"
-                          value={photoReference.altText}
-                          onChange={(event) =>
-                            setPhotoReferences(
-                              photoReferences.map((item, itemIndex) =>
-                                itemIndex === index ? { ...item, altText: event.target.value } : item,
-                              ),
-                            )
-                          }
-                        />
-                      </Stack>
-                    </CardContent>
-                  </Card>
-                ))}
-                <Button onClick={() => setPhotoReferences([...photoReferences, { title: '', url: '', altText: '' }])}>
-                  Add photo reference
-                </Button>
-              </Stack>
-            </>
-          )}
+                  <Stack spacing={1}>
+                    {references.map((reference, index) => (
+                      <Card key={index} variant="outlined">
+                        <CardContent>
+                          <Stack spacing={1}>
+                            <Stack direction="row" sx={{ justifyContent: 'space-between', alignItems: 'center' }}>
+                              <strong>Reference {index + 1}</strong>
+                              <IconButton
+                                aria-label={`Remove reference ${index + 1}`}
+                                onClick={() => setReferences(references.filter((_, itemIndex) => itemIndex !== index))}
+                              >
+                                <DeleteIcon />
+                              </IconButton>
+                            </Stack>
+                            <TextField
+                              label="Title"
+                              value={reference.title}
+                              onChange={(event) =>
+                                setReferences(
+                                  references.map((item, itemIndex) =>
+                                    itemIndex === index ? { ...item, title: event.target.value } : item,
+                                  ),
+                                )
+                              }
+                              error={Boolean(errors[`reference-${index}-title`])}
+                              helperText={errors[`reference-${index}-title`]}
+                            />
+                            <TextField
+                              label="URL"
+                              value={reference.url}
+                              onChange={(event) =>
+                                setReferences(
+                                  references.map((item, itemIndex) =>
+                                    itemIndex === index ? { ...item, url: event.target.value } : item,
+                                  ),
+                                )
+                              }
+                              error={Boolean(errors[`reference-${index}-url`])}
+                              helperText={errors[`reference-${index}-url`]}
+                            />
+                            <TextField
+                              label="Description"
+                              value={reference.description}
+                              onChange={(event) =>
+                                setReferences(
+                                  references.map((item, itemIndex) =>
+                                    itemIndex === index ? { ...item, description: event.target.value } : item,
+                                  ),
+                                )
+                              }
+                            />
+                            <TextField
+                              label="Preview image URL"
+                              value={reference.previewImageUrl}
+                              onChange={(event) =>
+                                setReferences(
+                                  references.map((item, itemIndex) =>
+                                    itemIndex === index ? { ...item, previewImageUrl: event.target.value } : item,
+                                  ),
+                                )
+                              }
+                              error={Boolean(errors[`reference-${index}-preview`])}
+                              helperText={errors[`reference-${index}-preview`]}
+                            />
+                          </Stack>
+                        </CardContent>
+                      </Card>
+                    ))}
+                    <Button
+                      onClick={() =>
+                        setReferences([...references, { title: '', url: '', description: '', previewImageUrl: '' }])
+                      }
+                    >
+                      Add reference
+                    </Button>
+                  </Stack>
 
-          {errorMessage && <Alert severity="error">{errorMessage}</Alert>}
-          <Stack direction="row" spacing={1} sx={{ justifyContent: 'flex-end' }}>
-            {onCancel && <Button onClick={onCancel}>Cancel</Button>}
-            {mode === 'form' && (
-              <Button type="submit" variant="contained">
-                {submitLabel}
-              </Button>
-            )}
-          </Stack>
+                  <Stack spacing={1}>
+                    {photoReferences.map((photoReference, index) => (
+                      <Card key={index} variant="outlined">
+                        <CardContent>
+                          <Stack spacing={1}>
+                            <Stack direction="row" sx={{ justifyContent: 'space-between', alignItems: 'center' }}>
+                              <strong>Photo {index + 1}</strong>
+                              <IconButton
+                                aria-label={`Remove photo ${index + 1}`}
+                                onClick={() =>
+                                  setPhotoReferences(photoReferences.filter((_, itemIndex) => itemIndex !== index))
+                                }
+                              >
+                                <DeleteIcon />
+                              </IconButton>
+                            </Stack>
+                            <TextField
+                              label="Title"
+                              value={photoReference.title}
+                              onChange={(event) =>
+                                setPhotoReferences(
+                                  photoReferences.map((item, itemIndex) =>
+                                    itemIndex === index ? { ...item, title: event.target.value } : item,
+                                  ),
+                                )
+                              }
+                              error={Boolean(errors[`photo-${index}-title`])}
+                              helperText={errors[`photo-${index}-title`]}
+                            />
+                            <TextField
+                              label="URL"
+                              value={photoReference.url}
+                              onChange={(event) =>
+                                setPhotoReferences(
+                                  photoReferences.map((item, itemIndex) =>
+                                    itemIndex === index ? { ...item, url: event.target.value } : item,
+                                  ),
+                                )
+                              }
+                              error={Boolean(errors[`photo-${index}-url`])}
+                              helperText={errors[`photo-${index}-url`]}
+                            />
+                            <TextField
+                              label="Alt text"
+                              value={photoReference.altText}
+                              onChange={(event) =>
+                                setPhotoReferences(
+                                  photoReferences.map((item, itemIndex) =>
+                                    itemIndex === index ? { ...item, altText: event.target.value } : item,
+                                  ),
+                                )
+                              }
+                            />
+                          </Stack>
+                        </CardContent>
+                      </Card>
+                    ))}
+                    <Button
+                      onClick={() => setPhotoReferences([...photoReferences, { title: '', url: '', altText: '' }])}
+                    >
+                      Add photo reference
+                    </Button>
+                  </Stack>
+                </>
+              )}
+
+              {errorMessage && <Alert severity="error">{errorMessage}</Alert>}
+              <Stack direction="row" spacing={1} sx={{ justifyContent: 'flex-end' }}>
+                {onCancel && (
+                  <Button
+                    type="button"
+                    disabled={saving}
+                    onClick={() => {
+                      if (savingRef.current) return
+                      if (!dirty || window.confirm('You have unsaved Waypoint changes. Discard them?')) onCancel()
+                    }}
+                  >
+                    Cancel
+                  </Button>
+                )}
+                {mode === 'form' && (
+                  <Button type="submit" variant="contained" disabled={saving}>
+                    {saving ? 'Saving...' : submitLabel}
+                  </Button>
+                )}
+              </Stack>
+            </Stack>
+          </Box>
         </Stack>
       </CardContent>
     </Card>

@@ -8,7 +8,7 @@ import LocationDetails from './LocationDetails'
 import { WaypointsProvider, useWaypoints } from '../features/journey/JourneyContext'
 import { challengeJourneyState } from '../features/journey/challengeJourney'
 import { createAwardTestData, createJourneyTestData } from '../test/demoData'
-import { createDemoModeData, load, save } from '../services/storage'
+import { createDemoModeData, load, save, setDataMode } from '../services/storage'
 
 const demoWaypointId = 'demo-foxglove-manor'
 
@@ -136,6 +136,7 @@ describe('LocationDetails', () => {
 
   it('retains the assignment draft when removing category support would invalidate awards', async () => {
     const user = userEvent.setup()
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false)
     const before = load()
     renderDetails(demoWaypointId)
     await user.click(screen.getByRole('button', { name: 'Edit waypoint' }))
@@ -146,6 +147,18 @@ describe('LocationDetails', () => {
     expect(await screen.findByText(/has an award but its Waypoint does not support awards/)).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Save waypoint' })).toBeInTheDocument()
     expect(load()).toEqual(before)
+    await user.click(screen.getByRole('button', { name: 'Cancel' }))
+    expect(confirm).toHaveBeenCalledOnce()
+    expect(screen.getByText(/has an award but its Waypoint does not support awards/)).toBeInTheDocument()
+    expect(screen.queryByText(challenge.title)).not.toBeInTheDocument()
+    expect(load()).toEqual(before)
+    confirm.mockReturnValue(true)
+    await user.click(screen.getByRole('button', { name: 'Cancel' }))
+    expect(screen.queryByRole('button', { name: 'Save waypoint' })).not.toBeInTheDocument()
+    expect(screen.queryByText(/has an award but its Waypoint does not support awards/)).not.toBeInTheDocument()
+    expect(load()).toEqual(before)
+    await user.click(screen.getByRole('button', { name: 'Edit waypoint' }))
+    expect(screen.getByText(challenge.title).closest('.MuiChip-root')).not.toBeNull()
   })
 
   it('keeps a failed remote location edit and its coordinates visible until an explicit successful resave', async () => {
@@ -179,6 +192,12 @@ describe('LocationDetails', () => {
     expect(screen.getByLabelText('Place name')).toHaveValue('New place')
     expect(screen.getByLabelText('Latitude')).toHaveValue('51')
     expect(screen.queryByText('Waypoint saved.')).not.toBeInTheDocument()
+    expect(writes).toBe(1)
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false)
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+    expect(confirm).toHaveBeenCalledOnce()
+    expect(screen.getByLabelText('Place name')).toHaveValue('New place')
+    expect(screen.getByText(/400: Bad Request: No position found for New place/)).toBeInTheDocument()
     expect(writes).toBe(1)
     fireEvent.click(screen.getByRole('button', { name: 'Save waypoint' }))
     expect(await screen.findByText('Waypoint saved.')).toBeInTheDocument()
@@ -386,8 +405,9 @@ describe('LocationDetails', () => {
     expect(screen.getByRole('link', { name: 'Abbey cloisters walk' })).toHaveAttribute('href', '/activities/activity-1')
   })
 
-  it('does not offer waypoint mutations to a viewer', async () => {
+  it.each(['production', 'demo-cosmos'] as const)('does not offer waypoint mutations to a %s viewer', async (mode) => {
     vi.stubEnv('MODE', 'production')
+    setDataMode(mode)
     vi.stubGlobal(
       'fetch',
       vi
@@ -404,5 +424,45 @@ describe('LocationDetails', () => {
     expect(screen.queryByRole('button', { name: 'Delete waypoint' })).not.toBeInTheDocument()
     expect(screen.getByText(/Your Journey access is viewer only/)).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Change the data mode in Settings' })).toHaveAttribute('href', '/settings')
+  })
+
+  it('retains a declined edit, then discards and reopens the saved record without writing', async () => {
+    const user = userEvent.setup()
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false)
+    const before = load()
+    const original = before.waypoints.find((waypoint) => waypoint.waypointId === demoWaypointId)!
+    renderDetails(demoWaypointId)
+    await user.click(screen.getByRole('button', { name: 'Edit waypoint' }))
+    const title = () => screen.getAllByRole('textbox', { name: 'Title' })[0]!
+    fireEvent.change(title(), { target: { value: 'Abandoned edit' } })
+    await user.click(screen.getByRole('button', { name: 'Cancel' }))
+    expect(title()).toHaveValue('Abandoned edit')
+    expect(load()).toEqual(before)
+    confirm.mockReturnValue(true)
+    await user.click(screen.getByRole('button', { name: 'Cancel' }))
+    expect(screen.getByRole('heading', { name: original.title, level: 1 })).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Edit waypoint' }))
+    expect(title()).toHaveValue(original.title)
+    expect(load()).toEqual(before)
+    expect(confirm).toHaveBeenCalledTimes(2)
+  })
+
+  it('cancels an unchanged edit immediately without writing', async () => {
+    const user = userEvent.setup()
+    const confirm = vi.spyOn(window, 'confirm')
+    const before = load()
+    renderDetails(demoWaypointId)
+    await user.click(screen.getByRole('button', { name: 'Edit waypoint' }))
+    await user.click(screen.getByRole('button', { name: 'Cancel' }))
+    expect(confirm).not.toHaveBeenCalled()
+    expect(screen.getByRole('button', { name: 'Edit waypoint' })).toBeInTheDocument()
+    expect(load()).toEqual(before)
+  })
+
+  it('does not offer editing for Demo local details', () => {
+    setDataMode('demo-local')
+    renderDetails(demoWaypointId)
+    expect(screen.queryByRole('button', { name: 'Edit waypoint' })).not.toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Change the data mode in Settings' })).toBeInTheDocument()
   })
 })
