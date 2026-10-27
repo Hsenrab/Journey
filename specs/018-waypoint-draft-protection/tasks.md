@@ -18,11 +18,12 @@ behavior tests may already pass; do not manufacture failures or weaken assertion
 in specification priority order, then documentation and final validation.
 Checkboxes record completed implementation work; blocked acceptance stays open.
 
-**Execution status**: 21 of 23 tasks complete. T019 and T023 remain blocked on
-interactive native-dialog keyboard acceptance. All 84 component/page tests and
-12 browser cases passed; the final combined unit run required a targeted
-remaining-file run after a worker-start timeout. See [quickstart.md](./quickstart.md)
-for exact results, failures and the coverage boundary.
+**Execution status**: 23 of 23 tasks complete. Native-dialog keyboard acceptance
+passed with the user's Escape/Enter input at both viewports and assistant
+verification of retained drafts, focus, errors and unchanged saved data.
+The component/page and browser checks passed, as did the automatic GitHub checks
+for PR #195. See [quickstart.md](./quickstart.md) for exact results, earlier
+environment failures and the coverage boundary.
 
 ## Format: `[ID] [P?] [Story] Description`
 
@@ -131,11 +132,11 @@ checks once implementation is complete. These tasks do not authorize a commit,
 push, PR, live-data write or deployment.
 
 - [x] T018 [P] Update `docs/pages/locations.md` to document unchanged versus changed Cancel, both discard choices, reopening, the short pending-save control lock, unchanged read-only access and the Cancel-only scope without promising autosave, recovery or expanded navigation protection.
-- [ ] T019 [P] Exercise the native confirmation using actual keyboard controls in an isolated interactive browser and apply `docs/UI_GUIDELINES.md` at 360 by 800 and 1280 by 800; verify both choices, post-decline focus, retained tab/errors and reachable non-overflowing actions, then record actual outcomes or the exact access blocker in `specs/018-waypoint-draft-protection/quickstart.md`, explicitly distinguishing native-dialog keyboard coverage from Playwright accept/dismiss coverage.
+- [x] T019 [P] Exercise the native confirmation using actual keyboard controls in an isolated interactive browser and apply `docs/UI_GUIDELINES.md` at 360 by 800 and 1280 by 800; verify both choices, post-decline focus, retained tab/errors and reachable non-overflowing actions, then record actual outcomes or the exact access blocker in `specs/018-waypoint-draft-protection/quickstart.md`, explicitly distinguishing native-dialog keyboard coverage from Playwright accept/dismiss coverage.
 - [x] T020 Trace the final implementation's imports/callers and configuration consumers from `src/components/WaypointEditor.tsx`, `src/pages/Locations.tsx`, `src/pages/LocationDetails.tsx` and `playwright.config.ts`; confirm the frontend-only validation scope in `specs/018-waypoint-draft-protection/quickstart.md`, that routing/API/schema/deployment behavior is unchanged, and that unrelated local changes remain untouched; expand checks only if the actual changed surfaces require it.
 - [x] T021 After code, tests and documentation are finalized, format only changed files and check their editor diagnostics as prescribed by `specs/018-waypoint-draft-protection/quickstart.md`, including `src/components/WaypointEditor.tsx`, its test, both parent test files, `e2e/waypoint-draft-protection.spec.ts`, `docs/pages/locations.md` and any changed feature documents; do not run repo-wide formatting or reinstall working dependencies.
 - [x] T022 Run the final frontend sequence from `specs/018-waypoint-draft-protection/quickstart.md`: `npm run lint`, `npm run typecheck`, one combined Vitest invocation for `src/components/WaypointEditor.test.tsx`, `src/pages/Locations.test.tsx` and `src/pages/LocationDetails.test.tsx`, then `npm run test:e2e -- e2e/waypoint-draft-protection.spec.ts`; use the established WSL environment when needed, report exact failures, and repeat successful checks only if their covered files change.
-- [ ] T023 Reconcile all FR-001 through FR-013 and SC-001 through SC-006 in `specs/018-waypoint-draft-protection/spec.md` with executed test and interactive evidence, using the coverage table below; update checkboxes in `specs/018-waypoint-draft-protection/tasks.md` only for completed work, leave blocked native-keyboard acceptance incomplete, report blockers/unexecuted coverage, and confirm no API/live-service or hosted-deployment validation is being claimed.
+- [x] T023 Reconcile all FR-001 through FR-013 and SC-001 through SC-006 in `specs/018-waypoint-draft-protection/spec.md` with executed test and interactive evidence, using the coverage table below; update checkboxes in `specs/018-waypoint-draft-protection/tasks.md` only for completed work, leave blocked native-keyboard acceptance incomplete, report blockers/unexecuted coverage, and confirm no API/live-service or hosted-deployment validation is being claimed.
 
 ## Dependencies & Execution Order
 

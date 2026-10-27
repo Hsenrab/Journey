@@ -127,18 +127,17 @@ test-server configuration, live-data write or service fallback is added.
 - The default Vitest fork worker could not start in this WSL/OneDrive workspace:
   `Failed to start forks worker`, caused by `Timeout waiting for worker to respond`.
   The bounded thread pool executes the focused tests without changing assertions.
-- Interactive-browser access was attempted with a new isolated `about:blank`
-  page. It failed with `browserType.connectOverCDP: Timeout 30000ms exceeded.`
-  Actual native-confirmation keyboard/visual acceptance is blocked, not passed.
-  Automated browser acceptance/dismissal does not remove this gap; T019 and T023
-  remain incomplete until that interactive check is performed.
+- Initial interactive-browser attempts failed with
+  `browserType.connectOverCDP: Timeout 30000ms exceeded.` A later fresh connection
+  succeeded, and the user-assisted native keyboard checks below completed
+  T019/T023. Automated dialog acceptance/dismissal was not used as a substitute.
 - Impact tracing confirms the only production change is the shared editor. Both
   page callers already await Journey mutations and own success/error presentation.
   Routing, API/schema/persistence, deployment configuration and existing
   navigation/unload safeguards are unchanged. Final checks are frontend-only.
 - UI source self-review preserves theme spacing, MUI controls/tabs, field labels
-  and the existing action row. Responsive overflow/focus checks belong to the
-  automated browser run; native-dialog appearance remains unverified.
+  and the existing action row. Automated and interactive checks verified
+  responsive overflow/focus; the user operated the visible native confirmation.
 
 ### Final executable results
 
@@ -149,7 +148,7 @@ test-server configuration, live-data write or service fallback is added.
 | `npm run typecheck`                                                                     | Passed after correcting the new test queries.                                                                                         |
 | Component/page tests                                                                    | All 84 passed on the final source: 55 in the final combined run, then the remaining 29 in a focused run after a worker-start timeout. |
 | `npm run test:e2e -- e2e/waypoint-draft-protection.spec.ts --workers=1 --reporter=line` | All 12 passed at 360 by 800 and 1280 by 800. The test-bundle build emitted a large-chunk warning.                                     |
-| Interactive native-dialog keyboard/appearance                                           | Blocked by the CDP connection timeout above; not covered by automated dialog acceptance/dismissal.                                    |
+| Interactive native-dialog keyboard/appearance                                           | Passed with user keyboard input at both viewport sizes and assistant verification, as detailed below.                                 |
 
 The first complete combined unit run passed all 84 tests. After the final test
 refinements, this command passed the editor/detail files (55 tests), but exited 1
@@ -182,18 +181,49 @@ Two earlier implementation-check failures were fixed rather than bypassed:
 
 ### Executed requirement reconciliation
 
-| Requirements                   | Executed evidence                                                                                                                                                                                | Status                                               |
-| ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------- |
-| FR-001, FR-002, FR-008; SC-003 | Shared-editor new/edit clean, reverted fields/evidence, JSON and validation-only cases; parent clean cancellation; browser unchanged/reverted cases with exact dialog counts.                    | Passed                                               |
-| FR-003, FR-004, FR-006; SC-001 | Exact prompt, repeated declines, complete component snapshots including errors/JSON/ordered evidence; parent saved-data comparisons and zero browser cancellation writes.                        | Passed                                               |
-| FR-005, FR-007; SC-002         | Add/edit discard and reopen, retained parent URLs, unchanged records, and discarding a failed protected-assignment edit.                                                                         | Passed                                               |
-| FR-009, FR-013; SC-006         | Deferred lock and same-turn exclusion, failed-save retention/retry, parent-owned successful closure, root-error propagation and browser pending add/edit cases.                                  | Passed                                               |
-| FR-010; SC-004                 | Both viewport sizes, keyboard activation of Cancel, post-dismissal focus and overflow assertions passed. Actual keyboard operation/appearance of the native confirmation could not be exercised. | Partial: T019/T023 open                              |
-| FR-011; SC-005                 | Production/Demo Cosmos viewer and failure cases in page tests; intercepted Demo Cosmos viewers and Demo local direct-add/detail browser cases.                                                   | Passed within the documented mock/test-mode boundary |
-| FR-012                         | Existing mode-switch/unload regressions passed; no new navigation blocker or hook changes; one native confirmation per dirty Cancel.                                                             | Passed                                               |
+| Requirements                   | Executed evidence                                                                                                                                                                    | Status                                               |
+| ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------- |
+| FR-001, FR-002, FR-008; SC-003 | Shared-editor new/edit clean, reverted fields/evidence, JSON and validation-only cases; parent clean cancellation; browser unchanged/reverted cases with exact dialog counts.        | Passed                                               |
+| FR-003, FR-004, FR-006; SC-001 | Exact prompt, repeated declines, complete component snapshots including errors/JSON/ordered evidence; parent saved-data comparisons and zero browser cancellation writes.            | Passed                                               |
+| FR-005, FR-007; SC-002         | Add/edit discard and reopen, retained parent URLs, unchanged records, and discarding a failed protected-assignment edit.                                                             | Passed                                               |
+| FR-009, FR-013; SC-006         | Deferred lock and same-turn exclusion, failed-save retention/retry, parent-owned successful closure, root-error propagation and browser pending add/edit cases.                      | Passed                                               |
+| FR-010; SC-004                 | Both viewport sizes passed keyboard activation, user-operated native Escape/Enter choices, retained focus/draft/errors, reachable Cancel and non-overflowing Form/Paste JSON checks. | Passed                                               |
+| FR-011; SC-005                 | Production/Demo Cosmos viewer and failure cases in page tests; intercepted Demo Cosmos viewers and Demo local direct-add/detail browser cases.                                       | Passed within the documented mock/test-mode boundary |
+| FR-012                         | Existing mode-switch/unload regressions passed; no new navigation blocker or hook changes; one native confirmation per dirty Cancel.                                                 | Passed                                               |
 
-No hosted Entra, Cosmos, geocoding, deployment or live Production validation is
-claimed. The unrelated UX backlog and shared browser pages were left untouched.
+These frontend checks do not claim hosted Entra, Cosmos, geocoding, deployment or
+live Production validation. The unrelated UX backlog and shared browser pages
+were left untouched.
+
+### Interactive keyboard acceptance: 2026-10-27
+
+The user and assistant completed the remaining checks together in a fresh VS Code
+integrated browser: Code 1.142.0, Chromium 150.0.7871.250, Electron 43.7.7 on
+Windows. A temporary Vite test-mode server on port 4173 used one fictional
+browser-local Waypoint; it did not use real Journey records or the existing pages
+on port 4187.
+
+The assistant activated Cancel with Enter. The user then supplied and confirmed
+the actual native-dialog keystrokes, separately for each choice and viewport.
+The accepted trials did not call Playwright `dialog.accept()` or `dismiss()`.
+
+| Viewport and editor            | Escape / decline                                                                                                                                                                                                         | Enter / discard                                                                                                                                                                                                                |
+| ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 360 by 800, new Waypoint       | The assistant verified Paste JSON remained selected, `{invalid}` and its error remained visible, Cancel retained focus, and the form title remained `Retained keyboard draft`. Form and JSON had no horizontal overflow. | The user pressed Enter in the reopened confirmation; the editor closed to the Waypoints list and the saved fictional dataset was unchanged.                                                                                    |
+| 1280 by 800, existing Waypoint | The assistant verified the same JSON, error, selected tab and Cancel focus, plus form title `Retained desktop edit`. Both tabs had no horizontal overflow.                                                               | Cancel was reached using Tab and activated with Enter. The user pressed Enter in the confirmation; the editor closed on the same saved detail, Edit became available again, and the complete saved fixture remained unchanged. |
+
+Both choices were usable in the visible native popup at both sizes. Together with
+the existing component/page/browser evidence, this satisfies FR-010/SC-004 and
+completes T019/T023 without waiving acceptance. The temporary server was stopped
+after verification.
+
+PR #195's automatic GitHub run
+[40573466419](https://github.com/Hsenrab/Journey/actions/runs/40573466419)
+also passed frontend and API validation, including Functions-host smoke tests,
+and isolated Cosmos test-partition verification. Application and API deployment
+were skipped; no preview validation is claimed. The completion update changes
+only these feature documents and requires formatting/diagnostics, not another
+application test run.
 
 ### Pull-request validation scope
 
