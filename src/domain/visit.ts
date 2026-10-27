@@ -453,6 +453,28 @@ export function ideasForActivity(ideas: readonly Idea[], activity: Activity): Id
   })
 }
 
+export function referencesForActivity(references: readonly Reference[], activity: Activity): Reference[] {
+  const byId = new Map(references.map((reference) => [reference.referenceId, reference]))
+  return activity.referenceIds.map((referenceId) => {
+    const reference = byId.get(referenceId)
+    if (!reference) throw new Error(`Activity "${activity.activityId}" references unknown reference "${referenceId}".`)
+    return reference
+  })
+}
+
+export function photoReferencesForActivity(
+  photoReferences: readonly ExternalPhotoReference[],
+  activity: Activity,
+): ExternalPhotoReference[] {
+  const byId = new Map(photoReferences.map((photo) => [photo.photoReferenceId, photo]))
+  return activity.photoReferenceIds.map((photoReferenceId) => {
+    const photo = byId.get(photoReferenceId)
+    if (!photo)
+      throw new Error(`Activity "${activity.activityId}" references unknown photo reference "${photoReferenceId}".`)
+    return photo
+  })
+}
+
 function usesIdea(activity: Activity, ideaId: string): boolean {
   return activity.ideaIds.includes(ideaId)
 }

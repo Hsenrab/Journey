@@ -52,6 +52,93 @@ function fixture(): WaypointsData {
 }
 
 for (const width of [360, 1280]) {
+  test(`Activity evidence keeps persisted order after save and reload at ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 800 })
+    await page.addInitScript(() => {
+      localStorage.clear()
+      localStorage.setItem('journey-data-mode-v1', 'demo-cosmos')
+    })
+    let data = fixture()
+    data.references = [
+      { referenceId: 'r1', title: 'First reference', url: 'https://example.com/first' },
+      { referenceId: 'r2', title: 'Second reference', url: 'https://example.com/second' },
+    ]
+    data.photoReferences = [
+      { photoReferenceId: 'p1', title: 'First photo', url: 'https://example.com/first.jpg' },
+      { photoReferenceId: 'p2', title: 'Second photo', url: 'https://example.com/second.jpg' },
+    ]
+    data.activities[0]!.referenceIds = ['r2', 'r1']
+    data.activities[0]!.photoReferenceIds = ['p2', 'p1']
+    let writes = 0
+    let reads = 0
+    await page.route('**/api/journey/demo', async (route) => {
+      if (route.request().method() === 'GET') {
+        reads++
+        await route.fulfill({ json: { data, etags: {}, role: 'admin' } })
+        return
+      }
+      const body = route.request().postDataJSON()
+      expect(body.operation).toBe('replace')
+      writes++
+      data = body.data
+      await route.fulfill({ json: { data, etags: {} } })
+    })
+    await page.route('https://example.com/**', (route) =>
+      route.fulfill({
+        contentType: 'image/svg+xml',
+        body: '<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32"><rect width="32" height="32" fill="navy"/></svg>',
+      }),
+    )
+    await page.goto('/activities/existing')
+    const cards = page.getByRole('heading', { name: /^(First|Second|Added) reference$/ })
+    const thumbnails = page.getByRole('group', { name: 'Photo thumbnails' }).getByRole('button')
+    await expect(cards).toHaveText(['Second reference', 'First reference'])
+    await expect(thumbnails).toHaveText(['Second photo', 'First photo'])
+    await expect(page.getByRole('img', { name: 'Second photo', exact: true })).toBeVisible()
+    await page.getByRole('button', { name: 'Edit activity', exact: true }).click()
+    await expect(page.getByLabel('Reference title', { exact: true }).nth(0)).toHaveValue('Second reference')
+    await expect(page.getByLabel('Photo title', { exact: true }).nth(0)).toHaveValue('Second photo')
+    await page.getByRole('button', { name: 'Move reference 2 up', exact: true }).click()
+    await page.getByRole('button', { name: 'Add reference', exact: true }).click()
+    await page.getByLabel('Reference title', { exact: true }).nth(2).fill('Added reference')
+    await page.getByLabel('Reference URL', { exact: true }).nth(2).fill('https://example.com/added')
+    await page.getByRole('button', { name: 'Move reference 3 up', exact: true }).click()
+    await page.getByRole('button', { name: 'Move photo 2 up', exact: true }).click()
+    await page.getByRole('button', { name: 'Add photo reference', exact: true }).click()
+    await page.getByLabel('Photo title', { exact: true }).nth(2).fill('Added photo')
+    await page.getByLabel('Photo URL', { exact: true }).nth(2).fill('https://example.com/added.jpg')
+    await page.getByRole('button', { name: 'Move photo 3 up', exact: true }).click()
+    await page.getByRole('button', { name: 'Save changes', exact: true }).click()
+    await expect(page.getByText('Activity saved.', { exact: true })).toBeVisible()
+    const referenceTitles = ['First reference', 'Added reference', 'Second reference']
+    const photoTitles = ['First photo', 'Added photo', 'Second photo']
+    expect(writes).toBe(1)
+    expect(
+      data.activities[0]!.referenceIds.map((id) => data.references.find((item) => item.referenceId === id)!.title),
+    ).toEqual(referenceTitles)
+    expect(
+      data.activities[0]!.photoReferenceIds.map(
+        (id) => data.photoReferences.find((item) => item.photoReferenceId === id)!.title,
+      ),
+    ).toEqual(photoTitles)
+    await expect(cards).toHaveText(referenceTitles)
+    await expect(thumbnails).toHaveText(photoTitles)
+    await page.reload()
+    await expect(cards).toHaveText(referenceTitles)
+    await expect(thumbnails).toHaveText(photoTitles)
+    expect(reads).toBe(2)
+    await expect(page.getByRole('img', { name: 'First photo', exact: true })).toBeVisible()
+    await page.getByRole('button', { name: 'Next photo', exact: true }).click()
+    await expect(page.getByRole('img', { name: 'Added photo', exact: true })).toBeVisible()
+    await thumbnails.nth(2).click()
+    await expect(page.getByRole('img', { name: 'Second photo', exact: true })).toBeVisible()
+    await page.getByRole('button', { name: 'Edit activity', exact: true }).click()
+    for (let index = 0; index < referenceTitles.length; index++) {
+      await expect(page.getByLabel('Reference title', { exact: true }).nth(index)).toHaveValue(referenceTitles[index]!)
+      await expect(page.getByLabel('Photo title', { exact: true }).nth(index)).toHaveValue(photoTitles[index]!)
+    }
+  })
+
   for (const journey of ['activities', 'waypoint', 'idea', 'edit'] as const) {
     test(`${journey} saves once with pending protection and explicit retry at ${width}px`, async ({ page }) => {
       await page.setViewportSize({ width, height: 800 })

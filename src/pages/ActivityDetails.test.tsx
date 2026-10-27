@@ -8,10 +8,33 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import ActivityDetails from './ActivityDetails'
 import { WaypointsProvider } from '../features/journey/JourneyContext'
 import { load, save } from '../services/storage'
-import { GpxGeometrySchema } from '../domain/visit'
+import { createActivity, GpxGeometrySchema } from '../domain/visit'
 import { createDemoTestData } from '../test/demoData'
 
 const createDefaultData = createDemoTestData
+
+function evidenceData() {
+  const data = createDefaultData()
+  data.references.push(
+    { referenceId: 'r1', title: 'First reference', url: 'https://example.com/first' },
+    { referenceId: 'r2', title: 'Second reference', url: 'https://example.com/second' },
+  )
+  data.photoReferences.push(
+    { photoReferenceId: 'p1', title: 'First photo', url: 'https://example.com/first.jpg' },
+    { photoReferenceId: 'p2', title: 'Second photo', url: 'https://example.com/second.jpg' },
+  )
+  data.activities = [
+    createActivity({
+      activityId: 'a1',
+      name: 'Ordered activity',
+      date: '2026-08-01',
+      location: { kind: 'postcode', postcode: 'GL1 1AA' },
+      referenceIds: ['r2', 'r1'],
+      photoReferenceIds: ['p2', 'p1'],
+    }),
+  ]
+  return data
+}
 
 function renderDetails(path = '/activities/a1') {
   return render(
@@ -39,6 +62,65 @@ describe('ActivityDetails', () => {
     renderDetails('/activities/missing')
     expect(screen.getByText('Activity not found.')).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Activities' })).toHaveAttribute('href', '/activities')
+  })
+
+  it('uses saved evidence order for reference cards, gallery controls and edit initialization', async () => {
+    save(evidenceData())
+    renderDetails()
+    expect(
+      screen.getAllByRole('heading', { name: /^(First|Second) reference$/ }).map((item) => item.textContent),
+    ).toEqual(['Second reference', 'First reference'])
+    expect(
+      screen.getAllByRole('button', { name: /^Show photo/ }).map((item) => item.getAttribute('aria-label')),
+    ).toEqual(['Show photo 1: Second photo', 'Show photo 2: First photo'])
+    expect(screen.getByRole('img', { name: 'Second photo' })).toBeInTheDocument()
+    await userEvent.setup().click(screen.getByRole('button', { name: 'Edit activity' }))
+    expect(screen.getAllByLabelText('Reference title')).toHaveLength(2)
+    expect(screen.getAllByLabelText('Reference title')[0]).toHaveValue('Second reference')
+    expect(screen.getAllByLabelText('Reference title')[1]).toHaveValue('First reference')
+    expect(screen.getAllByLabelText('Photo title')[0]).toHaveValue('Second photo')
+    expect(screen.getAllByLabelText('Photo title')[1]).toHaveValue('First photo')
+  })
+
+  it('retains added and reordered evidence after saving and reopening from persisted data', async () => {
+    save(evidenceData())
+    const view = renderDetails()
+    const user = userEvent.setup()
+    await user.click(screen.getByRole('button', { name: 'Edit activity' }))
+    await user.click(screen.getByRole('button', { name: 'Add reference' }))
+    fireEvent.change(screen.getAllByLabelText('Reference title')[2]!, { target: { value: 'Added reference' } })
+    fireEvent.change(screen.getAllByLabelText('Reference URL')[2]!, { target: { value: 'https://example.com/added' } })
+    await user.click(screen.getByRole('button', { name: 'Move reference 3 up' }))
+    await user.click(screen.getByRole('button', { name: 'Add photo reference' }))
+    fireEvent.change(screen.getAllByLabelText('Photo title')[2]!, { target: { value: 'Added photo' } })
+    fireEvent.change(screen.getAllByLabelText('Photo URL')[2]!, { target: { value: 'https://example.com/added.jpg' } })
+    await user.click(screen.getByRole('button', { name: 'Move photo 3 up' }))
+    await user.click(screen.getByRole('button', { name: 'Save changes' }))
+    expect(await screen.findByText('Activity saved.')).toBeInTheDocument()
+    const stored = load()
+    expect(stored.activities[0]!.referenceIds).toEqual([
+      'r2',
+      stored.references.find((item) => item.title === 'Added reference')!.referenceId,
+      'r1',
+    ])
+    expect(stored.activities[0]!.photoReferenceIds).toEqual([
+      'p2',
+      stored.photoReferences.find((item) => item.title === 'Added photo')!.photoReferenceId,
+      'p1',
+    ])
+    expect(
+      screen.getAllByRole('heading', { name: /^(First|Second|Added) reference$/ }).map((item) => item.textContent),
+    ).toEqual(['Second reference', 'Added reference', 'First reference'])
+    view.unmount()
+    renderDetails()
+    expect(
+      screen.getAllByRole('button', { name: /^Show photo/ }).map((item) => item.getAttribute('aria-label')),
+    ).toEqual(['Show photo 1: Second photo', 'Show photo 2: Added photo', 'Show photo 3: First photo'])
+    await user.click(screen.getByRole('button', { name: 'Edit activity' }))
+    const titles = ['Second reference', 'Added reference', 'First reference']
+    const photos = ['Second photo', 'Added photo', 'First photo']
+    titles.forEach((title, index) => expect(screen.getAllByLabelText('Reference title')[index]).toHaveValue(title))
+    photos.forEach((title, index) => expect(screen.getAllByLabelText('Photo title')[index]).toHaveValue(title))
   })
 
   it('breadcrumbs an unlinked activity back to the activity log', async () => {
@@ -353,12 +435,23 @@ describe('ActivityDetails', () => {
       category: 'gold' as const,
       location: { kind: 'postcode' as const, postcode: 'BA12 6QF' },
       notes: 'Excellent visit',
-      referenceIds: [],
-      photoReferenceIds: [],
+      referenceIds: ['deleted-reference'],
+      photoReferenceIds: ['deleted-photo'],
       createdAt: '2026-08-01T10:00:00.000Z',
       updatedAt: '2026-08-01T10:00:00.000Z',
     }
-    const withActivity = { ...seed, activities: [activity] }
+    const withActivity = {
+      ...seed,
+      activities: [activity],
+      references: [
+        ...seed.references,
+        { referenceId: 'deleted-reference', title: 'Deleted reference', url: 'https://example.com/deleted' },
+      ],
+      photoReferences: [
+        ...seed.photoReferences,
+        { photoReferenceId: 'deleted-photo', title: 'Deleted photo', url: 'https://example.com/deleted.jpg' },
+      ],
+    }
     const withoutActivity = { ...seed, activities: [] }
     vi.stubGlobal(
       'fetch',

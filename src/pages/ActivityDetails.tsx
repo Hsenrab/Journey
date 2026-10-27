@@ -27,6 +27,8 @@ import {
   formatActivityDate,
   ideasForActivity,
   locationSummary,
+  photoReferencesForActivity,
+  referencesForActivity,
   statusLabels,
   type Activity,
 } from '../domain/visit'
@@ -76,11 +78,9 @@ export default function ActivityDetails() {
     )
   }
 
-  const references = data.references.filter((reference) => activity.referenceIds.includes(reference.referenceId))
+  const references = activityDeleted ? [] : referencesForActivity(data.references, activity)
   const ideas = ideasForActivity(data.ideas, activity)
-  const photoReferences = data.photoReferences.filter((photoReference) =>
-    activity.photoReferenceIds.includes(photoReference.photoReferenceId),
-  )
+  const photoReferences = activityDeleted ? [] : photoReferencesForActivity(data.photoReferences, activity)
   const selectedPhoto = photoReferences[photoIndex]
   const markPhotoBroken = (photoReferenceId: string) =>
     setBrokenPhotoIds((current) => (current.includes(photoReferenceId) ? current : [...current, photoReferenceId]))
