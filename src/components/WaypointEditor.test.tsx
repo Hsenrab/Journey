@@ -1,13 +1,15 @@
 import type { ComponentProps } from 'react'
-import { fireEvent, render, screen } from '@testing-library/react'
+import { act, fireEvent, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { MemoryRouter } from 'react-router-dom'
+import { createMemoryRouter, MemoryRouter, RouterProvider } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { WaypointEditor } from './WaypointEditor'
 import { createDefaultData } from '../services/storage'
 import type { WaypointDraft } from '../features/journey/JourneyContext'
 import { WaypointsProvider, useWaypoints } from '../features/journey/JourneyContext'
 import { waypointImportExample } from '../domain/draftJsonImport'
+import { ApplicationError } from '../app/App'
+import type { Waypoint } from '../domain/visit'
 
 function SwitchMode() {
   const { setDataMode } = useWaypoints()
@@ -15,7 +17,7 @@ function SwitchMode() {
 }
 
 function renderEditor(overrides: Partial<ComponentProps<typeof WaypointEditor>> = {}) {
-  const onSubmit = vi.fn<(draft: WaypointDraft) => void>()
+  const onSubmit = vi.fn<(draft: WaypointDraft) => Promise<void>>().mockResolvedValue(undefined)
   const onCancel = vi.fn()
   const data = createDefaultData()
   render(
@@ -30,6 +32,205 @@ describe('WaypointEditor', () => {
   beforeEach(() => {
     vi.restoreAllMocks()
   })
+
+  const savedWaypoint: Waypoint = {
+    waypointId: 'draft-test',
+    title: 'Saved waypoint',
+    description: 'Saved description',
+    category: 'Walk',
+    tags: [],
+    challengeIds: [],
+    completion: { mode: 'once' },
+    referenceIds: [],
+    photoReferenceIds: [],
+  }
+
+  it.each(['new', 'edit'])(
+    'preserves every field and both tabs when declining dirty Cancel in %s mode',
+    async (mode) => {
+      const user = userEvent.setup()
+      const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false)
+      const data = createDefaultData()
+      data.challenges.push({
+        challengeId: 'planning',
+        title: 'Planning challenge',
+        description: 'Fictional challenge',
+        supportsActivityCategories: false,
+      })
+      const { onSubmit, onCancel } = renderEditor({
+        data,
+        initialWaypoint: mode === 'edit' ? savedWaypoint : undefined,
+        errorMessage: 'Specific retained save error',
+      })
+      await user.click(screen.getByRole('combobox', { name: 'Challenges' }))
+      await user.click(screen.getByRole('option', { name: 'Planning challenge' }))
+      await user.click(screen.getByRole('tab', { name: 'Paste JSON' }))
+      const payload = {
+        ...waypointImportExample,
+        title: 'Draft title',
+        tags: ['research', 'visit'],
+        completion: { mode: 'count', target: 3 },
+        location: { placeName: 'Draft place', latitude: 51, longitude: -2, approximate: true },
+        references: [
+          { title: 'Second guide first', url: 'https://example.com/second' },
+          { title: 'First guide second', url: 'https://example.com/first' },
+        ],
+        photoReferences: [
+          { title: 'Second photo first', url: 'https://example.com/second.jpg', altText: 'Second' },
+          { title: 'First photo second', url: 'https://example.com/first.jpg', altText: 'First' },
+        ],
+      }
+      fireEvent.change(screen.getByLabelText('Waypoint JSON'), { target: { value: JSON.stringify(payload) } })
+      await user.click(screen.getByRole('button', { name: 'Load into form' }))
+      fireEvent.change(screen.getByRole('textbox', { name: 'Category' }), { target: { value: '' } })
+      await user.click(screen.getByRole('button', { name: 'Save waypoint' }))
+      expect(screen.getByText('Waypoint category is required.')).toBeInTheDocument()
+      const values = () =>
+        screen.getAllByRole<HTMLInputElement | HTMLTextAreaElement>('textbox').map((field) => field.value)
+      const before = values()
+      await user.click(screen.getByRole('tab', { name: 'Paste JSON' }))
+      fireEvent.change(screen.getByLabelText('Waypoint JSON'), { target: { value: '{invalid' } })
+      await user.click(screen.getByRole('button', { name: 'Load into form' }))
+      for (let attempt = 0; attempt < 2; attempt++) await user.click(screen.getByRole('button', { name: 'Cancel' }))
+      expect(confirm).toHaveBeenCalledTimes(2)
+      expect(confirm).toHaveBeenCalledWith('You have unsaved Waypoint changes. Discard them?')
+      expect(screen.getByRole('tab', { name: 'Paste JSON' })).toHaveAttribute('aria-selected', 'true')
+      expect(screen.getByLabelText('Waypoint JSON')).toHaveValue('{invalid')
+      expect(screen.getByText('Invalid JSON. Paste a valid JSON object.')).toBeInTheDocument()
+      expect(screen.getByText('Specific retained save error')).toBeInTheDocument()
+      await user.click(screen.getByRole('tab', { name: 'Form' }))
+      expect(values()).toEqual(before)
+      expect(screen.getByText('Planning challenge')).toBeInTheDocument()
+      expect(screen.getByRole('combobox', { name: 'Completion mode' })).toHaveTextContent('Count')
+      expect(screen.getByLabelText('Approximate location')).toBeChecked()
+      expect(screen.getByText('Waypoint category is required.')).toBeInTheDocument()
+      expect(onSubmit).not.toHaveBeenCalled()
+      expect(onCancel).not.toHaveBeenCalled()
+    },
+  )
+
+  it.each(['new', 'edit'])('confirms deliberate discard without submitting in %s mode', async (mode) => {
+    const user = userEvent.setup()
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(true)
+    const { onSubmit, onCancel } = renderEditor({ initialWaypoint: mode === 'edit' ? savedWaypoint : undefined })
+    fireEvent.change(screen.getByLabelText('Title'), { target: { value: 'Abandoned title' } })
+    await user.click(screen.getByRole('button', { name: 'Cancel' }))
+    expect(confirm).toHaveBeenCalledOnce()
+    expect(onCancel).toHaveBeenCalledOnce()
+    expect(onSubmit).not.toHaveBeenCalled()
+  })
+
+  it.each(['new', 'edit'])('cancels unchanged and fully reverted %s drafts without prompting', async (mode) => {
+    const user = userEvent.setup()
+    const confirm = vi.spyOn(window, 'confirm')
+    const initialWaypoint = mode === 'edit' ? savedWaypoint : undefined
+    const { onSubmit, onCancel } = renderEditor({ initialWaypoint })
+    await user.click(screen.getByRole('button', { name: 'Cancel' }))
+    fireEvent.change(screen.getByLabelText('Title'), { target: { value: 'Temporary' } })
+    fireEvent.change(screen.getByLabelText('Title'), { target: { value: initialWaypoint?.title ?? '' } })
+    await user.click(screen.getByRole('button', { name: 'Add reference' }))
+    await user.click(screen.getByRole('button', { name: 'Remove reference 1' }))
+    await user.click(screen.getByRole('button', { name: 'Add photo reference' }))
+    await user.click(screen.getByRole('button', { name: 'Remove photo 1' }))
+    await user.click(screen.getByRole('tab', { name: 'Paste JSON' }))
+    fireEvent.change(screen.getByLabelText('Waypoint JSON'), { target: { value: ' \n ' } })
+    await user.click(screen.getByRole('button', { name: 'Cancel' }))
+    expect(onCancel).toHaveBeenCalledTimes(2)
+    expect(confirm).not.toHaveBeenCalled()
+    expect(onSubmit).not.toHaveBeenCalled()
+  })
+
+  it('does not treat validation errors alone as unsaved changes', async () => {
+    const user = userEvent.setup()
+    const confirm = vi.spyOn(window, 'confirm')
+    const { onSubmit, onCancel } = renderEditor()
+    await user.click(screen.getByRole('button', { name: 'Save waypoint' }))
+    expect(screen.getByText('Waypoint title is required.')).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Cancel' }))
+    expect(onCancel).toHaveBeenCalledOnce()
+    expect(confirm).not.toHaveBeenCalled()
+    expect(onSubmit).not.toHaveBeenCalled()
+  })
+
+  it('omits Cancel when no callback was provided', () => {
+    renderEditor({ onCancel: undefined })
+    expect(screen.queryByRole('button', { name: 'Cancel' })).not.toBeInTheDocument()
+  })
+
+  it('locks a pending waypoint save synchronously and restores the retained draft after settlement', async () => {
+    const user = userEvent.setup()
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false)
+    let finish!: () => void
+    const pending = new Promise<void>((resolve) => {
+      finish = resolve
+    })
+    const onSubmit = vi
+      .fn<(draft: WaypointDraft) => Promise<void>>()
+      .mockReturnValueOnce(pending)
+      .mockResolvedValue(undefined)
+    const { onCancel } = renderEditor({
+      initialWaypoint: savedWaypoint,
+      onSubmit,
+      errorMessage: 'Handled save failure',
+    })
+    fireEvent.change(screen.getByLabelText('Title'), { target: { value: 'Retained draft' } })
+    const cancel = screen.getByRole('button', { name: 'Cancel' })
+    const form = cancel.closest('form')!
+    act(() => {
+      fireEvent.submit(form)
+      fireEvent.submit(form)
+      fireEvent.click(cancel)
+    })
+    expect(onSubmit).toHaveBeenCalledOnce()
+    expect(onCancel).not.toHaveBeenCalled()
+    expect(confirm).not.toHaveBeenCalled()
+    expect(cancel).toBeDisabled()
+    expect(screen.getByLabelText('Title')).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Saving...' })).toBeDisabled()
+    expect(form).toHaveAttribute('aria-busy', 'true')
+    await act(async () => finish())
+    expect(cancel).toBeEnabled()
+    expect(screen.getByLabelText('Title')).toBeEnabled()
+    expect(screen.getByLabelText('Title')).toHaveValue('Retained draft')
+    expect(screen.getByText('Handled save failure')).toBeInTheDocument()
+    await user.click(cancel)
+    expect(confirm).toHaveBeenCalledOnce()
+    expect(onCancel).not.toHaveBeenCalled()
+    await user.click(screen.getByRole('button', { name: 'Save waypoint' }))
+    expect(onSubmit).toHaveBeenCalledTimes(2)
+    expect(screen.getByLabelText('Title')).toHaveValue('Retained draft')
+  })
+
+  it.each([new Error('Exact unexpected Waypoint failure'), 0])(
+    'surfaces an escaped callback failure at the root: %s',
+    async (failure) => {
+      const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {})
+      try {
+        const onSubmit = vi.fn<(draft: WaypointDraft) => Promise<void>>().mockRejectedValue(failure)
+        const router = createMemoryRouter([
+          {
+            path: '/',
+            errorElement: <ApplicationError />,
+            element: (
+              <WaypointEditor
+                data={createDefaultData()}
+                initialWaypoint={savedWaypoint}
+                submitLabel="Save"
+                onSubmit={onSubmit}
+              />
+            ),
+          },
+        ])
+        render(<RouterProvider router={router} />)
+        await userEvent.setup().click(screen.getByRole('button', { name: 'Save' }))
+        expect(await screen.findByRole('alert')).toHaveTextContent(
+          failure instanceof Error ? failure.message : String(failure),
+        )
+      } finally {
+        consoleError.mockRestore()
+      }
+    },
+  )
 
   it.each([
     {
@@ -133,7 +334,7 @@ describe('WaypointEditor', () => {
     expect(onSubmit).not.toHaveBeenCalled()
   })
 
-  it('preserves an unchanged coordinate-only location', () => {
+  it('preserves an unchanged coordinate-only location', async () => {
     const initialWaypoint = {
       waypointId: 'coordinates',
       title: 'Existing',
@@ -147,7 +348,7 @@ describe('WaypointEditor', () => {
       location: { latitude: 51, longitude: -2 },
     }
     const { onSubmit } = renderEditor({ initialWaypoint })
-    fireEvent.click(screen.getByRole('button', { name: 'Save waypoint' }))
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Save waypoint' })))
     expect(onSubmit.mock.calls[0][0].location).toEqual({ latitude: 51, longitude: -2 })
   })
 
@@ -164,7 +365,7 @@ describe('WaypointEditor', () => {
       },
     })
     await user.click(screen.getByRole('button', { name: 'Load into form' }))
-    fireEvent.click(screen.getByRole('button', { name: 'Save waypoint' }))
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Save waypoint' })))
     expect(onSubmit.mock.calls[0][0].location).toEqual({ placeName: 'New place' })
   })
 
@@ -178,7 +379,12 @@ describe('WaypointEditor', () => {
         <MemoryRouter>
           <WaypointsProvider>
             <SwitchMode />
-            <WaypointEditor data={createDefaultData()} submitLabel="Save" onSubmit={vi.fn()} onCancel={vi.fn()} />
+            <WaypointEditor
+              data={createDefaultData()}
+              submitLabel="Save"
+              onSubmit={vi.fn().mockResolvedValue(undefined)}
+              onCancel={vi.fn()}
+            />
           </WaypointsProvider>
         </MemoryRouter>,
       )

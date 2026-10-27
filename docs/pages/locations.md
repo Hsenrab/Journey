@@ -49,6 +49,30 @@ review an activity.
 7. Each card links to `/waypoints/:id`, where the id is the stable identifier used as the storage
    key.
 
+## Cancelling a Waypoint draft
+
+Creating and editing a Waypoint use the same Cancel behavior:
+
+- An unchanged draft closes immediately, without a warning or save. Restoring all
+  initial values, switching tabs or entering only whitespace in Paste JSON does
+  not introduce a warning.
+- A changed draft asks **You have unsaved Waypoint changes. Discard them?**.
+  Declining keeps the current tab, all form/JSON content, Challenge selections,
+  completion settings, evidence order and visible errors.
+- Confirming discard closes the editor without saving and retains the current
+  list/detail context. Reopening starts from the saved Waypoint or new-record
+  defaults, not from the discarded draft.
+- Unapplied non-whitespace JSON is unsaved work, even if it is invalid. Clearing
+  JSON does not remove changes already loaded into the form.
+- During a save, form controls, Save and Cancel are disabled and show **Saving...**.
+  A handled failure retains the draft and its specific error, restores editing,
+  and makes Cancel available with the same discard protection.
+
+This protection applies to Cancel only; other navigation and browser-close
+safeguards remain unchanged. It adds no autosave or draft recovery, and does not
+give viewers or read-only data modes editing access. Confirmation controls and
+appearance are supplied by the browser.
+
 ## Challenge browsing and recording
 
 Opening a Waypoint from a Challenge offers **Back to [original Challenge]**
