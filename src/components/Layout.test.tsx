@@ -65,6 +65,11 @@ describe('Layout', () => {
     expect(screen.getByText('Page content')).toBeInTheDocument()
   })
 
+  it.each([360, 1280])('allows main content to shrink within the shell at %spx', (width) => {
+    renderLayout(width)
+    expect(Number.parseFloat(getComputedStyle(screen.getByRole('main')).minWidth)).toBe(0)
+  })
+
   it('guards keyboard Settings navigation once with the destination name', async () => {
     function Draft() {
       useJourneyDraft(true)
