@@ -150,7 +150,7 @@ export function Layout({ children }: { children: ReactNode }) {
         </Drawer>
       )}
 
-      <Box component="main" sx={{ flexGrow: 1, width: { sm: `calc(100% - ${drawerWidth}px)` } }}>
+      <Box component="main" sx={{ flexGrow: 1, minWidth: 0, width: { sm: `calc(100% - ${drawerWidth}px)` } }}>
         <Toolbar />
         <Container maxWidth="md" sx={{ py: 2 }}>
           {children}

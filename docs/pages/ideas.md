@@ -59,6 +59,17 @@ more activities through activity `ideaIds`.
 
 ## Details and deletion
 
+- **Linked waypoints** lists individually named links to each associated
+  destination. These are planning associations, not evidence that the Idea was
+  used there. Ideas without associations explicitly show that none are linked.
+- While editing an Idea, linked destination names remain visible as plain text.
+  Their links return after a successful save or completed Cancel. Failed saves
+  and declining the existing discard confirmation keep the editor open and the
+  names non-interactive. Existing reference and Activity links are unchanged.
 - Details show usage as **Not used** or **Used in N activities** and list each linked
-  activity with date and optional waypoint.
+  activity with date and optional waypoint. Usage counts Activities that
+  explicitly reference the Idea, even at another Waypoint or without one;
+  it does not change planning state or destination associations.
+- Viewers and Demo local users can follow destination and Activity links but
+  cannot edit, delete, or record Activities.
 - Deleting an idea removes idea links from activities and updates the dataset.

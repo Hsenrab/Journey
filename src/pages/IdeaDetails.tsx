@@ -9,6 +9,7 @@ import {
   DialogActions,
   DialogContent,
   DialogTitle,
+  Link as MuiLink,
   Stack,
   Typography,
 } from '@mui/material'
@@ -119,10 +120,34 @@ export default function IdeaDetails() {
       <Typography>Difficulty: {difficultyLabels[idea.difficulty]}</Typography>
       <Typography color="text.secondary">{difficultyDescriptions[idea.difficulty]}</Typography>
       <Typography>Location: {ideaLocationSummary(idea.location)}</Typography>
-      <Typography>
-        Linked waypoints:{' '}
-        {linkedWaypoints.length > 0 ? linkedWaypoints.map((waypoint) => waypoint.title).join(', ') : 'None'}
-      </Typography>
+      <Stack
+        component="section"
+        aria-labelledby="idea-linked-waypoints"
+        spacing={1}
+        sx={{ minWidth: 0, overflowWrap: 'anywhere' }}
+      >
+        <Typography id="idea-linked-waypoints" variant="h5" component="h2">
+          Linked waypoints
+        </Typography>
+        <Typography color="text.secondary">Linked waypoints are planning associations.</Typography>
+        {linkedWaypoints.length === 0 ? (
+          <Typography color="text.secondary">No waypoints linked to this idea.</Typography>
+        ) : (
+          <Stack component="ul" spacing={1} sx={{ m: 0, pl: 2 }}>
+            {linkedWaypoints.map((waypoint) => (
+              <Typography component="li" key={waypoint.waypointId}>
+                {editing ? (
+                  waypoint.title
+                ) : (
+                  <MuiLink component={Link} to={`/waypoints/${waypoint.waypointId}`}>
+                    {waypoint.title}
+                  </MuiLink>
+                )}
+              </Typography>
+            ))}
+          </Stack>
+        )}
+      </Stack>
       <Stack spacing={1}>
         <Typography variant="h5">References</Typography>
         {references.length === 0 ? (
@@ -145,6 +170,7 @@ export default function IdeaDetails() {
       </Stack>
       <Stack spacing={1}>
         <Typography variant="h5">Activity usage</Typography>
+        <Typography color="text.secondary">Usage counts activities that explicitly used this idea.</Typography>
         {usage === 0 ? (
           <Typography color="text.secondary">Not used</Typography>
         ) : (
