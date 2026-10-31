@@ -51,6 +51,7 @@ import {
   type Status,
   type WaypointsData,
 } from '../../domain/visit'
+import { createWaypointDiscovery } from './waypointDiscovery'
 
 type AccessRole = JourneyRole | 'local'
 
@@ -119,6 +120,7 @@ type Action =
   | { type: 'restore'; data: WaypointsData }
 
 type WaypointsValue = {
+  waypointDiscovery: ReturnType<typeof createWaypointDiscovery>
   data: WaypointsData
   dataMode: JourneyDataMode
   activeDataMode: JourneyDataMode
@@ -498,6 +500,7 @@ export function WaypointsProvider({ children }: { children: ReactNode }) {
   const [data, dispatch] = useReducer(reducer, undefined, initialData)
   const [dataMode, setDataModeState] = useState<JourneyDataMode>(initialDataMode)
   const [activeDataMode, setActiveDataMode] = useState<JourneyDataMode>(initialDataMode)
+  const [waypointDiscovery] = useState(() => createWaypointDiscovery(initialDataMode))
   const [loadState, setLoadState] = useState<JourneyLoadState>({ status: 'loading' })
   const loading = loadState.status === 'loading'
   const [etags, setEtags] = useState<Record<string, string>>({})
@@ -546,6 +549,7 @@ export function WaypointsProvider({ children }: { children: ReactNode }) {
         error?: string,
       ): ReloadResult => {
         if (loadGeneration.current !== generation) return { status: 'superseded' }
+        waypointDiscovery.settle(active)
         apply(loaded)
         setActiveDataMode(active)
         setLoadState(error ? { status: 'loaded', warning: error } : { status: 'loaded' })
@@ -553,6 +557,7 @@ export function WaypointsProvider({ children }: { children: ReactNode }) {
       }
       const fail = (active: JourneyDataMode, error: string): ReloadResult => {
         if (loadGeneration.current !== generation) return { status: 'superseded' }
+        waypointDiscovery.settle(active)
         setActiveDataMode(active)
         setLoadState({ status: 'failed', message: error })
         return { status: 'failure', message: error }
@@ -583,7 +588,7 @@ export function WaypointsProvider({ children }: { children: ReactNode }) {
         )
       }
     },
-    [apply, localTestMode],
+    [apply, localTestMode, waypointDiscovery],
   )
   const reload = useCallback(async () => loadMode(dataMode), [dataMode, loadMode])
   const changeDataMode = useCallback(
@@ -592,10 +597,11 @@ export function WaypointsProvider({ children }: { children: ReactNode }) {
       if (mode === dataMode) return 'switched' as const
       if (!confirmNavigation('another data mode')) return 'cancelled' as const
       saveDataMode(mode)
+      waypointDiscovery.select(mode)
       setDataModeState(mode)
       return 'switched' as const
     },
-    [confirmNavigation, dataMode],
+    [confirmNavigation, dataMode, waypointDiscovery],
   )
   useEffect(() => {
     if (localTestMode && dataMode === 'production' && activeDataMode === 'production') save(data)
@@ -759,6 +765,7 @@ export function WaypointsProvider({ children }: { children: ReactNode }) {
       (...args: Args) =>
         runMutation(() => operation(...args))
     return {
+      waypointDiscovery,
       data,
       dataMode,
       activeDataMode,
@@ -807,6 +814,7 @@ export function WaypointsProvider({ children }: { children: ReactNode }) {
     runMutation,
     registerDraft,
     confirmNavigation,
+    waypointDiscovery,
   ])
   return (
     <Context.Provider value={value}>

@@ -7,6 +7,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import LocationDetails from './LocationDetails'
 import { WaypointsProvider, useWaypoints } from '../features/journey/JourneyContext'
 import { challengeJourneyState } from '../features/journey/challengeJourney'
+import { waypointDiscoveryState } from '../features/journey/waypointDiscovery'
 import { createAwardTestData, createJourneyTestData } from '../test/demoData'
 import { createDemoModeData, load, save, setDataMode } from '../services/storage'
 
@@ -54,6 +55,15 @@ function renderDetails(id: string, state?: unknown, controls = false) {
 }
 
 describe('LocationDetails', () => {
+  it.each([
+    waypointDiscoveryState('expired-before-refresh', demoWaypointId),
+    { ideaOrigin: { waypointId: demoWaypointId } },
+    { mapOrigin: { waypointId: demoWaypointId } },
+  ])('does not invent a discovery breadcrumb for expired or other-origin state: %j', (state) => {
+    renderDetails(demoWaypointId, state)
+    expect(screen.queryByRole('link', { name: 'Back to Waypoint results' })).not.toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Waypoints' })).toHaveAttribute('href', '/waypoints')
+  })
   it('keeps applicable unrecorded awards separate from completion throughout originated recording', async () => {
     const data = createAwardTestData()
     save(data)

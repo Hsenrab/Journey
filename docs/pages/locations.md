@@ -49,6 +49,40 @@ review an activity.
 7. Each card links to `/waypoints/:id`, where the id is the stable identifier used as the storage
    key.
 
+## Returning to discovery results
+
+Opening a result remembers that particular list's search text, Area, Category,
+sort, highest-award filter and Challenge scope for the live, same-tab journey.
+The detail breadcrumb becomes **Back to Waypoint results**. Both that link and
+browser Back restore the shortlist without re-entering criteria, including after
+successive comparisons.
+
+Return uses current records, not copied cards. The opened Waypoint's link is
+scrolled into view and focused by ID, even if its position changed or another
+Waypoint has the same title. If it no longer matches, the explanation is
+**The Waypoint you opened no longer matches these filters.** If deleted, it is
+**The Waypoint you opened is no longer available.** Loading and scope/load errors
+take precedence. A removed selected Area or Category remains labelled
+**(no current waypoints)** rather than silently clearing that filter.
+
+Clear filters removes search, Area, Category and highest-award filtering, but
+retains Challenge scope and the applicable chosen sort. Further interaction does
+not repeatedly move focus. Award filtering and Add/Cancel retain the other list
+controls and their existing browser-history behavior.
+
+Changing the selected or effective dataset clears captured discovery context,
+including history entries reached later: return starts with no filters or
+Challenge scope and Name sorting. Switching back does not revive the old list.
+Refreshing either page also ends the captured journey; explicit Challenge/award
+URL parameters retain their normal independent behavior. Unrelated direct links
+still report invalid scope rather than silently becoming an unfiltered list.
+
+Direct, new-tab, Idea, Map and Challenge entries do not borrow a discovery origin.
+Viewer and Demo local browsing stays read-only. A dirty contextual breadcrumb
+return asks the existing destination-aware discard question once; pending work
+blocks it. This adds no global dirty browser-Back guarantee or draft recovery.
+Navigation alone never writes records or saves filters to browser storage.
+
 ## Cancelling a Waypoint draft
 
 Creating and editing a Waypoint use the same Cancel behavior:
@@ -77,8 +111,9 @@ appearance are supplied by the browser.
 
 Opening a Waypoint from a Challenge offers **Back to [original Challenge]**
 while browsing, recording, and after a successful save. Shared membership never
-chooses a different Challenge. Direct/list visits and page reloads use ordinary
-Waypoints navigation without inventing an origin. Returns are removed if the
+chooses a different Challenge. Direct visits and page reloads do not invent a
+Challenge origin; list visits use the discovery return described above instead.
+Challenge returns are removed if the
 original Challenge/membership disappears or the loaded dataset changes.
 
 **Log activity** brings the title field into view and focuses it. Empty GPX,
@@ -117,6 +152,6 @@ notice and Settings link, but no recording/editing controls.
 
 ## Future improvements
 
-- Persist the last used filters
+- Saved filter defaults across unrelated visits or refreshes (not part of live discovery return)
 - Group by area or allow a different travel reference point
 - Show visit dates and note previews on the cards
