@@ -1,9 +1,11 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { MemoryRouter } from 'react-router-dom'
+import { Link, MemoryRouter, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
+import { MemoryRouter as DataMemoryRouter } from '../test/DataMemoryRouter'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import Locations from './Locations'
-import { WaypointsProvider } from '../features/journey/JourneyContext'
+import { WaypointsProvider, useWaypoints } from '../features/journey/JourneyContext'
+import LocationDetails from './LocationDetails'
 import { createDefaultData, save, setDataMode } from '../services/storage'
 import type { Activity, Waypoint, WaypointsData } from '../domain/visit'
 import { createAwardTestData } from '../test/demoData'
@@ -84,6 +86,272 @@ function waypointNames() {
 
 // Full coverage runs these MUI editor interactions under enough contention to exceed Vitest's default timeout.
 const SLOW_EDITOR_TEST_TIMEOUT_MS = 20_000
+
+function DiscoveryControls() {
+  const { reload, setDataMode, waypointDiscovery } = useWaypoints()
+  const location = useLocation()
+  const navigate = useNavigate()
+  return (
+    <>
+      <button onClick={() => navigate(-1)}>History Back</button>
+      <button onClick={() => void reload()}>Refresh records</button>
+      <Link to="/settings">Discovery settings</Link>
+      <Link to="/waypoints">Unrelated list</Link>
+      <Link to="/waypoints/hidcote">Direct detail</Link>
+      <output data-testid="discovery-route">
+        {location.pathname}
+        {location.search}
+      </output>
+      <output data-testid="discovery-entry">{waypointDiscovery.lookup(location.key).kind}</output>
+      <Routes>
+        <Route path="/waypoints" element={<Locations />} />
+        <Route path="/waypoints/:id" element={<LocationDetails />} />
+        <Route
+          path="/settings"
+          element={
+            <>
+              <button onClick={() => void setDataMode('demo-local')}>Choose local</button>
+              <button onClick={() => void setDataMode('production')}>Choose production</button>
+            </>
+          }
+        />
+      </Routes>
+    </>
+  )
+}
+
+function renderDiscovery(path = '/waypoints?challenge=test-challenge&status=not-started') {
+  return render(
+    <DataMemoryRouter initialEntries={[path]}>
+      <WaypointsProvider>
+        <DiscoveryControls />
+      </WaypointsProvider>
+    </DataMemoryRouter>,
+  )
+}
+
+describe('Waypoint discovery routed return', () => {
+  beforeEach(() => {
+    localStorage.clear()
+    vi.stubEnv('MODE', 'test')
+    const data = testData()
+    data.waypoints = data.waypoints.map((item) => ({
+      ...item,
+      location: { ...item.location, latitude: 51, longitude: -2 },
+    }))
+    save(data)
+  })
+  afterEach(() => {
+    vi.restoreAllMocks()
+    vi.unstubAllEnvs()
+    vi.unstubAllGlobals()
+  })
+
+  it.each(['breadcrumb', 'back'])(
+    'restores every criterion, ordering, count and exact anchor via %s',
+    async (method) => {
+      const user = userEvent.setup()
+      renderDiscovery()
+      await user.type(screen.getByLabelText('Search waypoints'), 'Garden')
+      await user.click(screen.getByRole('combobox', { name: 'Sort' }))
+      await user.click(screen.getByRole('option', { name: 'Last activity date' }))
+      await openMoreFilters(user)
+      await user.click(screen.getByRole('combobox', { name: 'Area' }))
+      await user.click(screen.getByRole('option', { name: 'Gloucestershire' }))
+      await user.click(screen.getByRole('combobox', { name: 'Category' }))
+      await user.click(screen.getByRole('option', { name: 'Garden' }))
+      const before = waypointNames()
+      await user.click(screen.getByRole('link', { name: 'Hidcote' }))
+      const back = screen.getByRole('link', { name: 'Back to Waypoint results' })
+      expect(back).toHaveAttribute('href', '/waypoints?challenge=test-challenge&status=not-started')
+      await user.click(method === 'breadcrumb' ? back : screen.getByRole('button', { name: 'History Back' }))
+      expect(screen.getByLabelText('Search waypoints')).toHaveValue('Garden')
+      expect(screen.getByRole('combobox', { name: 'Sort' })).toHaveTextContent('Last activity date')
+      expect(screen.getByRole('combobox', { name: 'Highest recorded award' })).toHaveTextContent('No award recorded')
+      expect(waypointNames()).toEqual(before)
+      expect(screen.getByRole('link', { name: 'Hidcote' })).toHaveFocus()
+      await user.click(screen.getByRole('button', { name: 'More filters (2 active)' }))
+      expect(screen.getByRole('combobox', { name: 'Area' })).toHaveTextContent('Gloucestershire')
+      expect(screen.getByRole('combobox', { name: 'Category' })).toHaveTextContent('Garden')
+      await user.click(screen.getByRole('button', { name: 'Clear filters' }))
+      expect(screen.getByLabelText('Search waypoints')).toHaveValue('')
+      expect(screen.getByRole('combobox', { name: 'Sort' })).toHaveTextContent('Last activity date')
+      expect(screen.getByTestId('discovery-route')).toHaveTextContent('/waypoints?challenge=test-challenge')
+      await user.click(screen.getByRole('link', { name: 'Stourhead' }))
+      await user.click(screen.getByRole('link', { name: 'Back to Waypoint results' }))
+      expect(screen.getByRole('link', { name: 'Stourhead' })).toHaveFocus()
+    },
+  )
+
+  it.each(['award', 'add'])(
+    'keeps %s query continuations recognizable after dataset reversal',
+    async (kind) => {
+      const user = userEvent.setup()
+      renderDiscovery()
+      await user.type(screen.getByLabelText('Search waypoints'), 'Garden')
+      await user.click(screen.getByRole('link', { name: 'Hidcote' }))
+      await user.click(screen.getByRole('link', { name: 'Back to Waypoint results' }))
+      if (kind === 'award') {
+        await user.click(screen.getByRole('combobox', { name: 'Highest recorded award' }))
+        await user.click(screen.getByRole('option', { name: 'All award tiers' }))
+      } else {
+        await user.click(screen.getByRole('button', { name: 'Add waypoint' }))
+        expect(screen.getByLabelText('Search waypoints')).toHaveValue('Garden')
+        await user.click(screen.getByRole('button', { name: 'Cancel' }))
+      }
+      expect(screen.getByLabelText('Search waypoints')).toHaveValue('Garden')
+      await user.click(screen.getByRole('link', { name: 'Discovery settings' }))
+      await user.click(screen.getByRole('button', { name: 'Choose local' }))
+      await user.click(screen.getByRole('button', { name: 'Choose production' }))
+      await user.click(screen.getByRole('button', { name: 'History Back' }))
+      await waitFor(() => expect(screen.getByTestId('discovery-route')).toHaveTextContent(/^\/waypoints$/))
+      expect(screen.getByLabelText('Search waypoints')).toHaveValue('')
+      expect(screen.getByRole('combobox', { name: 'Sort' })).toHaveTextContent('Name')
+      expect(screen.queryByText(/Challenge scope:/)).not.toBeInTheDocument()
+    },
+    SLOW_EDITOR_TEST_TIMEOUT_MS,
+  )
+
+  it.each(['moved', 'deleted'] as const)(
+    'uses current data and focuses the explanation when the result is %s',
+    async (change) => {
+      const user = userEvent.setup()
+      renderDiscovery()
+      await user.type(screen.getByLabelText('Search waypoints'), 'Hidcote')
+      await user.click(screen.getByRole('link', { name: 'Hidcote' }))
+      const changed = testData()
+      changed.waypoints =
+        change === 'deleted'
+          ? changed.waypoints.filter((item) => item.waypointId !== 'hidcote')
+          : changed.waypoints.map((item) => (item.waypointId === 'hidcote' ? { ...item, title: 'Renamed' } : item))
+      save(changed)
+      await user.click(screen.getByRole('button', { name: 'Refresh records' }))
+      if (change === 'deleted') expect(screen.getByText('Waypoint not found.')).toBeInTheDocument()
+      await user.click(screen.getByRole('link', { name: 'Back to Waypoint results' }))
+      const explanation = screen.getByText(
+        change === 'deleted'
+          ? 'The Waypoint you opened is no longer available.'
+          : 'The Waypoint you opened no longer matches these filters.',
+      )
+      expect(explanation.closest('[tabindex]')).toHaveFocus()
+      expect(screen.queryByRole('link', { name: 'Hidcote' })).not.toBeInTheDocument()
+      await user.clear(screen.getByLabelText('Search waypoints'))
+      expect(screen.queryByText(/The Waypoint you opened/)).not.toBeInTheDocument()
+      expect(screen.getByLabelText('Search waypoints')).toHaveFocus()
+    },
+  )
+
+  it.each([
+    { label: 'Area', selected: 'Wiltshire' },
+    { label: 'Category', selected: 'Garden' },
+  ])('retains a removed selected $label and never reinserts its old Waypoint', async ({ label, selected }) => {
+    const user = userEvent.setup()
+    renderDiscovery()
+    await openMoreFilters(user)
+    await user.click(screen.getByRole('combobox', { name: label }))
+    await user.click(screen.getByRole('option', { name: selected }))
+    await user.click(screen.getByRole('link', { name: 'Stourhead' }))
+    const changed = testData()
+    changed.waypoints = changed.waypoints.map((item) =>
+      label === 'Area'
+        ? { ...item, location: { addressOrRegion: 'New region', latitude: 51, longitude: -2 } }
+        : { ...item, category: 'New category' },
+    )
+    save(changed)
+    await user.click(screen.getByRole('button', { name: 'Refresh records' }))
+    await user.click(screen.getByRole('link', { name: 'Back to Waypoint results' }))
+    await user.click(screen.getByRole('button', { name: 'More filters (1 active)' }))
+    expect(screen.getByRole('combobox', { name: label })).toHaveTextContent(`${selected} (no current waypoints)`)
+    expect(document.querySelectorAll('.MuiCard-root')).toHaveLength(0)
+  })
+
+  it('keeps focus in the control during a current-record update and recomputes completion and awards', async () => {
+    const user = userEvent.setup()
+    renderDiscovery('/waypoints?challenge=test-challenge')
+    await user.click(screen.getByRole('link', { name: 'Hidcote' }))
+    await user.click(screen.getByRole('link', { name: 'Back to Waypoint results' }))
+    await user.type(screen.getByLabelText('Search waypoints'), 'Garden')
+    const changed = testData()
+    changed.activities = [
+      {
+        ...activity('hidcote', 'bronze'),
+        location: { kind: 'coordinates', latitude: 51, longitude: -2 },
+      },
+    ]
+    save(changed)
+    fireEvent.click(screen.getByRole('button', { name: 'Refresh records' }))
+    await waitFor(() => expect(screen.getByRole('link', { name: 'Hidcote' })).toHaveTextContent('Completion: Done'))
+    expect(screen.getByRole('link', { name: 'Hidcote' })).toHaveTextContent('Highest recorded award: Bronze')
+    expect(screen.getByLabelText('Search waypoints')).toHaveFocus()
+    expect(screen.queryByText(/The Waypoint you opened/)).not.toBeInTheDocument()
+  })
+
+  it('keeps restored award sort through loading and gives a Production failure precedence over absence', async () => {
+    vi.stubEnv('MODE', 'production')
+    const reply = () => new Response(JSON.stringify({ data: testData(), role: 'admin', etags: {} }))
+    let finish!: (response: Response) => void
+    const pending = new Promise<Response>((resolve) => {
+      finish = resolve
+    })
+    const fetch = vi.fn().mockResolvedValueOnce(reply()).mockReturnValueOnce(pending)
+    vi.stubGlobal('fetch', fetch)
+    const user = userEvent.setup()
+    renderDiscovery()
+    await screen.findByLabelText('Search waypoints')
+    await user.click(screen.getByRole('combobox', { name: 'Sort' }))
+    await user.click(screen.getByRole('option', { name: 'Highest recorded award' }))
+    await user.click(screen.getByRole('link', { name: 'Hidcote' }))
+    await user.click(screen.getByRole('link', { name: 'Back to Waypoint results' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Refresh records' }))
+    expect(await screen.findByText('Loading waypoints…')).toBeInTheDocument()
+    expect(screen.getByRole('combobox', { name: 'Sort' })).toHaveTextContent('Highest recorded award')
+    finish(
+      new Response(JSON.stringify({ error: 'Specific Production failure' }), {
+        status: 503,
+        statusText: 'Unavailable',
+        headers: { 'content-type': 'application/json' },
+      }),
+    )
+    expect(await screen.findByText(/Specific Production failure/)).toBeInTheDocument()
+    expect(screen.queryByText(/The Waypoint you opened/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/No waypoints/)).not.toBeInTheDocument()
+  })
+
+  it('does not lend an origin to unrelated lists or direct details and does not capture modified activation', async () => {
+    const user = userEvent.setup()
+    renderDiscovery()
+    await user.type(screen.getByLabelText('Search waypoints'), 'Hidcote')
+    fireEvent.click(screen.getByRole('link', { name: 'Hidcote' }), { ctrlKey: true })
+    expect(screen.getByTestId('discovery-entry')).toHaveTextContent('absent')
+    await user.click(screen.getByRole('link', { name: 'Hidcote' }))
+    await user.click(screen.getByRole('link', { name: 'Unrelated list' }))
+    expect(screen.getByLabelText('Search waypoints')).toHaveValue('')
+    await user.click(screen.getByRole('link', { name: 'Direct detail' }))
+    expect(screen.queryByRole('link', { name: 'Back to Waypoint results' })).not.toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Waypoints' })).toHaveAttribute('href', '/waypoints')
+  })
+
+  it(
+    'guards a dirty contextual return once and preserves its draft on decline',
+    async () => {
+      const user = userEvent.setup()
+      renderDiscovery()
+      await user.click(screen.getByRole('link', { name: 'Hidcote' }))
+      await user.click(screen.getByRole('button', { name: 'Edit waypoint' }))
+      await user.type(screen.getByLabelText('Title', { exact: true }), ' draft')
+      const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false)
+      await user.click(screen.getByRole('link', { name: 'Back to Waypoint results' }))
+      expect(confirm).toHaveBeenCalledExactlyOnceWith(
+        'You have unsaved changes. Discard them and continue to Waypoint results?',
+      )
+      expect(screen.getByLabelText('Title', { exact: true })).toHaveValue('Hidcote draft')
+      confirm.mockReturnValue(true)
+      await user.click(screen.getByRole('link', { name: 'Back to Waypoint results' }))
+      expect(screen.getByRole('link', { name: 'Hidcote' })).toHaveFocus()
+    },
+    SLOW_EDITOR_TEST_TIMEOUT_MS,
+  )
+})
 
 describe('Locations', () => {
   it('retains applicable controls for empty scoped results and clears them back to all members', async () => {

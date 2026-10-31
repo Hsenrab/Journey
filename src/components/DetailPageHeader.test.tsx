@@ -1,10 +1,36 @@
 import { Button } from '@mui/material'
-import { render, screen } from '@testing-library/react'
-import { MemoryRouter } from 'react-router-dom'
+import { fireEvent, render, screen } from '@testing-library/react'
+import { MemoryRouter, useLocation } from 'react-router-dom'
 import { describe, expect, it } from 'vitest'
 import { DetailPageHeader } from './DetailPageHeader'
 
 describe('DetailPageHeader', () => {
+  it('forwards breadcrumb state and respects a declined activation', () => {
+    function Destination() {
+      return <output>{JSON.stringify(useLocation().state)}</output>
+    }
+    const view = render(
+      <MemoryRouter>
+        <DetailPageHeader
+          title="One"
+          breadcrumbs={[{ label: 'Results', to: '/waypoints', state: { source: 'one' } }]}
+        />
+        <Destination />
+      </MemoryRouter>,
+    )
+    fireEvent.click(screen.getByRole('link', { name: 'Results' }))
+    expect(screen.getByRole('status')).toHaveTextContent('"source":"one"')
+    view.unmount()
+    render(
+      <MemoryRouter>
+        <DetailPageHeader
+          title="One"
+          breadcrumbs={[{ label: 'Results', to: '/waypoints', onClick: (event) => event.preventDefault() }]}
+        />
+      </MemoryRouter>,
+    )
+    expect(fireEvent.click(screen.getByRole('link', { name: 'Results' }))).toBe(false)
+  })
   it('renders the breadcrumb trail, the title and header actions', () => {
     render(
       <MemoryRouter>
