@@ -3,6 +3,9 @@ import type { HttpRequest, InvocationContext } from '@azure/functions'
 import { journey } from './journey.js'
 import { JourneyDataSchema, type JourneyData, type JourneyDocument } from '../lib/journeySchema.js'
 import { StoredJourneyRelationshipError } from '../lib/cosmos.js'
+import { validateActivityDraft } from '../../../src/domain/activityDraftValidation'
+import { createActivity } from '../../../src/domain/visit'
+import { loadJourney, replaceJourney } from '../../../src/services/journeyApi'
 
 const { loadDataset, journeyContainer, replaceDataset, acquireMapsAccessToken } = vi.hoisted(() => ({
   loadDataset: vi.fn(),
@@ -166,11 +169,11 @@ type BatchOperation = {
   ifMatch?: string
 }
 
-async function memoryDataset(initial: JourneyData) {
+async function memoryDataset(initial: JourneyData, datasetId = 'production') {
   const cosmos = await vi.importActual<typeof import('../lib/cosmos.js')>('../lib/cosmos.js')
   let revision = 1
   let stored = new Map(
-    Object.values(cosmos.documentsFor('production', initial)).map((document) => [
+    Object.values(cosmos.documentsFor(datasetId, initial)).map((document) => [
       document.id,
       { ...document, _etag: `initial-${document.id}` },
     ]),
@@ -213,7 +216,7 @@ async function memoryDataset(initial: JourneyData) {
     batch,
     commit,
     snapshot: () => structuredClone([...stored.values()]),
-    loaded: () => cosmos.loadDataset(container as never, 'production'),
+    loaded: () => cosmos.loadDataset(container as never, datasetId),
   }
 }
 
@@ -557,6 +560,165 @@ describe('journey', () => {
       expect(replaceDataset).not.toHaveBeenCalled()
     })
 
+    it('creates and edits postcode-only form Activities through the real client and replacement handler', async () => {
+      const memory = await memoryDataset(JourneyDataSchema.parse(emptyData), containerName)
+      const mapsFetch = vi
+        .fn()
+        .mockResolvedValueOnce(new Response(JSON.stringify({ results: [{ position: { lat: 51.844, lon: -2.153 } }] })))
+        .mockResolvedValueOnce(new Response(JSON.stringify({ results: [{ position: { lat: 51.415, lon: -2.123 } }] })))
+      const endpoint = `/api/journey/${containerName}`
+      vi.stubGlobal(
+        'fetch',
+        vi.fn(async (url: string, init?: RequestInit) => {
+          if (url.startsWith('https://atlas.microsoft.com/search/address/json?')) return mapsFetch(url, init)
+          if (url !== endpoint) throw new Error(`Unexpected test request "${url}".`)
+          if (init?.body !== undefined && typeof init.body !== 'string')
+            throw new Error('The browser mutation must have a JSON string body.')
+          const response = await journey(
+            request(containerName, init?.method ?? 'GET', init?.body === undefined ? undefined : JSON.parse(init.body)),
+            context(),
+          )
+          return new Response(JSON.stringify(response.jsonBody), {
+            status: response.status,
+            headers: { 'content-type': 'application/json' },
+          })
+        }),
+      )
+
+      for (const [postcode, latitude, longitude] of [
+        ['GL3 4AQ', 51.844, -2.153],
+        ['SN15 2LG', 51.415, -2.123],
+      ] as const) {
+        const validated = validateActivityDraft({
+          name: 'Postcode visit',
+          date: '2026-08-02',
+          locationKind: 'postcode',
+          postcode,
+          latitude: '',
+          longitude: '',
+          supportsCategories: false,
+          category: '',
+          removesRecordedAward: false,
+          awardRemovalConfirmed: false,
+          references: [],
+          photoReferences: [],
+        })
+        expect(validated.errors).toEqual({})
+        if (!validated.location) throw new Error('The valid form must supply its postcode location.')
+        expect(validated.location).toEqual({ kind: 'postcode', postcode })
+        const before = await memory.loaded()
+        const candidate = {
+          ...before.data,
+          activities: [
+            createActivity({
+              activityId: 'activity-1',
+              name: 'Postcode visit',
+              date: '2026-08-02',
+              location: validated.location,
+              createdAt: before.data.activities[0]?.createdAt,
+            }),
+          ],
+        }
+        const saved = await replaceJourney(containerName, candidate, before.etags)
+        expect(saved.data.activities[0]?.location).toEqual({ kind: 'postcode', postcode, latitude, longitude })
+        expect(await loadJourney(containerName)).toEqual({ ...saved, role: 'admin' })
+        expect(memory.snapshot()).toMatchObject([
+          { id: 'activity-1', datasetId: containerName, type: 'activity', schemaVersion: 5 },
+        ])
+      }
+      expect(memory.batch).toHaveBeenCalledTimes(2)
+      expect(memory.batch.mock.calls[0]?.[0]).toMatchObject([{ operationType: 'Create' }])
+      expect(memory.batch.mock.calls[1]?.[0]).toMatchObject([{ operationType: 'Replace', ifMatch: 'revision-1' }])
+      expect(mapsFetch).toHaveBeenCalledTimes(2)
+      expect(mapsFetch.mock.calls.map(([url]) => new URL(url).searchParams.get('query'))).toEqual([
+        'GL3 4AQ',
+        'SN15 2LG',
+      ])
+      expect(mapsFetch).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({
+          headers: { Authorization: 'Bearer entra-token', 'x-ms-client-id': 'maps-client-id' },
+        }),
+      )
+    })
+
+    it('does not batch any records when a later Activity postcode cannot be resolved', async () => {
+      const memory = await memoryDataset(JourneyDataSchema.parse(emptyData), containerName)
+      vi.stubGlobal(
+        'fetch',
+        vi
+          .fn()
+          .mockResolvedValueOnce({ ok: true, json: () => ({ results: [{ position: { lat: 51.4, lon: -2.1 } }] }) })
+          .mockResolvedValueOnce({ ok: true, json: () => ({ results: [] }) }),
+      )
+      const data = {
+        ...emptyData,
+        activities: [
+          { ...activity, ideaIds: [] },
+          { ...activity, activityId: 'activity-2', ideaIds: [], location: { kind: 'postcode', postcode: 'SN15 2LG' } },
+        ],
+      }
+      expect(
+        await journey(request(containerName, 'POST', { operation: 'replace', data, etags: {} }), context()),
+      ).toEqual({ status: 400, jsonBody: { error: 'Azure Maps found no coordinates for "SN15 2LG".' } })
+      expect(fetch).toHaveBeenCalledTimes(2)
+      expect(memory.batch).not.toHaveBeenCalled()
+      expect(memory.snapshot()).toEqual([])
+    })
+
+    it('rejects invalid final Activity coordinates without writing', async () => {
+      searchResults([{ position: { lat: 91, lon: -2.1 } }])
+      const data = { ...emptyData, activities: [{ ...activity, ideaIds: [] }] }
+      expect(
+        await journey(request(containerName, 'POST', { operation: 'replace', data, etags: {} }), context()),
+      ).toEqual({ status: 400, jsonBody: { error: 'Too big: expected number to be <=90' } })
+      expect(replaceDataset).not.toHaveBeenCalled()
+    })
+
+    it('preserves unexpected Activity geocoding failures without writing', async () => {
+      const failure = new Error('Maps credentials are unavailable.')
+      vi.stubGlobal('fetch', vi.fn().mockRejectedValue(failure))
+      const data = { ...emptyData, activities: [{ ...activity, ideaIds: [] }] }
+      await expect(
+        journey(request(containerName, 'POST', { operation: 'replace', data, etags: {} }), context()),
+      ).rejects.toBe(failure)
+      expect(replaceDataset).not.toHaveBeenCalled()
+    })
+
+    it('checks Activity relationships before any postcode lookup', async () => {
+      const data = { ...emptyData, activities: [activity] }
+      expect(
+        await journey(request(containerName, 'POST', { operation: 'replace', data, etags: {} }), context()),
+      ).toEqual({ status: 400, jsonBody: { error: 'Activity "activity-1" references unknown idea "idea-1".' } })
+      expect(fetch).not.toHaveBeenCalled()
+      expect(replaceDataset).not.toHaveBeenCalled()
+    })
+
+    it('retains Activity ETag conflicts after postcode resolution', async () => {
+      const data = { ...emptyData, activities: [{ ...activity, ideaIds: [] }] }
+      loadDataset.mockResolvedValue({ data, etags: { 'activity-1': 'current-etag' } })
+      expect(
+        await journey(
+          request(containerName, 'POST', { operation: 'replace', data, etags: { 'activity-1': 'stale-etag' } }),
+          context(),
+        ),
+      ).toEqual({ status: 409, jsonBody: { error: 'conflict' } })
+      expect(fetch).toHaveBeenCalledTimes(1)
+      expect(replaceDataset).not.toHaveBeenCalled()
+    })
+
+    it('rejects viewer postcode replacements before any lookup or write', async () => {
+      const data = { ...emptyData, activities: [{ ...activity, ideaIds: [] }] }
+      expect(
+        await journey(
+          request(containerName, 'POST', { operation: 'replace', data, etags: {} }, ['authenticated', 'viewer']),
+          context(),
+        ),
+      ).toEqual({ status: 403, jsonBody: { error: 'forbidden' } })
+      expect(fetch).not.toHaveBeenCalled()
+      expect(replaceDataset).not.toHaveBeenCalled()
+    })
+
     it('resolves replacement Waypoints before the unchanged ETag-checked dataset batch', async () => {
       const challenge = {
         challengeId: 'challenge-1',
@@ -603,7 +765,7 @@ describe('journey', () => {
       expect(replaceDataset.mock.invocationCallOrder[0]).toBeGreaterThan(fetch.mock.invocationCallOrder[0] ?? 0)
     })
 
-    it('does not geocode resolved or absent Waypoints, or locations on other entity types', async () => {
+    it('does not geocode resolved locations, absent Waypoints, or other entity types', async () => {
       const data = {
         ...emptyData,
         waypoints: [
@@ -625,6 +787,12 @@ describe('journey', () => {
             ...activity,
             ideaIds: [],
             location: { kind: 'postcode', postcode: 'GL3 4AQ', latitude: 51.844, longitude: -2.153 },
+          },
+          {
+            ...activity,
+            activityId: 'coordinates',
+            ideaIds: [],
+            location: { kind: 'coordinates', latitude: 51.4, longitude: -2.1 },
           },
         ],
       }

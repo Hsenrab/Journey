@@ -86,6 +86,22 @@ npm ci
 npm run dev
 ```
 
+Use a runtime that matches the checkout's filesystem. For a Windows checkout,
+run the frontend with Windows Node/npm from PowerShell or Command Prompt.
+When using Linux Node in WSL, keep the checkout and dependencies in the WSL
+Linux filesystem, not on a mounted Windows or OneDrive drive. Cross-filesystem
+I/O can delay JSDOM initialization beyond Vitest's worker-start deadline before
+any tests run. See [Microsoft's WSL filesystem guidance](https://learn.microsoft.com/en-us/windows/wsl/filesystems).
+
+Dependency command shims and native bindings are platform-specific. Restore
+dependencies with `npm ci` when changing the package's operating-system runtime;
+do not alternate Windows and Linux tools against the same `node_modules`.
+After installing Node or updating its user PATH, restart VS Code and terminals.
+
+The separate `api/` package's current build uses Unix utilities. Run its commands
+in a Linux environment, with its own Linux-installed dependencies; installing
+Windows frontend dependencies does not replace `api/node_modules`.
+
 ## Hosted access
 
 The hosted application uses Azure Static Web Apps' built-in Microsoft Entra ID

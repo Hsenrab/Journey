@@ -83,10 +83,13 @@ Activities can be linked to a waypoint or left unlinked.
   or changing the selected/effective dataset resets it permanently. Same-mode
   reloads retain the query and search the latest saved records.
 - Search is available to viewers and in read-only Demo modes without enabling
-  writes. It does not save preferences, fetch evidence or alter save behavior,
-  including the separate [postcode-only save issue #174](https://github.com/Hsenrab/Journey/issues/174).
+  writes. It does not save preferences, fetch evidence or alter save behavior.
 - Each row shows date, note excerpt, optional waypoint, location summary, optional category, photo count, and reference count.
 - **Add activity** opens the shared editor.
+- New and edited postcode-only Activities are resolved by the protected Journey API
+  through Azure Maps before saving. Already resolved locations and explicit
+  coordinate pairs need no lookup. Resolution failures keep the draft and show
+  the specific error without writing any records.
 - Selecting an activity opens `/activities/:activityId`.
 - `challenge=<id>&award=bronze|silver|gold` scopes the list to current member
   Activities with that exact recorded tier, using the same groups as Statistics.

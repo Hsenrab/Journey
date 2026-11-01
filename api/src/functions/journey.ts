@@ -124,7 +124,20 @@ export async function journey(request: HttpRequest, context: InvocationContext):
         }
       }
 
-      const finalData = JourneyDataSchema.safeParse({ ...parsed.data.data, waypoints: resolvedWaypoints })
+      const resolvedActivities: unknown[] = []
+      for (const activity of parsed.data.data.activities) {
+        resolvedActivities.push(
+          activity.location.kind === 'postcode' && !('latitude' in activity.location)
+            ? await geocodedEntity('activity', activity)
+            : activity,
+        )
+      }
+
+      const finalData = JourneyDataSchema.safeParse({
+        ...parsed.data.data,
+        waypoints: resolvedWaypoints,
+        activities: resolvedActivities,
+      })
       if (!finalData.success)
         return { status: 400, jsonBody: { error: finalData.error.issues[0]?.message ?? 'Invalid request.' } }
       const finalGraphError = referenceIntegrityError(finalData.data)

@@ -554,6 +554,35 @@ describe('Activities', () => {
     expect(screen.getByLabelText('Search activities')).toHaveValue('')
   })
 
+  it('retains a postcode-only draft and specific geocoding failure without showing an unsaved Activity', async () => {
+    vi.stubEnv('MODE', 'production')
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockImplementation((_url: string, init?: RequestInit) =>
+        init?.method === 'POST'
+          ? new Response(JSON.stringify({ error: 'Azure Maps found no coordinates for "UNKNOWN".' }), {
+              status: 400,
+              headers: { 'content-type': 'application/json' },
+            })
+          : new Response(JSON.stringify({ data: historyData(), etags: {}, role: 'admin' })),
+      ),
+    )
+    renderActivities()
+    await screen.findByLabelText('Search activities')
+    search('unsaved postcode visit')
+    await userEvent.setup().click(screen.getByRole('button', { name: 'Add activity' }))
+    fireEvent.change(screen.getByLabelText('Activity title'), { target: { value: 'unsaved postcode visit' } })
+    fireEvent.change(screen.getByLabelText('Postcode'), { target: { value: 'UNKNOWN' } })
+    await userEvent.setup().click(screen.getByRole('button', { name: 'Save activity' }))
+    await waitFor(() =>
+      expect(screen.getByRole('alert')).toHaveTextContent('Azure Maps found no coordinates for "UNKNOWN".'),
+    )
+    expect(screen.getByLabelText('Activity title')).toHaveValue('unsaved postcode visit')
+    expect(screen.getByLabelText('Postcode')).toHaveValue('UNKNOWN')
+    expect(resultIds()).toEqual([])
+    expect(screen.getByText('No activities match "unsaved postcode visit".')).toBeInTheDocument()
+  })
+
   it('keeps query and currently saved records during a failed save and discards no draft', async () => {
     localStorage.setItem('journey-data-mode-v1', 'demo-cosmos')
     vi.stubGlobal(
