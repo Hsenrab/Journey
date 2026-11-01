@@ -1,12 +1,13 @@
 import { submitActivity } from '../test/activityActions'
-import { render, screen, waitFor } from '@testing-library/react'
+import { act, render, screen, waitFor, within } from '@testing-library/react'
 import { fireEvent } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { Route, Routes } from 'react-router-dom'
 import { MemoryRouter } from '../test/DataMemoryRouter'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import ActivityDetails from './ActivityDetails'
-import { WaypointsProvider } from '../features/journey/JourneyContext'
+import { WaypointsProvider, useWaypoints } from '../features/journey/JourneyContext'
+import { mapExplorationState } from '../features/journey/mapExploration'
 import { load, save } from '../services/storage'
 import { createActivity, GpxGeometrySchema } from '../domain/visit'
 import { createDemoTestData } from '../test/demoData'
@@ -36,18 +37,39 @@ function evidenceData() {
   return data
 }
 
-function renderDetails(path = '/activities/a1') {
-  return render(
-    <MemoryRouter initialEntries={[path]}>
+function renderDetails(path = '/activities/a1', state?: unknown, mapOrigin = false) {
+  let journey!: ReturnType<typeof useWaypoints>
+  function CaptureJourney() {
+    journey = useWaypoints()
+    if (mapOrigin && journey.mapExploration.lookup('map-source').kind === 'absent') {
+      const hint = journey.mapExploration.capture('map-source', {
+        mode: 'activities',
+        progressFilter: 'all',
+        medalFilter: 'all',
+        mobilePanel: 'list',
+        originQuery: 'Place',
+        originChoices: [],
+        openedRecord: { kind: 'activity', id: path.slice('/activities/'.length) },
+        entryPath: 'nearby',
+      })
+      if (typeof state === 'object' && state !== null) Object.assign(state, hint)
+    }
+    return null
+  }
+  const view = render(
+    <MemoryRouter initialEntries={state === undefined ? [path] : [{ pathname: path, state }]}>
       <WaypointsProvider>
+        {mapOrigin && <CaptureJourney />}
         <Routes>
           <Route path="/activities/:activityId" element={<ActivityDetails />} />
           <Route path="/waypoints/:id" element={<div>Waypoint details</div>} />
           <Route path="/activities" element={<div>Activity log</div>} />
+          {mapOrigin && <Route path="/map" element={<div>Returned to Map</div>} />}
         </Routes>
       </WaypointsProvider>
     </MemoryRouter>,
   )
+  return { ...view, journey: () => journey }
 }
 
 describe('ActivityDetails', () => {
@@ -56,6 +78,61 @@ describe('ActivityDetails', () => {
     vi.restoreAllMocks()
     vi.unstubAllGlobals()
     vi.unstubAllEnvs()
+  })
+
+  it('adds guarded Map return without replacing ordinary breadcrumbs, even when missing', async () => {
+    const view = renderDetails(
+      '/activities/missing',
+      mapExplorationState('map-source', { kind: 'activity', id: 'missing' }, 'fixture'),
+      true,
+    )
+    expect(screen.getByRole('link', { name: 'Activities' })).toHaveAttribute('href', '/activities')
+    const link = screen.getByRole('link', { name: 'Back to Map' })
+    view.journey().registerDraft(Symbol(), true)
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false)
+    fireEvent.click(link)
+    expect(confirm).toHaveBeenCalledTimes(1)
+    expect(screen.getByText('Activity not found.')).toBeInTheDocument()
+    confirm.mockReturnValue(true)
+    fireEvent.click(link)
+    expect(confirm).toHaveBeenCalledTimes(2)
+    expect(await screen.findByText('Returned to Map')).toBeInTheDocument()
+  })
+
+  it('blocks pending Map return without prompting and keeps modified activation ordinary', async () => {
+    const view = renderDetails(
+      '/activities/missing',
+      mapExplorationState('map-source', { kind: 'activity', id: 'missing' }, 'fixture'),
+      true,
+    )
+    let finish!: () => void
+    let pending!: Promise<void>
+    act(() => {
+      pending = view.journey().runMutation(
+        () =>
+          new Promise<void>((resolve) => {
+            finish = resolve
+          }),
+      )
+    })
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(true)
+    const link = screen.getByRole('link', { name: 'Back to Map' })
+    fireEvent.click(link)
+    expect(screen.queryByText('Returned to Map')).not.toBeInTheDocument()
+    expect(confirm).not.toHaveBeenCalled()
+    fireEvent.click(link, { ctrlKey: true })
+    expect(confirm).not.toHaveBeenCalled()
+    await act(async () => {
+      finish()
+      await pending
+    })
+    fireEvent.click(link)
+    expect(await screen.findByText('Returned to Map')).toBeInTheDocument()
+  })
+
+  it('does not invent Map return for expired or mismatched hints', () => {
+    renderDetails('/activities/missing', mapExplorationState('unknown', { kind: 'waypoint', id: 'missing' }, 'fixture'))
+    expect(screen.queryByRole('link', { name: 'Back to Map' })).not.toBeInTheDocument()
   })
 
   it('shows not found for unknown ids', () => {
@@ -87,15 +164,20 @@ describe('ActivityDetails', () => {
     const view = renderDetails()
     const user = userEvent.setup()
     await user.click(screen.getByRole('button', { name: 'Edit activity' }))
-    await user.click(screen.getByRole('button', { name: 'Add reference' }))
-    fireEvent.change(screen.getAllByLabelText('Reference title')[2]!, { target: { value: 'Added reference' } })
-    fireEvent.change(screen.getAllByLabelText('Reference URL')[2]!, { target: { value: 'https://example.com/added' } })
-    await user.click(screen.getByRole('button', { name: 'Move reference 3 up' }))
-    await user.click(screen.getByRole('button', { name: 'Add photo reference' }))
-    fireEvent.change(screen.getAllByLabelText('Photo title')[2]!, { target: { value: 'Added photo' } })
-    fireEvent.change(screen.getAllByLabelText('Photo URL')[2]!, { target: { value: 'https://example.com/added.jpg' } })
-    await user.click(screen.getByRole('button', { name: 'Move photo 3 up' }))
-    await user.click(screen.getByRole('button', { name: 'Save changes' }))
+    const editor = within(screen.getByRole<HTMLInputElement>('textbox', { name: 'Activity title' }).form!)
+    await user.click(editor.getByRole('button', { name: 'Add reference' }))
+    const referenceTitle = editor.getAllByRole('textbox', { name: 'Reference title' })[2]!
+    fireEvent.change(referenceTitle, { target: { value: 'Added reference' } })
+    const referenceUrl = editor.getAllByRole('textbox', { name: 'Reference URL' })[2]!
+    fireEvent.change(referenceUrl, { target: { value: 'https://example.com/added' } })
+    await user.click(editor.getByRole('button', { name: 'Move reference 3 up' }))
+    await user.click(editor.getByRole('button', { name: 'Add photo reference' }))
+    fireEvent.change(editor.getAllByRole('textbox', { name: 'Photo title' })[2]!, { target: { value: 'Added photo' } })
+    fireEvent.change(editor.getAllByRole('textbox', { name: 'Photo URL' })[2]!, {
+      target: { value: 'https://example.com/added.jpg' },
+    })
+    await user.click(editor.getByRole('button', { name: 'Move photo 3 up' }))
+    await user.click(editor.getByRole('button', { name: 'Save changes' }))
     expect(await screen.findByText('Activity saved.')).toBeInTheDocument()
     const stored = load()
     expect(stored.activities[0]!.referenceIds).toEqual([
@@ -117,10 +199,15 @@ describe('ActivityDetails', () => {
       screen.getAllByRole('button', { name: /^Show photo/ }).map((item) => item.getAttribute('aria-label')),
     ).toEqual(['Show photo 1: Second photo', 'Show photo 2: Added photo', 'Show photo 3: First photo'])
     await user.click(screen.getByRole('button', { name: 'Edit activity' }))
+    const reopened = within(screen.getByRole<HTMLInputElement>('textbox', { name: 'Activity title' }).form!)
     const titles = ['Second reference', 'Added reference', 'First reference']
     const photos = ['Second photo', 'Added photo', 'First photo']
-    titles.forEach((title, index) => expect(screen.getAllByLabelText('Reference title')[index]).toHaveValue(title))
-    photos.forEach((title, index) => expect(screen.getAllByLabelText('Photo title')[index]).toHaveValue(title))
+    const referenceTitles = reopened.getAllByRole('textbox', { name: 'Reference title' })
+    const photoTitles = reopened.getAllByRole('textbox', { name: 'Photo title' })
+    expect(referenceTitles).toHaveLength(titles.length)
+    expect(photoTitles).toHaveLength(photos.length)
+    titles.forEach((title, index) => expect(referenceTitles[index]).toHaveValue(title))
+    photos.forEach((title, index) => expect(photoTitles[index]).toHaveValue(title))
   })
 
   it('breadcrumbs an unlinked activity back to the activity log', async () => {

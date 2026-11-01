@@ -27,6 +27,26 @@ Navigation includes:
 - Map
 - Settings
 
+## Map exploration
+
+Open Waypoints or Activities from nearby results, marker popups or cluster lists,
+then use **Back to Map** or browser Back to resume that particular exploration.
+Search text, the resolved origin, unchosen search choices/feedback, applicable
+filters, selected planned route, available camera framing and the mobile Map/List
+panel are retained for the live tab only. Refreshing or opening a new tab ends it.
+
+Return uses current records, not saved record or geometry copies. Dataset changes
+permanently reset exploration with an explanation, even when switching back.
+Missing or filtered-out selections are explained without restoring stale popups
+or automatically reframing the map. Direct recorded-track links still open and
+frame Activities normally.
+
+Browsing is available to admins, viewers and read-only Demo users without record
+writes. Contextual return keeps existing draft/pending-write protection and
+focuses the originating available action or an explanation once. Controlled
+SDK/browser tests are not proof of live Azure Maps rendering; authenticated
+camera, cluster and touch acceptance requires a usable approved environment.
+
 ## Progress
 
 - The root route redirects to `/challenges`, so the app opens on the progress

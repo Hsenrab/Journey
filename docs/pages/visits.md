@@ -109,6 +109,34 @@ Activities can be linked to a waypoint or left unlinked.
 
 The Map page opens the Activities view for a linked recorded track and fits the map to its recorded geometry. The Activities view also draws attached tracks when opened without a selected activity.
 
+### Returning to Map exploration
+
+Activities opened from a nearby result, marker action or cluster-member link
+offer **Back to Map** alongside their existing Activity/Waypoint breadcrumbs.
+That return and browser Back resume the originating live-tab exploration without
+another origin search or record write. Existing Waypoint chips and deletion
+destinations are unchanged; unrelated nested detail links do not inherit a Map
+origin.
+
+An Activity opened inside a Waypoint popup returns to Waypoints mode and retains
+an independently valid Waypoint selection, even if that Activity has disappeared.
+Popups, progress, positions and route/track geometry always use current records.
+Missing selections/overlays are explained without stale content or automatic
+reframing. Captured framing is not overridden by initial route/track fits;
+direct recorded-track entry and deliberate later planned-route selection still fit.
+
+Search text, resolved origin, unchosen choices/feedback, applicable filters and
+the mobile panel last only for the live tab. Dataset changes permanently reset
+them with an explanation, including switching away and back. Refresh/new-tab
+entry does not invent a contextual return.
+
+Return focus moves once to the current originating result/action or the visible
+panel/absence explanation. Existing dirty-draft confirmation and pending-write
+blocking apply to the contextual link, without a new browser-Back guard.
+Viewers and read-only Demo users retain browsing but not editing.
+Controlled nearby-list browser tests and SDK substitutes do not establish live
+Azure Maps camera, cluster or touch acceptance.
+
 ## Delete behavior
 
 Deleting an activity removes the activity and prunes any now-unreferenced activity-linked reference/photo records.

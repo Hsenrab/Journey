@@ -1,5 +1,5 @@
 import { useRef, useState, type KeyboardEvent, type TouchEvent } from 'react'
-import { Link, useNavigate, useParams } from 'react-router-dom'
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
 import {
   Alert,
   Box,
@@ -16,7 +16,7 @@ import {
 } from '@mui/material'
 import InboxOutlinedIcon from '@mui/icons-material/InboxOutlined'
 import { ActivityEditor } from '../components/ActivityEditor'
-import { DetailPageHeader } from '../components/DetailPageHeader'
+import { DetailPageHeader, type DetailBreadcrumb } from '../components/DetailPageHeader'
 import { EmptyState } from '../components/EmptyState'
 import { LoadFailureAlert } from '../components/LoadFailureAlert'
 import { LoadingNotice } from '../components/LoadingNotice'
@@ -34,11 +34,15 @@ import {
 } from '../domain/visit'
 import { useWaypoints } from '../features/journey/JourneyContext'
 import { JourneyConflictError, JourneyInputError } from '../services/journeyApi'
+import { mapExplorationTarget } from '../features/journey/mapExploration'
+import { isPlainDiscoveryActivation } from '../features/journey/waypointDiscovery'
 
 export default function ActivityDetails() {
   const { activityId = '' } = useParams()
   const navigate = useNavigate()
-  const { data, loadState, readOnly, reload, updateActivity, deleteActivity } = useWaypoints()
+  const location = useLocation()
+  const { data, loadState, readOnly, reload, updateActivity, deleteActivity, mapExploration, confirmNavigation } =
+    useWaypoints()
   const [editing, setEditing] = useState(false)
   const [photoIndex, setPhotoIndex] = useState(0)
   const touchStart = useRef<{ x: number; y: number } | null>(null)
@@ -55,13 +59,24 @@ export default function ActivityDetails() {
   const waypoint = activity?.waypointId
     ? data.waypoints.find((item) => item.waypointId === activity.waypointId)
     : undefined
-  const breadcrumbs = waypoint
+  const breadcrumbs: DetailBreadcrumb[] = waypoint
     ? [
         { label: 'Waypoints', to: '/waypoints' },
         { label: waypoint.title, to: `/waypoints/${waypoint.waypointId}` },
       ]
     : [{ label: 'Activities', to: '/activities' }]
   const backTarget = breadcrumbs[breadcrumbs.length - 1].to
+  const mapOrigin = mapExploration.resolveOrigin(location.state, 'activity', activityId)
+  if (mapOrigin.kind !== 'absent') {
+    breadcrumbs.unshift({
+      label: 'Back to Map',
+      to: mapExplorationTarget(mapOrigin),
+      state: location.state,
+      onClick: (event) => {
+        if (isPlainDiscoveryActivation(event) && !confirmNavigation('Map')) event.preventDefault()
+      },
+    })
+  }
 
   if (!activity) {
     return (
@@ -141,7 +156,7 @@ export default function ActivityDetails() {
   }
 
   return (
-    <Stack spacing={3}>
+    <Stack spacing={3} sx={{ overflowWrap: 'anywhere' }}>
       <DetailPageHeader breadcrumbs={breadcrumbs} title={activityTitle(activity)}>
         {!readOnly && !editing && !activityDeleted && (
           <>

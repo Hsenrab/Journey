@@ -10,6 +10,16 @@ const waypointId = 'demo-foxglove-manor'
 const lacockId = waypointId
 
 const discoveryCriteria = { query: 'exact', area: 'all', category: 'all', sort: 'name', status: 'all' } as const
+const mapMetadata = {
+  mode: 'waypoints',
+  progressFilter: 'all',
+  medalFilter: 'all',
+  mobilePanel: 'list',
+  originQuery: 'exact',
+  originChoices: [],
+  openedRecord: { kind: 'waypoint', id: 'one' },
+  entryPath: 'nearby',
+}
 
 describe('discovery session lifecycle', () => {
   beforeEach(() => {
@@ -27,6 +37,8 @@ describe('discovery session lifecycle', () => {
     const second = renderHook(() => useWaypoints(), { wrapper: WaypointsProvider })
     await waitFor(() => expect(first.result.current.loading).toBe(false))
     const session = first.result.current.waypointDiscovery
+    const mapSession = first.result.current.mapExploration
+    mapSession.capture('map', mapMetadata)
     session.capture('list', discoveryCriteria, 'one')
     await act(async () => {
       await first.result.current.reload()
@@ -39,17 +51,23 @@ describe('discovery session lifecycle', () => {
     expect(first.result.current.waypointDiscovery).toBe(session)
     expect(session.lookup('list')).toMatchObject({ kind: 'current' })
     expect(second.result.current.waypointDiscovery.lookup('list')).toEqual({ kind: 'absent' })
+    expect(first.result.current.mapExploration).toBe(mapSession)
+    expect(mapSession.lookup('map')).toMatchObject({ kind: 'current' })
+    expect(second.result.current.mapExploration.lookup('map')).toEqual({ kind: 'absent' })
   })
 
   it('invalidates after accepted switches but not declined or pending switches', async () => {
     const { result } = renderHook(() => useWaypoints(), { wrapper: WaypointsProvider })
     await waitFor(() => expect(result.current.loading).toBe(false))
     const session = result.current.waypointDiscovery
+    const mapSession = result.current.mapExploration
+    mapSession.capture('map', mapMetadata)
     session.capture('list', discoveryCriteria, 'one')
     const unregister = result.current.registerDraft(Symbol(), true)
     const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false)
     await act(async () => expect(await result.current.setDataMode('demo-local')).toBe('cancelled'))
     expect(session.lookup('list')).toMatchObject({ kind: 'current' })
+    expect(mapSession.lookup('map')).toMatchObject({ kind: 'current' })
     unregister()
     const held = deferred<void>()
     let saving!: Promise<void>
@@ -58,6 +76,7 @@ describe('discovery session lifecycle', () => {
     })
     await expect(result.current.setDataMode('demo-local')).rejects.toThrow('mutation is pending')
     expect(session.lookup('list')).toMatchObject({ kind: 'current' })
+    expect(mapSession.lookup('map')).toMatchObject({ kind: 'current' })
     await act(async () => {
       held.resolve()
       await saving
@@ -68,10 +87,12 @@ describe('discovery session lifecycle', () => {
     })
     expect(result.current.waypointDiscovery).toBe(session)
     expect(session.lookup('list')).toEqual({ kind: 'invalidated' })
+    expect(mapSession.lookup('map')).toMatchObject({ kind: 'invalidated' })
     await act(async () => {
       await result.current.setDataMode('production')
     })
     expect(session.lookup('list')).toEqual({ kind: 'invalidated' })
+    expect(mapSession.lookup('map')).toMatchObject({ kind: 'invalidated' })
   })
 
   it('invalidates on effective fallback and recovery, but ignores a superseded failure', async () => {
@@ -83,6 +104,8 @@ describe('discovery session lifecycle', () => {
     const { result } = renderHook(() => useWaypoints(), { wrapper: WaypointsProvider })
     await waitFor(() => expect(result.current.loading).toBe(false))
     const session = result.current.waypointDiscovery
+    const mapSession = result.current.mapExploration
+    mapSession.capture('map', mapMetadata)
     session.capture('before-fallback', discoveryCriteria, 'one')
     const stale = deferred<Response>()
     fetch.mockReturnValueOnce(stale.promise)
@@ -98,6 +121,7 @@ describe('discovery session lifecycle', () => {
       await oldReload
     })
     expect(session.lookup('before-fallback')).toMatchObject({ kind: 'current' })
+    expect(mapSession.lookup('map')).toMatchObject({ kind: 'current' })
     fetch.mockRejectedValueOnce(new Error('Specific Demo failure'))
     await act(async () => {
       await result.current.reload()
@@ -105,12 +129,15 @@ describe('discovery session lifecycle', () => {
     expect(result.current.activeDataMode).toBe('demo-local')
     expect(result.current.loadError).toContain('Specific Demo failure')
     expect(session.lookup('before-fallback')).toEqual({ kind: 'invalidated' })
+    expect(mapSession.lookup('map')).toMatchObject({ kind: 'invalidated' })
+    mapSession.capture('before-recovery', mapMetadata)
     session.capture('before-recovery', discoveryCriteria, 'two')
     await act(async () => {
       await result.current.reload()
     })
     expect(result.current.activeDataMode).toBe('demo-cosmos')
     expect(session.lookup('before-recovery')).toEqual({ kind: 'invalidated' })
+    expect(mapSession.lookup('before-recovery')).toMatchObject({ kind: 'invalidated' })
   })
 })
 
