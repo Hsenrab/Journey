@@ -29,8 +29,9 @@ const unresolvedPlace = place.omit({ latitude: true, longitude: true }).superRef
       message: 'An unresolved waypoint location needs a place name or address.',
     })
 })
+const postcodeLocation = z.object({ kind: z.literal('postcode'), postcode: identifier, latitude, longitude }).strict()
 const activityLocation = z.discriminatedUnion('kind', [
-  z.object({ kind: z.literal('postcode'), postcode: identifier, latitude, longitude }).strict(),
+  postcodeLocation,
   z.object({ kind: z.literal('coordinates'), latitude, longitude }).strict(),
 ])
 const maxGpxGeometrySegments = 100
@@ -176,6 +177,12 @@ const schemas = {
 const replacementWaypoint = schemas.waypoint
   .omit({ location: true })
   .extend({ location: z.union([resolvedPlace, unresolvedPlace]).optional() })
+const replacementActivity = schemas.activity.extend({
+  location: z.union([
+    activityLocation,
+    postcodeLocation.omit({ latitude: true, longitude: true }).extend({ postcode: text }),
+  ]),
+})
 
 export const schemaVersions = {
   waypoint: 2,
@@ -267,6 +274,7 @@ export const ReplacementJourneyDataSchema = z
   .object({
     ...journeyDataShape,
     waypoints: z.array(replacementWaypoint),
+    activities: z.array(replacementActivity),
   })
   .strict()
   .superRefine(withUniqueEntityIds)

@@ -106,7 +106,42 @@ describe('Journey document validation', () => {
     expect(replacement({ ...waypoint(), unexpected: true }).success).toBe(false)
   })
 
-  it('keeps imports, persisted Waypoints, and Activity replacements strict', () => {
+  it('allows replacement Activities with postcode-only or fully resolved locations', () => {
+    for (const location of [
+      { kind: 'postcode', postcode: 'SN15 2LG' },
+      { kind: 'postcode', postcode: 'SN15 2LG', latitude: 51.4, longitude: -2.1 },
+      { kind: 'coordinates', latitude: 51.4, longitude: -2.1 },
+    ]) {
+      expect(
+        JourneyMutationSchema.safeParse({
+          operation: 'replace',
+          data: { ...emptyData(), activities: [{ ...activity(), location }] },
+          etags: {},
+        }).success,
+      ).toBe(true)
+    }
+  })
+
+  it.each([
+    { kind: 'postcode', postcode: '   ' },
+    { kind: 'postcode', postcode: 'SN15 2LG', latitude: 51.4 },
+    { kind: 'postcode', postcode: 'SN15 2LG', longitude: -2.1 },
+    { kind: 'postcode', postcode: 'SN15 2LG', latitude: 91, longitude: -2.1 },
+    { kind: 'postcode', postcode: 'SN15 2LG', extra: true },
+    { kind: 'coordinates', latitude: 51.4 },
+    { kind: 'coordinates', latitude: 51.4, longitude: -181 },
+    { kind: 'place', placeName: 'An activity' },
+  ])('rejects invalid replacement Activity locations: %j', (location) => {
+    expect(
+      JourneyMutationSchema.safeParse({
+        operation: 'replace',
+        data: { ...emptyData(), activities: [{ ...activity(), location }] },
+        etags: {},
+      }).success,
+    ).toBe(false)
+  })
+
+  it('keeps imports and persisted Waypoints and Activities strict', () => {
     const unresolved = waypoint({ placeName: 'Lacock Abbey' })
     expect(
       JourneyMutationSchema.safeParse({
@@ -125,7 +160,7 @@ describe('Journey document validation', () => {
     ).toBe(false)
     expect(
       JourneyMutationSchema.safeParse({
-        operation: 'replace',
+        operation: 'import',
         data: {
           ...emptyData(),
           activities: [
@@ -143,7 +178,15 @@ describe('Journey document validation', () => {
             },
           ],
         },
-        etags: {},
+      }).success,
+    ).toBe(false)
+    expect(
+      JourneyDocumentSchema.safeParse({
+        id: 'activity-1',
+        datasetId: 'production',
+        type: 'activity',
+        schemaVersion: 5,
+        entity: { ...activity(), location: { kind: 'postcode', postcode: 'SN15 2LG' } },
       }).success,
     ).toBe(false)
   })

@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test'
 import type { WaypointsData } from '../src/domain/visit'
+import { JourneyDataSchema, JourneyMutationSchema } from '../api/src/lib/journeySchema'
 
 function fixture(): WaypointsData {
   return {
@@ -52,6 +53,112 @@ function fixture(): WaypointsData {
 }
 
 for (const width of [360, 1280]) {
+  test(`Postcode Activity creation, failed edit and resave use strict replacement payloads at ${width}px`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height: 800 })
+    await page.addInitScript(() => {
+      localStorage.clear()
+      localStorage.setItem('journey-data-mode-v1', 'demo-cosmos')
+    })
+    let data = JourneyDataSchema.parse(fixture())
+    let attempts = 0
+    let writes = 0
+    const etags = () =>
+      Object.fromEntries(
+        [
+          ...data.activities.map((item) => item.activityId),
+          ...data.waypoints.map((item) => item.waypointId),
+          ...data.ideas.map((item) => item.ideaId),
+        ].map((id) => [id, `etag-${writes}`]),
+      )
+    await page.route('**/api/**', async (route) => {
+      expect(route.request().url()).toMatch(/\/api\/journey\/demo$/)
+      if (route.request().method() === 'GET') {
+        await route.fulfill({ json: { data, etags: etags(), role: 'admin' } })
+        return
+      }
+      expect(route.request().method()).toBe('POST')
+      const mutation = JourneyMutationSchema.parse(route.request().postDataJSON())
+      if (mutation.operation !== 'replace') throw new Error('Activity forms must use dataset replacement.')
+      expect(mutation.etags).toEqual(etags())
+      const edited = mutation.data.activities.find((item) => item.name.includes('postcode visit'))
+      if (!edited || edited.location.kind !== 'postcode') throw new Error('The form must submit its postcode Activity.')
+      const postcode = edited.location.postcode
+      expect('latitude' in edited.location).toBe(false)
+      expect('longitude' in edited.location).toBe(false)
+      attempts++
+      if (postcode === 'UNKNOWN') {
+        await route.fulfill({
+          status: 400,
+          json: { error: 'Azure Maps found no coordinates for "UNKNOWN".' },
+        })
+        return
+      }
+      expect(['GL3 4AQ', 'SN15 2LG']).toContain(postcode)
+      data = JourneyDataSchema.parse({
+        ...mutation.data,
+        activities: mutation.data.activities.map((item) =>
+          item.activityId === edited.activityId
+            ? {
+                ...item,
+                location: {
+                  ...item.location,
+                  ...(postcode === 'GL3 4AQ'
+                    ? { latitude: 51.844, longitude: -2.153 }
+                    : { latitude: 51.415, longitude: -2.123 }),
+                },
+              }
+            : item,
+        ),
+      })
+      writes++
+      await route.fulfill({ json: { data, etags: etags() } })
+    })
+
+    await page.goto('/activities')
+    await page.getByRole('button', { name: 'Add activity', exact: true }).click()
+    await page.getByLabel('Activity title', { exact: true }).fill('New postcode visit')
+    await page.getByLabel('Postcode', { exact: true }).fill('GL3 4AQ')
+    await page.getByRole('button', { name: 'Save activity', exact: true }).click()
+    await page.getByRole('link', { name: /^New postcode visit/ }).click()
+    await page.reload()
+    await expect(page.getByRole('heading', { name: 'New postcode visit', exact: true })).toBeVisible()
+    expect(data.activities.find((item) => item.name === 'New postcode visit')?.location).toEqual({
+      kind: 'postcode',
+      postcode: 'GL3 4AQ',
+      latitude: 51.844,
+      longitude: -2.153,
+    })
+
+    await page.getByRole('button', { name: 'Edit activity', exact: true }).click()
+    await page.getByLabel('Activity title', { exact: true }).fill('Edited postcode visit')
+    await page.getByLabel('Postcode', { exact: true }).fill('UNKNOWN')
+    await page.getByRole('button', { name: 'Save changes', exact: true }).click()
+    await expect(page.getByRole('alert')).toContainText('Azure Maps found no coordinates for "UNKNOWN".')
+    await expect(page.getByLabel('Activity title', { exact: true })).toHaveValue('Edited postcode visit')
+    await expect(page.getByLabel('Postcode', { exact: true })).toHaveValue('UNKNOWN')
+    expect(attempts).toBe(2)
+    expect(writes).toBe(1)
+    expect(data.activities.find((item) => item.name === 'New postcode visit')?.location).toMatchObject({
+      postcode: 'GL3 4AQ',
+    })
+
+    await page.getByLabel('Postcode', { exact: true }).fill('SN15 2LG')
+    await page.getByRole('button', { name: 'Save changes', exact: true }).click()
+    await expect(page.getByRole('heading', { name: 'Edited postcode visit', exact: true })).toBeVisible()
+    await page.reload()
+    await expect(page.getByRole('heading', { name: 'Edited postcode visit', exact: true })).toBeVisible()
+    expect(data.activities.find((item) => item.name === 'Edited postcode visit')?.location).toEqual({
+      kind: 'postcode',
+      postcode: 'SN15 2LG',
+      latitude: 51.415,
+      longitude: -2.123,
+    })
+    expect(attempts).toBe(3)
+    expect(writes).toBe(2)
+  })
+
   test(`Activity evidence keeps persisted order after save and reload at ${width}px`, async ({ page }) => {
     await page.setViewportSize({ width, height: 800 })
     await page.addInitScript(() => {
