@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
-import { Alert, Button, Chip, MenuItem, Stack, TextField, Typography } from '@mui/material'
+import { Alert, Button, Chip, IconButton, InputAdornment, MenuItem, Stack, TextField, Typography } from '@mui/material'
+import ClearIcon from '@mui/icons-material/Clear'
 import LinkIcon from '@mui/icons-material/Link'
 import PhotoLibraryIcon from '@mui/icons-material/PhotoLibrary'
 import PlaceIcon from '@mui/icons-material/Place'
@@ -9,6 +10,7 @@ import { ActivityEditor } from '../components/ActivityEditor'
 import { CardDetailRow } from '../components/CardDetailRow'
 import { ClickableCard } from '../components/ClickableCard'
 import { EmptyState } from '../components/EmptyState'
+import { FilterBar } from '../components/FilterBar'
 import { LoadFailureAlert } from '../components/LoadFailureAlert'
 import { LoadingNotice } from '../components/LoadingNotice'
 import { PageHeader } from '../components/PageHeader'
@@ -25,6 +27,11 @@ import {
 } from '../domain/visit'
 import { useWaypoints } from '../features/journey/JourneyContext'
 import { JourneyConflictError, JourneyInputError } from '../services/journeyApi'
+import { filterActivityHistory } from '../domain/activityHistory'
+
+const clearFocusStyle = {
+  '&.Mui-focusVisible': { outline: '2px solid', outlineColor: 'primary.main', outlineOffset: -2 },
+}
 
 export default function Activities() {
   const mounted = useRef(true)
@@ -35,7 +42,13 @@ export default function Activities() {
       mounted.current = false
     }
   }, [])
-  const { data, addActivity, loadState, readOnly, reload } = useWaypoints()
+  const { data, addActivity, loadState, readOnly, reload, activeDataMode } = useWaypoints()
+  const searchInput = useRef<HTMLInputElement>(null)
+  const [search, setSearch] = useState(() => ({ query: '', activeDataMode }))
+  const query = search.activeDataMode === activeDataMode ? search.query : ''
+  if (search.activeDataMode !== activeDataMode) {
+    setSearch({ query: '', activeDataMode })
+  }
   const waypointById = new Map(data.waypoints.map((waypoint) => [waypoint.waypointId, waypoint]))
   const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
@@ -61,7 +74,14 @@ export default function Activities() {
       : challengeId !== undefined
         ? (statistics?.activities ?? [])
         : data.activities
-  const activities = [...records].sort((a, b) => b.date.localeCompare(a.date) || b.updatedAt.localeCompare(a.updatedAt))
+  const activities = filterActivityHistory(records, waypointById, query).sort(
+    (a, b) => b.date.localeCompare(a.date) || b.updatedAt.localeCompare(a.updatedAt),
+  )
+  const noMatches = loadState.status === 'loaded' && !filterError && records.length > 0 && activities.length === 0
+  const clearSearch = () => {
+    setSearch({ query: '', activeDataMode })
+    searchInput.current?.focus()
+  }
   const clearEditorParams = () => {
     setSearchParams((previous) => {
       const next = new URLSearchParams(previous)
@@ -94,7 +114,7 @@ export default function Activities() {
   }
 
   return (
-    <Stack spacing={2}>
+    <Stack spacing={2} sx={{ minWidth: 0, overflowWrap: 'anywhere' }}>
       <PageHeader title="Activities">
         {!readOnly && !showEditor && (
           <Button
@@ -117,28 +137,51 @@ export default function Activities() {
           </Button>
         </Stack>
       )}
-      {loadState.status === 'loaded' && !filterError && statistics?.supportsAwards && (
-        <TextField
-          select
-          size="small"
-          label="Recorded award"
-          value={award ?? 'all'}
-          onChange={(event) =>
-            setSearchParams((previous) => {
-              const next = new URLSearchParams(previous)
-              if (event.target.value === 'all') next.delete('award')
-              else next.set('award', event.target.value)
-              return next
-            })
-          }
-        >
-          <MenuItem value="all">All recorded awards</MenuItem>
-          {awardableStatuses.map((value) => (
-            <MenuItem key={value} value={value}>
-              {statusLabels[value]}
-            </MenuItem>
-          ))}
-        </TextField>
+      {loadState.status !== 'failed' && !filterError && (
+        <FilterBar>
+          <TextField
+            size="small"
+            label="Search activities"
+            value={query}
+            inputRef={searchInput}
+            onChange={(event) => setSearch({ query: event.target.value, activeDataMode })}
+            slotProps={{
+              input: {
+                endAdornment:
+                  query.trim() && !noMatches ? (
+                    <InputAdornment position="end">
+                      <IconButton aria-label="Clear search" size="small" onClick={clearSearch} sx={clearFocusStyle}>
+                        <ClearIcon fontSize="small" />
+                      </IconButton>
+                    </InputAdornment>
+                  ) : undefined,
+              },
+            }}
+          />
+          {statistics?.supportsAwards && (
+            <TextField
+              select
+              size="small"
+              label="Recorded award"
+              value={award ?? 'all'}
+              onChange={(event) =>
+                setSearchParams((previous) => {
+                  const next = new URLSearchParams(previous)
+                  if (event.target.value === 'all') next.delete('award')
+                  else next.set('award', event.target.value)
+                  return next
+                })
+              }
+            >
+              <MenuItem value="all">All recorded awards</MenuItem>
+              {awardableStatuses.map((value) => (
+                <MenuItem key={value} value={value}>
+                  {statusLabels[value]}
+                </MenuItem>
+              ))}
+            </TextField>
+          )}
+        </FilterBar>
       )}
 
       {loadState.status === 'failed' && (
@@ -209,7 +252,23 @@ export default function Activities() {
         ) : filterError ? (
           <Alert severity="error">{filterError}</Alert>
         ) : activities.length === 0 ? (
-          <EmptyState icon={<InboxOutlinedIcon color="disabled" />} message="No activities logged yet." />
+          <EmptyState
+            icon={<InboxOutlinedIcon color="disabled" />}
+            message={
+              data.activities.length === 0
+                ? 'No activities logged yet.'
+                : records.length === 0
+                  ? 'No activities in this scope.'
+                  : `No activities match "${query.trim()}".`
+            }
+            action={
+              noMatches ? (
+                <Button onClick={clearSearch} sx={clearFocusStyle}>
+                  Clear search
+                </Button>
+              ) : undefined
+            }
+          />
         ) : (
           activities.map((activity) => {
             const waypoint = activity.waypointId ? waypointById.get(activity.waypointId) : undefined

@@ -65,6 +65,26 @@ Activities can be linked to a waypoint or left unlinked.
 ## Activity list (`/activities`)
 
 - Newest-first activity log.
+- **Search activities** narrows the current list as you type. It searches saved
+  titles, full notes (including text beyond the card excerpt), displayed postcode
+  or coordinate summaries, and current linked Waypoint titles.
+- Every whitespace-separated word must match a case-insensitive substring in
+  those fields within the same Activity. Words may match different fields in
+  either order. Repeated words do not require repeated occurrences. Evidence,
+  linked Idea text, dates and award labels are not searched.
+- Search intersects the current Challenge/recorded-award scope. It keeps the
+  existing date/update ordering and never includes matching records outside that
+  scope. Duplicate-title cards still open their own Activity.
+- **Clear search** clears only the query, restores that scope and focuses the
+  input. Empty data, an empty scope and query no-match have distinct messages;
+  loading, invalid scope and specific load errors take precedence.
+- Award changes, Add/Cancel and ordinary saves on this page retain the query.
+  Leaving history (including returning with browser Back/Forward), refreshing,
+  or changing the selected/effective dataset resets it permanently. Same-mode
+  reloads retain the query and search the latest saved records.
+- Search is available to viewers and in read-only Demo modes without enabling
+  writes. It does not save preferences, fetch evidence or alter save behavior,
+  including the separate [postcode-only save issue #174](https://github.com/Hsenrab/Journey/issues/174).
 - Each row shows date, note excerpt, optional waypoint, location summary, optional category, photo count, and reference count.
 - **Add activity** opens the shared editor.
 - Selecting an activity opens `/activities/:activityId`.
