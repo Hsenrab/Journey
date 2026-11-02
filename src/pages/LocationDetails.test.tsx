@@ -1,5 +1,5 @@
 import { submitActivity } from '../test/activityActions'
-import { fireEvent, render, screen } from '@testing-library/react'
+import { act, fireEvent, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { Route, Routes } from 'react-router-dom'
 import { MemoryRouter } from '../test/DataMemoryRouter'
@@ -8,6 +8,7 @@ import LocationDetails from './LocationDetails'
 import { WaypointsProvider, useWaypoints } from '../features/journey/JourneyContext'
 import { challengeJourneyState } from '../features/journey/challengeJourney'
 import { waypointDiscoveryState } from '../features/journey/waypointDiscovery'
+import { mapExplorationState } from '../features/journey/mapExploration'
 import { createAwardTestData, createJourneyTestData } from '../test/demoData'
 import { createDemoModeData, load, save, setDataMode } from '../services/storage'
 
@@ -40,21 +41,101 @@ function DatasetControls() {
   )
 }
 
-function renderDetails(id: string, state?: unknown, controls = false) {
-  return render(
+function renderDetails(id: string, state?: unknown, controls = false, mapOrigin = false) {
+  let journey!: ReturnType<typeof useWaypoints>
+  function CaptureJourney() {
+    journey = useWaypoints()
+    if (mapOrigin && journey.mapExploration.lookup('map-source').kind === 'absent') {
+      const hint = journey.mapExploration.capture('map-source', {
+        mode: 'waypoints',
+        progressFilter: 'all',
+        medalFilter: 'all',
+        mobilePanel: 'list',
+        originQuery: 'Place',
+        originChoices: [],
+        openedRecord: { kind: 'waypoint', id },
+        entryPath: 'nearby',
+      })
+      if (typeof state === 'object' && state !== null) Object.assign(state, hint)
+    }
+    return null
+  }
+  const view = render(
     <MemoryRouter initialEntries={[{ pathname: `/waypoints/${id}`, state }]}>
       <WaypointsProvider>
+        {mapOrigin && <CaptureJourney />}
         {controls && <DatasetControls />}
         <Routes>
           <Route path="/waypoints/:id" element={<LocationDetails />} />
           <Route path="/waypoints" element={<div>Waypoint list</div>} />
+          {mapOrigin && <Route path="/map" element={<div>Returned to Map</div>} />}
         </Routes>
       </WaypointsProvider>
     </MemoryRouter>,
   )
+  return { ...view, journey: () => journey }
 }
 
 describe('LocationDetails', () => {
+  it('adds a guarded Map return alongside ordinary navigation, including a deleted record', async () => {
+    save(createDemoModeData())
+    const view = renderDetails(
+      'missing',
+      mapExplorationState('map-source', { kind: 'waypoint', id: 'missing' }, 'fixture'),
+      false,
+      true,
+    )
+    expect(screen.getByText('Waypoint not found.')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Waypoints' })).toHaveAttribute('href', '/waypoints')
+    const link = screen.getByRole('link', { name: 'Back to Map' })
+    expect(link).toHaveAttribute('href', '/map')
+    view.journey().registerDraft(Symbol(), true)
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false)
+    fireEvent.click(link)
+    expect(confirm).toHaveBeenCalledTimes(1)
+    expect(screen.queryByText('Returned to Map')).not.toBeInTheDocument()
+    confirm.mockReturnValue(true)
+    fireEvent.click(link)
+    expect(confirm).toHaveBeenCalledTimes(2)
+    expect(await screen.findByText('Returned to Map')).toBeInTheDocument()
+  })
+
+  it('blocks Map return while pending without prompting and retains ordinary modified links', async () => {
+    const view = renderDetails(
+      'missing',
+      mapExplorationState('map-source', { kind: 'waypoint', id: 'missing' }, 'fixture'),
+      false,
+      true,
+    )
+    let finish!: () => void
+    let pending!: Promise<void>
+    act(() => {
+      pending = view.journey().runMutation(
+        () =>
+          new Promise<void>((resolve) => {
+            finish = resolve
+          }),
+      )
+    })
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(true)
+    const link = screen.getByRole('link', { name: 'Back to Map' })
+    fireEvent.click(link)
+    expect(screen.queryByText('Returned to Map')).not.toBeInTheDocument()
+    expect(confirm).not.toHaveBeenCalled()
+    fireEvent.click(link, { ctrlKey: true })
+    expect(confirm).not.toHaveBeenCalled()
+    await act(async () => {
+      finish()
+      await pending
+    })
+    fireEvent.click(link)
+    expect(await screen.findByText('Returned to Map')).toBeInTheDocument()
+  })
+
+  it('does not invent Map return for an expired or mismatched hint', () => {
+    renderDetails(demoWaypointId, mapExplorationState('unknown', { kind: 'activity', id: demoWaypointId }, 'fixture'))
+    expect(screen.queryByRole('link', { name: 'Back to Map' })).not.toBeInTheDocument()
+  })
   it.each([
     waypointDiscoveryState('expired-before-refresh', demoWaypointId),
     { ideaOrigin: { waypointId: demoWaypointId } },

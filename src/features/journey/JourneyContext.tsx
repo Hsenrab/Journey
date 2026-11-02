@@ -52,6 +52,7 @@ import {
   type WaypointsData,
 } from '../../domain/visit'
 import { createWaypointDiscovery } from './waypointDiscovery'
+import { createMapExploration } from './mapExploration'
 
 type AccessRole = JourneyRole | 'local'
 
@@ -121,6 +122,7 @@ type Action =
 
 type WaypointsValue = {
   waypointDiscovery: ReturnType<typeof createWaypointDiscovery>
+  mapExploration: ReturnType<typeof createMapExploration>
   data: WaypointsData
   dataMode: JourneyDataMode
   activeDataMode: JourneyDataMode
@@ -501,6 +503,7 @@ export function WaypointsProvider({ children }: { children: ReactNode }) {
   const [dataMode, setDataModeState] = useState<JourneyDataMode>(initialDataMode)
   const [activeDataMode, setActiveDataMode] = useState<JourneyDataMode>(initialDataMode)
   const [waypointDiscovery] = useState(() => createWaypointDiscovery(initialDataMode))
+  const [mapExploration] = useState(() => createMapExploration(initialDataMode))
   const [loadState, setLoadState] = useState<JourneyLoadState>({ status: 'loading' })
   const loading = loadState.status === 'loading'
   const [etags, setEtags] = useState<Record<string, string>>({})
@@ -550,6 +553,7 @@ export function WaypointsProvider({ children }: { children: ReactNode }) {
       ): ReloadResult => {
         if (loadGeneration.current !== generation) return { status: 'superseded' }
         waypointDiscovery.settle(active)
+        mapExploration.settle(active)
         apply(loaded)
         setActiveDataMode(active)
         setLoadState(error ? { status: 'loaded', warning: error } : { status: 'loaded' })
@@ -558,6 +562,7 @@ export function WaypointsProvider({ children }: { children: ReactNode }) {
       const fail = (active: JourneyDataMode, error: string): ReloadResult => {
         if (loadGeneration.current !== generation) return { status: 'superseded' }
         waypointDiscovery.settle(active)
+        mapExploration.settle(active)
         setActiveDataMode(active)
         setLoadState({ status: 'failed', message: error })
         return { status: 'failure', message: error }
@@ -588,7 +593,7 @@ export function WaypointsProvider({ children }: { children: ReactNode }) {
         )
       }
     },
-    [apply, localTestMode, waypointDiscovery],
+    [apply, localTestMode, waypointDiscovery, mapExploration],
   )
   const reload = useCallback(async () => loadMode(dataMode), [dataMode, loadMode])
   const changeDataMode = useCallback(
@@ -598,10 +603,11 @@ export function WaypointsProvider({ children }: { children: ReactNode }) {
       if (!confirmNavigation('another data mode')) return 'cancelled' as const
       saveDataMode(mode)
       waypointDiscovery.select(mode)
+      mapExploration.select(mode)
       setDataModeState(mode)
       return 'switched' as const
     },
-    [confirmNavigation, dataMode, waypointDiscovery],
+    [confirmNavigation, dataMode, waypointDiscovery, mapExploration],
   )
   useEffect(() => {
     if (localTestMode && dataMode === 'production' && activeDataMode === 'production') save(data)
@@ -766,6 +772,7 @@ export function WaypointsProvider({ children }: { children: ReactNode }) {
         runMutation(() => operation(...args))
     return {
       waypointDiscovery,
+      mapExploration,
       data,
       dataMode,
       activeDataMode,
@@ -815,6 +822,7 @@ export function WaypointsProvider({ children }: { children: ReactNode }) {
     registerDraft,
     confirmNavigation,
     waypointDiscovery,
+    mapExploration,
   ])
   return (
     <Context.Provider value={value}>

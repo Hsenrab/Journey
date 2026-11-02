@@ -1,7 +1,7 @@
 import { submitActivity, openActivityEvidence } from '../test/activityActions'
 import type { ComponentProps } from 'react'
 import { MemoryRouter } from '../test/DataMemoryRouter'
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { ActivityEditor } from './ActivityEditor'
@@ -559,18 +559,21 @@ describe('ActivityEditor', () => {
     renderEditor()
 
     await openActivityEvidence(user, 'References')
-    await user.click(screen.getByRole('button', { name: 'Add reference' }))
-    await user.click(screen.getByRole('button', { name: 'Move reference 1 up' }))
-    await user.click(screen.getByRole('button', { name: 'Move reference 1 down' }))
+    const addReference = screen.getByRole('button', { name: 'Add reference' })
+    const references = within(addReference.parentElement!)
+    await user.click(addReference)
+    await user.click(references.getByRole('button', { name: 'Move reference 1 up' }))
+    await user.click(references.getByRole('button', { name: 'Move reference 1 down' }))
     await openActivityEvidence(user, 'Photos')
-    await user.click(screen.getByRole('button', { name: 'Add photo reference' }))
-    await openActivityEvidence(user, 'Photos')
-    await user.click(screen.getByRole('button', { name: 'Add photo reference' }))
-    await user.click(screen.getByRole('button', { name: 'Move photo 1 up' }))
-    await user.click(screen.getByRole('button', { name: 'Move photo 1 down' }))
+    const addPhoto = screen.getByRole('button', { name: 'Add photo reference' })
+    const photos = within(addPhoto.parentElement!)
+    await user.click(addPhoto)
+    await user.click(addPhoto)
+    await user.click(photos.getByRole('button', { name: 'Move photo 1 up' }))
+    await user.click(photos.getByRole('button', { name: 'Move photo 1 down' }))
 
-    expect(screen.getAllByLabelText('Reference title')).toHaveLength(1)
-    expect(screen.getAllByLabelText('Photo title')).toHaveLength(2)
+    expect(references.getAllByRole('textbox', { name: 'Reference title' })).toHaveLength(1)
+    expect(photos.getAllByRole('textbox', { name: 'Photo title' })).toHaveLength(2)
   })
 
   it('submits trimmed reference and photo metadata', async () => {

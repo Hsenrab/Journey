@@ -1,15 +1,20 @@
-import { act, render, screen, within } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { MemoryRouter, Route, Routes } from 'react-router-dom'
+import { createMemoryRouter, MemoryRouter, Outlet, Route, RouterProvider, Routes } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { createDemoModeData, save } from '../services/storage'
+import { createDemoModeData, save, setDataMode } from '../services/storage'
 import { useWaypoints, WaypointsProvider } from '../features/journey/JourneyContext'
-import type { Activity, AwardedStatus } from '../domain/visit'
+import { createActivity, type Activity, type AwardedStatus } from '../domain/visit'
+import LocationDetails from './LocationDetails'
+import ActivityDetails from './ActivityDetails'
+import { mapExplorationState } from '../features/journey/mapExploration'
 
 type MapClickHandler = (event: {
   shapes?: Array<{
     getProperties?: () => { waypointId?: string; activityId?: string; cluster_id?: number; point_count?: number }
     getCoordinates?: () => number[]
+    type?: 'Feature'
+    geometry?: { type: 'Point'; coordinates: number[] }
     properties?: { waypointId?: string; activityId?: string; cluster_id?: number; point_count?: number }
   }>
 }) => void
@@ -25,6 +30,8 @@ const mapEvents = vi.hoisted(() => ({
   ready: undefined as (() => void) | undefined,
   tokenGetter: undefined as TokenGetter | undefined,
   deferReady: false,
+  attachPopup: false,
+  camera: { center: [-2, 51] as [number, number], zoom: 8, bearing: 0, pitch: 0 },
   sourceAdd: vi.fn(),
   gpxSourceAdd: vi.fn(),
   gpxSourceClear: vi.fn(),
@@ -49,6 +56,7 @@ const mapEvents = vi.hoisted(() => ({
   lineStringCoordinates: [] as number[][][],
   popupClose: undefined as (() => void) | undefined,
   popupContent: undefined as HTMLElement | undefined,
+  popupPosition: undefined as number[] | undefined,
 }))
 
 function setViewport(width: number) {
@@ -138,17 +146,24 @@ vi.mock('azure-maps-control', () => ({
     sources = { add: vi.fn() }
     layers = { add: vi.fn() }
     imageSprite = { add: vi.fn() }
-    getCamera = vi.fn(() => ({ zoom: 8 }))
+    getCamera = vi.fn(() => mapEvents.camera)
     setCamera = mapEvents.setCamera
-    dispose = vi.fn()
+    dispose = vi.fn(() => mapEvents.popupContent?.remove())
     resize = mapEvents.resize
   },
   Popup: class {
-    setOptions = vi.fn((options: { content?: HTMLElement }) => {
+    getOptions = () => ({ content: mapEvents.popupContent })
+    setOptions = vi.fn((options: { content?: HTMLElement; position?: number[] }) => {
       mapEvents.popupContent = options.content
+      mapEvents.popupPosition = options.position
     })
-    open = vi.fn()
-    close = vi.fn(() => mapEvents.popupClose?.())
+    open = vi.fn(() => {
+      if (mapEvents.attachPopup && mapEvents.popupContent) document.body.append(mapEvents.popupContent)
+    })
+    close = vi.fn(() => {
+      mapEvents.popupContent?.remove()
+      mapEvents.popupClose?.()
+    })
   },
   source: {
     DataSource: class {
@@ -217,6 +232,82 @@ import MapPage from './MapPage'
 
 const createDefaultData = createDemoModeData
 
+function explorationData() {
+  const data = createDefaultData()
+  data.waypoints = [data.waypoints[0]!]
+  data.waypoints[0]!.location = { latitude: 51.5, longitude: -2 }
+  data.activities = [
+    createActivity({
+      activityId: 'return-activity',
+      name: 'Return activity',
+      waypointId: data.waypoints[0]!.waypointId,
+      category: 'bronze',
+      date: '2026-08-01',
+      location: { kind: 'coordinates', latitude: 51.5, longitude: -2 },
+      recordedTrack: {
+        type: 'MultiLineString',
+        coordinates: [
+          [
+            [-2, 51.5],
+            [-1.9, 51.6],
+          ],
+        ],
+      },
+    }),
+  ]
+  data.challenges[0]!.plannedRoute = {
+    fileName: 'return.gpx',
+    geometry: {
+      type: 'MultiLineString',
+      coordinates: [
+        [
+          [-2, 51.5],
+          [-1.9, 51.6],
+        ],
+      ],
+    },
+  }
+  return data
+}
+
+function renderExploration(initial = '/map', state?: unknown, seed?: unknown) {
+  let journey!: ReturnType<typeof useWaypoints>
+  function Probe() {
+    journey = useWaypoints()
+    if (seed && journey.mapExploration.lookup('source').kind === 'absent') {
+      const hint = journey.mapExploration.capture('source', seed)
+      if (typeof state === 'object' && state !== null) Object.assign(state, hint)
+    }
+    return null
+  }
+  const router = createMemoryRouter(
+    [
+      {
+        element: (
+          <WaypointsProvider>
+            <Probe />
+            <Outlet />
+          </WaypointsProvider>
+        ),
+        children: [
+          { path: '/map', element: <MapPage /> },
+          { path: '/waypoints/:id', element: <LocationDetails /> },
+          { path: '/activities/:activityId', element: <ActivityDetails /> },
+        ],
+      },
+    ],
+    { initialEntries: [{ pathname: initial, state, key: 'source' }] },
+  )
+  const view = render(<RouterProvider router={router} />)
+  return { ...view, router, journey: () => journey }
+}
+
+const roundTrips = (['waypoint', 'activity'] as const).flatMap((kind) =>
+  (['nearby', 'marker', 'cluster'] as const).flatMap((path) =>
+    (['contextual', 'browser'] as const).map((back) => ({ kind, path, back })),
+  ),
+)
+
 describe('MapPage', () => {
   beforeEach(() => {
     localStorage.clear()
@@ -232,6 +323,8 @@ describe('MapPage', () => {
     mapEvents.ready = undefined
     mapEvents.tokenGetter = undefined
     mapEvents.deferReady = false
+    mapEvents.attachPopup = false
+    mapEvents.camera = { center: [-2, 51], zoom: 8, bearing: 0, pitch: 0 }
     mapEvents.sourceAdd.mockClear()
     mapEvents.gpxSourceAdd.mockClear()
     mapEvents.gpxSourceClear.mockClear()
@@ -239,14 +332,605 @@ describe('MapPage', () => {
     mapEvents.activityTrackSourceClear.mockClear()
     mapEvents.layerOptions.clear()
     mapEvents.setCamera.mockClear()
-    mapEvents.waypointClusterLeaves.mockClear()
-    mapEvents.activityClusterLeaves.mockClear()
+    mapEvents.waypointClusterLeaves
+      .mockReset()
+      .mockResolvedValue([
+        { getProperties: () => ({ label: 'Clustered waypoint', award: 'Bronze', waypointId: 'waypoint-1' }) },
+        { properties: {} },
+      ])
+    mapEvents.activityClusterLeaves
+      .mockReset()
+      .mockResolvedValue([
+        { properties: { label: 'Clustered activity', description: '2026-08-10', activityId: 'activity-1' } },
+        { properties: {} },
+      ])
     mapEvents.resize.mockClear()
     mapEvents.setCamera.mockClear()
     mapEvents.mapCenters = []
     mapEvents.lineStringCoordinates = []
     mapEvents.popupClose = undefined
     mapEvents.popupContent = undefined
+    mapEvents.popupPosition = undefined
+  })
+
+  it.each(roundTrips)(
+    'restores $kind from $path through $back return without searches/writes or refitting',
+    async ({ kind, path, back }) => {
+      const data = explorationData()
+      save(data)
+      setViewport(360)
+      mapEvents.attachPopup = true
+      const fetch = vi.fn((url: string) =>
+        Promise.resolve(
+          jsonResponse(
+            url.startsWith('/api/maps/search')
+              ? { results: [{ address: { freeformAddress: 'Origin' }, position: { lat: 51.5, lon: -2 } }] }
+              : { token: 'entra', expiresOn: '2026-01-01', clientId: 'maps-client-id' },
+          ),
+        ),
+      )
+      vi.stubGlobal('fetch', fetch)
+      const view = renderExploration()
+      const user = userEvent.setup()
+      if (kind === 'activity') await user.click(screen.getByRole('tab', { name: 'Activities' }))
+      fireEvent.change(screen.getByRole('textbox', { name: /Nearby origin/ }), { target: { value: 'Origin' } })
+      await user.click(screen.getByRole('button', { name: 'Search' }))
+      await user.click(screen.getByRole('button', { name: data.challenges[0]!.title }))
+      await user.click(screen.getByRole('button', { name: path === 'nearby' ? 'List' : 'Map' }))
+      fireEvent.change(screen.getByRole('textbox', { name: /Nearby origin/ }), {
+        target: { value: 'Unresolved edited text' },
+      })
+      const id = kind === 'waypoint' ? data.waypoints[0]!.waypointId : 'return-activity'
+      const title = kind === 'waypoint' ? data.waypoints[0]!.title : 'Return activity'
+      const captured = { center: [-3.1, 52.2] as [number, number], zoom: 13.25, bearing: 37, pitch: 24 }
+      mapEvents.camera = captured
+      if (path === 'nearby') {
+        await user.click(
+          within(
+            screen.getByLabelText(kind === 'waypoint' ? 'Nearest visible waypoints' : 'Nearest activities'),
+          ).getByRole('link', { name: (name) => name.startsWith(title) }),
+        )
+      } else if (path === 'marker') {
+        act(() =>
+          (kind === 'waypoint' ? mapEvents.click : mapEvents.activityClick)?.({
+            shapes: [{ getProperties: () => (kind === 'waypoint' ? { waypointId: id } : { activityId: id }) }],
+          }),
+        )
+        await user.click(
+          within(mapEvents.popupContent!).getByRole('link', {
+            name: kind === 'waypoint' ? 'View waypoint' : 'View details',
+          }),
+        )
+      } else {
+        if (kind === 'waypoint')
+          mapEvents.waypointClusterLeaves.mockResolvedValue([
+            { getProperties: () => ({ label: title, award: 'Started', waypointId: id }) },
+          ])
+        else
+          mapEvents.activityClusterLeaves.mockResolvedValue([
+            { properties: { label: title, description: 'Current activity', activityId: id } },
+          ])
+        await act(async () =>
+          (kind === 'waypoint' ? mapEvents.waypointClusterClick : mapEvents.activityClusterClick)?.({
+            shapes: [
+              {
+                type: 'Feature',
+                geometry: { type: 'Point', coordinates: [-2, 51.5] },
+                properties: { cluster_id: 3, point_count: 1 },
+              },
+            ],
+          }),
+        )
+        await user.click(within(mapEvents.popupContent!).getByRole('link', { name: title }))
+      }
+      expect(await screen.findByRole('link', { name: 'Back to Map' })).toBeInTheDocument()
+      expect(view.journey().mapExploration.lookup('source')).toMatchObject({
+        metadata: {
+          mode: kind === 'waypoint' ? 'waypoints' : 'activities',
+          originQuery: 'Unresolved edited text',
+          origin: { latitude: 51.5, longitude: -2 },
+          camera: captured,
+          entryPath: path,
+        },
+      })
+      mapEvents.setCamera.mockClear()
+      if (back === 'contextual') await user.click(screen.getByRole('link', { name: 'Back to Map' }))
+      else await act(async () => view.router.navigate(-1))
+      expect(await screen.findByRole('textbox', { name: /Nearby origin/ })).toHaveValue('Unresolved edited text')
+      await waitFor(() => expect(mapEvents.setCamera).toHaveBeenLastCalledWith(captured))
+      expect(screen.getByRole('button', { name: path === 'nearby' ? 'List' : 'Map' })).toHaveAttribute(
+        'aria-pressed',
+        'true',
+      )
+      if (path === 'nearby') {
+        const result = within(
+          screen.getByLabelText(kind === 'waypoint' ? 'Nearest visible waypoints' : 'Nearest activities'),
+        ).getByRole('link', { name: (name) => name.startsWith(title) })
+        expect(result).toHaveFocus()
+      } else
+        expect(
+          within(mapEvents.popupContent!).getByRole('link', {
+            name: kind === 'waypoint' ? 'View waypoint' : 'View details',
+          }),
+        ).toHaveFocus()
+      expect(fetch.mock.calls.filter(([url]) => url.startsWith('/api/maps/search'))).toHaveLength(1)
+      expect(fetch.mock.calls.every(([url]) => url.startsWith('/api/maps/'))).toBe(true)
+    },
+  )
+
+  it('captures no metadata for modified or default-prevented popup activation', async () => {
+    const data = explorationData()
+    save(data)
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(jsonResponse({ token: 'entra', clientId: 'maps-client-id' })))
+    const view = renderExploration()
+    await waitFor(() => expect(mapEvents.click).toBeDefined())
+    act(() => mapEvents.click?.({ shapes: [{ getProperties: () => ({ waypointId: data.waypoints[0]!.waypointId }) }] }))
+    const link = within(mapEvents.popupContent!).getByRole('link', { name: 'View waypoint' })
+    for (const modifier of ['ctrlKey', 'metaKey', 'shiftKey', 'altKey']) {
+      fireEvent.click(link, { [modifier]: true })
+      expect(view.journey().mapExploration.lookup('source')).toEqual({ kind: 'absent' })
+    }
+    const event = new MouseEvent('click', { bubbles: true, cancelable: true })
+    event.preventDefault()
+    link.dispatchEvent(event)
+    expect(view.journey().mapExploration.lookup('source')).toEqual({ kind: 'absent' })
+    expect(view.router.state.location.pathname).toBe('/map')
+  })
+
+  it('retains a related Activity origin in Waypoints mode without conflating opened and selected records', async () => {
+    const data = explorationData()
+    save(data)
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(jsonResponse({ token: 'entra', clientId: 'maps-client-id' })))
+    const view = renderExploration()
+    await waitFor(() => expect(mapEvents.click).toBeDefined())
+    act(() => mapEvents.click?.({ shapes: [{ getProperties: () => ({ waypointId: data.waypoints[0]!.waypointId }) }] }))
+    await userEvent.setup().click(within(mapEvents.popupContent!).getByRole('link', { name: 'Return activity' }))
+    expect(view.journey().mapExploration.lookup('source')).toMatchObject({
+      metadata: {
+        mode: 'waypoints',
+        selection: { kind: 'waypoint', id: data.waypoints[0]!.waypointId },
+        openedRecord: { kind: 'activity', id: 'return-activity' },
+      },
+    })
+  })
+
+  it('waits for current SDK readiness, preserves choices/feedback, and does not steal later focus', async () => {
+    const data = explorationData()
+    save(data)
+    mapEvents.deferReady = true
+    const seed = {
+      mode: 'activities',
+      progressFilter: 'all',
+      medalFilter: 'all',
+      mobilePanel: 'list',
+      originQuery: 'Edited',
+      origin: { latitude: 51.5, longitude: -2 },
+      originChoices: [{ label: 'Unchosen', latitude: 52, longitude: -3 }],
+      searchFeedback: 'Specific search failure',
+      openedRecord: { kind: 'activity' as const, id: 'return-activity' },
+      entryPath: 'nearby',
+      camera: { center: [-3, 52], zoom: 11, bearing: 12, pitch: 4 },
+      selectedRouteChallengeId: data.challenges[0]!.challengeId,
+    }
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(jsonResponse({ token: 'entra', clientId: 'maps-client-id' })))
+    const view = renderExploration('/map', mapExplorationState('source', seed.openedRecord, 'fixture'), seed)
+    await waitFor(() => expect(mapEvents.ready).toBeDefined())
+    expect(mapEvents.setCamera).not.toHaveBeenCalled()
+    expect(screen.getByText('Specific search failure')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Unchosen' })).toBeInTheDocument()
+    await act(async () => view.journey().reload())
+    act(() => mapEvents.ready?.())
+    await waitFor(() => expect(mapEvents.setCamera).toHaveBeenLastCalledWith(seed.camera))
+    const input = screen.getByRole('textbox', { name: /Nearby origin/ })
+    input.focus()
+    await act(async () => view.journey().reload())
+    act(() => mapEvents.ready?.())
+    expect(input).toHaveFocus()
+  })
+
+  it.each(['rename', 'move', 'coordinates', 'delete', 'progress', 'award', 'route', 'track'] as const)(
+    'resolves current data after %s without retaining stale content or changing captured framing',
+    async (change) => {
+      const data = explorationData()
+      save(data)
+      mapEvents.attachPopup = true
+      const waypoint = data.waypoints[0]!
+      const seed = {
+        mode: 'waypoints',
+        progressFilter: 'started',
+        medalFilter: 'bronze',
+        mobilePanel: 'map',
+        originQuery: 'Origin',
+        origin: { latitude: 51.5, longitude: -2 },
+        originChoices: [],
+        selection: { kind: 'waypoint', id: waypoint.waypointId },
+        openedRecord: { kind: 'waypoint' as const, id: waypoint.waypointId },
+        entryPath: 'marker',
+        selectedRouteChallengeId: data.challenges[0]!.challengeId,
+        trackActivityId: 'return-activity',
+        camera: { center: [-3, 52], zoom: 11, bearing: 10, pitch: 20 },
+      }
+      vi.stubGlobal('fetch', vi.fn().mockResolvedValue(jsonResponse({ token: 'entra', clientId: 'maps-client-id' })))
+      const view = renderExploration(
+        `/waypoints/${waypoint.waypointId}`,
+        mapExplorationState('source', seed.openedRecord, 'fixture'),
+        seed,
+      )
+      if (change === 'rename') waypoint.title = 'Current renamed waypoint'
+      if (change === 'move') waypoint.location = { latitude: 52, longitude: -3 }
+      if (change === 'coordinates') waypoint.location = { addressOrRegion: 'No coordinates' }
+      if (change === 'delete') {
+        data.waypoints = []
+        data.activities = []
+        data.ideas = []
+      }
+      if (change === 'progress') data.activities = []
+      if (change === 'award') data.activities[0]!.category = 'gold'
+      if (change === 'route') data.challenges[0]!.plannedRoute = undefined
+      if (change === 'track') data.activities[0]!.recordedTrack = undefined
+      save(data)
+      await act(async () => view.journey().reload())
+      await userEvent.setup().click(screen.getByRole('link', { name: 'Back to Map' }))
+      await waitFor(() => expect(mapEvents.setCamera).toHaveBeenLastCalledWith(seed.camera))
+      if (change === 'rename')
+        expect(
+          within(mapEvents.popupContent!).getByRole('heading', { name: 'Current renamed waypoint' }),
+        ).toBeInTheDocument()
+      else if (change === 'move') {
+        expect(mapEvents.popupPosition).toEqual([-3, 52])
+        expect(screen.getByText(/\d+\.\d miles/)).not.toHaveTextContent('0.0 miles')
+      } else if (change === 'route')
+        expect(screen.getByText('The selected planned route is no longer available.')).toBeInTheDocument()
+      else if (change === 'track')
+        expect(screen.getByText('The selected recorded track is no longer available.')).toBeInTheDocument()
+      else {
+        expect(screen.getByText(/The originating waypoint is no longer available/)).toBeInTheDocument()
+        expect(mapEvents.popupContent).toBeUndefined()
+      }
+    },
+  )
+
+  it('permanently resets accepted dataset changes and drops old track intent, including away and back', async () => {
+    const data = explorationData()
+    save(data)
+    const seed = {
+      mode: 'activities',
+      progressFilter: 'all',
+      medalFilter: 'all',
+      mobilePanel: 'list',
+      originQuery: 'Old origin',
+      originChoices: [],
+      trackActivityId: 'return-activity',
+      openedRecord: { kind: 'activity' as const, id: 'return-activity' },
+      entryPath: 'nearby',
+    }
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(jsonResponse({ token: 'entra', clientId: 'maps-client-id' })))
+    const view = renderExploration(
+      '/activities/return-activity',
+      mapExplorationState('source', seed.openedRecord, 'fixture'),
+      seed,
+    )
+    await act(async () => view.journey().setDataMode('demo-local'))
+    expect(screen.getByRole('link', { name: 'Back to Map' })).toHaveAttribute('href', '/map')
+    await userEvent.setup().click(screen.getByRole('link', { name: 'Back to Map' }))
+    expect(screen.getByText('Map exploration was reset because the dataset changed.')).toBeInTheDocument()
+    expect(view.router.state.location.pathname + view.router.state.location.search).toBe('/map')
+    expect(screen.getByRole('textbox', { name: /Nearby origin/ })).toHaveValue('')
+    expect(screen.getByRole('tab', { name: 'Waypoints' })).toHaveAttribute('aria-selected', 'true')
+    await act(async () => view.journey().setDataMode('production'))
+    expect(screen.getByRole('textbox', { name: /Nearby origin/ })).toHaveValue('')
+    expect(view.journey().mapExploration.lookup('source')).toMatchObject({ kind: 'invalidated' })
+  })
+
+  it('resets the mounted Map on effective Demo fallback and does not revive it on recovery', async () => {
+    const data = explorationData()
+    vi.stubEnv('MODE', 'production')
+    setDataMode('demo-cosmos')
+    let fail = false
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((url: string) => {
+        if (url.startsWith('/api/journey'))
+          return fail
+            ? Promise.reject(new Error('Specific Demo return failure'))
+            : Promise.resolve(new Response(JSON.stringify({ data, etags: {}, role: 'viewer' })))
+        return Promise.resolve(
+          new Response(JSON.stringify({ token: 'entra', clientId: 'maps-client-id' }), {
+            headers: { 'content-type': 'application/json' },
+          }),
+        )
+      }),
+    )
+    const seed = {
+      mode: 'activities',
+      progressFilter: 'all',
+      medalFilter: 'all',
+      mobilePanel: 'list',
+      originQuery: 'Old origin',
+      originChoices: [],
+      openedRecord: { kind: 'activity' as const, id: 'return-activity' },
+      entryPath: 'nearby',
+      camera: { center: [-3, 52], zoom: 11 },
+    }
+    const view = renderExploration('/map', mapExplorationState('source', seed.openedRecord, 'fixture'), seed)
+    await waitFor(() => expect(view.journey().loadState.status).toBe('loaded'))
+    await waitFor(() => expect(mapEvents.setCamera).toHaveBeenLastCalledWith(seed.camera))
+    fail = true
+    await act(async () => view.journey().reload())
+    expect(view.journey().activeDataMode).toBe('demo-local')
+    expect(view.journey().loadError).toContain('Specific Demo return failure')
+    expect(screen.getByRole('textbox', { name: /Nearby origin/ })).toHaveValue('')
+    expect(screen.getByText('Map exploration was reset because the dataset changed.')).toBeInTheDocument()
+    fail = false
+    await act(async () => view.journey().reload())
+    expect(view.journey().activeDataMode).toBe('demo-cosmos')
+    expect(screen.getByRole('textbox', { name: /Nearby origin/ })).toHaveValue('')
+    expect(view.journey().mapExploration.lookup('source')).toMatchObject({ kind: 'invalidated' })
+    expect(mapEvents.setCamera.mock.calls.filter(([camera]) => camera.zoom === 11)).toHaveLength(1)
+  })
+
+  it('shows a failed load rather than absence, then restores after a same-dataset recovery', async () => {
+    const data = explorationData()
+    save(data)
+    vi.stubEnv('MODE', 'production')
+    let fail = false
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((url: string) =>
+        Promise.resolve(
+          url.startsWith('/api/journey')
+            ? new Response(
+                JSON.stringify(fail ? { error: 'Specific return load failure' } : { data, etags: {}, role: 'viewer' }),
+                { status: fail ? 503 : 200, statusText: fail ? 'Service Unavailable' : 'OK' },
+              )
+            : new Response(JSON.stringify({ token: 'entra', clientId: 'maps-client-id' }), {
+                headers: { 'content-type': 'application/json' },
+              }),
+        ),
+      ),
+    )
+    const seed = {
+      mode: 'activities',
+      progressFilter: 'all',
+      medalFilter: 'all',
+      mobilePanel: 'list',
+      originQuery: 'Origin',
+      origin: { latitude: 51.5, longitude: -2 },
+      originChoices: [],
+      openedRecord: { kind: 'activity' as const, id: 'return-activity' },
+      entryPath: 'nearby',
+      camera: { center: [-3, 52], zoom: 11 },
+    }
+    const view = renderExploration(
+      '/activities/return-activity',
+      mapExplorationState('source', seed.openedRecord, 'fixture'),
+      seed,
+    )
+    await waitFor(() => expect(view.journey().loadState.status).toBe('loaded'))
+    fail = true
+    await act(async () => view.journey().reload())
+    await userEvent.setup().click(screen.getByRole('link', { name: 'Back to Map' }))
+    expect(screen.getByText(/Production data could not be loaded/)).toBeInTheDocument()
+    expect(screen.queryByText(/no longer/)).not.toBeInTheDocument()
+    expect(mapEvents.setCamera).not.toHaveBeenCalled()
+    fail = false
+    await act(async () => view.journey().reload())
+    await waitFor(() => expect(mapEvents.setCamera).toHaveBeenLastCalledWith(seed.camera))
+    expect(screen.getByRole('link', { name: /Return activity/ })).toHaveFocus()
+  })
+
+  it('keeps independent visits and followed entries coherent across Back and Forward', async () => {
+    const data = explorationData()
+    save(data)
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((url: string) =>
+        Promise.resolve(
+          jsonResponse(
+            url.startsWith('/api/maps/search')
+              ? { results: [{ position: { lat: 52, lon: -3 } }] }
+              : { token: 'entra', clientId: 'maps-client-id' },
+          ),
+        ),
+      ),
+    )
+    const seed = {
+      mode: 'activities',
+      progressFilter: 'all',
+      medalFilter: 'all',
+      mobilePanel: 'list',
+      originQuery: 'First origin',
+      origin: { latitude: 51.5, longitude: -2 },
+      originChoices: [],
+      openedRecord: { kind: 'activity' as const, id: 'return-activity' },
+      entryPath: 'nearby',
+      camera: { center: [-2, 51.5], zoom: 10 },
+    }
+    const view = renderExploration('/map', mapExplorationState('source', seed.openedRecord, 'fixture'), seed)
+    const user = userEvent.setup()
+    await user.click(screen.getByRole('link', { name: /Return activity/ }))
+    await user.click(screen.getByRole('link', { name: 'Back to Map' }))
+    const firstReturnKey = view.router.state.location.key
+    expect(view.journey().mapExploration.lookup(firstReturnKey)).toMatchObject({
+      metadata: { originQuery: 'First origin' },
+    })
+    await act(async () => view.router.navigate('/map'))
+    expect(screen.getByRole('textbox', { name: /Nearby origin/ })).toHaveValue('')
+    await user.click(screen.getByRole('tab', { name: 'Activities' }))
+    fireEvent.change(screen.getByRole('textbox', { name: /Nearby origin/ }), { target: { value: 'Second origin' } })
+    await user.click(screen.getByRole('button', { name: 'Search' }))
+    await user.click(screen.getByRole('link', { name: /Return activity/ }))
+    await act(async () => view.router.navigate(-1))
+    expect(screen.getByRole('textbox', { name: /Nearby origin/ })).toHaveValue('Second origin')
+    await act(async () => view.router.navigate(-1))
+    expect(screen.getByRole('textbox', { name: /Nearby origin/ })).toHaveValue('First origin')
+    await act(async () => view.router.navigate(1))
+    expect(screen.getByRole('textbox', { name: /Nearby origin/ })).toHaveValue('Second origin')
+  })
+
+  it('adds a direct Waypoint popup action even with no Activities', async () => {
+    const data = explorationData()
+    data.activities = []
+    save(data)
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(jsonResponse({ token: 'entra', clientId: 'maps-client-id' })))
+    renderExploration()
+    await waitFor(() => expect(mapEvents.click).toBeDefined())
+    act(() => mapEvents.click?.({ shapes: [{ getProperties: () => ({ waypointId: data.waypoints[0]!.waypointId }) }] }))
+    expect(within(mapEvents.popupContent!).getByRole('link', { name: 'View waypoint' })).toHaveAttribute(
+      'href',
+      `/waypoints/${data.waypoints[0]!.waypointId}`,
+    )
+    expect(mapEvents.popupContent).toHaveTextContent('No recorded activities yet')
+  })
+
+  it('captures nearby navigation before readiness without inventing a camera', async () => {
+    save(explorationData())
+    mapEvents.deferReady = true
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((url: string) =>
+        Promise.resolve(
+          jsonResponse(
+            url.startsWith('/api/maps/search')
+              ? { results: [{ position: { lat: 51.5, lon: -2 } }] }
+              : { token: 'entra', clientId: 'maps-client-id' },
+          ),
+        ),
+      ),
+    )
+    const view = renderExploration()
+    const user = userEvent.setup()
+    await user.click(screen.getByRole('tab', { name: 'Activities' }))
+    fireEvent.change(screen.getByRole('textbox', { name: /Nearby origin/ }), { target: { value: 'Origin' } })
+    await user.click(screen.getByRole('button', { name: 'Search' }))
+    await user.click(screen.getByRole('link', { name: /Return activity/ }))
+    const entry = view.journey().mapExploration.lookup('source')
+    expect(entry.kind).toBe('current')
+    if (entry.kind !== 'current') throw new Error('Expected captured exploration.')
+    expect(entry.metadata.camera).toBeUndefined()
+  })
+
+  it.each(['ambiguous', 'no-match', 'failure'] as const)(
+    'captures and restores actual %s search feedback independently of the last resolved origin',
+    async (condition) => {
+      save(explorationData())
+      let searches = 0
+      const fetch = vi.fn((url: string) => {
+        if (!url.startsWith('/api/maps/search'))
+          return Promise.resolve(jsonResponse({ token: 'entra', clientId: 'maps-client-id' }))
+        searches++
+        if (searches === 1) return Promise.resolve(jsonResponse({ results: [{ position: { lat: 51.5, lon: -2 } }] }))
+        if (condition === 'failure')
+          return Promise.resolve({ ok: false, text: () => Promise.resolve('Specific search failure') })
+        return Promise.resolve(
+          jsonResponse({
+            results:
+              condition === 'ambiguous'
+                ? [
+                    { position: { lat: 52, lon: -3 }, address: { freeformAddress: 'First choice' } },
+                    { position: { lat: 53, lon: -4 }, address: { freeformAddress: 'Second choice' } },
+                  ]
+                : [],
+          }),
+        )
+      })
+      vi.stubGlobal('fetch', fetch)
+      const view = renderExploration()
+      const user = userEvent.setup()
+      await user.click(screen.getByRole('tab', { name: 'Activities' }))
+      const input = screen.getByRole('textbox', { name: /Nearby origin/ })
+      fireEvent.change(input, { target: { value: 'Resolved' } })
+      await user.click(screen.getByRole('button', { name: 'Search' }))
+      fireEvent.change(input, { target: { value: 'Unresolved' } })
+      await user.click(screen.getByRole('button', { name: 'Search' }))
+      await user.click(screen.getByRole('link', { name: /Return activity/ }))
+      expect(view.journey().mapExploration.lookup('source')).toMatchObject({
+        metadata: {
+          originQuery: 'Unresolved',
+          origin: { latitude: 51.5, longitude: -2 },
+        },
+      })
+      await user.click(screen.getByRole('link', { name: 'Back to Map' }))
+      if (condition === 'ambiguous') {
+        expect(screen.getByRole('button', { name: 'First choice' })).toBeInTheDocument()
+        expect(screen.getByRole('button', { name: 'Second choice' })).toBeInTheDocument()
+      } else
+        expect(
+          screen.getByText(
+            condition === 'failure'
+              ? 'Nearby search failed: Specific search failure'
+              : 'No places matched that search. Choose another postcode or place.',
+          ),
+        ).toBeInTheDocument()
+      expect(searches).toBe(2)
+    },
+  )
+
+  it('retains a current Waypoint popup when the related opened Activity disappears', async () => {
+    const data = explorationData()
+    save(data)
+    mapEvents.attachPopup = true
+    const waypointId = data.waypoints[0]!.waypointId
+    const seed = {
+      mode: 'waypoints',
+      progressFilter: 'all',
+      medalFilter: 'all',
+      mobilePanel: 'map',
+      originQuery: '',
+      originChoices: [],
+      selection: { kind: 'waypoint', id: waypointId },
+      openedRecord: { kind: 'activity' as const, id: 'return-activity' },
+      entryPath: 'marker',
+      camera: { center: [-3, 52], zoom: 11 },
+    }
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(jsonResponse({ token: 'entra', clientId: 'maps-client-id' })))
+    const view = renderExploration(
+      '/activities/return-activity',
+      mapExplorationState('source', seed.openedRecord, 'fixture'),
+      seed,
+    )
+    data.activities = []
+    save(data)
+    await act(async () => view.journey().reload())
+    await userEvent.setup().click(screen.getByRole('link', { name: 'Back to Map' }))
+    await waitFor(() =>
+      expect(
+        screen.getByText('The originating activity is no longer linked to this waypoint.').closest('[role="alert"]'),
+      ).toHaveFocus(),
+    )
+    expect(within(mapEvents.popupContent!).getByRole('link', { name: 'View waypoint' })).toHaveAttribute(
+      'href',
+      `/waypoints/${waypointId}`,
+    )
+    expect(within(mapEvents.popupContent!).queryByRole('link', { name: 'Return activity' })).not.toBeInTheDocument()
+  })
+
+  it('clears an inapplicable restored award filter visibly rather than hiding an active filter', async () => {
+    const data = explorationData()
+    const seed = {
+      mode: 'waypoints',
+      progressFilter: 'all',
+      medalFilter: 'bronze',
+      mobilePanel: 'list',
+      originQuery: 'Origin',
+      origin: { latitude: 51.5, longitude: -2 },
+      originChoices: [],
+      openedRecord: { kind: 'waypoint' as const, id: data.waypoints[0]!.waypointId },
+      entryPath: 'nearby',
+    }
+    data.activities = []
+    for (const challenge of data.challenges) {
+      challenge.supportsActivityCategories = false
+      delete challenge.awardDescriptions
+    }
+    save(data)
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(jsonResponse({ token: 'entra', clientId: 'maps-client-id' })))
+    renderExploration('/map', mapExplorationState('source', seed.openedRecord, 'fixture'), seed)
+    expect(
+      await screen.findByText('The highest recorded award filter no longer applies to this dataset.'),
+    ).toBeInTheDocument()
+    expect(screen.queryByRole('combobox', { name: 'Highest recorded award' })).not.toBeInTheDocument()
+    expect(screen.getByRole('link', { name: (name) => name.startsWith(data.waypoints[0]!.title) })).toHaveFocus()
   })
 
   it('renders accessible layer and nearby controls without a marker legend', async () => {
@@ -1181,21 +1865,24 @@ describe('MapPage', () => {
       </MemoryRouter>,
     )
     await vi.waitFor(() => expect(mapEvents.click).toBeDefined())
-    expect(() => {
-      mapEvents.click!({})
-      mapEvents.click!({ shapes: [{ getProperties: () => ({}) }] })
-      mapEvents.click!({ shapes: [{ properties: { waypointId: 'unknown' } }] })
-      mapEvents.click!({ shapes: [{ getProperties: () => ({ waypointId: waypoint.waypointId }) }] })
-    }).not.toThrow()
+    expect(() =>
+      act(() => {
+        mapEvents.click!({})
+        mapEvents.click!({ shapes: [{ getProperties: () => ({}) }] })
+        mapEvents.click!({ shapes: [{ properties: { waypointId: 'unknown' } }] })
+        mapEvents.click!({ shapes: [{ getProperties: () => ({ waypointId: waypoint.waypointId }) }] })
+      }),
+    ).not.toThrow()
     expect(mapEvents.popupContent).toHaveTextContent(
-      `Waypoint${waypoint.title}Highest recorded award: SilverRecorded activities`,
+      `Waypoint${waypoint.title}Highest recorded award: SilverView waypointRecorded activities`,
     )
     expect(mapEvents.popupContent).not.toHaveTextContent('Not started')
-    expect(mapEvents.popupContent?.querySelector('a')).toHaveAttribute('href', '/activities/linked-activity')
-    expect(mapEvents.popupContent?.querySelector('a')).toHaveTextContent('Ridge walk')
-    expect(await screen.findByText('Opening waypoint details.')).toBeInTheDocument()
+    expect(mapEvents.popupContent?.querySelector('a[href="/activities/linked-activity"]')).toHaveTextContent(
+      'Ridge walk',
+    )
+    expect(await screen.findByText('Selected waypoint.')).toBeInTheDocument()
     act(() => mapEvents.popupClose?.())
-    expect(screen.queryByText('Opening waypoint details.')).not.toBeInTheDocument()
+    expect(screen.queryByText('Selected waypoint.')).not.toBeInTheDocument()
   })
 
   it('navigates via the router when a popup activity link is clicked', async () => {
@@ -1234,8 +1921,8 @@ describe('MapPage', () => {
       </MemoryRouter>,
     )
     await vi.waitFor(() => expect(mapEvents.click).toBeDefined())
-    mapEvents.click!({ shapes: [{ getProperties: () => ({ waypointId: waypoint.waypointId }) }] })
-    const link = mapEvents.popupContent?.querySelector('a')
+    act(() => mapEvents.click!({ shapes: [{ getProperties: () => ({ waypointId: waypoint.waypointId }) }] }))
+    const link = mapEvents.popupContent?.querySelector('a[href="/activities/linked-activity"]')
     expect(link).toHaveAttribute('href', '/activities/linked-activity')
     await userEvent.click(link!)
     expect(await screen.findByText('Activity details')).toBeInTheDocument()
@@ -1259,9 +1946,9 @@ describe('MapPage', () => {
       </MemoryRouter>,
     )
     await vi.waitFor(() => expect(mapEvents.click).toBeDefined())
-    mapEvents.click!({ shapes: [{ getProperties: () => ({ waypointId: waypoint.waypointId }) }] })
+    act(() => mapEvents.click!({ shapes: [{ getProperties: () => ({ waypointId: waypoint.waypointId }) }] }))
     expect(mapEvents.popupContent).toHaveTextContent('No recorded activities yet')
-    expect(mapEvents.popupContent?.querySelector('a')).toBeNull()
+    expect(mapEvents.popupContent?.querySelector('a')).toHaveAttribute('href', `/waypoints/${waypoint.waypointId}`)
   })
 
   it('shows activity marker details for linked and unlinked activities', async () => {
@@ -1301,19 +1988,20 @@ describe('MapPage', () => {
       </MemoryRouter>,
     )
     await vi.waitFor(() => expect(mapEvents.activityClick).toBeDefined())
+    await userEvent.setup().click(screen.getByRole('tab', { name: 'Activities' }))
     expect(() => {
       mapEvents.activityClick!({})
       mapEvents.activityClick!({ shapes: [{ properties: { activityId: 'unknown' } }] })
     }).not.toThrow()
-    mapEvents.activityClick!({ shapes: [{ properties: { activityId: activity.activityId } }] })
+    act(() => mapEvents.activityClick!({ shapes: [{ properties: { activityId: activity.activityId } }] }))
     expect(mapEvents.popupContent).toHaveTextContent('ActivityLinked garden visitRecorded award: Bronze')
     expect(mapEvents.popupContent).not.toHaveTextContent('Activity2026-08-10Bronze')
-    mapEvents.activityClick!({ shapes: [{ properties: { activityId: unlinked.activityId } }] })
+    act(() => mapEvents.activityClick!({ shapes: [{ properties: { activityId: unlinked.activityId } }] }))
     expect(mapEvents.popupContent).toHaveTextContent('ActivityIndependent garden visitNo linked waypoint')
     expect(mapEvents.popupContent?.querySelector('a')).toHaveAttribute('href', '/activities/unlinked')
   })
 
-  it('lists the waypoints inside an activated cluster', async () => {
+  it.each(['Feature', 'Shape'])('lists the waypoints inside an activated %s cluster', async (kind) => {
     vi.stubGlobal(
       'fetch',
       vi.fn().mockResolvedValue(jsonResponse({ token: 'entra', expiresOn: '2026-01-01', clientId: 'maps-client-id' })),
@@ -1331,7 +2019,15 @@ describe('MapPage', () => {
       mapEvents.waypointClusterClick!({})
       mapEvents.waypointClusterClick!({ shapes: [{ getCoordinates: () => [-2.2, 51.8] }] })
       mapEvents.waypointClusterClick!({
-        shapes: [{ getCoordinates: () => [-2.2, 51.8], getProperties: () => ({ cluster_id: 42, point_count: 30 }) }],
+        shapes: [
+          kind === 'Feature'
+            ? {
+                type: 'Feature',
+                geometry: { type: 'Point', coordinates: [-2.2, 51.8] },
+                properties: { cluster_id: 42, point_count: 30 },
+              }
+            : { getCoordinates: () => [-2.2, 51.8], getProperties: () => ({ cluster_id: 42, point_count: 30 }) },
+        ],
       })
     }).not.toThrow()
     await vi.waitFor(() => expect(mapEvents.waypointClusterLeaves).toHaveBeenCalledWith(42, 25, 0))
@@ -1342,9 +2038,10 @@ describe('MapPage', () => {
     expect(links).toHaveLength(1)
     expect(links[0]).toHaveAttribute('href', '/waypoints/waypoint-1')
     expect(links[0]).toHaveTextContent('Clustered waypoint')
+    expect(mapEvents.popupPosition).toEqual([-2.2, 51.8])
   })
 
-  it('lists the activities inside an activated cluster', async () => {
+  it.each(['Feature', 'Shape'])('lists the activities inside an activated %s cluster', async (kind) => {
     vi.stubGlobal(
       'fetch',
       vi.fn().mockResolvedValue(jsonResponse({ token: 'entra', expiresOn: '2026-01-01', clientId: 'maps-client-id' })),
@@ -1359,13 +2056,22 @@ describe('MapPage', () => {
     await vi.waitFor(() => expect(mapEvents.activityClusterClick).toBeDefined())
     expect(mapEvents.activityClusterLabelClick).toBe(mapEvents.activityClusterClick)
     mapEvents.activityClusterClick!({
-      shapes: [{ getCoordinates: () => [-2.2, 51.8], getProperties: () => ({ cluster_id: 43, point_count: 1 }) }],
+      shapes: [
+        kind === 'Feature'
+          ? {
+              type: 'Feature',
+              geometry: { type: 'Point', coordinates: [-2.2, 51.8] },
+              properties: { cluster_id: 43, point_count: 1 },
+            }
+          : { getCoordinates: () => [-2.2, 51.8], getProperties: () => ({ cluster_id: 43, point_count: 1 }) },
+      ],
     })
     await vi.waitFor(() => expect(mapEvents.activityClusterLeaves).toHaveBeenCalledWith(43, 25, 0))
     await vi.waitFor(() => expect(mapEvents.popupContent).toBeDefined())
     expect(mapEvents.popupContent).toHaveTextContent('Activities here1 in this group')
     expect(mapEvents.popupContent?.querySelector('a')).toHaveAttribute('href', '/activities/activity-1')
     expect(mapEvents.popupContent?.querySelector('a')).toHaveTextContent('Clustered activity')
+    expect(mapEvents.popupPosition).toEqual([-2.2, 51.8])
   })
 
   it('ignores a stale cluster result after a marker click', async () => {

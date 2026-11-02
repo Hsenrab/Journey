@@ -44,6 +44,7 @@ import { useWaypoints } from '../features/journey/JourneyContext'
 import { JourneyConflictError, JourneyInputError } from '../services/journeyApi'
 import { resolveChallengeOrigin } from '../features/journey/challengeJourney'
 import { isPlainDiscoveryActivation } from '../features/journey/waypointDiscovery'
+import { mapExplorationTarget } from '../features/journey/mapExploration'
 
 export default function LocationDetails() {
   const { id = '' } = useParams()
@@ -62,6 +63,7 @@ export default function LocationDetails() {
     readOnly,
     reload,
     waypointDiscovery,
+    mapExploration,
   } = useWaypoints()
   const location = useLocation()
   const origin = resolveChallengeOrigin(
@@ -106,6 +108,17 @@ export default function LocationDetails() {
         if (isPlainDiscoveryActivation(event) && !confirmNavigation('Waypoint results')) event.preventDefault()
       },
     }
+  }
+  const mapOrigin = mapExploration.resolveOrigin(location.state, 'waypoint', id)
+  if (mapOrigin.kind !== 'absent') {
+    breadcrumbs.unshift({
+      label: 'Back to Map',
+      to: mapExplorationTarget(mapOrigin),
+      state: location.state,
+      onClick: (event) => {
+        if (isPlainDiscoveryActivation(event) && !confirmNavigation('Map')) event.preventDefault()
+      },
+    })
   }
   const waypoint = data.waypoints.find((item) => item.waypointId === id)
 
@@ -172,7 +185,7 @@ export default function LocationDetails() {
   }
 
   return (
-    <Stack spacing={3}>
+    <Stack spacing={3} sx={{ overflowWrap: 'anywhere' }}>
       <DetailPageHeader breadcrumbs={breadcrumbs} title={waypoint.title}>
         {challengeReturn}
         {!readOnly && !showEditor && !editingWaypoint && (

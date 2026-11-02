@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
-import { Link, useNavigate, useSearchParams } from 'react-router-dom'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type MouseEvent as ReactMouseEvent } from 'react'
+import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import {
   Alert,
   Box,
@@ -59,6 +59,8 @@ import { PageHeader } from '../components/PageHeader'
 import { LoadFailureAlert } from '../components/LoadFailureAlert'
 import { LoadingNotice } from '../components/LoadingNotice'
 import { useWaypoints } from '../features/journey/JourneyContext'
+import { isPlainDiscoveryActivation } from '../features/journey/waypointDiscovery'
+import type { MapExplorationMetadata, MapRecord } from '../features/journey/mapExploration'
 
 type MapMode = 'waypoints' | 'activities'
 const markerColors = { notStarted: '#455a64', complete: '#2e7d32', activity: '#007c83' }
@@ -137,7 +139,7 @@ function CompactMapListItem({
   tier?: AwardedStatus
   distance: string
   date?: string
-  onClick?: () => void
+  onClick?: (event: ReactMouseEvent<HTMLAnchorElement>) => void
 }) {
   return (
     <Button
@@ -203,7 +205,7 @@ type PopupContent = {
   metadata?: string[]
   summary: string
   href: string
-  onNavigate?: (href: string) => void
+  onNavigate?: (event: MouseEvent, href: string) => void
 }
 
 function buildPopupContent({ eyebrow, title, metadata = [], summary, href, onNavigate }: PopupContent) {
@@ -236,8 +238,7 @@ function buildPopupContent({ eyebrow, title, metadata = [], summary, href, onNav
   link.textContent = 'View details'
   if (onNavigate) {
     link.addEventListener('click', (event) => {
-      event.preventDefault()
-      onNavigate(href)
+      if (isPlainDiscoveryActivation(event)) onNavigate(event, href)
     })
   }
 
@@ -251,7 +252,8 @@ function buildWaypointPopupContent(
   waypointTitle: string,
   activities: Array<{ activityId: string; label: string }>,
   awardSummary: string | undefined,
-  onNavigate?: (href: string) => void,
+  waypointId: string,
+  onNavigate?: (event: MouseEvent, href: string) => void,
 ): HTMLElement {
   const content = document.createElement('article')
   content.className = 'journey-map-popup'
@@ -269,6 +271,15 @@ function buildWaypointPopupContent(
     awardElement.textContent = awardSummary
     content.append(awardElement)
   }
+  const action = document.createElement('a')
+  action.className = 'journey-map-popup__action'
+  action.href = `/waypoints/${waypointId}`
+  action.textContent = 'View waypoint'
+  if (onNavigate)
+    action.addEventListener('click', (event) => {
+      if (isPlainDiscoveryActivation(event)) onNavigate(event, action.getAttribute('href')!)
+    })
+  content.append(action)
 
   const summaryElement = document.createElement('p')
   summaryElement.className = 'journey-map-popup__summary'
@@ -290,8 +301,7 @@ function buildWaypointPopupContent(
     link.textContent = activity.label
     if (onNavigate) {
       link.addEventListener('click', (event) => {
-        event.preventDefault()
-        onNavigate(link.getAttribute('href') ?? '')
+        if (isPlainDiscoveryActivation(event)) onNavigate(event, link.getAttribute('href')!)
       })
     }
     item.append(link)
@@ -301,9 +311,14 @@ function buildWaypointPopupContent(
   return content
 }
 
-type ClusterItem = { title: string; summary: string; href: string }
+type ClusterItem = { title: string; summary: string; href: string; record: MapRecord }
 
-function buildClusterPopupContent(eyebrow: string, total: number, items: ClusterItem[]) {
+function buildClusterPopupContent(
+  eyebrow: string,
+  total: number,
+  items: ClusterItem[],
+  onNavigate: (event: MouseEvent, item: ClusterItem) => void,
+) {
   const content = document.createElement('article')
   content.className = 'journey-map-popup'
 
@@ -324,6 +339,9 @@ function buildClusterPopupContent(eyebrow: string, total: number, items: Cluster
     link.className = 'journey-map-popup__link'
     link.href = item.href
     link.textContent = item.title
+    link.addEventListener('click', (event) => {
+      if (isPlainDiscoveryActivation(event)) onNavigate(event, item)
+    })
 
     const summary = document.createElement('p')
     summary.className = 'journey-map-popup__summary'
@@ -347,13 +365,15 @@ function toClusterItem(properties: Record<string, unknown> | undefined): Cluster
   if (!properties) return undefined
   const title = properties.label as string
   if (properties.waypointId) {
-    return { title, summary: properties.award as string, href: `/waypoints/${properties.waypointId as string}` }
+    const id = properties.waypointId as string
+    return { title, summary: properties.award as string, href: `/waypoints/${id}`, record: { kind: 'waypoint', id } }
   }
   if (properties.activityId) {
     return {
       title,
       summary: properties.description as string,
       href: `/activities/${properties.activityId as string}`,
+      record: { kind: 'activity', id: properties.activityId as string },
     }
   }
   return undefined
@@ -412,8 +432,24 @@ function smallestLongitudeBounds(longitudes: readonly number[]): [number, number
 
 export default function MapPage() {
   const navigate = useNavigate()
+  const location = useLocation()
   const [searchParams] = useSearchParams()
-  const { data, loadState, statusFor } = useWaypoints()
+  const { data, loadState, statusFor, mapExploration, confirmNavigation } = useWaypoints()
+  const entry = mapExploration.lookup(location.key, location.state)
+  const sourceEntry = useRef(entry)
+  const visitKey = useRef(location.key)
+  const [stateKey, setStateKey] = useState(location.key)
+  const saved = sourceEntry.current.kind === 'current' ? sourceEntry.current.metadata : undefined
+  const restoringVisit = useRef(entry.kind !== 'absent')
+  const cameraPending = useRef(Boolean(saved?.camera))
+  const focusPending = useRef(entry.kind === 'current')
+  const deliberateRouteFit = useRef(false)
+  const readyInstance = useRef<atlas.Map | null>(null)
+  const nearbyPanel = useRef<HTMLDivElement>(null)
+  const returnNotice = useRef<HTMLDivElement>(null)
+  const [notice, setNotice] = useState<string | null>(
+    entry.kind === 'invalidated' ? 'Map exploration was reset because the dataset changed.' : null,
+  )
   const container = useRef<HTMLDivElement>(null)
   const mapBox = useRef<HTMLDivElement>(null)
   const filters = useRef<HTMLDivElement>(null)
@@ -422,35 +458,141 @@ export default function MapPage() {
   const waypointSource = useRef<atlas.source.DataSource | null>(null)
   const activitySource = useRef<atlas.source.DataSource | null>(null)
   const activityTrackSource = useRef<atlas.source.DataSource | null>(null)
-  const trackActivityId = searchParams.get('activityId')
+  const [trackActivityId, setTrackActivityId] = useState<string | null>(
+    saved?.trackActivityId ?? (entry.kind === 'invalidated' ? null : searchParams.get('activityId')),
+  )
   const trackActivity = data.activities.find((activity) => activity.activityId === trackActivityId)
-  const [mode, setMode] = useState<MapMode>(() => (trackActivityId ? 'activities' : 'waypoints'))
+  const [mode, setMode] = useState<MapMode>(() => saved?.mode ?? (trackActivityId ? 'activities' : 'waypoints'))
   const modeRef = useRef(mode)
   const lastFittedTrack = useRef<{ activityId: string; geometry: NonNullable<Activity['recordedTrack']> } | null>(null)
   const lastFittedRoute = useRef<{ id: string; segments: GpxMapLine['segments'] } | null>(null)
   const gpxSource = useRef<atlas.source.DataSource | null>(null)
-  const [progressFilter, setProgressFilter] = useState<'all' | 'started' | 'not-started'>('all')
-  const [medalFilter, setMedalFilter] = useState<'all' | AwardedStatus>('all')
+  const [progressFilter, setProgressFilter] = useState<'all' | 'started' | 'not-started'>(
+    saved?.progressFilter ?? 'all',
+  )
+  const [medalFilter, setMedalFilter] = useState<'all' | AwardedStatus>(saved?.medalFilter ?? 'all')
   const [token, setToken] = useState<MapsToken | null>(null)
   const [mapReady, setMapReady] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [selectedWaypointId, setSelectedWaypointId] = useState<string | null>(null)
-  const [selectedActivityId, setSelectedActivityId] = useState<string | null>(null)
-  const [selectedRouteChallengeId, setSelectedRouteChallengeId] = useState<string | null>(null)
-  const [mobilePanel, setMobilePanel] = useState<'map' | 'list'>('map')
-  const [originQuery, setOriginQuery] = useState('')
-  const [origin, setOrigin] = useState<Coordinates | null>(null)
+  const [selectedWaypointId, setSelectedWaypointId] = useState<string | null>(
+    saved?.selection?.kind === 'waypoint' ? saved.selection.id : null,
+  )
+  const [selectedActivityId, setSelectedActivityId] = useState<string | null>(
+    saved?.selection?.kind === 'activity' ? saved.selection.id : null,
+  )
+  const [selectedRouteChallengeId, setSelectedRouteChallengeId] = useState<string | null>(
+    saved?.selectedRouteChallengeId ?? null,
+  )
+  const [mobilePanel, setMobilePanel] = useState<'map' | 'list'>(saved?.mobilePanel ?? 'map')
+  const [originQuery, setOriginQuery] = useState(saved?.originQuery ?? '')
+  const [origin, setOrigin] = useState<Coordinates | null>(saved?.origin ?? null)
   const mapCenter = origin ??
     data.waypoints.map(waypointCoordinates).find((coordinates) => coordinates !== undefined) ??
     data.activities.map(activityCoordinates).find((coordinates) => coordinates !== undefined) ?? {
       latitude: 0,
       longitude: 0,
     }
-  const [originResults, setOriginResults] = useState<SearchResult[]>([])
+  const [originResults, setOriginResults] = useState<SearchResult[]>(
+    () =>
+      saved?.originChoices.map((choice) => ({
+        address: { freeformAddress: choice.label },
+        position: { lat: choice.latitude, lon: choice.longitude },
+      })) ?? [],
+  )
+  const [searchFeedback, setSearchFeedback] = useState<string | null>(saved?.searchFeedback ?? null)
+  const latest = useRef<Omit<MapExplorationMetadata, 'camera' | 'selection' | 'openedRecord' | 'entryPath'>>({
+    mode,
+    progressFilter,
+    medalFilter,
+    mobilePanel,
+    originQuery,
+    origin: origin ?? undefined,
+    originChoices: [],
+  })
+  latest.current = {
+    mode,
+    progressFilter,
+    medalFilter,
+    mobilePanel,
+    originQuery,
+    origin: origin ?? undefined,
+    originChoices: originResults.map((result) => ({
+      label: result.address?.freeformAddress ?? 'Unnamed Azure Maps result',
+      latitude: result.position!.lat,
+      longitude: result.position!.lon,
+    })),
+    searchFeedback: searchFeedback ?? undefined,
+    selectedRouteChallengeId: selectedRouteChallengeId ?? undefined,
+    trackActivityId: trackActivityId ?? undefined,
+  }
+  type Activation = Pick<
+    MouseEvent,
+    'button' | 'defaultPrevented' | 'ctrlKey' | 'metaKey' | 'shiftKey' | 'altKey' | 'preventDefault'
+  >
+  const activate = useRef<
+    (event: Activation, target: MapRecord, path: MapExplorationMetadata['entryPath'], selection?: MapRecord) => void
+  >(() => {})
+  activate.current = (event, target, path, selection = target) => {
+    if (!isPlainDiscoveryActivation(event)) return
+    event.preventDefault()
+    if (!confirmNavigation(target.kind === 'waypoint' ? 'Waypoint details' : 'Activity details')) return
+    const camera = readyInstance.current && readyInstance.current === map.current ? map.current.getCamera() : undefined
+    const state = mapExploration.capture(location.key, {
+      ...latest.current,
+      openedRecord: target,
+      entryPath: path,
+      selection,
+      camera: camera
+        ? { center: camera.center, zoom: camera.zoom, bearing: camera.bearing, pitch: camera.pitch }
+        : undefined,
+    })
+    navigate(`/${target.kind === 'waypoint' ? 'waypoints' : 'activities'}/${target.id}`, { state })
+  }
   const theme = useTheme()
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'), { noSsr: true })
   const [mapHeight, setMapHeight] = useState(MIN_MAP_HEIGHT)
   const loaded = loadState.status === 'loaded'
+  useLayoutEffect(() => {
+    const current = mapExploration.lookup(location.key, location.state)
+    mapExploration.follow(location.key, current)
+    if (
+      visitKey.current !== location.key ||
+      (current.kind === 'invalidated' && sourceEntry.current.kind !== 'invalidated')
+    ) {
+      visitKey.current = location.key
+      setStateKey(location.key)
+      sourceEntry.current = current
+      const metadata = current.kind === 'current' ? current.metadata : undefined
+      const track =
+        metadata?.trackActivityId ?? (current.kind === 'invalidated' ? null : searchParams.get('activityId'))
+      restoringVisit.current = current.kind !== 'absent'
+      cameraPending.current = Boolean(metadata?.camera)
+      focusPending.current = current.kind === 'current'
+      deliberateRouteFit.current = false
+      lastFittedTrack.current = null
+      lastFittedRoute.current = null
+      modeRef.current = metadata?.mode ?? (track ? 'activities' : 'waypoints')
+      setMode(modeRef.current)
+      setTrackActivityId(track)
+      setProgressFilter(metadata?.progressFilter ?? 'all')
+      setMedalFilter(metadata?.medalFilter ?? 'all')
+      setMobilePanel(metadata?.mobilePanel ?? 'map')
+      setOriginQuery(metadata?.originQuery ?? '')
+      setOrigin(metadata?.origin ?? null)
+      setOriginResults(
+        metadata?.originChoices.map((choice) => ({
+          address: { freeformAddress: choice.label },
+          position: { lat: choice.latitude, lon: choice.longitude },
+        })) ?? [],
+      )
+      setSearchFeedback(metadata?.searchFeedback ?? null)
+      setSelectedWaypointId(metadata?.selection?.kind === 'waypoint' ? metadata.selection.id : null)
+      setSelectedActivityId(metadata?.selection?.kind === 'activity' ? metadata.selection.id : null)
+      setSelectedRouteChallengeId(metadata?.selectedRouteChallengeId ?? null)
+      setNotice(current.kind === 'invalidated' ? 'Map exploration was reset because the dataset changed.' : null)
+    }
+    if (current.kind === 'invalidated' && location.search) navigate('/map', { replace: true, state: location.state })
+  }, [location.key, location.search, location.state, mapExploration, mapExploration.scope, navigate, searchParams])
   const gpxLines = useMemo<readonly GpxMapLine[]>(
     () =>
       data.challenges.flatMap((challenge) =>
@@ -505,7 +647,8 @@ export default function MapPage() {
   }, [mapHeight, mapReady])
 
   useEffect(() => {
-    if (!token || !container.current || map.current) return
+    if (stateKey !== location.key || !loaded || !token || !container.current || map.current) return
+    let active = true
     let initialToken: string | undefined = token.token
     const instance = new atlas.Map(container.current, {
       center: [mapCenter.longitude, mapCenter.latitude],
@@ -524,6 +667,8 @@ export default function MapPage() {
       },
     })
     instance.events.add('ready', () => {
+      if (!active) return
+      readyInstance.current = instance
       for (const [id, icon] of Object.entries(markerIcons)) void instance.imageSprite.add(id, icon)
       const popup = new atlas.Popup({ pixelOffset: [0, -20] })
       let activeClusterRequest = 0
@@ -631,22 +776,33 @@ export default function MapPage() {
       ])
       const listCluster = (source: atlas.source.DataSource, eyebrow: string) => (event: atlas.MapMouseEvent) => {
         const shape = event.shapes?.[0]
-        if (!shape || !('getCoordinates' in shape) || !('getProperties' in shape)) return
-        const properties = shape.getProperties()
+        if (!shape) return
+        const properties = 'getProperties' in shape ? shape.getProperties() : shape.properties
         const clusterId = properties?.cluster_id as number | undefined
         if (clusterId === undefined) return
         const total = properties.point_count as number
-        const position = shape.getCoordinates() as atlas.data.Position
+        const position =
+          'getCoordinates' in shape
+            ? (shape.getCoordinates() as atlas.data.Position)
+            : shape.geometry.type === 'Point'
+              ? (shape.geometry.coordinates as atlas.data.Position)
+              : undefined
+        if (!position) return
         const request = ++activeClusterRequest
         void source.getClusterLeaves(clusterId, CLUSTER_LIST_LIMIT, 0).then((leaves) => {
-          if (request !== activeClusterRequest) return
+          if (!active || request !== activeClusterRequest) return
           const items = leaves.flatMap((leaf) => {
             const leafProperties = 'getProperties' in leaf ? leaf.getProperties() : leaf.properties
             const item = toClusterItem(leafProperties as Record<string, unknown> | undefined)
             return item ? [item] : []
           })
           if (items.length === 0) return
-          popup.setOptions({ content: buildClusterPopupContent(eyebrow, total, items), position })
+          popup.setOptions({
+            content: buildClusterPopupContent(eyebrow, total, items, (activation, item) =>
+              activate.current(activation, item.record, 'cluster'),
+            ),
+            position,
+          })
           popup.open(instance)
           setSelectedWaypointId(null)
           setSelectedActivityId(null)
@@ -666,25 +822,8 @@ export default function MapPage() {
         if (!waypointId) return
         const waypoint = data.waypoints.find((item) => item.waypointId === waypointId)
         if (!waypoint) return
-        const waypointActivities = data.activities
-          .filter((activity) => activity.waypointId === waypoint.waypointId)
-          .map((activity) => ({
-            activityId: activity.activityId,
-            label: activityTitle(activity),
-          }))
-        const awardSummary = waypointSupportsActivityCategory(data, waypointId)
-          ? `Highest recorded award: ${statusLabels[statusForWaypoint(data.activities, waypointId)]}`
-          : undefined
-        const content = buildWaypointPopupContent(
-          waypointDisplayName(waypoint),
-          waypointActivities,
-          awardSummary,
-          (href) => navigate(href),
-        )
         const coordinates = waypointCoordinates(waypoint)
         if (!coordinates) return
-        popup.setOptions({ content, position: [coordinates.longitude, coordinates.latitude] })
-        popup.open(instance)
         setSelectedActivityId(null)
         setSelectedWaypointId(waypointId)
       })
@@ -697,19 +836,6 @@ export default function MapPage() {
         if (!activity) return
         const coordinates = activityCoordinates(activity)
         if (!coordinates) return
-        const waypoint = activity.waypointId
-          ? data.waypoints.find((item) => item.waypointId === activity.waypointId)
-          : undefined
-        const content = buildPopupContent({
-          eyebrow: 'Activity',
-          title: activityTitle(activity),
-          metadata: activity.category ? [`Recorded award: ${statusLabels[activity.category]}`] : [],
-          summary: waypoint ? waypointDisplayName(waypoint) : 'No linked waypoint',
-          href: `/activities/${activity.activityId}`,
-          onNavigate: (href) => navigate(href),
-        })
-        popup.setOptions({ content, position: [coordinates.longitude, coordinates.latitude] })
-        popup.open(instance)
         setSelectedWaypointId(null)
         setSelectedActivityId(activity.activityId)
       })
@@ -722,7 +848,13 @@ export default function MapPage() {
         lastFittedTrack.current?.activityId === trackActivity.activityId &&
         lastFittedTrack.current.geometry === trackGeometry
       const trackCoordinates = trackGeometry?.coordinates.flat() ?? []
-      if (modeRef.current === 'activities' && trackGeometry && !trackAlreadyFitted && trackCoordinates.length >= 2) {
+      if (
+        !restoringVisit.current &&
+        modeRef.current === 'activities' &&
+        trackGeometry &&
+        !trackAlreadyFitted &&
+        trackCoordinates.length >= 2
+      ) {
         let minLatitude = 90
         let maxLatitude = -90
         for (const [, latitude] of trackCoordinates) {
@@ -750,6 +882,8 @@ export default function MapPage() {
     })
     map.current = instance
     return () => {
+      active = false
+      readyInstance.current = null
       gpxSource.current?.clear()
       instance.dispose()
       map.current = null
@@ -760,8 +894,9 @@ export default function MapPage() {
       mapPopup.current = null
       setMapReady(false)
     }
-  }, [data, loaded, mapCenter.latitude, mapCenter.longitude, navigate, token, trackActivity])
+  }, [data, loaded, mapCenter.latitude, mapCenter.longitude, navigate, token, trackActivity, stateKey, location.key])
 
+  const awardsAvailable = data.waypoints.some((waypoint) => waypointSupportsActivityCategory(data, waypoint.waypointId))
   const visibleWaypoints = useMemo(
     () =>
       data.waypoints.filter((waypoint) => {
@@ -773,10 +908,11 @@ export default function MapPage() {
             : waypointCompletionProgress(waypoint, data.activities).count === 0)
         const matchesMedal =
           medalFilter === 'all' ||
+          !awardsAvailable ||
           (waypointSupportsActivityCategory(data, waypoint.waypointId) && status === medalFilter)
         return matchesProgress && matchesMedal
       }),
-    [data, medalFilter, progressFilter, statusFor],
+    [data, medalFilter, progressFilter, statusFor, awardsAvailable],
   )
   const nearby = useMemo(
     () => (origin ? orderNearbyWaypoints(visibleWaypoints, origin).slice(0, 10) : []),
@@ -788,6 +924,169 @@ export default function MapPage() {
   )
   const waypointWithoutCoordinates = data.waypoints.filter((waypoint) => !waypointCoordinates(waypoint)).length
   const activityWithoutCoordinates = data.activities.filter((activity) => !activityCoordinates(activity)).length
+
+  useEffect(() => {
+    if (!loaded) return
+    const messages: string[] = []
+    if (!awardsAvailable && medalFilter !== 'all') {
+      setMedalFilter('all')
+      messages.push('The highest recorded award filter no longer applies to this dataset.')
+    }
+    if (
+      selectedWaypointId &&
+      !visibleWaypoints.some((waypoint) => waypoint.waypointId === selectedWaypointId && waypointCoordinates(waypoint))
+    ) {
+      setSelectedWaypointId(null)
+      mapPopup.current?.close()
+      messages.push('The originating waypoint is no longer available with coordinates under these filters.')
+    }
+    if (
+      selectedActivityId &&
+      !data.activities.some((activity) => activity.activityId === selectedActivityId && activityCoordinates(activity))
+    ) {
+      setSelectedActivityId(null)
+      mapPopup.current?.close()
+      messages.push('The originating activity is no longer available with coordinates.')
+    }
+    if (selectedRouteChallengeId && !gpxLines.some((line) => line.id === selectedRouteChallengeId)) {
+      setSelectedRouteChallengeId(null)
+      messages.push('The selected planned route is no longer available.')
+    }
+    if (trackActivityId && !trackActivity?.recordedTrack) {
+      setTrackActivityId(null)
+      messages.push('The selected recorded track is no longer available.')
+    }
+    const opened = sourceEntry.current.kind === 'current' ? sourceEntry.current.metadata.openedRecord : undefined
+    if (
+      opened?.kind === 'activity' &&
+      selectedWaypointId &&
+      !data.activities.some(
+        (activity) => activity.activityId === opened.id && activity.waypointId === selectedWaypointId,
+      )
+    ) {
+      messages.push('The originating activity is no longer linked to this waypoint.')
+    }
+    if (messages.length) setNotice(messages.join(' '))
+  }, [
+    data,
+    loaded,
+    visibleWaypoints,
+    selectedWaypointId,
+    selectedActivityId,
+    selectedRouteChallengeId,
+    gpxLines,
+    trackActivityId,
+    trackActivity,
+    awardsAvailable,
+    medalFilter,
+  ])
+
+  useEffect(() => {
+    const instance = readyInstance.current
+    const popup = mapPopup.current
+    if (stateKey !== location.key || !loaded || !mapReady || !instance || instance !== map.current || !popup) return
+    const waypoint =
+      mode === 'waypoints' ? visibleWaypoints.find((item) => item.waypointId === selectedWaypointId) : undefined
+    const activity =
+      mode === 'activities' ? data.activities.find((item) => item.activityId === selectedActivityId) : undefined
+    if (waypoint) {
+      const coordinates = waypointCoordinates(waypoint)
+      if (!coordinates) return
+      const selection: MapRecord = { kind: 'waypoint', id: waypoint.waypointId }
+      const content = buildWaypointPopupContent(
+        waypointDisplayName(waypoint),
+        data.activities
+          .filter((item) => item.waypointId === waypoint.waypointId)
+          .map((item) => ({ activityId: item.activityId, label: activityTitle(item) })),
+        waypointSupportsActivityCategory(data, waypoint.waypointId)
+          ? `Highest recorded award: ${statusLabels[statusForWaypoint(data.activities, waypoint.waypointId)]}`
+          : undefined,
+        waypoint.waypointId,
+        (event, href) =>
+          activate.current(
+            event,
+            href.startsWith('/waypoints/') ? selection : { kind: 'activity', id: href.slice('/activities/'.length) },
+            'marker',
+            selection,
+          ),
+      )
+      popup.setOptions({ content, position: [coordinates.longitude, coordinates.latitude] })
+      popup.open(instance)
+    } else if (activity) {
+      const coordinates = activityCoordinates(activity)
+      if (!coordinates) return
+      const linked = data.waypoints.find((item) => item.waypointId === activity.waypointId)
+      popup.setOptions({
+        content: buildPopupContent({
+          eyebrow: 'Activity',
+          title: activityTitle(activity),
+          metadata: activity.category ? [`Recorded award: ${statusLabels[activity.category]}`] : [],
+          summary: linked ? waypointDisplayName(linked) : 'No linked waypoint',
+          href: `/activities/${activity.activityId}`,
+          onNavigate: (event) => activate.current(event, { kind: 'activity', id: activity.activityId }, 'marker'),
+        }),
+        position: [coordinates.longitude, coordinates.latitude],
+      })
+      popup.open(instance)
+    }
+  }, [data, loaded, mapReady, mode, selectedWaypointId, selectedActivityId, visibleWaypoints, stateKey, location.key])
+
+  useEffect(() => {
+    if (
+      stateKey !== location.key ||
+      !loaded ||
+      !mapReady ||
+      readyInstance.current !== map.current ||
+      !map.current ||
+      !cameraPending.current
+    )
+      return
+    const camera = sourceEntry.current.kind === 'current' ? sourceEntry.current.metadata.camera : undefined
+    if (!camera) return
+    map.current.setCamera(camera)
+    cameraPending.current = false
+  }, [data, loaded, mapReady, stateKey, location.key])
+
+  useEffect(() => {
+    if (stateKey !== location.key || !loaded || !focusPending.current || sourceEntry.current.kind !== 'current') return
+    const metadata = sourceEntry.current.metadata
+    const href = `/${metadata.openedRecord.kind === 'waypoint' ? 'waypoints' : 'activities'}/${metadata.openedRecord.id}`
+    const listReturn = isMobile ? mobilePanel === 'list' : metadata.entryPath === 'nearby'
+    let target: HTMLElement | null | undefined
+    if (listReturn) {
+      target = Array.from(nearbyPanel.current?.querySelectorAll<HTMLAnchorElement>('a') ?? []).find(
+        (link) => link.getAttribute('href') === href,
+      )
+      if (!target && !notice) {
+        setNotice('The originating result is no longer in the nearby list.')
+        return
+      }
+    } else {
+      if (!mapReady && !error) return
+      const content = mapPopup.current?.getOptions().content
+      target = Array.from(content instanceof HTMLElement ? content.querySelectorAll<HTMLAnchorElement>('a') : []).find(
+        (link) => link.getAttribute('href') === href,
+      )
+    }
+    target ??= returnNotice.current ?? (listReturn ? nearbyPanel.current : document.getElementById('map-panel'))
+    if (!target || !target.isConnected) return
+    target.focus()
+    focusPending.current = false
+  }, [
+    data,
+    loaded,
+    mapReady,
+    isMobile,
+    mobilePanel,
+    nearby,
+    nearbyActivities,
+    notice,
+    error,
+    selectedWaypointId,
+    selectedActivityId,
+    stateKey,
+    location.key,
+  ])
 
   useEffect(() => {
     const source = gpxSource.current
@@ -815,7 +1114,13 @@ export default function MapPage() {
 
   useEffect(() => {
     const instance = map.current
-    if (!instance) return
+    if (
+      !mapReady ||
+      readyInstance.current !== instance ||
+      !instance ||
+      (restoringVisit.current && !deliberateRouteFit.current)
+    )
+      return
     if (!selectedRouteChallengeId) {
       lastFittedRoute.current = null
       return
@@ -854,6 +1159,7 @@ export default function MapPage() {
       padding: 48,
     })
     lastFittedRoute.current = { id: selectedRoute.id, segments: selectedRoute.segments }
+    deliberateRouteFit.current = false
   }, [gpxLines, mapReady, selectedRouteChallengeId])
 
   useEffect(() => {
@@ -931,12 +1237,13 @@ export default function MapPage() {
   }, [data.activities, mapReady, mode, trackActivity, trackActivityId])
 
   const findNearby = async () => {
-    setError(null)
+    setSearchFeedback(null)
+    setOriginResults([])
     let response: Response
     try {
       response = await requestApi(`/api/maps/search?query=${encodeURIComponent(originQuery)}`, 'Nearby search')
     } catch (cause: unknown) {
-      setError(cause instanceof Error ? cause.message : String(cause))
+      setSearchFeedback(cause instanceof Error ? cause.message : String(cause))
       return
     }
     const body = await responseJson<{ results: Array<{ position?: { lat: number; lon: number } }> }>(
@@ -945,7 +1252,7 @@ export default function MapPage() {
     )
     const results = body.results.filter((result) => result.position)
     if (results.length === 0) {
-      setError('No places matched that search. Choose another postcode or place.')
+      setSearchFeedback('No places matched that search. Choose another postcode or place.')
       return
     }
     if (results.length === 1) {
@@ -980,6 +1287,12 @@ export default function MapPage() {
         </Tabs>
       </PageHeader>
       {error && loadState.status !== 'failed' && <Alert severity="error">{error}</Alert>}
+      {searchFeedback && loaded && <Alert severity="error">{searchFeedback}</Alert>}
+      {notice && loaded && (
+        <Alert ref={returnNotice} tabIndex={-1} severity="info">
+          {notice}
+        </Alert>
+      )}
       {loadState.status === 'failed' && (
         <LoadFailureAlert message={loadState.message} description="This is a load failure, not an empty map dataset." />
       )}
@@ -1025,7 +1338,7 @@ export default function MapPage() {
                       <MenuItem value="started">Started</MenuItem>
                       <MenuItem value="not-started">Not Started</MenuItem>
                     </TextField>
-                    {data.waypoints.some((waypoint) => waypointSupportsActivityCategory(data, waypoint.waypointId)) && (
+                    {awardsAvailable && (
                       <TextField
                         select
                         label="Highest recorded award"
@@ -1050,7 +1363,12 @@ export default function MapPage() {
                   <ToggleButtonGroup
                     exclusive
                     value={selectedRouteChallengeId}
-                    onChange={(_, challengeId: string | null) => setSelectedRouteChallengeId(challengeId)}
+                    onChange={(_, challengeId: string | null) => {
+                      deliberateRouteFit.current = true
+                      cameraPending.current = false
+                      lastFittedRoute.current = null
+                      setSelectedRouteChallengeId(challengeId)
+                    }}
                     aria-label="Planned routes"
                     size="small"
                     sx={{ flexWrap: 'wrap' }}
@@ -1097,6 +1415,8 @@ export default function MapPage() {
           )}
           <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} sx={{ alignItems: 'stretch' }}>
             <Box
+              ref={nearbyPanel}
+              tabIndex={-1}
               sx={{
                 border: '1px solid',
                 borderColor: 'divider',
@@ -1121,7 +1441,9 @@ export default function MapPage() {
                           complete={completionStateForWaypoint(waypoint, data.activities) === 'complete'}
                           tier={status === 'not-started' ? undefined : status}
                           distance={formatMiles(miles)}
-                          onClick={() => setSelectedWaypointId(waypoint.waypointId)}
+                          onClick={(event) =>
+                            activate.current(event, { kind: 'waypoint', id: waypoint.waypointId }, 'nearby')
+                          }
                         />
                       )
                     })
@@ -1134,6 +1456,9 @@ export default function MapPage() {
                         tier={activity.category}
                         distance={formatMiles(miles)}
                         date={activity.date}
+                        onClick={(event) =>
+                          activate.current(event, { kind: 'activity', id: activity.activityId }, 'nearby')
+                        }
                       />
                     ))}
                 {mode === 'waypoints' && nearby.length === 0 && (
@@ -1146,7 +1471,7 @@ export default function MapPage() {
                     {origin ? 'No activities with coordinates.' : 'Choose a nearby origin to see activities.'}
                   </Typography>
                 )}
-                {selectedWaypointId && <Typography role="status">Opening waypoint details.</Typography>}
+                {selectedWaypointId && <Typography role="status">Selected waypoint.</Typography>}
               </Stack>
             </Box>
             <Box
@@ -1160,7 +1485,13 @@ export default function MapPage() {
                 display: isMobile && mobilePanel !== 'map' ? 'none' : 'block',
               }}
             >
-              <Box id="map-panel" role="tabpanel" aria-labelledby={`${mode}-tab`} tabIndex={0}>
+              <Box
+                id="map-panel"
+                role="tabpanel"
+                aria-labelledby={`${mode}-tab`}
+                tabIndex={0}
+                sx={{ '&:focus-visible': { outline: '2px solid', outlineColor: 'primary.main' } }}
+              >
                 <Box ref={mapBox} sx={{ position: 'relative', height: mapHeight }}>
                   <Box ref={container} aria-label="Azure Maps interactive map" sx={{ height: '100%', width: '100%' }} />
                   {!mapReady && !error && (

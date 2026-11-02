@@ -83,6 +83,31 @@ return asks the existing destination-aware discard question once; pending work
 blocks it. This adds no global dirty browser-Back guarantee or draft recovery.
 Navigation alone never writes records or saves filters to browser storage.
 
+## Returning to Map exploration
+
+Nearby results, marker popups and cluster-member links provide a same-live-tab
+Map origin. Every Waypoint popup has **View waypoint**, including when no
+Activities have been recorded. **Back to Map** appears before, not instead of,
+the ordinary Waypoint/Challenge navigation. Browser Back restores the same visit.
+
+Return keeps entered search text distinct from the resolved origin and preserves
+unchosen search choices, specific search feedback, applicable filters, route
+selection, available camera framing and the mobile Map/List panel. It recomputes
+positions, distances, progress, awards and popup content from current records.
+An unavailable selection or overlay is explained without old coordinates or
+automatic reframing; an award filter that no longer applies is visibly cleared.
+
+List return focuses the current originating result or an absence explanation
+once. Map return focuses its current popup action or the visible Map panel/
+explanation. Later updates do not repeatedly move focus. Dataset changes reset
+the exploration permanently with feedback, including away-and-back switches.
+Refresh, new-tab and unrelated direct entries do not acquire a saved Map origin.
+
+Viewer and Demo local browsing remain read-only. Contextual return applies the
+existing discard/pending-write guard once; no new browser-Back draft guard,
+autosave or preference storage is added. Controlled nearby browser and SDK tests
+are distinct from live authenticated camera/marker/cluster/touch acceptance.
+
 ## Cancelling a Waypoint draft
 
 Creating and editing a Waypoint use the same Cancel behavior:
