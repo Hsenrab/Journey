@@ -304,9 +304,18 @@ The final correction publication gate passed after the scoped-query changes:
 
 The earlier failed attempts remain recorded above; they were not bypassed.
 Only test-query costs were reduced; production editor code, interactions,
-assertions, timeout, pool and thresholds were not weakened. Correction publication
-is now ready rather than blocked by local validation. The earlier successful
-deployment does not contain it yet. Marker/cluster return, viewer live
+assertions, timeout, pool and thresholds were not weakened.
+
+Correction commit `d4214eb8088d9bfd68c0255f71d384fd07061529` was pushed to
+`022-map-exploration-return` and successfully published to the same test site in
+[run 41371523651](https://github.com/Hsenrab/Journey/actions/runs/41371523651).
+Hosted frontend/API validation, isolated Cosmos verification, backend-link
+verification and application deployment passed for that exact SHA. Infrastructure
+and API deployment were disabled; Production was not deployed. The shared hosted
+Map was reloaded afterward: Demo local remained selected, the loading indicator
+cleared and the real interactive Map became visible.
+
+Publication is unblocked. Marker/cluster return, viewer live
 checks, solid planned-route/dashed recorded-track styling and independent numeric
 bearing/pitch verification remain **unverified**. Stale hidden SDK popup DOM and
 inconclusive projected-coordinate clicks were not counted as passes. T027 records
