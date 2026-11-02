@@ -315,8 +315,107 @@ and API deployment were disabled; Production was not deployed. The shared hosted
 Map was reloaded afterward: Demo local remained selected, the loading indicator
 cleared and the real interactive Map became visible.
 
-Publication is unblocked. Marker/cluster return, viewer live
-checks, solid planned-route/dashed recorded-track styling and independent numeric
-bearing/pitch verification remain **unverified**. Stale hidden SDK popup DOM and
-inconclusive projected-coordinate clicks were not counted as passes. T027 records
-this limitation; it does not mark live acceptance passed.
+Publication is unblocked. The follow-up live recheck below supersedes the earlier
+unverified cluster status. Stale hidden SDK popup DOM and inconclusive
+projected-coordinate clicks were not counted as passes. T027 records limitations;
+it does not mark all live acceptance passed.
+
+### Live cluster recheck: 2026-11-02
+
+The user activated a real numbered Waypoint cluster in the hosted shared browser.
+A visible six-Waypoint popup appeared; its SDK container did not have the
+`hidden-accessible-element` class. Opening Foxglove Manor succeeded, but the
+first return could not reload Maps: `/api/maps/token` redirected to Microsoft
+sign-in and the cross-origin fetch failed. That attempt was not counted as a
+return pass. After the user signed in again, `/.auth/me` confirmed `aad` and
+exactly the invited `admin` role. Only provider/role results were inspected.
+
+All subsequent checks used explicit read-only Demo local data, the deployed
+correction and the real SDK without mocks or data writes:
+
+| Entry and record                                                 | Width     | Return                 | Result |
+| ---------------------------------------------------------------- | --------- | ---------------------- | ------ |
+| Visible Waypoint cluster -> Foxglove Manor                       | 360       | Back to Map breadcrumb | PASS   |
+| Restored Waypoint popup -> Foxglove Manor                        | 360, 1280 | Browser Back           | PASS   |
+| Related Activity link in Waypoint popup -> Spring orangery tour  | 360, 1280 | Browser Back           | PASS   |
+| Visible Activity cluster -> Autumn cloister visit                | 1280      | Back to Map breadcrumb | PASS   |
+| Restored Activity popup -> Autumn cloister visit, keyboard Enter | 360, 1280 | Browser Back           | PASS   |
+
+The Activity cluster was manually activated in Activities mode and visibly
+listed four Activities before navigation. On cluster returns, the current
+record's individual popup was restored and focus went to `View waypoint` or
+`View details`, rather than retaining the original cluster list. Related
+Activity return restored focus to `Spring orangery tour`.
+
+All successful round trips retained the SDK Feedback center/zoom, the expected
+mode and mobile Map panel, with no horizontal overflow. The keyboard Activity
+cases restored `:focus-visible`. Request listeners recorded zero additional Maps
+searches and zero Journey writes throughout these successful checks.
+
+Viewer live checks remain blocked: the user could not switch to a viewer account
+during this recheck. Native individual-marker clicks, solid planned-route/dashed
+recorded-track styling and independent numeric bearing/pitch remain unverified.
+This is not a blanket live acceptance pass for both roles or all entry paths.
+The SDK continued to emit its vector-tile warnings; one mobile Activity return
+also emitted an `activity` image-loading warning. That warning's visual impact
+was not independently established. The synthetic photo URL's ORB-blocked request
+is separate from Maps navigation. No application changes, deployment or CI rerun
+were needed for this recheck.
+
+### Admin check completion; viewer deferred by request
+
+The user explicitly deferred viewer checks and requested completion of the
+remaining admin check. The same authenticated test session and read-only Demo
+local fixtures were used; no Production data or write operations were needed.
+
+- Opened Bramblewick Gate Walk through its real detail page's `View recorded
+track on map` link. The resulting URL retained
+  `?activityId=activity-demo-cotswold-midway`, selected Activities mode, fitted the
+  recorded track and displayed the matching track notice.
+- Reviewed actual SDK canvas screenshots at desktop and mobile widths. The
+  recorded track rendered as a dashed blue line with a light outline. Selecting
+  `Cotswold Way Explorer (Fictional Demo)` added the visually distinct solid
+  orange planned route with a light outline. Both overlays were visible together
+  at 1280x800 and 360x800. Deliberately toggling the route after resizing fitted
+  it to the mobile viewport, rather than suppressing a fresh user-requested fit.
+- Applied native keyboard rotation and pitch shortcuts, letting each action
+  settle. The SDK announced `Map heading 30 degrees` before navigation.
+  Screenshots before and after the return showed the same rotated/oblique view.
+  A subsequent right/left rotation check announced 40 degrees then 30 degrees.
+  These are public, rounded SDK announcements and visual evidence, not precise
+  independent measurements of bearing/pitch.
+- The user clicked a real individual Activity marker and opened the visible
+  `Working mill day` popup. Its `View details` link opened the correct Activity;
+  breadcrumb return passed at desktop and mobile widths. Explicit browser-Back
+  checks then passed at both widths. The route remained selected, the original
+  Bramblewick track context/notice remained active, and focus returned to
+  `View details`, without horizontal document overflow.
+- The first desktop return's Feedback center differed slightly:
+  `51.79607941397518~-2.3396634668889646` before versus
+  `51.795788659253304~-2.3400724111408855` after, at unchanged zoom
+  `9.803947863482405`. Later stable returns at both widths matched the latter
+  center and zoom exactly, without accumulating drift. This does not establish
+  whether the first discrepancy came from actual camera movement or SDK Feedback
+  sampling/quantization. Do not describe that first return as an exact numeric
+  camera pass. Exact camera fields remain covered by controlled tests.
+- One combined automated loop timed out after resizing. Its detail wait could
+  also match the same heading in the Map popup rather than uniquely confirming a
+  detail route, so the cause was ambiguous and its partial results were not
+  counted. Separate checks explicitly
+  waited for the Activity URL, then verified the restored Map and popup.
+  Successful instrumented round trips recorded zero additional Maps searches
+  and zero Journey writes.
+
+The previously observed SDK sprite warnings recurred transiently during Map
+recreation. Actual individual markers and clusters were visible and the native
+individual Activity marker was clickable; a persistent missing-marker defect
+was not established. No speculative SDK initialization change was introduced.
+
+**Disposition**: the requested admin check is complete with the evidence and
+measurement limits above. Both cluster types, a native individual Activity
+marker, related-Activity navigation and route/track preservation were exercised.
+A separate native individual-Waypoint click was not exercised; its Waypoint
+cluster and restored-popup navigation were exercised. Viewer live acceptance is
+explicitly deferred, not passed. Independent exact live pitch/bearing and the
+initial Feedback-center discrepancy remain documented measurement limits, not
+silently replaced with mock evidence.
