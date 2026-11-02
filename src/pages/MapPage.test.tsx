@@ -13,6 +13,8 @@ type MapClickHandler = (event: {
   shapes?: Array<{
     getProperties?: () => { waypointId?: string; activityId?: string; cluster_id?: number; point_count?: number }
     getCoordinates?: () => number[]
+    type?: 'Feature'
+    geometry?: { type: 'Point'; coordinates: number[] }
     properties?: { waypointId?: string; activityId?: string; cluster_id?: number; point_count?: number }
   }>
 }) => void
@@ -410,7 +412,13 @@ describe('MapPage', () => {
           ])
         await act(async () =>
           (kind === 'waypoint' ? mapEvents.waypointClusterClick : mapEvents.activityClusterClick)?.({
-            shapes: [{ getProperties: () => ({ cluster_id: 3, point_count: 1 }), getCoordinates: () => [-2, 51.5] }],
+            shapes: [
+              {
+                type: 'Feature',
+                geometry: { type: 'Point', coordinates: [-2, 51.5] },
+                properties: { cluster_id: 3, point_count: 1 },
+              },
+            ],
           }),
         )
         await user.click(within(mapEvents.popupContent!).getByRole('link', { name: title }))
@@ -1993,7 +2001,7 @@ describe('MapPage', () => {
     expect(mapEvents.popupContent?.querySelector('a')).toHaveAttribute('href', '/activities/unlinked')
   })
 
-  it('lists the waypoints inside an activated cluster', async () => {
+  it.each(['Feature', 'Shape'])('lists the waypoints inside an activated %s cluster', async (kind) => {
     vi.stubGlobal(
       'fetch',
       vi.fn().mockResolvedValue(jsonResponse({ token: 'entra', expiresOn: '2026-01-01', clientId: 'maps-client-id' })),
@@ -2011,7 +2019,15 @@ describe('MapPage', () => {
       mapEvents.waypointClusterClick!({})
       mapEvents.waypointClusterClick!({ shapes: [{ getCoordinates: () => [-2.2, 51.8] }] })
       mapEvents.waypointClusterClick!({
-        shapes: [{ getCoordinates: () => [-2.2, 51.8], getProperties: () => ({ cluster_id: 42, point_count: 30 }) }],
+        shapes: [
+          kind === 'Feature'
+            ? {
+                type: 'Feature',
+                geometry: { type: 'Point', coordinates: [-2.2, 51.8] },
+                properties: { cluster_id: 42, point_count: 30 },
+              }
+            : { getCoordinates: () => [-2.2, 51.8], getProperties: () => ({ cluster_id: 42, point_count: 30 }) },
+        ],
       })
     }).not.toThrow()
     await vi.waitFor(() => expect(mapEvents.waypointClusterLeaves).toHaveBeenCalledWith(42, 25, 0))
@@ -2022,9 +2038,10 @@ describe('MapPage', () => {
     expect(links).toHaveLength(1)
     expect(links[0]).toHaveAttribute('href', '/waypoints/waypoint-1')
     expect(links[0]).toHaveTextContent('Clustered waypoint')
+    expect(mapEvents.popupPosition).toEqual([-2.2, 51.8])
   })
 
-  it('lists the activities inside an activated cluster', async () => {
+  it.each(['Feature', 'Shape'])('lists the activities inside an activated %s cluster', async (kind) => {
     vi.stubGlobal(
       'fetch',
       vi.fn().mockResolvedValue(jsonResponse({ token: 'entra', expiresOn: '2026-01-01', clientId: 'maps-client-id' })),
@@ -2039,13 +2056,22 @@ describe('MapPage', () => {
     await vi.waitFor(() => expect(mapEvents.activityClusterClick).toBeDefined())
     expect(mapEvents.activityClusterLabelClick).toBe(mapEvents.activityClusterClick)
     mapEvents.activityClusterClick!({
-      shapes: [{ getCoordinates: () => [-2.2, 51.8], getProperties: () => ({ cluster_id: 43, point_count: 1 }) }],
+      shapes: [
+        kind === 'Feature'
+          ? {
+              type: 'Feature',
+              geometry: { type: 'Point', coordinates: [-2.2, 51.8] },
+              properties: { cluster_id: 43, point_count: 1 },
+            }
+          : { getCoordinates: () => [-2.2, 51.8], getProperties: () => ({ cluster_id: 43, point_count: 1 }) },
+      ],
     })
     await vi.waitFor(() => expect(mapEvents.activityClusterLeaves).toHaveBeenCalledWith(43, 25, 0))
     await vi.waitFor(() => expect(mapEvents.popupContent).toBeDefined())
     expect(mapEvents.popupContent).toHaveTextContent('Activities here1 in this group')
     expect(mapEvents.popupContent?.querySelector('a')).toHaveAttribute('href', '/activities/activity-1')
     expect(mapEvents.popupContent?.querySelector('a')).toHaveTextContent('Clustered activity')
+    expect(mapEvents.popupPosition).toEqual([-2.2, 51.8])
   })
 
   it('ignores a stale cluster result after a marker click', async () => {

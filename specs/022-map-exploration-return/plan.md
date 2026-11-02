@@ -131,7 +131,11 @@ or unavailable Maps rendering is live acceptance. Authenticated live-SDK camera,
 marker, cluster and touch checks require an approved usable environment; report
 blocked checks explicitly rather than add fake rendering infrastructure.
 
-The local Windows coverage execution timeout is a known separate blocker. Do not
-alter pools, budgets or thresholds to make this feature pass. No checks or hosted
-acceptance ran during planning. Implementation evidence is recorded in
+The local Windows coverage execution timeout was subsequently resolved by reducing
+repeated evidence-editor DOM queries, without altering pools, budgets, thresholds
+or assertions. Full local/hosted CI and frontend-only test publication passed.
+Partial live admin acceptance then exposed a cluster-event representation bug:
+the SDK returns cluster points as GeoJSON Features, not editable Shapes. The
+correction and pending live checks are tracked separately from the deployed
+commit. No checks or hosted acceptance ran during planning. Evidence is recorded in
 [quickstart.md](quickstart.md); task completion is tracked in [tasks.md](tasks.md).

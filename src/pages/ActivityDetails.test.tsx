@@ -165,18 +165,24 @@ describe('ActivityDetails', () => {
     const user = userEvent.setup()
     await user.click(screen.getByRole('button', { name: 'Edit activity' }))
     const editor = within(screen.getByRole<HTMLInputElement>('textbox', { name: 'Activity title' }).form!)
-    await user.click(editor.getByRole('button', { name: 'Add reference' }))
-    const referenceTitle = editor.getAllByRole('textbox', { name: 'Reference title' })[2]!
+    const addReference = editor.getByRole('button', { name: 'Add reference' })
+    const references = within(addReference.parentElement!)
+    await user.click(addReference)
+    const referenceTitle = references.getAllByRole('textbox', { name: 'Reference title' })[2]!
     fireEvent.change(referenceTitle, { target: { value: 'Added reference' } })
-    const referenceUrl = editor.getAllByRole('textbox', { name: 'Reference URL' })[2]!
+    const referenceUrl = references.getAllByRole('textbox', { name: 'Reference URL' })[2]!
     fireEvent.change(referenceUrl, { target: { value: 'https://example.com/added' } })
-    await user.click(editor.getByRole('button', { name: 'Move reference 3 up' }))
-    await user.click(editor.getByRole('button', { name: 'Add photo reference' }))
-    fireEvent.change(editor.getAllByRole('textbox', { name: 'Photo title' })[2]!, { target: { value: 'Added photo' } })
-    fireEvent.change(editor.getAllByRole('textbox', { name: 'Photo URL' })[2]!, {
+    await user.click(references.getByRole('button', { name: 'Move reference 3 up' }))
+    const addPhoto = editor.getByRole('button', { name: 'Add photo reference' })
+    const photoReferences = within(addPhoto.parentElement!)
+    await user.click(addPhoto)
+    fireEvent.change(photoReferences.getAllByRole('textbox', { name: 'Photo title' })[2]!, {
+      target: { value: 'Added photo' },
+    })
+    fireEvent.change(photoReferences.getAllByRole('textbox', { name: 'Photo URL' })[2]!, {
       target: { value: 'https://example.com/added.jpg' },
     })
-    await user.click(editor.getByRole('button', { name: 'Move photo 3 up' }))
+    await user.click(photoReferences.getByRole('button', { name: 'Move photo 3 up' }))
     await user.click(editor.getByRole('button', { name: 'Save changes' }))
     expect(await screen.findByText('Activity saved.')).toBeInTheDocument()
     const stored = load()

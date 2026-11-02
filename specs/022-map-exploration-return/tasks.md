@@ -110,6 +110,8 @@ live SDK acceptance remains separately identified.
 - [x] T025 Update `README.md`, `docs/pages/locations.md` and `docs/pages/visits.md` with Map-return lifetime, current-data reset, focus behavior, preserved direct-track navigation and the distinction between controlled and live Maps evidence. Do not create another Map guide or change unrelated operations guidance.
 - [x] T026 Complete the UI self-review from `docs/UI_GUIDELINES.md` and the impacted frontend validation from `specs/022-map-exploration-return/quickstart.md`: editor diagnostics, formatting, lint, typecheck, relevant helper/provider/Map/detail tests and selected Playwright Map/Waypoint-list/Challenge regressions. Record exact commands, results, role/viewport coverage, zero-lookup/write assertions and camera restoration evidence in `specs/022-map-exploration-return/quickstart.md`; run final checks once after implementation, preserve failed checks and leave local coverage timeouts separate without pool/budget/threshold changes.
 - [x] T027 Record the live-SDK acceptance status in `specs/022-map-exploration-return/quickstart.md`: if an approved authenticated environment is available, verify actual camera, marker/cluster actions, keyboard/touch and planned-route/track rendering for admin/viewer at both widths; otherwise record the precise blocked/unexecuted checks. Do not dispatch deployment, use real production fixtures, substitute mock evidence or claim live acceptance from completed controlled tests.
+- [x] T028 Correct the cluster event representation exposed by live acceptance in `src/pages/MapPage.tsx`. First reproduce the missing popup using GeoJSON Feature-shaped Waypoint/Activity events in `src/pages/MapPage.test.tsx`, then support the SDK's Feature/Shape contract and verify popup position, contents, links and cluster detail-return behavior. Record correction validation separately from the earlier deployed commit and pending live checks.
+- [ ] T029 Unblock correction publication by reducing repeated DOM queries in the two timed-out ActivityEditor/IdeaEditor tests without changing user interactions, assertions, the 10-second limit, coverage thresholds or runner pools. Validate the full publication gate, then publish the correction to the approved test environment and record the actual outcome.
 
 ## Dependencies and Execution Order
 
@@ -152,6 +154,8 @@ Provider invalidation is part of Foundation, so the US1 MVP is not scope-unsafe.
 | T025             | T018, T023, T024                                                |
 | T026             | T025 and all implementation/test-writing tasks                  |
 | T027             | T026; approved environment required only to execute live checks |
+| T028             | T027 live-check failure                                         |
+| T029             | T028 correction publication gate                                |
 
 Tests precede their implementation. Batch coherent changes to `MapPage.tsx`
 within a phase; task boundaries do not require repeated small edits.
@@ -184,4 +188,6 @@ within a phase; task boundaries do not require repeated small edits.
 
 No migrations, dependencies, map-provider changes, storage caches, API/infra
 changes, publish/deploy side effects or unrelated timeout fixes are authorized
-by this task list.
+by this task list. Subsequent explicit user approval authorized the evidence-test
+timeout repair and frontend-only publication to the existing test environment;
+the live-check outcomes and follow-up are recorded in `quickstart.md`.

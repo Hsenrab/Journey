@@ -776,12 +776,18 @@ export default function MapPage() {
       ])
       const listCluster = (source: atlas.source.DataSource, eyebrow: string) => (event: atlas.MapMouseEvent) => {
         const shape = event.shapes?.[0]
-        if (!shape || !('getCoordinates' in shape) || !('getProperties' in shape)) return
-        const properties = shape.getProperties()
+        if (!shape) return
+        const properties = 'getProperties' in shape ? shape.getProperties() : shape.properties
         const clusterId = properties?.cluster_id as number | undefined
         if (clusterId === undefined) return
         const total = properties.point_count as number
-        const position = shape.getCoordinates() as atlas.data.Position
+        const position =
+          'getCoordinates' in shape
+            ? (shape.getCoordinates() as atlas.data.Position)
+            : shape.geometry.type === 'Point'
+              ? (shape.geometry.coordinates as atlas.data.Position)
+              : undefined
+        if (!position) return
         const request = ++activeClusterRequest
         void source.getClusterLeaves(clusterId, CLUSTER_LIST_LIMIT, 0).then((leaves) => {
           if (!active || request !== activeClusterRequest) return

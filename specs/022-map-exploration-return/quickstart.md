@@ -200,15 +200,114 @@ focus and preserved fresh-track/deliberate-route fitting. Helper regressions cov
 scope invalidation and old-hint reuse after a new capture/provider restart.
 These are controlled contracts, **not actual SDK rendering evidence**.
 
-### Live acceptance status: pending test publication and authentication
+### Live acceptance status: published to test; partial admin evidence
 
-Initially no approved usable authenticated Maps environment was supplied; the
-user has now confirmed the test site and availability of admin/viewer access.
-Live acceptance is still unexecuted until the feature is published and the browser
-is authenticated. The controlled
-token endpoint returns 404 and the UI explicitly reports unavailable rendering.
-Actual SDK camera restoration, marker/cluster actions, touch/keyboard interaction,
-and solid planned-route/dashed recorded-track rendering remain **unexecuted** for
-admin/viewer at both widths. No browser SDK alias, token fallback, real Production
-fixture, hosted/API validation or Azure deployment was introduced to approximate
-these checks. T027 records this limitation; it does not mark live acceptance passed.
+Test deployment [41356102484](https://github.com/Hsenrab/Journey/actions/runs/41356102484)
+succeeded for commit `2c3226e96a89bda8a8f6a4be7b21ee5ab3aa7baf` at
+`https://black-hill-086daf403.3.azurestaticapps.net`. Hosted frontend/API CI,
+isolated Cosmos verification and backend-link verification passed. Infrastructure
+and API deployment were disabled; Production was not deployed.
+
+The authenticated browser was verified as `aad` with the `admin` invited role.
+The existing Demo Cosmos load returned HTTP 500 and visibly fell back to
+read-only Demo local. Demo local was then selected explicitly. Live checks used
+its synthetic records and the real protected Maps token/search APIs and SDK.
+No role, Maps response or SDK was mocked.
+
+Admin nearby-list returns passed for both Waypoints and Activities, using
+breadcrumb and browser Back, at 360x800 and 1280x800. Mode, mobile List panel,
+edited origin text and originating-result focus were restored without overflow,
+additional return searches or record writes. Stable desktop round trips matched
+the SDK's public Feedback center/zoom values. An initial comparison sampled
+interrupted camera animations and failed; subsequent stable returns matched
+without drift. This does not independently measure numeric bearing/pitch.
+Real touch pan/pinch changed Feedback center and zoom after touch emulation was
+enabled before SDK initialization; initial incorrect gesture setup failed.
+
+After a fresh hosted Map reload, a manual marker/cluster click produced no popup.
+The cluster handler rejected GeoJSON Features by requiring editable Shape
+methods, although the installed SDK's `MapMouseEvent` contract explicitly returns
+Features for cluster points. New Feature-shaped Waypoint and Activity tests both
+failed before the correction: `getClusterLeaves` was never called. The handler
+now reads Feature properties and Point coordinates, as well as the SDK's Shape
+representation. Cluster return fixtures also use actual Feature-shaped events;
+both representations assert popup content, links and position.
+
+The first correction typecheck failed because the SDK geometry classes do not
+form a discriminated TypeScript union. Point coordinates are now narrowed after
+the explicit `geometry.type === 'Point'` check; later CI steps did not run after
+that failure.
+
+Correction validation:
+
+- `npm.cmd run lint`, `npm.cmd run typecheck` and `npm.cmd run format:check`
+  passed; lint retained the existing four warnings.
+- `npm.cmd run test:coverage` passed 792/794 tests, including all 67 Map tests
+  and the Feature/Shape popup and Feature-based return regressions. It failed
+  on unchanged editor tests `keeps the first reference and photo in place when
+moving up or down` and `validates coordinate pairs and ranges`, both exceeding
+  the unchanged 10-second limit. Coverage was not accepted as a passing gate.
+- Isolated diagnosis with `npm.cmd test -- src/components/ActivityEditor.test.tsx
+src/components/IdeaEditor.test.tsx -t 'keeps the first reference and photo in
+place when moving up or down|validates coordinate pairs and ranges'` passed
+  both without edits. This does not erase the full-suite failure.
+- A subsequent coverage-enabled diagnostic run of those same two tests used
+  temporary cumulative phase timings, removed afterward. Idea completed in
+  6,138ms: render 574ms, pair validation 2,670ms, numeric validation 3,260ms,
+  latitude validation 4,518ms and longitude validation 6,123ms. Activity completed
+  in 6,190ms: render 934ms, References opened 1,442ms, reference actions 2,858ms,
+  first photo 3,922ms, photo actions 5,909ms and final assertions 6,182ms.
+  Both progressed throughout; neither isolated run showed a stalled wait.
+  This supports substantial interaction cost and timing sensitivity, but does
+  not establish the full-suite slowdown's cause or a justified 20-second budget.
+  The diagnostic command exited 1 because selecting only two tests left global
+  coverage below the unchanged 80% thresholds (statements 6.99%, branches 8.78%,
+  functions 6.55%, lines 7.22%); it was not a passing coverage gate.
+- Follow-up changes preserve the same user-event clicks, typing, clearing and
+  assertions. Activity queries are scoped to the existing reference/photo
+  containers and reuse their Add buttons; the repeated Photos-open check was
+  removed because that section is already open. Idea resolves its stable
+  title/coordinate inputs and Save button once instead of repeatedly scanning
+  all labels/buttons after each render. Both targeted tests passed afterward
+  (Activity 4,790ms, Idea 6,870ms without coverage). These separate runs are not
+  a controlled performance comparison; full-suite validation was still required.
+  The first follow-up typecheck caught an unsupported `exact` option on a role
+  query; it was removed (string role names already match exactly). Coverage and
+  later publication checks did not run in that attempt.
+- The subsequent full coverage run passed both optimized editor tests and
+  793/794 tests overall, but the ActivityDetails persisted-evidence test exceeded
+  10 seconds (10,483ms). Its reference/photo interactions were then scoped to
+  their existing evidence containers instead of searching the full editor.
+  The same add/reorder/save/reopen and persisted-order assertions remain.
+  The targeted test passed in 5,441ms without coverage; the previous failure
+  remains recorded rather than being treated as a successful gate.
+- `npm.cmd run build` passed with the existing large-chunk warning.
+- `npm.cmd run test:e2e -- map-exploration-return.spec.ts --config
+.map-cluster.playwright.config.ts --workers=1 --retries=0 --reporter=list`
+  passed all 13 affected browser tests. The temporary config used isolated port
+  4175 and `dist-e2e\map-cluster-da0dd6a2`; both were cleaned up afterward.
+
+The final correction publication gate passed after the scoped-query changes:
+
+- All **794/794** frontend tests in 44 files passed with coverage. Statements
+  92.13%, branches 88.98%, functions 91.33% and lines 93.3% exceed the unchanged
+  80% thresholds. All tests retain the 10-second limit and existing runner pool.
+- The complete browser suite passed **132/132**, using isolated port 4175 and
+  the temporary config described above. The successful production build remains
+  applicable: subsequent source changes only affected tests and evidence docs.
+- API lint, typecheck, **383/383** tests with coverage, build and **2/2** built
+  Functions host smoke tests passed using the existing WSL tooling. Coverage was
+  94.33% statements, 87.25% branches, 97.91% functions and 96.35% lines.
+- Frontend lint, typecheck and formatting passed. After the final test-only edit,
+  its formatting/lint and frontend typecheck were revalidated without repeating
+  unchanged successful checks. No dependencies were installed.
+
+The earlier failed attempts remain recorded above; they were not bypassed.
+Only test-query costs were reduced; production editor code, interactions,
+assertions, timeout, pool and thresholds were not weakened. Correction publication
+is now ready rather than blocked by local validation. The earlier successful
+deployment does not contain it yet. Marker/cluster return, viewer live
+checks, solid planned-route/dashed recorded-track styling and independent numeric
+bearing/pitch verification remain **unverified**. Stale hidden SDK popup DOM and
+inconclusive projected-coordinate clicks were not counted as passes. T027 records
+this limitation; it does not mark live acceptance passed.
