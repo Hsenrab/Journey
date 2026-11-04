@@ -164,22 +164,22 @@ describe('ActivityDetails', () => {
     const view = renderDetails()
     const user = userEvent.setup()
     await user.click(screen.getByRole('button', { name: 'Edit activity' }))
-    const editor = within(screen.getByRole<HTMLInputElement>('textbox', { name: 'Activity title' }).form!)
+    const editor = within(screen.getByLabelText<HTMLInputElement>('Activity title').form!)
     const addReference = editor.getByRole('button', { name: 'Add reference' })
     const references = within(addReference.parentElement!)
     await user.click(addReference)
-    const referenceTitle = references.getAllByRole('textbox', { name: 'Reference title' })[2]!
+    const referenceTitle = references.getAllByLabelText('Reference title')[2]!
     fireEvent.change(referenceTitle, { target: { value: 'Added reference' } })
-    const referenceUrl = references.getAllByRole('textbox', { name: 'Reference URL' })[2]!
+    const referenceUrl = references.getAllByLabelText('Reference URL')[2]!
     fireEvent.change(referenceUrl, { target: { value: 'https://example.com/added' } })
     await user.click(references.getByRole('button', { name: 'Move reference 3 up' }))
     const addPhoto = editor.getByRole('button', { name: 'Add photo reference' })
     const photoReferences = within(addPhoto.parentElement!)
     await user.click(addPhoto)
-    fireEvent.change(photoReferences.getAllByRole('textbox', { name: 'Photo title' })[2]!, {
+    fireEvent.change(photoReferences.getAllByLabelText('Photo title')[2]!, {
       target: { value: 'Added photo' },
     })
-    fireEvent.change(photoReferences.getAllByRole('textbox', { name: 'Photo URL' })[2]!, {
+    fireEvent.change(photoReferences.getAllByLabelText('Photo URL')[2]!, {
       target: { value: 'https://example.com/added.jpg' },
     })
     await user.click(photoReferences.getByRole('button', { name: 'Move photo 3 up' }))
@@ -205,11 +205,11 @@ describe('ActivityDetails', () => {
       screen.getAllByRole('button', { name: /^Show photo/ }).map((item) => item.getAttribute('aria-label')),
     ).toEqual(['Show photo 1: Second photo', 'Show photo 2: Added photo', 'Show photo 3: First photo'])
     await user.click(screen.getByRole('button', { name: 'Edit activity' }))
-    const reopened = within(screen.getByRole<HTMLInputElement>('textbox', { name: 'Activity title' }).form!)
+    const reopened = within(screen.getByLabelText<HTMLInputElement>('Activity title').form!)
     const titles = ['Second reference', 'Added reference', 'First reference']
     const photos = ['Second photo', 'Added photo', 'First photo']
-    const referenceTitles = reopened.getAllByRole('textbox', { name: 'Reference title' })
-    const photoTitles = reopened.getAllByRole('textbox', { name: 'Photo title' })
+    const referenceTitles = reopened.getAllByLabelText('Reference title')
+    const photoTitles = reopened.getAllByLabelText('Photo title')
     expect(referenceTitles).toHaveLength(titles.length)
     expect(photoTitles).toHaveLength(photos.length)
     titles.forEach((title, index) => expect(referenceTitles[index]).toHaveValue(title))
