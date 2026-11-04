@@ -532,14 +532,25 @@ reviewers are configured on `hh-env-test`:
    - `true` always deploys that part of the stack.
    - `false` skips that deployment. Skipping the API also skips its build and temporary
      NSP access-rule steps.
-   - `auto` (the default) compares the current commit against the `head_sha` of the most
-     recent **successful** `Deploy test environment` run via the GitHub API.
-     Infrastructure is deployed only if `infra/` or the test/reusable deployment
-     workflow changed. The API is deployed if `api/`, `infra/`,
-     `staticwebapp.config.json`, or either deployment workflow changed. If there is no
-     previous successful run, or that commit is no longer reachable in history, both
-     decisions fail safe to `true`. The decisions and changed paths are written to the
-     job summary.
+   - `auto` (the default) discovers a separate baseline for each component through
+     paginated GitHub run/job history. Infrastructure requires a successful Resolve
+     infrastructure job with its Bicep deployment step successful; merely resolving
+     resources does not count. The API requires a successful Deploy Functions API
+     job with its package deployment step successful. Skipped jobs, frontend-only
+     runs, and PR-close runs never advance either baseline. A successful component
+     job still counts if a later job fails the overall run.
+     The planner compares the baseline and current commit trees directly, including
+     reversions and differences between branches. Infrastructure is deployed if
+     `infra/`, the test/reusable deployment workflow, or the planner scripts changed.
+     The API is deployed if `api/`, `infra/`, `staticwebapp.config.json`, either
+     deployment workflow, or the planner scripts changed. A component with no
+     successful deployment history is deployed explicitly; GitHub errors or
+     unavailable baseline commits fail planning with their specific error instead
+     of silently selecting a deployment. Decisions, baselines, and changed paths
+     are written to the job summary.
+     The plan job runs focused regression tests with
+     `node --test .github/scripts/plan-test-deployment.test.mjs`. These Node-runner
+     tooling tests are excluded from the frontend Vitest suite.
 2. Deploys `infra/main.bicep` with `environmentName=dev` and `enableApi=true` only when
    `deploy_infra` resolves to `true`. Otherwise it resolves the existing Azure resources
    without starting an ARM deployment.

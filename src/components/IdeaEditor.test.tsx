@@ -230,7 +230,8 @@ describe('IdeaEditor', () => {
 
     await user.type(screen.getByLabelText('Title'), 'Collect route notes')
     await user.click(screen.getByRole('button', { name: 'Add reference' }))
-    await user.type(screen.getByLabelText('Preview image URL'), 'http://example.com/preview.jpg')
+    await user.click(screen.getByLabelText('Preview image URL'))
+    await user.paste('http://example.com/preview.jpg')
     await user.click(screen.getByRole('button', { name: 'Save' }))
 
     expect(screen.getByText('Reference title is required.')).toBeInTheDocument()

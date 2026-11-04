@@ -6,12 +6,12 @@ on:
   workflow_dispatch:
     inputs:
       deploy_infra:
-        description: 'Deploy infrastructure (auto = only when infra/ or deployment workflows changed since the last successful test deploy)'
+        description: 'Deploy infrastructure (auto = compare with the last successful infrastructure deployment)'
         type: choice
         options: [auto, 'true', 'false']
         default: auto
       deploy_api:
-        description: 'Deploy the Functions API (auto = only when api/ or infra/ changed since the last successful test deploy)'
+        description: 'Deploy the Functions API (auto = compare with the last successful API deployment)'
         type: choice
         options: [auto, 'true', 'false']
         default: auto
@@ -39,73 +39,21 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: 24
+
+      - name: Test deployment planning
+        run: node --test .github/scripts/plan-test-deployment.test.mjs
+
       - name: Decide what to deploy
         id: decide
         env:
           GH_TOKEN: ${{ github.token }}
           INPUT_DEPLOY_INFRA: ${{ inputs.deploy_infra }}
           INPUT_DEPLOY_API: ${{ inputs.deploy_api }}
-        run: |
-          set -euo pipefail
-
-          deploy_infra="${INPUT_DEPLOY_INFRA:-auto}"
-          deploy_api="${INPUT_DEPLOY_API:-auto}"
-          echo "### Deploy test environment plan" >> "$GITHUB_STEP_SUMMARY"
-
-          if [ "${deploy_infra}" != "auto" ] && [ "${deploy_api}" != "auto" ]; then
-            echo "deploy_infra=${deploy_infra}" >> "$GITHUB_OUTPUT"
-            echo "deploy_api=${deploy_api}" >> "$GITHUB_OUTPUT"
-            {
-              echo "\`deploy_infra\` input explicitly set to \`${deploy_infra}\`."
-              echo "\`deploy_api\` input explicitly set to \`${deploy_api}\`."
-            } >> "$GITHUB_STEP_SUMMARY"
-            exit 0
-          fi
-
-          last_success_sha="$(gh api \
-            "/repos/${{ github.repository }}/actions/workflows/deploy-test.yml/runs?status=success&per_page=1" \
-            --jq '.workflow_runs[0].head_sha // empty')"
-
-          if [ -z "${last_success_sha}" ]; then
-            auto_deploy_infra=true
-            auto_deploy_api=true
-            echo "No previous successful run found; deploying infrastructure and the API (fail safe)." >> "$GITHUB_STEP_SUMMARY"
-          elif ! git cat-file -e "${last_success_sha}^{commit}" 2>/dev/null; then
-            auto_deploy_infra=true
-            auto_deploy_api=true
-            echo "Last successful commit ${last_success_sha} is not reachable in history; deploying infrastructure and the API (fail safe)." >> "$GITHUB_STEP_SUMMARY"
-          else
-            changed_paths="$(git diff --name-only "${last_success_sha}...HEAD")"
-            {
-              echo "Changed paths since last successful run (${last_success_sha}):"
-              echo '```'
-              echo "${changed_paths:-<none>}"
-              echo '```'
-            } >> "$GITHUB_STEP_SUMMARY"
-
-            if echo "${changed_paths}" | grep -qE '^(infra/|\.github/workflows/(deploy-test|deploy-environment)\.yml)'; then
-              auto_deploy_infra=true
-            else
-              auto_deploy_infra=false
-            fi
-
-            if echo "${changed_paths}" | grep -qE '^(api/|infra/|staticwebapp\.config\.json|\.github/workflows/(deploy-test|deploy-environment)\.yml)'; then
-              auto_deploy_api=true
-            else
-              auto_deploy_api=false
-            fi
-          fi
-
-          if [ "${deploy_infra}" = "auto" ]; then
-            deploy_infra="${auto_deploy_infra}"
-          fi
-          if [ "${deploy_api}" = "auto" ]; then
-            deploy_api="${auto_deploy_api}"
-          fi
-
-          echo "deploy_infra=${deploy_infra}" >> "$GITHUB_OUTPUT"
-          echo "deploy_api=${deploy_api}" >> "$GITHUB_OUTPUT"
-          echo "Decision: deploy_infra=${deploy_infra}, deploy_api=${deploy_api}." >> "$GITHUB_STEP_SUMMARY"
+        run: node .github/scripts/plan-test-deployment.mjs
 
   deploy:
     name: Deploy journey test environment

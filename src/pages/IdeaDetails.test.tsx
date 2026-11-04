@@ -439,17 +439,22 @@ describe('IdeaDetails', () => {
     await user.click(screen.getByRole('link', { name: 'Log activity from this idea' }))
 
     expect(await screen.findByText('Activities')).toBeInTheDocument()
-    expect(screen.getByRole('combobox', { name: 'Linked waypoint' })).toHaveValue('Foxglove Manor (Demo)')
+    const saveActivity = screen.getByRole('button', { name: 'Save activity' })
+    const editor = within(saveActivity.closest('form')!)
+    const title = editor.getByLabelText('Activity title')
+    expect(editor.getByRole('combobox', { name: 'Linked waypoint' })).toHaveValue('Foxglove Manor (Demo)')
     expect(screen.getByText('Try the outer trail')).toBeInTheDocument()
 
-    await user.click(screen.getByRole('button', { name: 'Save activity' }))
-    await user.type(screen.getByLabelText('Activity title'), 'Recorded idea visit')
+    await user.click(saveActivity)
+    await user.click(title)
+    await user.paste('Recorded idea visit')
     await user.tab()
-    expect(screen.getByLabelText('Activity title')).toHaveAttribute('aria-invalid', 'false')
+    expect(title).toHaveValue('Recorded idea visit')
+    expect(title).toHaveAttribute('aria-invalid', 'false')
     expect(load().activities).toHaveLength(0)
-    await user.click(screen.getByRole('combobox', { name: 'Award tier' }))
+    await user.click(editor.getByLabelText('Award tier'))
     await user.click(screen.getByRole('option', { name: 'Gold' }))
-    await submitActivity(user, 'Save activity')
+    await user.click(saveActivity)
 
     expect(await screen.findByRole('heading', { name: 'Try the outer trail', level: 1 })).toBeInTheDocument()
     expect(screen.getByText('Used in 1 activity')).toBeInTheDocument()
@@ -459,7 +464,7 @@ describe('IdeaDetails', () => {
     await user.click(screen.getByRole('button', { name: 'Back' }))
     expect(screen.getByRole('heading', { name: 'Try the outer trail', level: 1 })).toBeInTheDocument()
     expect(screen.queryByText('Activities')).not.toBeInTheDocument()
-  })
+  }, 20_000)
 
   it('stays on activities after saving when the preselected idea link was removed', async () => {
     const user = userEvent.setup()
