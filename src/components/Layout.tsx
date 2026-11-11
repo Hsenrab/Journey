@@ -41,14 +41,21 @@ const dataModeStatusView: Record<
   DataModeStatus,
   { label: string; color: 'default' | 'error' | 'info' | 'warning'; filled: boolean }
 > = {
-  fallback: { label: 'Demo local fallback read-only', color: 'warning', filled: true },
-  error: { label: 'Load error', color: 'error', filled: true },
+  fallback: { label: 'Read-only · load warning', color: 'warning', filled: true },
+  error: { label: 'Load failed', color: 'error', filled: true },
+  loading: { label: 'Loading', color: 'info', filled: true },
   viewer: { label: 'Viewer read-only', color: 'warning', filled: true },
-  demoLocal: { label: 'Demo local read-only', color: 'warning', filled: true },
+  demoLocal: { label: 'Read-only · sample data', color: 'warning', filled: true },
   readOnly: { label: 'Read-only', color: 'warning', filled: true },
-  demoWritable: { label: 'Demo writable', color: 'info', filled: false },
-  production: { label: 'Production', color: 'default', filled: false },
+  admin: { label: 'Admin · can edit', color: 'info', filled: false },
+  local: { label: 'No authenticated role', color: 'default', filled: false },
 }
+
+const dataModeLabels = {
+  'demo-local': 'Demo local',
+  'demo-cosmos': 'Demo Cosmos',
+  production: 'Production',
+} as const
 
 export function Layout({ children }: { children: ReactNode }) {
   const theme = useTheme()
@@ -56,7 +63,18 @@ export function Layout({ children }: { children: ReactNode }) {
   const [open, setOpen] = useState(false)
   const location = useLocation()
   const { activeDataMode, dataMode, loadError, loading, readOnly, role, confirmNavigation } = useWaypoints()
-  const chip = dataModeStatusView[dataModeStatus({ activeDataMode, dataMode, loadError, loading, readOnly, role })]
+  const status = dataModeStatus({ activeDataMode, dataMode, loadError, loading, readOnly, role })
+  const chip = dataModeStatusView[status]
+  const datasetLabel =
+    status === 'fallback'
+      ? 'Demo Cosmos · showing Demo local'
+      : status === 'error'
+        ? `${dataModeLabels[dataMode]} · not loaded`
+        : loading
+          ? activeDataMode === dataMode
+            ? `Loading ${dataModeLabels[dataMode]}`
+            : `${dataModeLabels[dataMode]} · showing ${dataModeLabels[activeDataMode]}`
+          : dataModeLabels[activeDataMode]
 
   const navList = (
     <List>
@@ -97,7 +115,7 @@ export function Layout({ children }: { children: ReactNode }) {
       }}
     >
       <AppBar position="fixed" sx={{ zIndex: (t) => t.zIndex.drawer + 1 }}>
-        <Toolbar sx={{ gap: 2 }}>
+        <Toolbar sx={{ flexWrap: 'wrap', gap: 1, py: { xs: 1, sm: 0 } }}>
           {isMobile && (
             <IconButton
               color="inherit"
@@ -113,7 +131,7 @@ export function Layout({ children }: { children: ReactNode }) {
             variant="h6"
             component={Link}
             to="/challenges"
-            sx={{ color: 'inherit', flexGrow: 1, textDecoration: 'none' }}
+            sx={{ color: 'inherit', flexGrow: 1, minWidth: 0, textDecoration: 'none' }}
           >
             Journey
           </Typography>
@@ -123,9 +141,24 @@ export function Layout({ children }: { children: ReactNode }) {
               display: 'flex',
               flexShrink: 0,
               gap: 1,
+              justifyContent: { xs: 'flex-end', sm: 'flex-start' },
+              width: { xs: '100%', sm: 'auto' },
             }}
           >
-            <Chip color={chip.color} label={chip.label} size="small" variant={chip.filled ? 'filled' : 'outlined'} />
+            <Chip
+              aria-label={`Dataset: ${datasetLabel}`}
+              color="default"
+              label={datasetLabel}
+              size="small"
+              variant="outlined"
+            />
+            <Chip
+              aria-label={`Access and load status: ${chip.label}`}
+              color={chip.color}
+              label={chip.label}
+              size="small"
+              variant={chip.filled ? 'filled' : 'outlined'}
+            />
           </Box>
         </Toolbar>
       </AppBar>

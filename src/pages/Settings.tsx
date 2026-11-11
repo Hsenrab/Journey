@@ -19,6 +19,8 @@ import {
   Typography,
 } from '@mui/material'
 import { statusLabels, statusOrder, statusRules } from '../domain/visit'
+import { dataModeStatus } from '../domain/dataMode'
+import { LoadingNotice } from '../components/LoadingNotice'
 import { PageHeader } from '../components/PageHeader'
 import { useWaypoints } from '../features/journey/JourneyContext'
 import { createBackup, parseImport, type JourneyDataMode } from '../services/storage'
@@ -38,6 +40,7 @@ export default function Settings() {
     loadError,
     loadState,
     readOnly,
+    role,
     restore,
     setDataMode,
     mutationPending,
@@ -48,6 +51,25 @@ export default function Settings() {
   const [confirmingClear, setConfirmingClear] = useState(false)
   const usingLocalFallback = dataMode === 'demo-cosmos' && activeDataMode === 'demo-local' && Boolean(loadError)
   const activeLabel = usingLocalFallback ? 'Demo local fallback data' : dataModeLabels[activeDataMode]
+  const displayedLabel = usingLocalFallback ? 'Demo local samples' : dataModeLabels[activeDataMode]
+  const accessStatus = dataModeStatus({
+    activeDataMode,
+    dataMode,
+    loadError,
+    loading: loadState.status === 'loading',
+    readOnly,
+    role,
+  })
+  const accessSummary =
+    accessStatus === 'viewer'
+      ? 'Viewer access is read-only. Choosing another dataset does not grant edit access.'
+      : accessStatus === 'admin'
+        ? 'Admin access allows editing this dataset.'
+        : accessStatus === 'fallback' || accessStatus === 'demoLocal'
+          ? 'Bundled sample data is read-only; no authenticated role applies.'
+          : accessStatus === 'local'
+            ? 'Local access; no authenticated role applies.'
+            : 'Editing is unavailable.'
   const exportDisabled = loadState.status !== 'loaded'
   const changeMode = async (event: SelectChangeEvent) => {
     try {
@@ -133,19 +155,47 @@ export default function Settings() {
           </Select>
         </FormControl>
         {loadError && <Alert severity={activeDataMode === 'demo-local' ? 'warning' : 'error'}>{loadError}</Alert>}
-        {dataMode !== 'production' && (
-          <Card>
-            <CardContent>
-              <Stack spacing={1}>
-                <Typography variant="subtitle1">{activeLabel} loaded</Typography>
-                <Typography variant="body2">
-                  {data.waypoints.length} waypoints · {data.challenges.length} challenges · {data.ideas.length} ideas ·{' '}
-                  {data.activities.length} activities
-                </Typography>
-              </Stack>
-            </CardContent>
-          </Card>
-        )}
+        <Card aria-live="polite">
+          <CardContent>
+            <Stack spacing={1}>
+              <Typography variant="subtitle1">Dataset status</Typography>
+              <Typography>Selected dataset: {dataModeLabels[dataMode]}</Typography>
+              {loadState.status === 'loading' ? (
+                <>
+                  <LoadingNotice message={`Loading ${dataModeLabels[dataMode]}…`} />
+                  {activeDataMode !== dataMode && (
+                    <Typography variant="body2">Currently displaying previously loaded {displayedLabel}.</Typography>
+                  )}
+                  <Typography variant="body2">Access will be confirmed when loading completes.</Typography>
+                </>
+              ) : loadState.status === 'failed' ? (
+                <>
+                  <Typography>
+                    {dataModeLabels[dataMode]} was not loaded. No successfully loaded dataset is available.
+                  </Typography>
+                  <Typography variant="body2">Editing is unavailable until the selected dataset loads.</Typography>
+                </>
+              ) : (
+                <>
+                  <Typography>
+                    {usingLocalFallback
+                      ? `Demo Cosmos was requested; displaying read-only ${displayedLabel}.`
+                      : `${displayedLabel} loaded successfully.`}
+                  </Typography>
+                  <Typography variant="body2">{accessSummary}</Typography>
+                  <Typography variant="body2">
+                    {data.waypoints.length} waypoints · {data.challenges.length} challenges · {data.ideas.length} ideas
+                    · {data.activities.length} activities
+                  </Typography>
+                  {data.waypoints.length + data.challenges.length + data.ideas.length + data.activities.length ===
+                    0 && (
+                    <Typography variant="body2">This dataset loaded successfully and contains no records.</Typography>
+                  )}
+                </>
+              )}
+            </Stack>
+          </CardContent>
+        </Card>
       </Stack>
 
       <Stack spacing={2}>
