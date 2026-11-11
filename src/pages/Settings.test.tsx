@@ -229,7 +229,7 @@ describe('Settings', () => {
 
     const demo = createDemoModeData()
     expect(getDataMode()).toBe('demo-local')
-    expect(await screen.findByText('Demo local data loaded')).toBeInTheDocument()
+    expect(await screen.findByText('Demo local data loaded successfully.')).toBeInTheDocument()
     expect(
       screen.getByText(
         `${demo.waypoints.length} waypoints · ${demo.challenges.length} challenges · ${demo.ideas.length} ideas · ${demo.activities.length} activities`,
@@ -249,7 +249,7 @@ describe('Settings', () => {
     renderSettings()
 
     const demo = createDemoModeData()
-    expect(screen.getByRole('heading', { name: 'Demo local data' })).toBeInTheDocument()
+    expect(screen.getByText('Demo local data loaded successfully.')).toBeInTheDocument()
     expect(
       screen.getByText(
         `${demo.waypoints.length} waypoints · ${demo.challenges.length} challenges · ${demo.ideas.length} ideas · ${demo.activities.length} activities`,
@@ -351,6 +351,9 @@ describe('Settings', () => {
     expect(createObjectURL).not.toHaveBeenCalled()
     expect(screen.getByText('Restore JSON').closest('label')).toHaveClass('Mui-disabled')
     expect(screen.getByRole('button', { name: 'Clear data' })).toBeDisabled()
+    expect(
+      screen.getByText('Production data was not loaded. No successfully loaded dataset is available.'),
+    ).toBeInTheDocument()
   })
 
   it('disables export while production data is still loading', async () => {
@@ -369,6 +372,74 @@ describe('Settings', () => {
         'Export is disabled because the active dataset did not load. Reload production before creating a backup.',
       ),
     ).not.toBeInTheDocument()
+    expect(screen.getByText('Loading Production data…')).toBeInTheDocument()
+    expect(screen.queryByText(/waypoints · .* challenges · .* ideas · .* activities/)).not.toBeInTheDocument()
+  })
+
+  it('distinguishes a successfully loaded empty production dataset', async () => {
+    vi.stubEnv('MODE', 'production')
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(new Response(JSON.stringify({ data: createDefaultData(), etags: {}, role: 'admin' }))),
+    )
+    renderSettings()
+
+    expect(await screen.findByText('Production data loaded successfully.')).toBeInTheDocument()
+    expect(screen.getByText('This dataset loaded successfully and contains no records.')).toBeInTheDocument()
+    expect(screen.getByText('Admin access allows editing this dataset.')).toBeInTheDocument()
+  })
+
+  it('explains viewer access without implying another remote mode grants write access', async () => {
+    vi.stubEnv('MODE', 'production')
+    setDataMode('demo-cosmos')
+    vi.stubGlobal(
+      'fetch',
+      vi
+        .fn()
+        .mockResolvedValue(new Response(JSON.stringify({ data: createDemoModeData(), etags: {}, role: 'viewer' }))),
+    )
+    renderSettings()
+
+    expect(
+      await screen.findByText('Viewer access is read-only. Choosing another dataset does not grant edit access.'),
+    ).toBeInTheDocument()
+    expect(screen.getByText('Selected dataset: Demo Cosmos data')).toBeInTheDocument()
+  })
+
+  it('identifies requested Demo Cosmos and displayed read-only samples after fallback', async () => {
+    setDataMode('demo-cosmos')
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('Cosmos unavailable')))
+    renderSettings()
+
+    expect(
+      await screen.findByText('Demo Cosmos was requested; displaying read-only Demo local samples.'),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByText(/Demo Cosmos could not be loaded, so read-only local demo data is shown: Cosmos unavailable/),
+    ).toBeInTheDocument()
+    expect(screen.getByText('Bundled sample data is read-only; no authenticated role applies.')).toBeInTheDocument()
+  })
+
+  it('does not describe previous counts as loaded while a different dataset is loading', async () => {
+    vi.stubEnv('MODE', 'production')
+    const previousData = activityData()
+    save(previousData)
+    vi.stubGlobal(
+      'fetch',
+      vi
+        .fn()
+        .mockResolvedValueOnce(new Response(JSON.stringify({ data: previousData, etags: {}, role: 'admin' })))
+        .mockImplementation(() => new Promise<Response>(() => {})),
+    )
+    renderSettings()
+    await waitFor(() => expect(screen.getByText('Production data loaded successfully.')).toBeInTheDocument())
+
+    await userEvent.click(screen.getByRole('combobox', { name: 'Data mode' }))
+    await userEvent.click(screen.getByRole('option', { name: 'Demo Cosmos data' }))
+
+    expect(await screen.findByText('Loading Demo Cosmos data…')).toBeInTheDocument()
+    expect(screen.getByText('Currently displaying previously loaded Production data.')).toBeInTheDocument()
+    expect(screen.queryByText(/1 waypoints · 1 challenges · .* activities/)).not.toBeInTheDocument()
   })
 
   it('clears data only after confirmation', async () => {
@@ -453,7 +524,7 @@ describe('Settings', () => {
 
       await user.click(screen.getByRole('combobox', { name: 'Data mode' }))
       await user.click(screen.getByRole('option', { name: 'Demo local data' }))
-      expect(await screen.findByText('Demo local data loaded')).toBeInTheDocument()
+      expect(await screen.findByText('Demo local data loaded successfully.')).toBeInTheDocument()
       expect(screen.getByText('Restore JSON').closest('label')).toHaveClass('Mui-disabled')
       expect(screen.getByRole('button', { name: 'Clear data' })).toBeDisabled()
       expect(fetch).toHaveBeenCalledTimes(1)

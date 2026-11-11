@@ -11,17 +11,18 @@ export type DataModeState = {
 }
 
 export type ReadOnlyReason = 'fallback' | 'error' | 'viewer' | 'demoLocal'
-export type DataModeStatus = ReadOnlyReason | 'readOnly' | 'demoWritable' | 'production'
+export type DataModeStatus = 'fallback' | 'error' | 'loading' | 'viewer' | 'demoLocal' | 'readOnly' | 'admin' | 'local'
 
-/** Status of the active dataset, used for the app bar chip. */
+/** Access or load status, kept separate from the identity of the selected dataset. */
 export function dataModeStatus(state: DataModeState): DataModeStatus {
   if (state.dataMode === 'demo-cosmos' && state.activeDataMode === 'demo-local' && state.loadError) return 'fallback'
   if (state.loadError) return 'error'
+  if (state.loading) return 'loading'
   if (state.role === 'viewer') return 'viewer'
   if (state.activeDataMode === 'demo-local') return 'demoLocal'
   if (state.readOnly) return 'readOnly'
-  if (state.activeDataMode === 'demo-cosmos') return 'demoWritable'
-  return 'production'
+  if (state.role === 'admin') return 'admin'
+  return 'local'
 }
 
 /** Why writes are unavailable, or undefined while loading or without an explainable read-only reason. */

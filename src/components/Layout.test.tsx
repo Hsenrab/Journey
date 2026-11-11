@@ -138,6 +138,9 @@ describe('Layout', () => {
     renderLayout()
 
     expect(await screen.findByText(/viewer read-only/i)).toBeInTheDocument()
+    expect(
+      screen.getByLabelText(`Dataset: ${mode === 'production' ? 'Production' : 'Demo Cosmos'}`),
+    ).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Progress' })).toHaveAttribute('href', '/challenges')
     expect(screen.getByRole('link', { name: 'Settings' })).toHaveAttribute('href', '/settings')
     expect(screen.getByText('Page content')).toBeInTheDocument()
@@ -158,12 +161,13 @@ describe('Layout', () => {
     await user.click(links[0])
   })
 
-  it('keeps the data mode selector out of the app bar while showing the status chip', () => {
+  it('keeps the data mode selector out of the app bar while showing separate dataset and access status', () => {
     save({ ...createDefaultData(), activities: [] })
     renderLayout()
 
     expect(screen.queryByRole('combobox', { name: 'Data mode' })).not.toBeInTheDocument()
-    expect(screen.getByText('Production')).toBeInTheDocument()
+    expect(screen.getByLabelText('Dataset: Production')).toBeInTheDocument()
+    expect(screen.getByLabelText('Access and load status: No authenticated role')).toBeInTheDocument()
     expect(screen.getByText('Activities: 0')).toBeInTheDocument()
   })
 
@@ -172,6 +176,7 @@ describe('Layout', () => {
     vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('Cosmos unavailable')))
     renderLayout()
 
-    expect(await screen.findByText('Demo local fallback read-only')).toBeInTheDocument()
+    expect(await screen.findByLabelText('Dataset: Demo Cosmos · showing Demo local')).toBeInTheDocument()
+    expect(screen.getByLabelText('Access and load status: Read-only · load warning')).toBeInTheDocument()
   })
 })

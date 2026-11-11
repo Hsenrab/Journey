@@ -10,9 +10,14 @@ const base: DataModeState = {
 }
 
 describe('dataModeStatus', () => {
-  it('reports the writable statuses', () => {
-    expect(dataModeStatus(base)).toBe('production')
-    expect(dataModeStatus({ ...base, activeDataMode: 'demo-cosmos', dataMode: 'demo-cosmos' })).toBe('demoWritable')
+  it('reports access status independently of the selected dataset', () => {
+    expect(dataModeStatus(base)).toBe('admin')
+    expect(dataModeStatus({ ...base, activeDataMode: 'demo-cosmos', dataMode: 'demo-cosmos' })).toBe('admin')
+    expect(dataModeStatus({ ...base, role: 'local' })).toBe('local')
+  })
+
+  it('reports loading without exposing the previous access status', () => {
+    expect(dataModeStatus({ ...base, loading: true })).toBe('loading')
   })
 
   it('reports each read-only status', () => {
